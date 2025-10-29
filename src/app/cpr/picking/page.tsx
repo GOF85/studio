@@ -38,23 +38,45 @@ type HitoDePicking = ComercialBriefingItem & {
     serviceOrder: ServiceOrder;
     expedicion: string;
     pickingStatus: PickingState['status'];
-    progress: { checked: number; total: number; percentage: number; isComplete: boolean; };
 };
 
 export default function PickingPage() {
-  const [hitos, setHitos] = useState<HitoDePicking[]>([]);
+  const [allHitos, setAllHitos] = useState<HitoDePicking[]>([]);
   const [pickingStates, setPickingStates] = useState<Record<string, PickingState>>({});
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
-  const [updateTrigger, setUpdateTrigger] = useState(0);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
-    setPickingStates(allPickingStates);
+    // --- Load all necessary data at once ---
+    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas');
+    const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
+    const allPickingStatesData = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
+
+    setPickingStates(allPickingStatesData);
+    
+    const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
+    const hitosDePicking: HitoDePicking[] = [];
+
+    allBriefings.forEach(briefing => {
+        const serviceOrder = osMap.get(briefing.osId);
+        if (serviceOrder && briefing.items) {
+            briefing.items.forEach((hito, index) => {
+                const pickingState = allPickingStatesData[hito.id];
+                hitosDePicking.push({
+                    ...hito,
+                    serviceOrder,
+                    expedicion: `${serviceOrder.serviceNumber}.${(index + 1).toString().padStart(2, '0')}`,
+                    pickingStatus: pickingState?.status || 'Pendiente',
+                });
+            });
+        }
+    });
+      
+    setAllHitos(hitosDePicking.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
     setIsMounted(true);
     
     const handleStorageChange = (e: StorageEvent) => {
@@ -64,85 +86,68 @@ export default function PickingPage() {
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
 
-  const allHitos = useMemo(() => {
-    if (!isMounted) return [];
-    
-    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas');
-    const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
-    const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
-    const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
+  }, []);
+  
+  const progressMap = useMemo(() => {
+    const newProgressMap = new Map<string, { checked: number; total: number; percentage: number; isComplete: boolean; }>();
+    if (!isMounted) return newProgressMap;
+
+    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
-    
-    const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
     const ofsMap = new Map(allOFs.map(of => [of.id, of]));
 
-    const hitosDePicking: HitoDePicking[] = [];
-
-    allBriefings.forEach(briefing => {
-        const serviceOrder = osMap.get(briefing.osId);
-        if (serviceOrder && briefing.items) {
-            briefing.items.forEach((hito, index) => {
-                const pickingState = pickingStates[hito.id];
-                
-                // --- PROGRESS CALCULATION ---
-                let progress = { checked: 0, total: 0, percentage: 100, isComplete: true };
-                if (hito.conGastronomia) {
-                    const gastroOrder = allGastroOrders.find(go => go.id === hito.id);
-                    const gastroItems = gastroOrder?.items?.filter(item => item.type === 'item') || [];
-
-                    const elaboracionesNecesarias = new Set<string>();
-                    gastroItems.forEach(item => {
-                        const receta = allRecetas.find(r => r.id === item.id);
-                        if (receta) {
-                            (receta.elaboraciones || []).forEach(elab => {
-                                elaboracionesNecesarias.add(elab.elaboracionId);
-                            });
-                        }
-                    });
-
-                    const totalItems = elaboracionesNecesarias.size;
-
-                    if (totalItems === 0) {
-                        progress = { checked: 0, total: 0, percentage: 100, isComplete: true };
-                    } else {
-                        const elaboracionesAsignadas = new Set<string>();
-                        if (pickingState?.itemStates) {
-                            pickingState.itemStates.forEach(assignedLote => {
-                                const of = ofsMap.get(assignedLote.ofId);
-                                if (of && elaboracionesNecesarias.has(of.elaboracionId)) {
-                                    elaboracionesAsignadas.add(of.elaboracionId);
-                                }
-                            });
-                        }
-                        
-                        const checkedCount = elaboracionesAsignadas.size;
-                        const percentage = totalItems > 0 ? (checkedCount / totalItems) * 100 : 100;
-                        progress = {
-                            checked: checkedCount,
-                            total: totalItems,
-                            percentage: percentage,
-                            isComplete: checkedCount >= totalItems,
-                        };
-                    }
-                }
-                // --- END PROGRESS CALCULATION ---
-
-                hitosDePicking.push({
-                    ...hito,
-                    serviceOrder,
-                    expedicion: `${serviceOrder.serviceNumber}.${(index + 1).toString().padStart(2, '0')}`,
-                    pickingStatus: pickingState?.status || 'Pendiente',
-                    progress: progress
-                });
-            });
-        }
-    });
+    allHitos.forEach(hito => {
+      let progress = { checked: 0, total: 0, percentage: 100, isComplete: true };
       
-    return hitosDePicking.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+      if (hito.conGastronomia) {
+          const gastroOrder = allGastroOrders.find(go => go.id === hito.id);
+          const gastroItems = gastroOrder?.items?.filter(item => item.type === 'item') || [];
 
-  }, [isMounted, pickingStates]);
+          const elaboracionesNecesarias = new Set<string>();
+          gastroItems.forEach(item => {
+              const receta = allRecetas.find(r => r.id === item.id);
+              if (receta) {
+                  (receta.elaboraciones || []).forEach(elab => {
+                      elaboracionesNecesarias.add(elab.elaboracionId);
+                  });
+              }
+          });
+
+          const totalItems = elaboracionesNecesarias.size;
+
+          if (totalItems === 0) {
+              progress = { checked: 0, total: 0, percentage: 100, isComplete: true };
+          } else {
+              const hitoPickingState = pickingStates[hito.id];
+              const elaboracionesAsignadas = new Set<string>();
+
+              if (hitoPickingState?.itemStates) {
+                  hitoPickingState.itemStates.forEach(assignedLote => {
+                      const of = ofsMap.get(assignedLote.ofId);
+                      if (of && elaboracionesNecesarias.has(of.elaboracionId)) {
+                          elaboracionesAsignadas.add(of.elaboracionId);
+                      }
+                  });
+              }
+              
+              const checkedCount = elaboracionesAsignadas.size;
+              const percentage = totalItems > 0 ? (checkedCount / totalItems) * 100 : 100;
+              
+              progress = {
+                  checked: checkedCount,
+                  total: totalItems,
+                  percentage: percentage,
+                  isComplete: checkedCount >= totalItems,
+              };
+          }
+      }
+      newProgressMap.set(hito.id, progress);
+    });
+
+    return newProgressMap;
+  }, [allHitos, pickingStates, isMounted]);
 
   const filteredHitos = useMemo(() => {
     return allHitos.filter(hito => {
@@ -172,7 +177,8 @@ export default function PickingPage() {
     const complete: typeof filteredHitos = [];
 
     filteredHitos.forEach(hito => {
-      if (hito.progress.isComplete) {
+      const progress = progressMap.get(hito.id);
+      if (progress?.isComplete) {
         complete.push(hito);
       } else {
         incomplete.push(hito);
@@ -180,7 +186,7 @@ export default function PickingPage() {
     });
 
     return { incompleteHitos: incomplete, completeHitos: complete };
-  }, [filteredHitos]);
+  }, [filteredHitos, progressMap]);
 
   const paginatedHitos = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -252,7 +258,7 @@ export default function PickingPage() {
                 <TableBody>
                     {paginatedHitos.length > 0 ? (
                     paginatedHitos.map(hito => {
-                        const progress = hito.progress;
+                        const progress = progressMap.get(hito.id);
                         const isDisabled = !hito.conGastronomia;
                         return (
                             <TableRow 
@@ -270,12 +276,12 @@ export default function PickingPage() {
                                 <TableCell>
                                 {isDisabled ? (
                                         <Badge variant="secondary">No Aplica</Badge>
-                                ) : (
+                                ) : progress ? (
                                         <div className="flex items-center gap-2">
                                             <Progress value={progress.percentage} className="w-40" />
                                             <span className="text-sm text-muted-foreground">{progress.checked} / {progress.total}</span>
                                         </div>
-                                    )}
+                                    ) : <div className="h-4 w-40 bg-muted rounded-full animate-pulse"/>}
                                 </TableCell>
                             </TableRow>
                         )
