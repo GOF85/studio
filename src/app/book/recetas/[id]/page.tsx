@@ -377,62 +377,71 @@ export default function RecetaFormPage() {
   
 
   useEffect(() => {
-    const loadAllData = () => {
-        const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-        const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
-        const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
-        const ingredientesMap = new Map(combined.map(i => [i.id, i]));
-        const elaboracionesData = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-        const elaboracionesConDatos = elaboracionesData.map(e => ({
-            ...e, 
-            costePorUnidad: e.costePorUnidad || 0, 
-            alergenos: calculateElabAlergenos(e, ingredientesMap)
-        }));
-        setDbElaboraciones(elaboracionesConDatos);
-        setDbMenaje(JSON.parse(localStorage.getItem('menajeDB') || '[]') as MenajeDB[]);
-        setDbCategorias(JSON.parse(localStorage.getItem('categoriasRecetas') || '[]') as CategoriaReceta[]);
-        setDbTiposCocina(JSON.parse(localStorage.getItem('tiposCocina') || '[]') as TipoCocina[]);
-        const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
+    // This effect runs once to load all master data.
+    const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+    const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+    const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
+    const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
+    const ingredientesMap = new Map(combinedIngredientes.map(i => [i.id, i]));
+    
+    const elaboracionesData = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const elaboracionesConDatos = elaboracionesData.map(e => ({
+        ...e, 
+        costePorUnidad: e.costePorUnidad || 0, 
+        alergenos: calculateElabAlergenos(e, ingredientesMap)
+    }));
+    
+    setDbElaboraciones(elaboracionesConDatos);
+    setDbMenaje(JSON.parse(localStorage.getItem('menajeDB') || '[]') as MenajeDB[]);
+    setDbCategorias(JSON.parse(localStorage.getItem('categoriasRecetas') || '[]') as CategoriaReceta[]);
+    setDbTiposCocina(JSON.parse(localStorage.getItem('tiposCocina') || '[]') as TipoCocina[]);
+    
+    const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
-        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        let initialValues: Receta | null = null;
-        if (isEditing) {
-            initialValues = allRecetas.find(e => e.id === id) || null;
-            if (!initialValues) {
-                toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
-                router.push('/book/recetas');
-                return;
-            }
-        } else if (cloneId) {
-            const recetaToClone = allRecetas.find(e => e.id === cloneId);
-            if (recetaToClone) {
-                initialValues = { ...recetaToClone, id: Date.now().toString(), nombre: `${recetaToClone.nombre} (Copia)` };
-            }
+    // This effect handles the form data logic.
+    let initialValues: Partial<RecetaFormValues> | null = null;
+    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+
+    if (isEditing && id) {
+        const foundReceta = allRecetas.find(e => e.id === id);
+        if (foundReceta) {
+            initialValues = foundReceta;
         } else {
-            const lastRecipe = allRecetas.reduce((last, current) => {
-                if (!current.numeroReceta) return last;
-                const currentNum = parseInt(current.numeroReceta.substring(2));
-                const lastNum = last ? parseInt(last.numeroReceta!.substring(2)) : 0;
-                return currentNum > lastNum ? current : last;
-            }, null as Receta | null);
-            const lastNum = lastRecipe ? parseInt(lastRecipe.numeroReceta!.substring(2)) : 0;
-            const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
-            initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum } as Receta;
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
+            router.push('/book/recetas');
+            return;
         }
+    } else if (cloneId) {
+        const recetaToClone = allRecetas.find(e => e.id === cloneId);
+        if (recetaToClone) {
+            initialValues = { ...recetaToClone, id: Date.now().toString(), nombre: `${recetaToClone.nombre} (Copia)` };
+        } else {
+            // Handle cloneId not found
+        }
+    } else if (isNew) {
+        const lastRecipe = allRecetas.reduce((last, current) => {
+            if (!current.numeroReceta || !last?.numeroReceta) return current;
+            const currentNum = parseInt(current.numeroReceta.substring(2));
+            const lastNum = parseInt(last.numeroReceta.substring(2));
+            return currentNum > lastNum ? current : last;
+        }, null as Receta | null);
+        const lastNum = lastRecipe && lastRecipe.numeroReceta ? parseInt(lastRecipe.numeroReceta.substring(2)) : 0;
+        const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
+        initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum };
+    }
 
+    if (initialValues) {
         form.reset({
             ...defaultValues,
-            ...initialValues,
+            ...initialValues
         });
+    }
 
-        setIsDataLoaded(true);
-    };
+    setIsDataLoaded(true);
 
-    loadAllData();
-  }, [id, isEditing, cloneId, form, router, toast]);
-  
+}, [id, isEditing, cloneId, isNew, form, router, toast]);
+
   const forceRecalculate = () => {
     const currentElaboraciones = form.getValues('elaboraciones');
     const updatedElaboraciones = currentElaboraciones.map(elab => {
@@ -672,10 +681,15 @@ export default function RecetaFormPage() {
                     </Card>
                     
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
+                        <CardHeader className="text-lg flex-row items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
                                 <TrendingUp/>Análisis de Rentabilidad
                             </CardTitle>
+                             <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                             <div>
@@ -689,11 +703,7 @@ export default function RecetaFormPage() {
                                 </FormItem>
                             )} />
                             <div>
-                                <Label className="flex items-center gap-2">PVP Teórico
-                                    <Button variant="ghost" size="icon" className="h-5 w-5" type="button" onClick={forceRecalculate}>
-                                        <RefreshCw className="h-3 w-3" />
-                                    </Button>
-                                </Label>
+                                <Label>PVP Teórico</Label>
                                 <p className="font-bold text-lg text-green-600">{formatCurrency(pvpTeorico)}</p>
                             </div>
                         </CardContent>

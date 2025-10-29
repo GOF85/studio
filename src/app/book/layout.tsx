@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
-import { BookHeart, ChefHat, Component, Package, Sprout, CheckSquare, ChevronRight, Menu } from 'lucide-react';
+import type { Receta } from '@/types';
+import { BookHeart, ChefHat, Component, Package, Sprout, CheckSquare, ChevronRight, Menu, FilePenLine } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -55,11 +56,23 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
 export default function BookLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [pageTitle, setPageTitle] = useState('');
     
-    const currentPage = useMemo(() => {
-        if (pathname === '/book') {
-            return { title: 'Panel de Control', icon: BookHeart };
+    useEffect(() => {
+        const pathSegments = pathname.split('/').filter(Boolean);
+        if(pathSegments.length === 3 && pathSegments[1] === 'recetas' && pathSegments[2] !== 'nueva'){
+            const recipeId = pathSegments[2];
+            const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+            const recipe = allRecetas.find(r => r.id === recipeId);
+            setPageTitle(recipe?.nombre || 'Editar Receta');
+        } else if (pathSegments.length === 3 && pathSegments[1] === 'elaboraciones' && pathSegments[2] !== 'nuevo'){
+             setPageTitle('Editar Elaboración');
         }
+    }, [pathname]);
+
+    const currentPage = useMemo(() => {
+        if (pathname.startsWith('/book/recetas/')) return { title: 'Recetas', icon: BookHeart, href: '/book/recetas' };
+        if (pathname.startsWith('/book/elaboraciones/')) return { title: 'Elaboraciones', icon: Component, href: '/book/elaboraciones' };
         return bookNavLinks.find(link => pathname.startsWith(link.path) && link.path !== '/book');
     }, [pathname]);
 
@@ -85,10 +98,18 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                         {currentPage && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <currentPage.icon className="h-5 w-5 text-muted-foreground"/>
-                                <span>{currentPage.title}</span>
+                                <Link href={currentPage.href} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                                    <currentPage.icon className="h-5 w-5"/>
+                                    <span>{currentPage.title}</span>
+                                </Link>
                             </>
                         )}
+                         {pageTitle && (
+                            <>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground"/>
+                                <span className="text-primary">{pageTitle}</span>
+                            </>
+                         )}
                     </div>
                 </div>
             </div>
