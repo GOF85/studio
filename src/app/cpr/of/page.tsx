@@ -750,10 +750,10 @@ export default function OfPage() {
                             {ordenes.filter(o => o.estado === 'Pendiente').length > 0 ? (
                                 ordenes.filter(o => o.estado === 'Pendiente').map(of => (
                                     <TableRow key={of.id} className="hover:bg-muted/30">
-                                        <TableCell><Badge variant="outline">{of.id}</Badge></TableCell>
+                                        <TableCell><Badge variant="outline">{of.id}</TableCell>
                                         <TableCell className="font-medium">{of.elaboracionNombre}</TableCell>
                                         <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
+                                        <TableCell><Badge variant="secondary">{of.partidaAsignada}</TableCell>
                                         <TableCell>
                                             <Select onValueChange={(responsable) => handleAssignResponsable(of.id, responsable)}>
                                                 <SelectTrigger>
@@ -788,7 +788,14 @@ export default function OfPage() {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Todas las Partidas</SelectItem>
-                        {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        {partidas.map(p => (
+                            <SelectItem key={p} value={p}>
+                                <div className="flex items-center gap-2">
+                                    <span className={cn("h-2 w-2 rounded-full", partidaColorClasses[p])}/>
+                                    {p}
+                                </div>
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </CardHeader>
@@ -803,14 +810,14 @@ export default function OfPage() {
                             <div><div className="text-xs text-muted-foreground">Total Uds.</div><div className="font-bold text-lg">{formatNumber(reporteData.recetas.reduce((s,i) => s + i.udTotales, 0) + reporteData.elaboraciones.reduce((s,i) => s + i.udTotales, 0), 0)}</div></div>
                         </div>
                         <div className="border rounded-lg overflow-x-auto max-h-[70vh]">
-                            <Table>
+                            <Table className="text-xs">
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1.5 min-w-16">Partida</TableHead>
-                                        <TableHead className="sticky left-16 bg-secondary/80 backdrop-blur-sm min-w-56 p-1.5">Elaboración / Receta</TableHead>
+                                        <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1.5 w-24">Partida</TableHead>
+                                        <TableHead className="sticky left-24 bg-secondary/80 backdrop-blur-sm min-w-56 p-1.5">Elaboración / Receta</TableHead>
                                         <TableHead className="text-right p-1.5">Total</TableHead>
                                         {reporteData.fechas.map(fecha => (
-                                            <TableHead key={fecha.toISOString()} className="text-center p-1.5 min-w-24">
+                                            <TableHead key={fecha.toISOString()} className="text-center p-1.5 min-w-20">
                                                 <div className="capitalize font-normal text-xs">{format(fecha, 'EEE', {locale: es})}</div>
                                                 <div className="font-bold">{format(fecha, 'dd/MM')}</div>
                                             </TableHead>
@@ -818,11 +825,12 @@ export default function OfPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">RECETAS</TableCell></TableRow>
+                                    <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">RECETAS</TableCell>
+                                    </TableRow>
                                     {reporteData.recetas.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
-                                        <TableRow key={item.id}>
-                                            <TableCell className="sticky left-0 bg-background/90 p-1.5 text-xs">{item.partida}</TableCell>
-                                            <TableCell className="sticky left-16 bg-background/90 font-semibold p-1.5">
+                                        <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
+                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white">{item.partida}</Badge></TableCell>
+                                            <TableCell className="sticky left-24 bg-inherit font-semibold p-1.5">
                                                 <Tooltip><TooltipTrigger asChild>
                                                     <span className="cursor-help">{item.nombre}</span>
                                                 </TooltipTrigger><TooltipContent>
@@ -841,9 +849,9 @@ export default function OfPage() {
                                     ))}
                                      <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">ELABORACIONES</TableCell></TableRow>
                                     {reporteData.elaboraciones.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
-                                         <TableRow key={item.id}>
-                                            <TableCell className="sticky left-0 bg-background/90 p-1.5 text-xs">{item.partida}</TableCell>
-                                            <TableCell className="sticky left-16 bg-background/90 font-semibold p-1.5">
+                                         <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
+                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white">{item.partida}</Badge></TableCell>
+                                            <TableCell className="sticky left-24 bg-inherit font-semibold p-1.5">
                                                 <Tooltip><TooltipTrigger asChild>
                                                     <span className="cursor-help">{item.nombre}</span>
                                                 </TooltipTrigger><TooltipContent>
