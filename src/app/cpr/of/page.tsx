@@ -88,6 +88,8 @@ type ReporteProduccionItem = {
     udTotales: number;
     unidad: string;
     necesidadesPorDia: Record<string, number>;
+    componentes?: { nombre: string; cantidad: number; unidad: string }[]; // Para recetas
+    usadoEn?: string[]; // Para elaboraciones
 };
 type ReporteData = {
     fechas: Date[];
@@ -131,6 +133,7 @@ export default function OfPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [partidaFilter, setPartidaFilter] = useState('all');
+  const [partidaInformeFilter, setPartidaInformeFilter] = useState('all');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
@@ -163,7 +166,8 @@ export default function OfPage() {
     
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
-    setElaboracionesMap(new Map(allElaboraciones.map(e => [e.id, e])));
+    const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
+    setElaboracionesMap(elabMap);
 
     if (!dateRange?.from) {
       setNecesidades([]);
@@ -173,7 +177,6 @@ export default function OfPage() {
     
     const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
     const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
-    const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const briefingsMap = new Map(allBriefings.map(b => [b.osId, b]));
 
@@ -344,33 +347,36 @@ export default function OfPage() {
                 const receta = recetasMap.get(item.id);
                 if (!receta) return;
                 
-                // Recetas
                 let recetaItem = recetasInforme.get(receta.id);
                 if (!recetaItem) {
-                    recetaItem = { id: receta.id, nombre: receta.nombre, partida: receta.partidaProduccion || 'N/A', udTotales: 0, unidad: 'Uds', necesidadesPorDia: {} };
+                    const componentes = receta.elaboraciones.map(e => {
+                        const elabInfo = elabMap.get(e.elaboracionId);
+                        return { nombre: elabInfo?.nombre || '?', cantidad: e.cantidad, unidad: elabInfo?.unidadProduccion || '?' }
+                    })
+                    recetaItem = { id: receta.id, nombre: receta.nombre, partida: receta.partidaProduccion || 'N/A', udTotales: 0, unidad: 'Uds', necesidadesPorDia: {}, componentes };
                     recetasInforme.set(receta.id, recetaItem);
-                    resumen.refsPorDia[fechaKey] = (resumen.refsPorDia[fechaKey] || 0) + 1;
                 }
                 const cantidadReceta = item.quantity || 0;
                 recetaItem.udTotales += cantidadReceta;
-                recetaItem.necesidadesPorDia[fechaKey] = (recetaItem.necesidadesPorDia[fechaKey] || 0) + cantidadReceta;
-                resumen.udsPorDia[fechaKey] = (resumen.udsPorDia[fechaKey] || 0) + cantidadReceta;
+                 if(!recetaItem.necesidadesPorDia[fechaKey]) recetaItem.necesidadesPorDia[fechaKey] = 0;
+                recetaItem.necesidadesPorDia[fechaKey] += cantidadReceta;
 
-                // Elaboraciones
                 (receta.elaboraciones || []).forEach(elabEnReceta => {
                     const elab = elabMap.get(elabEnReceta.elaboracionId);
                     if (!elab) return;
 
                     let elabItem = elaboracionesInforme.get(elab.id);
                     if (!elabItem) {
-                        elabItem = { id: elab.id, nombre: elab.nombre, partida: elab.partidaProduccion, udTotales: 0, unidad: elab.unidadProduccion, necesidadesPorDia: {} };
+                        elabItem = { id: elab.id, nombre: elab.nombre, partida: elab.partidaProduccion, udTotales: 0, unidad: elab.unidadProduccion, necesidadesPorDia: {}, usadoEn: [] };
                         elaboracionesInforme.set(elab.id, elabItem);
-                        resumen.refsPorDia[fechaKey] = (resumen.refsPorDia[fechaKey] || 0) + 1;
+                    }
+                    if(!elabItem.usadoEn?.includes(receta.nombre)) {
+                        elabItem.usadoEn?.push(receta.nombre);
                     }
                     const cantidadElab = cantidadReceta * elabEnReceta.cantidad;
                     elabItem.udTotales += cantidadElab;
-                    elabItem.necesidadesPorDia[fechaKey] = (elabItem.necesidadesPorDia[fechaKey] || 0) + cantidadElab;
-                    resumen.udsPorDia[fechaKey] = (resumen.udsPorDia[fechaKey] || 0) + cantidadElab;
+                     if(!elabItem.necesidadesPorDia[fechaKey]) elabItem.necesidadesPorDia[fechaKey] = 0;
+                    elabItem.necesidadesPorDia[fechaKey] += cantidadElab;
                 });
             });
         });
@@ -379,7 +385,7 @@ export default function OfPage() {
             ...resumen,
             contratos: resumen.contratos.size,
             referencias: recetasInforme.size + elaboracionesInforme.size,
-            unidades: Object.values(resumen.udsPorDia).reduce((s,v) => s + v, 0),
+            unidades: 0,
         };
 
         setReporteData({
@@ -568,7 +574,7 @@ export default function OfPage() {
                                             const allIds = new Set(necesidades.map(i => i.id));
                                             setSelectedNecesidades(checked ? allIds : new Set());
                                     }}/></TableHead>
-                                    <TableHead>Elaboración</TableHead>
+                                    <TableHead className="min-w-40">Elaboración</TableHead>
                                     <TableHead>Partida</TableHead>
                                     <TableHead className="text-right">Necesidad Total</TableHead>
                                     <TableHead className="text-right">Stock Disp.</TableHead>
@@ -774,8 +780,17 @@ export default function OfPage() {
         </TabsContent>
          <TabsContent value="informe-necesidades" className="mt-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex-row items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">Informe Detallado de Necesidades</CardTitle>
+                 <Select value={partidaInformeFilter} onValueChange={setPartidaInformeFilter}>
+                    <SelectTrigger className="w-[240px] h-8">
+                        <SelectValue placeholder="Filtrar por partida" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todas las Partidas</SelectItem>
+                        {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                </Select>
             </CardHeader>
             <CardContent>
                 {reporteData && (
@@ -784,46 +799,64 @@ export default function OfPage() {
                             <div><div className="text-xs text-muted-foreground">Contratos</div><div className="font-bold text-lg">{reporteData.resumen.contratos}</div></div>
                             <div><div className="text-xs text-muted-foreground">Servicios</div><div className="font-bold text-lg">{reporteData.resumen.servicios}</div></div>
                             <div><div className="text-xs text-muted-foreground">PAX</div><div className="font-bold text-lg">{formatNumber(reporteData.resumen.pax,0)}</div></div>
-                            <div><div className="text-xs text-muted-foreground">Referencias</div><div className="font-bold text-lg">{reporteData.resumen.referencias}</div></div>
-                            <div><div className="text-xs text-muted-foreground">Unidades</div><div className="font-bold text-lg">{formatNumber(reporteData.resumen.unidades,0)}</div></div>
+                            <div><div className="text-xs text-muted-foreground">Referencias</div><div className="font-bold text-lg">{reporteData.recetas.length + reporteData.elaboraciones.length}</div></div>
+                            <div><div className="text-xs text-muted-foreground">Total Uds.</div><div className="font-bold text-lg">{formatNumber(reporteData.recetas.reduce((s,i) => s + i.udTotales, 0) + reporteData.elaboraciones.reduce((s,i) => s + i.udTotales, 0), 0)}</div></div>
                         </div>
-                        <div className="border rounded-lg overflow-x-auto">
+                        <div className="border rounded-lg overflow-x-auto max-h-[70vh]">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="sticky left-0 bg-background/90 p-2">Partida</TableHead>
-                                        <TableHead className="sticky left-12 bg-background/90 min-w-56 p-2">Elaboración / Receta</TableHead>
-                                        <TableHead className="text-right p-2">Total</TableHead>
+                                        <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1.5 min-w-16">Partida</TableHead>
+                                        <TableHead className="sticky left-16 bg-secondary/80 backdrop-blur-sm min-w-56 p-1.5">Elaboración / Receta</TableHead>
+                                        <TableHead className="text-right p-1.5">Total</TableHead>
                                         {reporteData.fechas.map(fecha => (
-                                            <TableHead key={fecha.toISOString()} className="text-center p-2">
-                                                <div className="capitalize">{format(fecha, 'EEE', {locale: es})}</div>
-                                                <div>{format(fecha, 'dd/MM')}</div>
+                                            <TableHead key={fecha.toISOString()} className="text-center p-1.5 min-w-24">
+                                                <div className="capitalize font-normal text-xs">{format(fecha, 'EEE', {locale: es})}</div>
+                                                <div className="font-bold">{format(fecha, 'dd/MM')}</div>
                                             </TableHead>
                                         ))}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    <TableRow className="bg-secondary hover:bg-secondary"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">RECETAS</TableCell></TableRow>
-                                    {reporteData.recetas.map(item => (
+                                    <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">RECETAS</TableCell></TableRow>
+                                    {reporteData.recetas.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
                                         <TableRow key={item.id}>
-                                            <TableCell className="sticky left-0 bg-background/90 p-2 text-xs">{item.partida}</TableCell>
-                                            <TableCell className="sticky left-12 bg-background/90 font-semibold p-2">{item.nombre}</TableCell>
-                                            <TableCell className="text-right p-2 font-bold font-mono">{formatNumber(item.udTotales, 2)} {item.unidad}</TableCell>
+                                            <TableCell className="sticky left-0 bg-background/90 p-1.5 text-xs">{item.partida}</TableCell>
+                                            <TableCell className="sticky left-16 bg-background/90 font-semibold p-1.5">
+                                                <Tooltip><TooltipTrigger asChild>
+                                                    <span className="cursor-help">{item.nombre}</span>
+                                                </TooltipTrigger><TooltipContent>
+                                                    <div className="p-1 max-w-xs text-xs">
+                                                        <p className="font-bold">Componentes:</p>
+                                                        <ul className="list-disc pl-4">{(item.componentes || []).map((c, i) => <li key={i}>{c.nombre} ({c.cantidad} {c.unidad})</li>)}</ul>
+                                                    </div>
+                                                </TooltipContent></Tooltip>
+                                            </TableCell>
+                                            <TableCell className="text-right p-1.5 font-bold font-mono">{formatNumber(item.udTotales, 2)} {item.unidad}</TableCell>
                                             {reporteData.fechas.map(fecha => {
                                                 const fechaKey = format(fecha, 'yyyy-MM-dd');
-                                                return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-2 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
+                                                return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-1.5 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
                                             })}
                                         </TableRow>
                                     ))}
-                                     <TableRow className="bg-secondary hover:bg-secondary"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">ELABORACIONES</TableCell></TableRow>
-                                    {reporteData.elaboraciones.map(item => (
+                                     <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">ELABORACIONES</TableCell></TableRow>
+                                    {reporteData.elaboraciones.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
                                          <TableRow key={item.id}>
-                                            <TableCell className="sticky left-0 bg-background/90 p-2 text-xs">{item.partida}</TableCell>
-                                            <TableCell className="sticky left-12 bg-background/90 font-semibold p-2">{item.nombre}</TableCell>
-                                            <TableCell className="text-right p-2 font-bold font-mono">{formatNumber(item.udTotales, 2)} {item.unidad}</TableCell>
+                                            <TableCell className="sticky left-0 bg-background/90 p-1.5 text-xs">{item.partida}</TableCell>
+                                            <TableCell className="sticky left-16 bg-background/90 font-semibold p-1.5">
+                                                <Tooltip><TooltipTrigger asChild>
+                                                    <span className="cursor-help">{item.nombre}</span>
+                                                </TooltipTrigger><TooltipContent>
+                                                    <div className="p-1 max-w-xs text-xs">
+                                                        <p className="font-bold">Usado en:</p>
+                                                        <ul className="list-disc pl-4">{(item.usadoEn || []).map((r, i) => <li key={i}>{r}</li>)}</ul>
+                                                    </div>
+                                                </TooltipContent></Tooltip>
+                                            </TableCell>
+                                            <TableCell className="text-right p-1.5 font-bold font-mono">{formatNumber(item.udTotales, 2)} {item.unidad}</TableCell>
                                             {reporteData.fechas.map(fecha => {
                                                 const fechaKey = format(fecha, 'yyyy-MM-dd');
-                                                return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-2 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
+                                                return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-1.5 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
                                             })}
                                         </TableRow>
                                     ))}
