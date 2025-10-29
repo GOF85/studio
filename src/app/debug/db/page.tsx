@@ -30,18 +30,19 @@ const ALL_DATABASE_KEYS = [
     'tiposCocina', 'pedidoPlantillas', 'formatosExpedicionDB', 'proveedores', 'serviceOrders', 
     'entregas', 'comercialBriefings', 'gastronomyOrders', 'materialOrders', 'transporteOrders', 
     'hieloOrders', 'decoracionOrders', 'atipicoOrders', 'personalExterno', 'personalExternoAjustes', 'pruebasMenu', 
-    'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates',
+    'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates', 'excedentesProduccion',
     'pedidosEntrega', 'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 
     'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 'familiasERP',
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
-    'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones', 'personalExternoDB', 'historicoPreciosERP'
+    'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones', 'personalExternoDB', 'historicoPreciosERP',
+    'incidenciasRetorno'
 ];
 
 
 const KEY_DESCRIPTIONS: Record<string, string> = {
     personal: 'Base de datos maestra del personal interno de MICE.',
     espacios: 'Base de datos maestra de los espacios para eventos.',
-    articulos: 'Catálogo maestro de artículos de Almacén, Bodega, Bio, Menaje y Alquiler.',
+    articulos: 'Catálogo maestro de artículos de Almacén, Bodega, Bio y Alquiler.',
     articulosERP: 'Base de datos maestra de materia prima, con precios de proveedor.',
     familiasERP: 'Tabla de correspondencia entre códigos de familia de ERP y categorías MICE.',
     ingredientesInternos: 'Base de datos que vincula la materia prima (ERP) con las elaboraciones.',
@@ -89,7 +90,8 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
     productosVenta: 'Catálogo de productos para la vertical de Entregas, incluyendo "Packs".',
     pickingEntregasState: 'Estado del picking para la vertical de Entregas.',
     stockElaboraciones: 'Inventario en tiempo real de las elaboraciones producidas y validadas por calidad.',
-    historicoPreciosERP: 'Registro histórico de los precios de la materia prima.'
+    historicoPreciosERP: 'Registro histórico de los precios de la materia prima.',
+    incidenciasRetorno: 'Registro de incidencias detectadas durante la devolución de material.'
 };
 
 
