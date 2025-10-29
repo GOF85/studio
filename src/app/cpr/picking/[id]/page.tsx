@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
@@ -399,7 +398,7 @@ function PickingPageContent() {
         const lotesPorHito = new Map<string, LoteNecesario[]>();
       
         if (!isMounted || !hitosConNecesidades.length) {
-          return { lotesPendientesPorHito: new Map(), isPickingComplete: true, elabMap: new Map() };
+          return { lotesPendientesPorHito: new Map(), isPickingComplete: true, elabMap };
         }
       
         const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
@@ -475,7 +474,7 @@ function PickingPageContent() {
           lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito, isPickingComplete: allComplete, elabMap };
+        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete, elabMap };
   
       }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, allValidatedOFs, allAssignedQuantities]);
     
@@ -700,6 +699,7 @@ function PickingDetailPageWrapper() {
 }
 
 export default PickingDetailPageWrapper;
+
 
 
 
