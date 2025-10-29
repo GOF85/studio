@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Package, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, UtensilsCrossed, ListChecks } from 'lucide-react';
+import { ListChecks, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, UtensilsCrossed, RefreshCw } from 'lucide-react';
 import type { ServiceOrder, PickingEntregaState, PedidoEntrega, ProductoVenta, EntregaHito, ComercialBriefing, ComercialBriefingItem, Receta } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,7 +45,9 @@ export default function PickingPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
+  const [updateTrigger, setUpdateTrigger] = useState(0);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas');
@@ -78,6 +80,7 @@ export default function PickingPage() {
     const handleStorageChange = () => {
         const updatedStates = JSON.parse(localStorage.getItem('pickingStates') || '{}');
         setPickingStates(updatedStates);
+        setUpdateTrigger(Date.now());
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -85,7 +88,7 @@ export default function PickingPage() {
         window.removeEventListener('storage', handleStorageChange);
     };
 
-  }, []);
+  }, [updateTrigger]);
 
   const filteredHitos = useMemo(() => {
     return hitos.filter(hito => {
@@ -119,16 +122,14 @@ export default function PickingPage() {
 
   const getPickingProgress = (hito: HitoDePicking) => {
     if (!hito.conGastronomia) {
-        return { checked: 0, total: 0, percentage: 0, noAplica: true };
+        return { checked: 0, total: 0, percentage: 100, noAplica: true };
     }
     
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const state = pickingStates[hito.id];
     
-    const gastroItems = hito.gastro_items?.filter(item => item.type === 'item') || [];
-    if (gastroItems.length === 0) {
-        return { checked: 0, total: 0, percentage: 100, isComplete: true };
-    }
+    const gastroOrder = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).find(go => go.id === hito.id);
+    const gastroItems = gastroOrder?.items?.filter(item => item.type === 'item') || [];
 
     const elaboracionesNecesarias = new Set<string>();
     gastroItems.forEach(item => {
@@ -141,7 +142,9 @@ export default function PickingPage() {
     });
 
     const totalItems = elaboracionesNecesarias.size;
-    if (totalItems === 0) return { checked: 0, total: 0, percentage: 100, isComplete: true };
+    if (totalItems === 0) {
+        return { checked: 0, total: 0, percentage: 100, isComplete: true };
+    }
 
     const checkedItems = state?.checkedItems?.length || 0;
     
@@ -150,6 +153,11 @@ export default function PickingPage() {
       total: totalItems,
       percentage: totalItems > 0 ? (checkedItems / totalItems) * 100 : 100,
     };
+  };
+
+  const handleRefresh = () => {
+    setUpdateTrigger(Date.now());
+    toast({ title: "Datos actualizados", description: "El estado de todos los pickings ha sido recalculado." });
   };
 
   if (!isMounted) {
@@ -181,7 +189,13 @@ export default function PickingPage() {
                 <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
             </PopoverContent>
           </Popover>
-          <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateRange(undefined); setCurrentPage(1); }}>Limpiar Filtros</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateRange(undefined); setCurrentPage(1); }}>Limpiar Filtros</Button>
+            <Button variant="outline" onClick={handleRefresh}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Actualizar
+            </Button>
+          </div>
        </div>
 
         <div className="flex items-center justify-end gap-2 mb-4">
