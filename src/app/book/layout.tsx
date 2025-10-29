@@ -67,13 +67,14 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
             setPageTitle(recipe?.nombre || 'Editar Receta');
         } else if (pathSegments.length === 3 && pathSegments[1] === 'elaboraciones' && pathSegments[2] !== 'nuevo'){
              setPageTitle('Editar Elaboración');
+        } else {
+            setPageTitle('');
         }
     }, [pathname]);
 
     const currentPage = useMemo(() => {
-        if (pathname.startsWith('/book/recetas/')) return { title: 'Recetas', icon: BookHeart, href: '/book/recetas' };
-        if (pathname.startsWith('/book/elaboraciones/')) return { title: 'Elaboraciones', icon: Component, href: '/book/elaboraciones' };
-        return bookNavLinks.find(link => pathname.startsWith(link.path) && link.path !== '/book');
+        const currentPath = pathname.split('/').slice(0, 3).join('/');
+        return bookNavLinks.find(link => currentPath === link.path);
     }, [pathname]);
 
     return (
@@ -95,10 +96,10 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                             <BookHeart className="h-5 w-5"/>
                             <span>Book Gastronómico</span>
                         </Link>
-                        {currentPage && (
+                        {currentPage && currentPage.path !== '/book' && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <Link href={currentPage.href} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                                <Link href={currentPage.path} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
                                     <currentPage.icon className="h-5 w-5"/>
                                     <span>{currentPage.title}</span>
                                 </Link>
