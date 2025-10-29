@@ -261,13 +261,13 @@ export default function OfPage() {
         const partidaMatch = partidaFilter === 'all' || item.partidaAsignada === partidaFilter;
         
         let dateMatch = true;
-        if(dateRange?.from && item.fechaProduccionPrevista) {
-          const itemDate = parseISO(item.fechaProduccionPrevista);
-          if (dateRange.to) {
-              dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
-          } else {
-              dateMatch = isSameDay(itemDate, dateRange.from);
-          }
+        if (dateRange?.from) {
+            const itemDate = parseISO(item.fechaProduccionPrevista);
+            if (dateRange.to) {
+                dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+            } else {
+                dateMatch = isSameDay(itemDate, dateRange.from);
+            }
         }
         
         return searchMatch && statusMatch && partidaMatch && dateMatch;
