@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -249,21 +248,17 @@ export default function OfPage() {
             } catch(e) { return false; }
         });
         
-        const cantidadYaPlanificada = ofsExistentes.reduce((sum: number, of: OrdenFabricacion) => {
-          // Si la OF está finalizada, usamos la cantidad real, si no, la planificada.
-          const cantidad = of.cantidadReal ?? of.cantidadTotal;
-          return sum + (cantidad || 0);
-        }, 0);
+        const cantidadYaPlanificada = ofsExistentes.reduce((sum: number, of: OrdenFabricacion) => sum + (of.cantidadReal ?? of.cantidadTotal), 0);
         
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         const stockDisponibleReal = stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0);
         
-        const cantidadNeta = necesidad.cantidadNecesariaTotal - (cantidadYaPlanificada + stockDisponibleReal);
+        const cantidadNeta = necesidad.cantidadNecesariaTotal - stockDisponibleReal - cantidadYaPlanificada;
         
         return {
           ...necesidad,
           cantidadNecesariaTotal: necesidad.cantidadNecesariaTotal, 
-          cantidadNeta: Math.max(0, cantidadNeta),
+          cantidadNeta: cantidadNeta,
           stockDisponible: stockDisponibleReal,
           cantidadPlanificada: cantidadYaPlanificada,
           desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
@@ -291,14 +286,20 @@ export default function OfPage() {
         let dateMatch = true;
         if (dateRange?.from) {
             try {
-                // If it's pending/assigned, filter by planned date
                 if (item.estado === 'Pendiente' || item.estado === 'Asignada') {
                     const itemDate = parseISO(item.fechaProduccionPrevista);
-                    return isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
+                    if(dateRange.to) {
+                        return isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+                    }
+                    return isSameDay(itemDate, dateRange.from);
                 }
-                // If it's finished, filter by finalization date
                 const finalizationDate = item.fechaFinalizacion ? parseISO(item.fechaFinalizacion) : null;
-                return finalizationDate && isWithinInterval(finalizationDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
+                if (!finalizationDate) return false;
+
+                if (dateRange.to) {
+                   return isWithinInterval(finalizationDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+                }
+                return isSameDay(finalizationDate, dateRange.from);
             } catch(e) {
                 dateMatch = false;
             }
@@ -455,7 +456,7 @@ export default function OfPage() {
                                 <TableRow key={item.id}>
                                     <TableCell><Checkbox checked={selectedNecesidades.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(item.id, !!checked)}/></TableCell>
                                     <TableCell>
-                                        <Tooltip>
+                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <div className="font-semibold cursor-help flex items-center gap-2">
                                                     <Info className="h-4 w-4 text-muted-foreground" />
@@ -493,7 +494,7 @@ export default function OfPage() {
                 </CardContent>
             </Card>
         </TabsContent>
-         <TabsContent value="creadas" className="mt-4 space-y-4">
+        <TabsContent value="creadas" className="mt-4 space-y-4">
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Factory/>Órdenes de Fabricación Creadas</CardTitle>
