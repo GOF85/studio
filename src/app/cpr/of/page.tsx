@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -736,7 +737,7 @@ export default function OfPage() {
         </TabsContent>
         <TabsContent value="planificacion" className="mt-4 space-y-4">
             <Card>
-                <CardHeader className="flex-row justify-between items-center">
+                <CardHeader className="flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
                     <div className="flex items-center gap-2">
                          <Button onClick={loadData} variant="outline" size="icon">
@@ -894,7 +895,7 @@ export default function OfPage() {
                                                     {rowContent}
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <p>Asignado al contenedor <Badge variant="secondary">{pickingInfo.containerId}</Badge> para la OS <Badge variant="outline">{pickingInfo.osId}</Badge></p>
+                                                    <div>Asignado al contenedor <Badge variant="secondary">{pickingInfo.containerId}</Badge> para la OS <Badge variant="outline">{osMap.get(pickingInfo.osId)?.serviceNumber}</Badge></div>
                                                 </TooltipContent>
                                             </Tooltip>
                                         );
