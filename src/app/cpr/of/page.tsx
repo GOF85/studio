@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -92,6 +90,11 @@ type ReporteProduccionItem = {
     componentes?: { nombre: string; cantidad: number; unidad: string, cantidadTotal: number }[];
     usadoEn?: { nombre: string; cantidad: number; unidad: string }[];
 };
+type ReporteResumenPartida = {
+    referencias: number;
+    unidades: number;
+    elaboraciones: number;
+}
 type ReporteData = {
     fechas: Date[];
     resumen: {
@@ -100,8 +103,8 @@ type ReporteData = {
         pax: number;
         referencias: number;
         unidades: number;
-        refsPorDia: Record<string, number>;
-        udsPorDia: Record<string, number>;
+        elaboraciones: number;
+        resumenPorPartida: Record<string, ReporteResumenPartida>;
     };
     recetas: ReporteProduccionItem[];
     elaboraciones: ReporteProduccionItem[];
@@ -324,102 +327,113 @@ export default function OfPage() {
 
     setNecesidades(necesidadesArray);
 
-
     // --- STAGE 5: CALCULATE REPORT DATA ---
-     if (dateRange.from && dateRange.to) {
-        const fechasDelRango = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
-        const recetasInforme: Map<string, ReporteProduccionItem> = new Map();
-        const elaboracionesInforme: Map<string, ReporteProduccionItem> = new Map();
+    if (dateRange.from && dateRange.to) {
+      const fechasDelRango = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+      const recetasInforme: Map<string, ReporteProduccionItem> = new Map();
+      const elaboracionesInforme: Map<string, ReporteProduccionItem> = new Map();
+      
+      const resumenPorPartida: Record<string, ReporteResumenPartida> = {
+          'FRIO': { referencias: 0, unidades: 0, elaboraciones: 0 },
+          'CALIENTE': { referencias: 0, unidades: 0, elaboraciones: 0 },
+          'PASTELERIA': { referencias: 0, unidades: 0, elaboraciones: 0 },
+          'EXPEDICION': { referencias: 0, unidades: 0, elaboraciones: 0 },
+      };
 
-        const resumen = {
-            contratos: new Set<string>(),
-            servicios: 0,
-            pax: 0,
-            referencias: 0,
-            unidades: 0,
-            refsPorDia: {} as Record<string, number>,
-            udsPorDia: {} as Record<string, number>,
-        };
+      const resumen = {
+          contratos: new Set<string>(),
+          servicios: 0,
+          pax: 0,
+          referencias: 0,
+          unidades: 0,
+          elaboraciones: 0,
+          resumenPorPartida,
+      };
 
-        fechasDelRango.forEach(fecha => {
-            const fechaKey = format(fecha, 'yyyy-MM-dd');
-            resumen.refsPorDia[fechaKey] = 0;
-            resumen.udsPorDia[fechaKey] = 0;
-        });
+      gastroOrdersInRange.forEach(order => {
+          const os = osMap.get(order.osId);
+          if (!os) return;
 
-        gastroOrdersInRange.forEach(order => {
-            const os = osMap.get(order.osId);
-            if (!os) return;
+          resumen.contratos.add(os.id);
+          resumen.servicios++;
+          resumen.pax += os.asistentes || 0;
+          const fechaKey = format(new Date(order.fecha), 'yyyy-MM-dd');
 
-            resumen.contratos.add(os.id);
-            resumen.servicios++;
-            resumen.pax += os.asistentes || 0;
-            const fechaKey = format(new Date(order.fecha), 'yyyy-MM-dd');
+          (order.items || []).forEach(item => {
+              if (item.type !== 'item') return;
+              
+              const receta = recetasMap.get(item.id);
+              if (!receta) return;
 
-            (order.items || []).forEach(item => {
-                if (item.type !== 'item') return;
-                
-                const receta = recetasMap.get(item.id);
-                if (!receta) return;
-                
-                let recetaItem = recetasInforme.get(receta.id);
-                if (!recetaItem) {
-                    const componentes = receta.elaboraciones.map(e => {
-                        const elabInfo = elabMap.get(e.elaboracionId);
-                        return { nombre: elabInfo?.nombre || '?', cantidad: e.cantidad, unidad: elabInfo?.unidadProduccion || '?', cantidadTotal: 0 };
-                    })
-                    recetaItem = { id: receta.id, nombre: receta.nombre, partida: receta.partidaProduccion || 'N/A', udTotales: 0, unidad: 'Uds', necesidadesPorDia: {}, componentes };
-                    recetasInforme.set(receta.id, recetaItem);
-                }
-                const cantidadReceta = item.quantity || 0;
-                recetaItem.udTotales += cantidadReceta;
+              let recetaItem = recetasInforme.get(receta.id);
+              if (!recetaItem) {
+                  const componentes = receta.elaboraciones.map(e => {
+                      const elabInfo = elabMap.get(e.elaboracionId);
+                      return { nombre: elabInfo?.nombre || '?', cantidad: e.cantidad, unidad: elabInfo?.unidadProduccion || '?', cantidadTotal: 0 };
+                  })
+                  recetaItem = { id: receta.id, nombre: receta.nombre, partida: receta.partidaProduccion || 'N/A', udTotales: 0, unidad: 'Uds', necesidadesPorDia: {}, componentes };
+                  recetasInforme.set(receta.id, recetaItem);
+                  resumen.referencias++;
+                  if(receta.partidaProduccion && resumen.resumenPorPartida[receta.partidaProduccion]){
+                      resumen.resumenPorPartida[receta.partidaProduccion].referencias++;
+                  }
+              }
+              const cantidadReceta = item.quantity || 0;
+              recetaItem.udTotales += cantidadReceta;
+              resumen.unidades += cantidadReceta;
+               if(receta.partidaProduccion && resumen.resumenPorPartida[receta.partidaProduccion]){
+                  resumen.resumenPorPartida[receta.partidaProduccion].unidades += cantidadReceta;
+              }
 
-                // Update total quantities for tooltips
-                recetaItem.componentes?.forEach(c => {
-                    const elabReceta = receta.elaboraciones.find(e => elabMap.get(e.elaboracionId)?.nombre === c.nombre);
-                    if(elabReceta) {
-                        c.cantidadTotal += cantidadReceta * elabReceta.cantidad;
-                    }
-                });
 
-                 if(!recetaItem.necesidadesPorDia[fechaKey]) recetaItem.necesidadesPorDia[fechaKey] = 0;
-                recetaItem.necesidadesPorDia[fechaKey] += cantidadReceta;
+              recetaItem.componentes?.forEach(c => {
+                  const elabReceta = receta.elaboraciones.find(e => elabMap.get(e.elaboracionId)?.nombre === c.nombre);
+                  if(elabReceta) {
+                      c.cantidadTotal += cantidadReceta * elabReceta.cantidad;
+                  }
+              });
 
-                (receta.elaboraciones || []).forEach(elabEnReceta => {
-                    const elab = elabMap.get(elabEnReceta.elaboracionId);
-                    if (!elab) return;
+               if(!recetaItem.necesidadesPorDia[fechaKey]) recetaItem.necesidadesPorDia[fechaKey] = 0;
+              recetaItem.necesidadesPorDia[fechaKey] += cantidadReceta;
 
-                    let elabItem = elaboracionesInforme.get(elab.id);
-                    if (!elabItem) {
-                        elabItem = { id: elab.id, nombre: elab.nombre, partida: elab.partidaProduccion, udTotales: 0, unidad: elab.unidadProduccion, necesidadesPorDia: {}, usadoEn: [] };
-                        elaboracionesInforme.set(elab.id, elabItem);
-                    }
-                    const elabInReceta = elabItem.usadoEn?.find(r => r.nombre === receta.nombre);
-                    if(!elabInReceta) {
-                         elabItem.usadoEn?.push({ nombre: receta.nombre, cantidad: elabEnReceta.cantidad, unidad: elab.unidadProduccion });
-                    }
-                    const cantidadElab = cantidadReceta * elabEnReceta.cantidad;
-                    elabItem.udTotales += cantidadElab;
-                     if(!elabItem.necesidadesPorDia[fechaKey]) elabItem.necesidadesPorDia[fechaKey] = 0;
-                    elabItem.necesidadesPorDia[fechaKey] += cantidadElab;
-                });
-            });
-        });
-        
-        const finalResumen = {
-            ...resumen,
-            contratos: resumen.contratos.size,
-            referencias: recetasInforme.size + elaboracionesInforme.size,
-            unidades: 0, // This needs to be calculated properly if needed
-        };
+              (receta.elaboraciones || []).forEach(elabEnReceta => {
+                  const elab = elabMap.get(elabEnReceta.elaboracionId);
+                  if (!elab) return;
 
-        setReporteData({
-            fechas: fechasDelRango,
-            resumen: finalResumen,
-            recetas: Array.from(recetasInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
-            elaboraciones: Array.from(elaboracionesInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
-        });
-    }
+                  let elabItem = elaboracionesInforme.get(elab.id);
+                  if (!elabItem) {
+                      elabItem = { id: elab.id, nombre: elab.nombre, partida: elab.partidaProduccion, udTotales: 0, unidad: elab.unidadProduccion, necesidadesPorDia: {}, usadoEn: [] };
+                      elaboracionesInforme.set(elab.id, elabItem);
+                      resumen.elaboraciones++;
+                      if(elab.partidaProduccion && resumen.resumenPorPartida[elab.partidaProduccion]){
+                          resumen.resumenPorPartida[elab.partidaProduccion].elaboraciones++;
+                      }
+                  }
+                  const elabInReceta = elabItem.usadoEn?.find(r => r.nombre === receta.nombre);
+                  if(!elabInReceta) {
+                       elabItem.usadoEn?.push({ nombre: receta.nombre, cantidad: elabEnReceta.cantidad, unidad: elab.unidadProduccion });
+                  }
+                  const cantidadElab = cantidadReceta * elabEnReceta.cantidad;
+                  elabItem.udTotales += cantidadElab;
+                   if(!elabItem.necesidadesPorDia[fechaKey]) elabItem.necesidadesPorDia[fechaKey] = 0;
+                  elabItem.necesidadesPorDia[fechaKey] += cantidadElab;
+              });
+          });
+      });
+      
+      const finalResumen = {
+          ...resumen,
+          contratos: resumen.contratos.size,
+      };
+
+      setReporteData({
+          fechas: fechasDelRango,
+          resumen: finalResumen,
+          recetas: Array.from(recetasInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
+          elaboraciones: Array.from(elaboracionesInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
+      });
+  }
+
 
     setIsMounted(true);
   }, [dateRange]);
@@ -819,98 +833,129 @@ export default function OfPage() {
                         </SelectContent>
                     </Select>
                 </div>
-                 <div className="flex items-center gap-2 justify-between text-sm font-medium bg-muted/70 p-2 mt-2 rounded-md">
-                    <div className="flex items-center space-x-2">
+                 <div className="flex items-center gap-2 justify-between text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md">
+                    <div className="flex items-center space-x-1.5">
                         <ClipboardList className="h-4 w-4 text-muted-foreground"/>
                         <span className="font-bold">{reporteData?.resumen.contratos || 0}</span>
-                        <span className="text-sm text-muted-foreground">Contratos</span>
+                        <span className="text-muted-foreground">Contratos</span>
                     </div>
                     <Separator orientation="vertical" className="h-4"/>
-                     <div className="flex items-center space-x-2">
+                     <div className="flex items-center space-x-1.5">
                         <FileText className="h-4 w-4 text-muted-foreground"/>
                         <span className="font-bold">{reporteData?.resumen.servicios || 0}</span>
-                        <span className="text-sm text-muted-foreground">Servicios</span>
+                        <span className="text-muted-foreground">Servicios</span>
                     </div>
                     <Separator orientation="vertical" className="h-4"/>
-                     <div className="flex items-center space-x-2">
+                     <div className="flex items-center space-x-1.5">
                         <Users className="h-4 w-4 text-muted-foreground"/>
                         <span className="font-bold">{formatNumber(reporteData?.resumen.pax || 0,0)}</span>
-                        <span className="text-sm text-muted-foreground">PAX</span>
+                        <span className="text-muted-foreground">Comensales</span>
                     </div>
+                    <Separator orientation="vertical" className="h-4"/>
+                    <div className="flex items-center space-x-1.5">
+                        <Layers className="h-4 w-4 text-muted-foreground"/>
+                        <span className="font-bold">{reporteData?.resumen.referencias || 0}</span>
+                        <span className="text-muted-foreground">Referencias</span>
+                    </div>
+                     <Separator orientation="vertical" className="h-4"/>
+                     <div className="flex items-center space-x-1.5">
+                        <Utensils className="h-4 w-4 text-muted-foreground"/>
+                        <span className="font-bold">{formatNumber(reporteData?.resumen.unidades || 0,0)}</span>
+                        <span className="text-muted-foreground">Uds. Ref.</span>
+                    </div>
+                    <Separator orientation="vertical" className="h-4"/>
+                    <div className="flex items-center space-x-1.5">
+                        <ChefHat className="h-4 w-4 text-muted-foreground"/>
+                        <span className="font-bold">{reporteData?.resumen.elaboraciones || 0}</span>
+                        <span className="text-muted-foreground">Elaboraciones</span>
+                    </div>
+                </div>
+                 <div className="flex items-center gap-3 justify-center text-xs font-medium bg-muted/40 p-1.5 mt-2 rounded-md">
+                   {partidas.map(p => {
+                       const data = reporteData?.resumen.resumenPorPartida[p];
+                       if (!data || (data.referencias === 0 && data.unidades === 0 && data.elaboraciones === 0)) return null;
+                       return (
+                           <div key={p} className="flex items-center gap-2 border-r pr-3 last:border-r-0">
+                               <div className={cn("h-2.5 w-2.5 rounded-full", partidaColorCircles[p])}/>
+                               <span className="font-bold">{p}:</span>
+                               <span className="text-muted-foreground">Ref:</span><span className="font-semibold">{data.referencias}</span>
+                               <span className="text-muted-foreground">Uds:</span><span className="font-semibold">{formatNumber(data.unidades,0)}</span>
+                               <span className="text-muted-foreground">Elab:</span><span className="font-semibold">{data.elaboraciones}</span>
+                           </div>
+                       )
+                   })}
                 </div>
             </CardHeader>
             <CardContent>
                 {reporteData && (
-                    <>
-                        <div className="border rounded-lg overflow-x-auto max-h-[70vh]">
-                            <Table className="text-xs">
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1 w-20 text-center">Partida</TableHead>
-                                        <TableHead className="sticky left-[80px] bg-secondary/80 backdrop-blur-sm min-w-56 p-1">Referencia / Elaboración</TableHead>
-                                        <TableHead className="text-right p-1">Total</TableHead>
-                                        {reporteData.fechas.map(fecha => (
-                                            <TableHead key={fecha.toISOString()} className="text-center p-1 min-w-20">
-                                                <div className="capitalize font-normal">{format(fecha, 'EEE', {locale: es})}</div>
-                                                <div className="font-bold">{format(fecha, 'dd/MM')}</div>
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">REFERENCIAS</TableCell>
-                                    </TableRow>
-                                    {reporteData.recetas.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
-                                        <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
-                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-xs justify-center"><div className={cn("h-2 w-2 rounded-full mr-1.5", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
-                                            <TableCell className="sticky left-[80px] bg-inherit font-semibold p-1.5">
-                                                <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="cursor-help">{item.nombre}</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <div className="p-1 max-w-xs text-xs">
-                                                        <p className="font-bold">Elaboraciones que la componen:</p>
-                                                        <ul className="list-disc pl-4">{(item.componentes || []).map((c, i) => <li key={i}>{c.nombre} ({formatNumber(c.cantidadTotal,2)} {c.unidad})</li>)}</ul>
-                                                    </div>
-                                                </TooltipContent>
-                                                </Tooltip>
-                                            </TableCell>
-                                            <TableCell className="text-right p-1.5 font-bold font-mono">{formatNumber(item.udTotales, 2)} {item.unidad}</TableCell>
-                                            {reporteData.fechas.map(fecha => {
-                                                const fechaKey = format(fecha, 'yyyy-MM-dd');
-                                                return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-1.5 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
-                                            })}
-                                        </TableRow>
+                    <div className="border rounded-lg overflow-x-auto max-h-[70vh]">
+                        <Table className="text-xs">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1 w-16 text-center text-[10px] uppercase">Partida</TableHead>
+                                    <TableHead className="sticky left-16 bg-secondary/80 backdrop-blur-sm min-w-48 p-1 text-[10px] uppercase">Referencia / Elaboración</TableHead>
+                                    <TableHead className="text-right p-1 text-[10px] uppercase">Total</TableHead>
+                                    {reporteData.fechas.map(fecha => (
+                                        <TableHead key={fecha.toISOString()} className="text-center p-1 min-w-20">
+                                            <div className="capitalize font-normal">{format(fecha, 'EEE', {locale: es})}</div>
+                                            <div className="font-bold">{format(fecha, 'dd/MM')}</div>
+                                        </TableHead>
                                     ))}
-                                     <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">ELABORACIONES</TableCell></TableRow>
-                                    {reporteData.elaboraciones.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
-                                         <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
-                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-xs justify-center"><div className={cn("h-2 w-2 rounded-full mr-1.5", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
-                                            <TableCell className="sticky left-[80px] bg-inherit font-semibold p-1.5">
-                                                <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="cursor-help">{item.nombre}</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <div className="p-1 max-w-xs text-xs">
-                                                        <p className="font-bold">Usado en:</p>
-                                                        <ul className="list-disc pl-4">{(item.usadoEn || []).map((r, i) => <li key={i}>{r.nombre} ({r.cantidad} {r.unidad})</li>)}</ul>
-                                                    </div>
-                                                </TooltipContent>
-                                                </Tooltip>
-                                            </TableCell>
-                                            <TableCell className="text-right p-1.5 font-bold font-mono">{formatNumber(item.udTotales, 2)} {item.unidad}</TableCell>
-                                            {reporteData.fechas.map(fecha => {
-                                                const fechaKey = format(fecha, 'yyyy-MM-dd');
-                                                return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-1.5 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
-                                            })}
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center text-xs">REFERENCIAS</TableCell>
+                                </TableRow>
+                                {reporteData.recetas.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
+                                    <TableRow key={item.id} className={cn("text-[11px]", partidaColorClasses[item.partida as PartidaProduccion] || '')}>
+                                        <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-[10px] justify-center"><div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
+                                        <TableCell className="sticky left-16 bg-inherit font-semibold p-1">
+                                            <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="cursor-help">{item.nombre}</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <div className="p-1 max-w-xs text-xs">
+                                                    <p className="font-bold">Elaboraciones que la componen:</p>
+                                                    <ul className="list-disc pl-4">{(item.componentes || []).map((c, i) => <li key={i}>{c.nombre} ({formatNumber(c.cantidadTotal,2)} {c.unidad})</li>)}</ul>
+                                                </div>
+                                            </TooltipContent>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell className="text-right p-1 font-bold font-mono">{formatNumber(item.udTotales, 2)} {item.unidad}</TableCell>
+                                        {reporteData.fechas.map(fecha => {
+                                            const fechaKey = format(fecha, 'yyyy-MM-dd');
+                                            return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-1 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
+                                        })}
+                                    </TableRow>
+                                ))}
+                                    <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center text-xs">ELABORACIONES</TableCell></TableRow>
+                                {reporteData.elaboraciones.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
+                                        <TableRow key={item.id} className={cn("text-[11px]", partidaColorClasses[item.partida as PartidaProduccion] || '')}>
+                                        <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-[10px] justify-center"><div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
+                                        <TableCell className="sticky left-16 bg-inherit font-semibold p-1">
+                                            <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="cursor-help">{item.nombre}</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <div className="p-1 max-w-xs text-xs">
+                                                    <p className="font-bold">Usado en:</p>
+                                                    <ul className="list-disc pl-4">{(item.usadoEn || []).map((r, i) => <li key={i}>{r.nombre} ({r.cantidad} {r.unidad})</li>)}</ul>
+                                                </div>
+                                            </TooltipContent>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell className="text-right p-1 font-bold font-mono">{formatNumber(item.udTotales, 2)} {formatUnit(item.unidad)}</TableCell>
+                                        {reporteData.fechas.map(fecha => {
+                                            const fechaKey = format(fecha, 'yyyy-MM-dd');
+                                            return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-1 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
+                                        })}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 )}
             </CardContent>
           </Card>
@@ -938,8 +983,3 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
-
-    
-
-    
-
