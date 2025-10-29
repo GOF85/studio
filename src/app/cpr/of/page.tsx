@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, ChefHat, ClipboardList, FileText, Users, Utensils } from 'lucide-react';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, ChefHat, ClipboardList, FileText, Users, Utensils, Separator } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,7 +49,6 @@ import { DateRange } from 'react-day-picker';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Separator } from '@/components/ui/separator';
 
 
 type NecesidadDesgloseItem = {
@@ -113,13 +112,13 @@ type ReporteData = {
 };
 
 
-const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' | 'success' } = {
   'Pendiente': 'secondary',
-  'Asignada': 'secondary',
+  'Asignada': 'default',
   'En Proceso': 'outline',
-  'Finalizado': 'default',
+  'Finalizado': 'success',
   'Incidencia': 'destructive',
-  'Validado': 'default',
+  'Validado': 'success',
 };
 
 const partidaColorClasses: Record<PartidaProduccion, string> = {
@@ -371,7 +370,8 @@ export default function OfPage() {
               if (!recetaItem) {
                   const componentes = receta.elaboraciones.map(e => {
                       const elabInfo = elabMap.get(e.elaboracionId);
-                      return { nombre: elabInfo?.nombre || '?', cantidad: e.cantidad, unidad: elabInfo?.unidadProduccion || '?', cantidadTotal: 0 };
+                      const cantidadTotal = e.cantidad * (item.quantity || 0)
+                      return { nombre: elabInfo?.nombre || '?', cantidad: e.cantidad, unidad: elabInfo?.unidadProduccion || '?', cantidadTotal };
                   })
                   recetaItem = { id: receta.id, nombre: receta.nombre, partida: receta.partidaProduccion || 'N/A', udTotales: 0, unidad: 'Uds', necesidadesPorDia: {}, componentes };
                   recetasInforme.set(receta.id, recetaItem);
@@ -480,7 +480,7 @@ export default function OfPage() {
     setSearchTerm('');
     setStatusFilter('all');
     setPartidaFilter('all');
-    setDateRange({ from: startOfDay(new Date()), to: endOfDay(addDays(new Date(), 7)) });
+    setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) });
   };
 
   const handleDeleteOrder = () => {
@@ -572,17 +572,10 @@ export default function OfPage() {
 
   return (
     <TooltipProvider>
-      <Tabs defaultValue="planificacion">
-        <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="planificacion">Planificación</TabsTrigger>
-            <TabsTrigger value="creadas">OF Creadas</TabsTrigger>
-            <TabsTrigger value="asignacion">Asignación de Órdenes</TabsTrigger>
-            <TabsTrigger value="informe-necesidades">Informe Tabla Necesidades</TabsTrigger>
-        </TabsList>
         <div className="flex flex-col md:flex-row gap-4 my-4">
              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                 <PopoverTrigger asChild>
-                    <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                    <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
                     </Button>
@@ -607,6 +600,13 @@ export default function OfPage() {
                 </PopoverContent>
             </Popover>
         </div>
+      <Tabs defaultValue="planificacion">
+        <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="planificacion">Planificación</TabsTrigger>
+            <TabsTrigger value="creadas">OF Creadas</TabsTrigger>
+            <TabsTrigger value="asignacion">Asignación de Órdenes</TabsTrigger>
+            <TabsTrigger value="informe-necesidades">Informe Tabla Necesidades</TabsTrigger>
+        </TabsList>
         <TabsContent value="planificacion" className="mt-4 space-y-4">
             <Card>
                 <CardHeader className="flex-row justify-between items-center">
@@ -849,46 +849,49 @@ export default function OfPage() {
                         </SelectContent>
                     </Select>
                 </div>
+                {reporteData && (
                  <div className="flex items-center gap-2 justify-between text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md">
                     <div className="flex items-center space-x-1.5">
                         <ClipboardList className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{reporteData?.resumen.contratos || 0}</span>
+                        <span className="font-bold">{reporteData.resumen.contratos}</span>
                         <span className="text-muted-foreground">Contratos</span>
                     </div>
                     <Separator orientation="vertical" className="h-4"/>
                      <div className="flex items-center space-x-1.5">
                         <FileText className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{reporteData?.resumen.servicios || 0}</span>
+                        <span className="font-bold">{reporteData.resumen.servicios}</span>
                         <span className="text-muted-foreground">Servicios</span>
                     </div>
                     <Separator orientation="vertical" className="h-4"/>
                      <div className="flex items-center space-x-1.5">
                         <Users className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{formatNumber(reporteData?.resumen.pax || 0,0)}</span>
+                        <span className="font-bold">{formatNumber(reporteData.resumen.pax,0)}</span>
                         <span className="text-muted-foreground">Comensales</span>
                     </div>
                      <Separator orientation="vertical" className="h-4"/>
                     <div className="flex items-center space-x-1.5">
                         <Layers className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{reporteData?.resumen.referencias || 0}</span>
+                        <span className="font-bold">{reporteData.resumen.referencias}</span>
                         <span className="text-muted-foreground">Referencias</span>
                     </div>
                      <Separator orientation="vertical" className="h-4"/>
                      <div className="flex items-center space-x-1.5">
                         <Utensils className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{formatNumber(reporteData?.resumen.unidades || 0,0)}</span>
+                        <span className="font-bold">{formatNumber(reporteData.resumen.unidades,0)}</span>
                         <span className="text-muted-foreground">Uds. Ref.</span>
                     </div>
                     <Separator orientation="vertical" className="h-4"/>
                     <div className="flex items-center space-x-1.5">
                         <ChefHat className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{reporteData?.resumen.elaboraciones || 0}</span>
+                        <span className="font-bold">{reporteData.resumen.elaboraciones}</span>
                         <span className="text-muted-foreground">Elaboraciones</span>
                     </div>
                 </div>
+                )}
+                 {reporteData && (
                 <div className="flex items-center gap-3 justify-center text-xs font-medium bg-muted/40 p-1.5 mt-2 rounded-md">
                    {partidas.map(p => {
-                       const data = reporteData?.resumen.resumenPorPartida[p];
+                       const data = reporteData.resumen.resumenPorPartida[p];
                        if (!data || (data.referencias === 0 && data.unidades === 0 && data.elaboraciones === 0)) return null;
                        return (
                            <div key={p} className="flex items-center gap-2 border-r pr-3 last:border-r-0">
@@ -901,6 +904,7 @@ export default function OfPage() {
                        )
                    })}
                 </div>
+                 )}
             </CardHeader>
             <CardContent>
                 {reporteData && (
@@ -999,3 +1003,5 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
+```
