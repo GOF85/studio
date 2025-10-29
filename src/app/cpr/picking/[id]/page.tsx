@@ -424,20 +424,18 @@ function PickingPageContent() {
         setIsMounted(true);
     }, [osId, savePickingState]); 
 
-    const { lotesPendientesPorHito, isPickingComplete, elabMap } = useMemo(() => {
-        const elabMap = new Map<string, Elaboracion>();
-        const lotesPorHito = new Map<string, LoteNecesario[]>();
-      
+    const { lotesPendientesPorHito, isPickingComplete, elabMap, lotesNecesarios } = useMemo(() => {
         if (!isMounted || !hitosConNecesidades.length) {
-            return { lotesPorHito, isPickingComplete: true, elabMap };
+            return { lotesPendientesPorHito: new Map(), isPickingComplete: true, elabMap: new Map(), lotesNecesarios: [] };
         }
       
         const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
         const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-        allElaboraciones.forEach(e => elabMap.set(e.id, e));
+        const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
         const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
       
         let allComplete = true;
+        const lotesPorHito = new Map<string, LoteNecesario[]>();
       
         hitosConNecesidades.forEach(hito => {
           const necesidadesHito: Map<string, LoteNecesario> = new Map();
@@ -504,14 +502,9 @@ function PickingPageContent() {
   
           lotesPorHito.set(hito.id, lotesPendientesHito);
         });
-        
-        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete, elabMap };
-  
-      }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, allValidatedOFs, allAssignedQuantities]);
-    
-    const lotesNecesarios = useMemo(() => {
+
         const lotes = new Map<string, LoteNecesario>();
-        lotesPendientesPorHito.forEach((lotesHito) => {
+        lotesPorHito.forEach((lotesHito) => {
             lotesHito.forEach(lote => {
                 const existing = lotes.get(lote.elaboracionId);
                 if (existing) {
@@ -522,9 +515,11 @@ function PickingPageContent() {
                 }
             });
         });
-        return Array.from(lotes.values());
-    }, [lotesPendientesPorHito]);
-
+        
+        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete, elabMap, lotesNecesarios: Array.from(lotes.values()) };
+  
+      }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, allValidatedOFs, allAssignedQuantities]);
+    
     const addContainer = (tipo: keyof typeof expeditionTypeMap, hitoId: string): string => {
       const newContainer: ContenedorDinamico = {
         id: `cont-${Date.now()}`,
@@ -730,6 +725,7 @@ function PickingDetailPageWrapper() {
 }
 
 export default PickingDetailPageWrapper;
+
 
 
 
