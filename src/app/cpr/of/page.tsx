@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -162,6 +160,7 @@ export default function OfPage() {
   });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [reporteData, setReporteData] = useState<ReporteData | null>(null);
+  const [pickingStates, setPickingStates] = useState<Record<string, PickingState>>({});
 
 
   const router = useRouter();
@@ -176,7 +175,8 @@ export default function OfPage() {
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
     const stockElaboraciones: Record<string, StockElaboracion> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
-    const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
+    const allPickingStatesData = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
+    setPickingStates(allPickingStatesData);
     
     setOrdenes(allOFs);
     
@@ -451,7 +451,8 @@ export default function OfPage() {
       .filter(item => {
         const searchMatch = searchTerm === '' || 
                             item.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase());
+                            item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (item.responsable || '').toLowerCase().includes(searchTerm.toLowerCase());
         const statusMatch = statusFilter === 'all' || item.estado === statusFilter;
         const partidaMatch = partidaFilter === 'all' || item.partidaAsignada === partidaFilter;
         
@@ -570,37 +571,50 @@ export default function OfPage() {
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Órdenes de Fabricación..." />;
   }
+  
+  const getPickingInfo = (ofId: string): { osId: string; containerId: string } | null => {
+      for (const osId in pickingStates) {
+          const state = pickingStates[osId];
+          const found = state.itemStates.find(item => item.ofId === ofId);
+          if (found) {
+              return { osId, containerId: found.containerId };
+          }
+      }
+      return null;
+  };
 
   return (
     <TooltipProvider>
       <div className="flex items-center justify-between gap-4 mb-4 p-4 border rounded-lg bg-card">
-        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-          <PopoverTrigger asChild>
-            <Button id="date" variant={"outline"} className={cn("w-full md:w-[350px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 flex" align="start">
-            <div className="p-2 border-r">
-                <div className="flex flex-col gap-1">
-                    <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
-                    <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
-                    <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
+        <div className="flex-grow">
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+            <PopoverTrigger asChild>
+                <Button id="date" variant={"outline"} className={cn("w-full md:w-[450px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 flex" align="start">
+                <div className="p-2 border-r">
+                    <div className="flex flex-col gap-1">
+                        <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
+                        <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
+                        <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
+                    </div>
                 </div>
-            </div>
-            <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
-                numberOfMonths={2}
-                locale={es}
-            />
-          </PopoverContent>
-        </Popover>
-        <div className="flex-grow flex justify-end items-center gap-2">
+                <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
+                    numberOfMonths={2}
+                    locale={es}
+                />
+            </PopoverContent>
+            </Popover>
+        </div>
+        <div className="flex justify-end items-center gap-2">
             <Select value={partidaFilter} onValueChange={setPartidaFilter}>
                 <SelectTrigger className="w-full sm:w-[240px]">
                     <SelectValue placeholder="Filtrar por partida" />
@@ -622,46 +636,20 @@ export default function OfPage() {
         </TabsList>
         <TabsContent value="tabla-necesidades" className="mt-4">
           <Card>
-            <CardHeader>
-                {reporteData && (
-                    <div className="text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md space-y-1.5">
-                        <div className="flex items-center justify-around">
-                            <Tooltip>
-                                <TooltipTrigger asChild><div className="flex items-center space-x-1.5 cursor-pointer"><ClipboardList className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.contratos}</span><span className="text-muted-foreground">Contratos</span></div></TooltipTrigger>
-                                <TooltipContent><div className="p-2 space-y-1 text-sm">{reporteData.resumen.contratosDetalle.map((d, i) => <p key={i}>{d}</p>)}</div></TooltipContent>
-                            </Tooltip>
-                            <Separator orientation="vertical" className="h-4"/>
-                            <Tooltip>
-                                <TooltipTrigger asChild><div className="flex items-center space-x-1.5 cursor-pointer"><FileText className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.servicios}</span><span className="text-muted-foreground">Servicios</span></div></TooltipTrigger>
-                                <TooltipContent><div className="p-2 space-y-1 text-sm">{reporteData.resumen.serviciosDetalle.map((d, i) => <p key={i}>{d}</p>)}</div></TooltipContent>
-                            </Tooltip>
-                            <Separator orientation="vertical" className="h-4"/>
-                            <div className="flex items-center space-x-1.5"><Users className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{formatNumber(reporteData.resumen.comensales,0)}</span><span className="text-muted-foreground">Comensales</span></div>
-                            <Separator orientation="vertical" className="h-4"/>
-                            <div className="flex items-center space-x-1.5"><Layers className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.referencias}</span><span className="text-muted-foreground">Referencias</span></div>
-                            <Separator orientation="vertical" className="h-4"/>
-                            <div className="flex items-center space-x-1.5"><Utensils className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{formatNumber(reporteData.resumen.unidades,0)}</span><span className="text-muted-foreground">Uds. Ref.</span></div>
-                            <Separator orientation="vertical" className="h-4"/>
-                            <div className="flex items-center space-x-1.5"><ChefHat className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.elaboraciones}</span><span className="text-muted-foreground">Elaboraciones</span></div>
-                        </div>
-                        <Separator className="my-1.5"/>
-                        <div className="flex items-center gap-3 justify-center">
-                            {partidas.map(p => {
-                                const data = reporteData.resumen.resumenPorPartida[p];
-                                if (!data || (data.referencias === 0 && data.unidades === 0 && data.elaboraciones === 0)) return null;
-                                return (
-                                    <div key={p} className="flex items-center gap-2">
-                                        <div className={cn("h-2.5 w-2.5 rounded-full", partidaColorCircles[p])}/>
-                                        <span className="font-bold">{p}:</span>
-                                        <span className="text-muted-foreground">Ref:</span><span className="font-semibold">{data.referencias}</span>
-                                        <span className="text-muted-foreground">Uds:</span><span className="font-semibold">{formatNumber(data.unidades,0)}</span>
-                                        <span className="text-muted-foreground">Elab:</span><span className="font-semibold">{data.elaboraciones}</span>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
-                )}
+            <CardHeader className="flex-row items-center justify-between">
+                <div>
+                     <CardTitle className="text-lg">Informe de Producción</CardTitle>
+                    <CardDescription>Resumen de referencias y elaboraciones para el periodo seleccionado.</CardDescription>
+                </div>
+                 <Select value={partidaInformeFilter} onValueChange={setPartidaInformeFilter}>
+                    <SelectTrigger className="w-full sm:w-[240px]">
+                        <SelectValue placeholder="Filtrar por partida" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todas las Partidas</SelectItem>
+                        {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                </Select>
             </CardHeader>
             <CardContent>
                 {reporteData && (
@@ -831,7 +819,7 @@ export default function OfPage() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="search"
-                                    placeholder="Buscar por Nº de Lote o Elaboración..."
+                                    placeholder="Buscar por Nº de Lote, Elaboración o Responsable..."
                                     className="pl-8 w-full"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -875,26 +863,43 @@ export default function OfPage() {
                                 filteredAndSortedItems.map(of => {
                                     const elab = elaboracionesMap.get(of.elaboracionId);
                                     const costeLote = (elab?.costePorUnidad || 0) * (of.cantidadReal || of.cantidadTotal);
-                                    return (
-                                <TableRow
-                                    key={of.id}
-                                    className={cn(
-                                        "cursor-pointer", 
-                                        of.partidaAsignada && partidaColorClasses[of.partidaAsignada]
-                                    )}
-                                    onClick={() => router.push(`/cpr/of/${of.id}`)}
-                                >
-                                    <TableCell className="font-medium">{of.id}</TableCell>
-                                    <TableCell>{of.elaboracionNombre}</TableCell>
-                                    <TableCell>{formatNumber(of.cantidadTotal, 2)} {formatUnit(of.unidad)}</TableCell>
-                                    <TableCell>{of.cantidadReal ? `${formatNumber(of.cantidadReal, 2)} ${formatUnit(of.unidad)}` : '-'}</TableCell>
-                                    <TableCell className="font-semibold">{formatCurrency(costeLote)}</TableCell>
-                                    <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>
-                                    <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
-                                    </TableCell>
-                                </TableRow>
-                                )})
+                                    const pickingInfo = getPickingInfo(of.id);
+
+                                    const rowContent = (
+                                        <TableRow
+                                            key={of.id}
+                                            className={cn(
+                                                "cursor-pointer", 
+                                                of.partidaAsignada && partidaColorClasses[of.partidaAsignada]
+                                            )}
+                                            onClick={() => router.push(`/cpr/of/${of.id}`)}
+                                        >
+                                            <TableCell className="font-medium">{of.id}</TableCell>
+                                            <TableCell>{of.elaboracionNombre}</TableCell>
+                                            <TableCell>{formatNumber(of.cantidadTotal, 2)} {formatUnit(of.unidad)}</TableCell>
+                                            <TableCell>{of.cantidadReal ? `${formatNumber(of.cantidadReal, 2)} ${formatUnit(of.unidad)}` : '-'}</TableCell>
+                                            <TableCell className="font-semibold">{formatCurrency(costeLote)}</TableCell>
+                                            <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>
+                                            <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+
+                                    if(pickingInfo) {
+                                        return (
+                                            <Tooltip key={of.id}>
+                                                <TooltipTrigger asChild>
+                                                    {rowContent}
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Asignado al contenedor <Badge variant="secondary">{pickingInfo.containerId}</Badge> para la OS <Badge variant="outline">{pickingInfo.osId}</Badge></p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        );
+                                    }
+                                    return rowContent;
+                                })
                             ) : (
                                 <TableRow>
                                 <TableCell colSpan={8} className="h-24 text-center">
