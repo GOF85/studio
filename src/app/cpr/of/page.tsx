@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, ChefHat, ClipboardList, FileText, Users } from 'lucide-react';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, ChefHat, ClipboardList, FileText, Users, Utensils } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -889,14 +890,14 @@ export default function OfPage() {
             <CardContent>
                 {reporteData && (
                     <div className="border rounded-lg overflow-x-auto max-h-[70vh]">
-                        <Table className="text-xs">
+                        <Table className="text-[10px]">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1 w-16 text-center text-[10px] uppercase">Partida</TableHead>
-                                    <TableHead className="sticky left-16 bg-secondary/80 backdrop-blur-sm min-w-48 p-1 text-[10px] uppercase">Referencia / Elaboración</TableHead>
-                                    <TableHead className="text-right p-1 text-[10px] uppercase">Total</TableHead>
+                                    <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1 w-12 text-center uppercase">Partida</TableHead>
+                                    <TableHead className="sticky left-12 bg-secondary/80 backdrop-blur-sm min-w-48 p-1 uppercase">Referencia / Elaboración</TableHead>
+                                    <TableHead className="text-right p-1 uppercase">Total</TableHead>
                                     {reporteData.fechas.map(fecha => (
-                                        <TableHead key={fecha.toISOString()} className="text-center p-1 min-w-20">
+                                        <TableHead key={fecha.toISOString()} className="text-center p-1 min-w-16">
                                             <div className="capitalize font-normal">{format(fecha, 'EEE', {locale: es})}</div>
                                             <div className="font-bold">{format(fecha, 'dd/MM')}</div>
                                         </TableHead>
@@ -904,12 +905,12 @@ export default function OfPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center text-xs">REFERENCIAS</TableCell>
+                                <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">REFERENCIAS</TableCell>
                                 </TableRow>
                                 {reporteData.recetas.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
-                                    <TableRow key={item.id} className={cn("text-[11px]", partidaColorClasses[item.partida as PartidaProduccion] || '')}>
-                                        <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-[10px] justify-center"><div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
-                                        <TableCell className="sticky left-16 bg-inherit font-semibold p-1">
+                                    <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
+                                        <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-[9px] justify-center px-0.5"><div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
+                                        <TableCell className="sticky left-12 bg-inherit font-semibold p-1">
                                             <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <span className="cursor-help">{item.nombre}</span>
@@ -929,11 +930,11 @@ export default function OfPage() {
                                         })}
                                     </TableRow>
                                 ))}
-                                    <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center text-xs">ELABORACIONES</TableCell></TableRow>
+                                    <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">ELABORACIONES</TableCell></TableRow>
                                 {reporteData.elaboraciones.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
-                                        <TableRow key={item.id} className={cn("text-[11px]", partidaColorClasses[item.partida as PartidaProduccion] || '')}>
-                                        <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-[10px] justify-center"><div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
-                                        <TableCell className="sticky left-16 bg-inherit font-semibold p-1">
+                                        <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
+                                        <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-[9px] justify-center px-0.5"><div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
+                                        <TableCell className="sticky left-12 bg-inherit font-semibold p-1">
                                             <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <span className="cursor-help">{item.nombre}</span>
@@ -983,3 +984,4 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
