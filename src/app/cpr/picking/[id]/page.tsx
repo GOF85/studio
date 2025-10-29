@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
@@ -61,11 +62,13 @@ function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lo
     const [allocations, setAllocations] = useState<Record<string, number>>({});
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(containers[0]?.id || null);
     const [open, setOpen] = useState(false);
+    const [showExcessConfirm, setShowExcessConfirm] = useState(false);
     const { toast } = useToast();
 
     const totalAllocated = useMemo(() => Object.values(allocations).reduce((sum, qty) => sum + qty, 0), [allocations]);
+    const isExcess = totalAllocated > cantidadPendiente;
 
-    const handleAllocate = () => {
+    const proceedAllocation = () => {
         if (!selectedContainerId) {
             toast({variant: 'destructive', title: 'Error', description: "Por favor, selecciona un contenedor."});
             return;
@@ -81,7 +84,16 @@ function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lo
         
         onAllocate(finalAllocations, selectedContainerId);
         setOpen(false);
+        setShowExcessConfirm(false);
         setAllocations({});
+    }
+
+    const handleAllocateClick = () => {
+        if (isExcess) {
+            setShowExcessConfirm(true);
+        } else {
+            proceedAllocation();
+        }
     }
     
     const handleAddNewContainer = () => {
@@ -96,64 +108,83 @@ function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lo
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button size="sm">Asignar</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>Asignar Lote: {lote.elaboracionNombre}</DialogTitle>
-                    <DialogDescription>
-                        Selecciona de qué lotes quieres coger producto y a qué contenedor asignarlo.
-                        Necesitas asignar un total de <strong>{formatNumber(cantidadPendiente, 2)} {formatUnit(lote.unidad)}</strong>.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-4">
-                     <div className="max-h-64 overflow-y-auto border rounded-md">
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Disponible</TableHead><TableHead className="w-40">Cantidad a Asignar</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {lote.lotesDisponibles.map(ld => (
-                                    <TableRow key={ld.ofId}>
-                                        <TableCell><Badge variant="secondary">{ld.ofId}</Badge></TableCell>
-                                        <TableCell>{formatNumber(ld.cantidadDisponible, 2)} {formatUnit(lote.unidad)}</TableCell>
-                                        <TableCell>
-                                            <Input 
-                                                type="number" 
-                                                value={allocations[ld.ofId] || ''}
-                                                onChange={(e) => handleAllocationChange(ld.ofId, e.target.value, ld.cantidadDisponible)}
-                                                max={ld.cantidadDisponible}
-                                                step="0.01"
-                                                className="h-8"
-                                            />
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                     </div>
-                      <div className="flex justify-end font-bold">Total Asignado: {formatNumber(totalAllocated, 2)} {formatUnit(lote.unidad)}</div>
-                    <div className="space-y-2">
-                        <Label>Contenedor de Destino</Label>
-                        <div className="flex gap-2">
-                            <Select onValueChange={setSelectedContainerId} value={selectedContainerId || undefined}>
-                                <SelectTrigger className="flex-grow">
-                                    <SelectValue placeholder="Seleccionar contenedor..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {containers.map(c => <SelectItem key={c.id} value={c.id}>Contenedor {c.numero}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Button variant="outline" type="button" onClick={handleAddNewContainer}><PlusCircle className="mr-2"/>Añadir Contenedor</Button>
+        <>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                    <Button size="sm">Asignar</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Asignar Lote: {lote.elaboracionNombre}</DialogTitle>
+                        <DialogDescription>
+                            Selecciona de qué lotes quieres coger producto y a qué contenedor asignarlo.
+                            Necesitas asignar un total de <strong>{formatNumber(cantidadPendiente, 2)} {formatUnit(lote.unidad)}</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="max-h-64 overflow-y-auto border rounded-md">
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Disponible</TableHead><TableHead className="w-40">Cantidad a Asignar</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {lote.lotesDisponibles.map(ld => (
+                                        <TableRow key={ld.ofId}>
+                                            <TableCell><Badge variant="secondary">{ld.ofId}</Badge></TableCell>
+                                            <TableCell>{formatNumber(ld.cantidadDisponible, 2)} {formatUnit(lote.unidad)}</TableCell>
+                                            <TableCell>
+                                                <Input 
+                                                    type="number" 
+                                                    value={allocations[ld.ofId] || ''}
+                                                    onChange={(e) => handleAllocationChange(ld.ofId, e.target.value, ld.cantidadDisponible)}
+                                                    max={ld.cantidadDisponible}
+                                                    step="0.01"
+                                                    className="h-8"
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        <div className={cn("flex justify-end font-bold items-center gap-2", isExcess && "text-destructive")}>
+                            {isExcess && <AlertTriangle className="h-4 w-4" />}
+                            Total Asignado: {formatNumber(totalAllocated, 2)} {formatUnit(lote.unidad)}
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Contenedor de Destino</Label>
+                            <div className="flex gap-2">
+                                <Select onValueChange={setSelectedContainerId} value={selectedContainerId || undefined}>
+                                    <SelectTrigger className="flex-grow">
+                                        <SelectValue placeholder="Seleccionar contenedor..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {containers.map(c => <SelectItem key={c.id} value={c.id}>Contenedor {c.numero}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <Button variant="outline" type="button" onClick={handleAddNewContainer}><PlusCircle className="mr-2"/>Añadir Contenedor</Button>
+                            </div>
                         </div>
                     </div>
-                </div>
-                 <DialogFooter>
-                    <Button variant="secondary" onClick={() => { setOpen(false); setAllocations({}); }}>Cancelar</Button>
-                    <Button onClick={handleAllocate}>Confirmar Asignación</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    <DialogFooter>
+                        <Button variant="secondary" onClick={() => { setOpen(false); setAllocations({}); }}>Cancelar</Button>
+                        <Button onClick={handleAllocateClick}>Confirmar Asignación</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+             <AlertDialog open={showExcessConfirm} onOpenChange={setShowExcessConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Confirmar asignación excesiva?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Estás asignando <strong>{formatNumber(totalAllocated, 2)} {formatUnit(lote.unidad)}</strong>, que es más de los <strong>{formatNumber(cantidadPendiente, 2)} {formatUnit(lote.unidad)}</strong> necesarios. ¿Quieres continuar?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>No, corregir</AlertDialogCancel>
+                        <AlertDialogAction onClick={proceedAllocation}>Sí, continuar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     )
 }
 
@@ -398,7 +429,7 @@ function PickingPageContent() {
         const lotesPorHito = new Map<string, LoteNecesario[]>();
       
         if (!isMounted || !hitosConNecesidades.length) {
-          return { lotesPendientesPorHito: new Map(), isPickingComplete: true, elabMap };
+            return { lotesPorHito, isPickingComplete: true, elabMap };
         }
       
         const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
@@ -699,6 +730,7 @@ function PickingDetailPageWrapper() {
 }
 
 export default PickingDetailPageWrapper;
+
 
 
 
