@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -571,50 +572,52 @@ export default function OfPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-2 mb-4 p-4 border rounded-lg bg-card">
+      <div className="flex items-center justify-between gap-2 mb-4 p-4 border rounded-lg bg-card">
         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
-                <Button id="date" variant={"outline"} className={cn("w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                <Button id="date" variant={"outline"} className={cn("w-[380px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 flex" align="start">
-              <div className="p-2 border-r">
-                <div className="flex flex-col gap-1">
-                    <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
-                    <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
-                    <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
+                <div className="p-2 border-r">
+                  <div className="flex flex-col gap-1">
+                      <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
+                      <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
+                      <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
+                  </div>
                 </div>
-              </div>
-              <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={dateRange?.from}
-                  selected={dateRange}
-                  onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
-                  numberOfMonths={2}
-                  locale={es}
-              />
+                <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
+                    numberOfMonths={2}
+                    locale={es}
+                />
             </PopoverContent>
         </Popover>
-        <Select value={partidaFilter} onValueChange={setPartidaFilter}>
-            <SelectTrigger className="w-full sm:w-[240px]">
-                <SelectValue placeholder="Filtrar por partida" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">Todas las Partidas</SelectItem>
-                {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-            </SelectContent>
-        </Select>
-        <Button variant="secondary" onClick={handleClearFilters}>Limpiar Filtros</Button>
+        <div className="flex-grow flex justify-end items-center gap-2">
+            <Select value={partidaFilter} onValueChange={setPartidaFilter}>
+                <SelectTrigger className="w-full sm:w-[240px]">
+                    <SelectValue placeholder="Filtrar por partida" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todas las Partidas</SelectItem>
+                    {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+            </Select>
+            <Button variant="secondary" onClick={handleClearFilters}>Limpiar Filtros</Button>
+        </div>
       </div>
       <Tabs defaultValue="planificacion">
         <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="informe-necesidades">Tabla Necesidades</TabsTrigger>
             <TabsTrigger value="planificacion">Planificación</TabsTrigger>
             <TabsTrigger value="creadas">OF Creadas</TabsTrigger>
             <TabsTrigger value="asignacion">Asignación de Órdenes</TabsTrigger>
-            <TabsTrigger value="informe-necesidades">Informe Tabla Necesidades</TabsTrigger>
         </TabsList>
         <TabsContent value="planificacion" className="mt-4 space-y-4">
             <Card>
