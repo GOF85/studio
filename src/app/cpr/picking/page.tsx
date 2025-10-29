@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, ListChecks, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, UtensilsCrossed, RefreshCw } from 'lucide-react';
-import type { ServiceOrder, PickingEntregaState, PedidoEntrega, ProductoVenta, EntregaHito, ComercialBriefing, ComercialBriefingItem, Receta, OrdenFabricacion, GastronomyOrder } from '@/types';
+import type { ServiceOrder, PickingState, PedidoEntrega, ProductoVenta, EntregaHito, ComercialBriefing, ComercialBriefingItem, Receta, OrdenFabricacion, GastronomyOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -37,12 +37,13 @@ const ITEMS_PER_PAGE = 20;
 type HitoDePicking = ComercialBriefingItem & {
     serviceOrder: ServiceOrder;
     expedicion: string;
-    pickingStatus: PickingEntregaState['status'];
+    pickingStatus: PickingState['status'];
+    progress: { checked: number; total: number; percentage: number; isComplete: boolean; };
 };
 
 export default function PickingPage() {
   const [hitos, setHitos] = useState<HitoDePicking[]>([]);
-  const [pickingStates, setPickingStates] = useState<Record<string, PickingEntregaState>>({});
+  const [pickingStates, setPickingStates] = useState<Record<string, PickingState>>({});
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -52,105 +53,99 @@ export default function PickingPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas');
-    const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingEntregaState>;
+    const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
     setPickingStates(allPickingStates);
+    setIsMounted(true);
     
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'pickingStates') {
+        setPickingStates(JSON.parse(e.newValue || '{}'));
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const allHitos = useMemo(() => {
+    if (!isMounted) return [];
+    
+    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas');
     const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
+    const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
+    const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
+    const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
     
     const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
+    const ofsMap = new Map(allOFs.map(of => [of.id, of]));
+
     const hitosDePicking: HitoDePicking[] = [];
 
     allBriefings.forEach(briefing => {
         const serviceOrder = osMap.get(briefing.osId);
         if (serviceOrder && briefing.items) {
             briefing.items.forEach((hito, index) => {
-                const pickingState = allPickingStates[hito.id]; // Corrected: use hito.id
+                const pickingState = pickingStates[hito.id];
+                
+                // --- PROGRESS CALCULATION ---
+                let progress = { checked: 0, total: 0, percentage: 100, isComplete: true };
+                if (hito.conGastronomia) {
+                    const gastroOrder = allGastroOrders.find(go => go.id === hito.id);
+                    const gastroItems = gastroOrder?.items?.filter(item => item.type === 'item') || [];
+
+                    const elaboracionesNecesarias = new Set<string>();
+                    gastroItems.forEach(item => {
+                        const receta = allRecetas.find(r => r.id === item.id);
+                        if (receta) {
+                            (receta.elaboraciones || []).forEach(elab => {
+                                elaboracionesNecesarias.add(elab.elaboracionId);
+                            });
+                        }
+                    });
+
+                    const totalItems = elaboracionesNecesarias.size;
+
+                    if (totalItems === 0) {
+                        progress = { checked: 0, total: 0, percentage: 100, isComplete: true };
+                    } else {
+                        const elaboracionesAsignadas = new Set<string>();
+                        if (pickingState?.itemStates) {
+                            pickingState.itemStates.forEach(assignedLote => {
+                                const of = ofsMap.get(assignedLote.ofId);
+                                if (of && elaboracionesNecesarias.has(of.elaboracionId)) {
+                                    elaboracionesAsignadas.add(of.elaboracionId);
+                                }
+                            });
+                        }
+                        
+                        const checkedCount = elaboracionesAsignadas.size;
+                        const percentage = totalItems > 0 ? (checkedCount / totalItems) * 100 : 100;
+                        progress = {
+                            checked: checkedCount,
+                            total: totalItems,
+                            percentage: percentage,
+                            isComplete: checkedCount >= totalItems,
+                        };
+                    }
+                }
+                // --- END PROGRESS CALCULATION ---
+
                 hitosDePicking.push({
                     ...hito,
                     serviceOrder,
                     expedicion: `${serviceOrder.serviceNumber}.${(index + 1).toString().padStart(2, '0')}`,
                     pickingStatus: pickingState?.status || 'Pendiente',
+                    progress: progress
                 });
             });
         }
     });
       
-    setHitos(hitosDePicking.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
-    setIsMounted(true);
+    return hitosDePicking.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
-    const handleStorageChange = () => {
-        const updatedStates = JSON.parse(localStorage.getItem('pickingStates') || '{}');
-        setPickingStates(updatedStates);
-        setUpdateTrigger(Date.now());
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    };
-
-  }, [updateTrigger]);
-  
-  const getPickingProgress = useCallback((hito: HitoDePicking) => {
-    // Si no tiene gastronomía, está 100% completo por definición.
-    if (!hito.conGastronomia) {
-        return { checked: 0, total: 0, percentage: 100, isComplete: true };
-    }
-
-    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    const gastroOrder = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).find(go => go.id === hito.id);
-    const gastroItems = gastroOrder?.items?.filter(item => item.type === 'item') || [];
-
-    const elaboracionesNecesarias = new Set<string>();
-    gastroItems.forEach(item => {
-        const receta = allRecetas.find(r => r.id === item.id);
-        if (receta) {
-            (receta.elaboraciones || []).forEach(elab => {
-                elaboracionesNecesarias.add(elab.elaboracionId);
-            });
-        }
-    });
-
-    const totalItems = elaboracionesNecesarias.size;
-
-    if (totalItems === 0) {
-        return { checked: 0, total: 0, percentage: 100, isComplete: true };
-    }
-    
-    // Corrected logic: Look for the specific state of THIS hito
-    const state = pickingStates[hito.id];
-    if (!state || !state.itemStates) {
-        return { checked: 0, total: totalItems, percentage: 0, isComplete: false };
-    }
-
-    const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-    const ofsMap = new Map(allOFs.map(of => [of.id, of]));
-
-    const elaboracionesAsignadas = new Set<string>();
-    state.itemStates.forEach(assignedLote => {
-        const of = ofsMap.get(assignedLote.ofId);
-        if (of && elaboracionesNecesarias.has(of.elaboracionId)) {
-            elaboracionesAsignadas.add(of.elaboracionId);
-        }
-    });
-    
-    const checkedCount = elaboracionesAsignadas.size;
-    const percentage = totalItems > 0 ? (checkedCount / totalItems) * 100 : 100;
-    
-    return {
-      checked: checkedCount,
-      total: totalItems,
-      percentage: percentage,
-      isComplete: checkedCount >= totalItems,
-    };
-  }, [pickingStates]);
+  }, [isMounted, pickingStates]);
 
   const filteredHitos = useMemo(() => {
-    return hitos.map(hito => ({
-      ...hito,
-      progress: getPickingProgress(hito),
-    })).filter(hito => {
+    return allHitos.filter(hito => {
       const searchMatch = 
         hito.expedicion.toLowerCase().includes(searchTerm.toLowerCase()) ||
         hito.serviceOrder.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -170,7 +165,7 @@ export default function PickingPage() {
 
       return searchMatch && dateMatch;
     });
-  }, [hitos, searchTerm, dateRange, getPickingProgress]);
+  }, [allHitos, searchTerm, dateRange]);
 
   const { incompleteHitos, completeHitos } = useMemo(() => {
     const incomplete: typeof filteredHitos = [];
@@ -194,9 +189,8 @@ export default function PickingPage() {
 
   const totalPages = Math.ceil(incompleteHitos.length / ITEMS_PER_PAGE);
 
-
   const handleRefresh = () => {
-    setUpdateTrigger(Date.now());
+    setPickingStates(JSON.parse(localStorage.getItem('pickingStates') || '{}'));
     toast({ title: "Datos actualizados", description: "El estado de todos los pickings ha sido recalculado." });
   };
 
