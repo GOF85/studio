@@ -572,33 +572,33 @@ export default function OfPage() {
 
   return (
     <TooltipProvider>
-        <div className="flex items-center gap-2 mb-4">
-            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                <PopoverTrigger asChild>
-                    <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="flex flex-col space-y-2 p-2" align="start">
-                    <div className="flex gap-1">
-                        <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
-                        <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
-                        <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
-                    </div>
-                    <div className="rounded-md border">
-                        <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={dateRange?.from}
-                            selected={dateRange}
-                            onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
-                            numberOfMonths={2}
-                            locale={es}
-                        />
-                    </div>
-                </PopoverContent>
-            </Popover>
+      <div className="flex items-center gap-2 mb-4">
+        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+            <PopoverTrigger asChild>
+                <Button id="date" variant={"outline"} className={cn("w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="flex flex-col space-y-2 p-2" align="start">
+                <div className="flex gap-1">
+                    <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
+                    <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
+                    <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
+                </div>
+                <div className="rounded-md border">
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
+                        numberOfMonths={2}
+                        locale={es}
+                    />
+                </div>
+            </PopoverContent>
+        </Popover>
         </div>
       <Tabs defaultValue="planificacion">
         <TabsList className="grid w-full grid-cols-4">
@@ -849,38 +849,33 @@ export default function OfPage() {
                         </SelectContent>
                     </Select>
                 </div>
-                 {reporteData && (
-                    <div className="flex items-center gap-2 justify-between text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md">
+                {reporteData && (
+                    <div className="grid grid-cols-6 gap-2 text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md">
                         <div className="flex items-center space-x-1.5">
                             <ClipboardList className="h-4 w-4 text-muted-foreground"/>
                             <span className="font-bold">{reporteData.resumen.contratos}</span>
                             <span className="text-muted-foreground">Contratos</span>
                         </div>
-                        <Separator orientation="vertical" className="h-4"/>
                         <div className="flex items-center space-x-1.5">
                             <FileText className="h-4 w-4 text-muted-foreground"/>
                             <span className="font-bold">{reporteData.resumen.servicios}</span>
                             <span className="text-muted-foreground">Servicios</span>
                         </div>
-                        <Separator orientation="vertical" className="h-4"/>
                         <div className="flex items-center space-x-1.5">
                             <Users className="h-4 w-4 text-muted-foreground"/>
                             <span className="font-bold">{formatNumber(reporteData.resumen.pax,0)}</span>
                             <span className="text-muted-foreground">Comensales</span>
                         </div>
-                        <Separator orientation="vertical" className="h-4"/>
                         <div className="flex items-center space-x-1.5">
                             <Layers className="h-4 w-4 text-muted-foreground"/>
                             <span className="font-bold">{reporteData.resumen.referencias}</span>
                             <span className="text-muted-foreground">Referencias</span>
                         </div>
-                        <Separator orientation="vertical" className="h-4"/>
                          <div className="flex items-center space-x-1.5">
                             <Utensils className="h-4 w-4 text-muted-foreground"/>
                             <span className="font-bold">{formatNumber(reporteData.resumen.unidades,0)}</span>
                             <span className="text-muted-foreground">Uds. Ref.</span>
                         </div>
-                        <Separator orientation="vertical" className="h-4"/>
                         <div className="flex items-center space-x-1.5">
                             <ChefHat className="h-4 w-4 text-muted-foreground"/>
                             <span className="font-bold">{reporteData.resumen.elaboraciones}</span>
@@ -1012,3 +1007,4 @@ export default function OfPage() {
   );
 }
 
+```
