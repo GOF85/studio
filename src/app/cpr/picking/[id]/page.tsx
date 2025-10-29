@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -475,7 +475,7 @@ function PickingPageContent() {
           lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete, elabMap };
+        return { lotesPendientesPorHito, isPickingComplete: allComplete, elabMap };
   
       }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, allValidatedOFs, allAssignedQuantities]);
     
@@ -700,6 +700,7 @@ function PickingDetailPageWrapper() {
 }
 
 export default PickingDetailPageWrapper;
+
 
 
 
