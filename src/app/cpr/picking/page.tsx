@@ -50,8 +50,7 @@ export default function PickingPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    // --- Load all necessary data at once ---
+  const loadData = useCallback(() => {
     const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas');
     const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
     const allPickingStatesData = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
@@ -65,6 +64,7 @@ export default function PickingPage() {
         const serviceOrder = osMap.get(briefing.osId);
         if (serviceOrder && briefing.items) {
             briefing.items.forEach((hito, index) => {
+                // Correctly find the picking state by hito ID, not OS ID
                 const pickingState = allPickingStatesData[hito.id];
                 hitosDePicking.push({
                     ...hito,
@@ -78,16 +78,18 @@ export default function PickingPage() {
       
     setAllHitos(hitosDePicking.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
     setIsMounted(true);
-    
+  }, []);
+
+  useEffect(() => {
+    loadData();
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'pickingStates') {
-        setPickingStates(JSON.parse(e.newValue || '{}'));
+      if (e.key === 'pickingStates' || e.key === 'comercialBriefings' || e.key === 'gastronomyOrders') {
+        loadData();
       }
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-
-  }, []);
+  }, [loadData]);
   
   const progressMap = useMemo(() => {
     const newProgressMap = new Map<string, { checked: number; total: number; percentage: number; isComplete: boolean; }>();
@@ -196,7 +198,7 @@ export default function PickingPage() {
   const totalPages = Math.ceil(incompleteHitos.length / ITEMS_PER_PAGE);
 
   const handleRefresh = () => {
-    setPickingStates(JSON.parse(localStorage.getItem('pickingStates') || '{}'));
+    loadData();
     toast({ title: "Datos actualizados", description: "El estado de todos los pickings ha sido recalculado." });
   };
 
