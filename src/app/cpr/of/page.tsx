@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat } from 'lucide-react';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat, Separator } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -48,7 +48,6 @@ import { DateRange } from 'react-day-picker';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Separator } from '@/components/ui/separator';
 
 
 type NecesidadDesgloseItem = {
@@ -580,9 +579,9 @@ export default function OfPage() {
                     {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <div className="p-2 border-b">
-                <div className="flex gap-1">
+            <PopoverContent className="w-auto p-0 flex" align="start">
+              <div className="p-2 border-r">
+                <div className="flex flex-col gap-1">
                     <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
                     <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
                     <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
@@ -836,25 +835,13 @@ export default function OfPage() {
                      <div className="text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md space-y-1.5">
                         <div className="flex items-center justify-around">
                             <Tooltip>
-                                <TooltipTrigger>
-                                <div className="flex items-center space-x-1.5"><ClipboardList className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.contratos}</span><span className="text-muted-foreground">Contratos</span></div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <div className="p-2 space-y-1 text-sm">
-                                        {reporteData.resumen.contratosDetalle.map((d, i) => <p key={i}>{d}</p>)}
-                                    </div>
-                                </TooltipContent>
+                                <TooltipTrigger asChild><div className="flex items-center space-x-1.5 cursor-pointer"><ClipboardList className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.contratos}</span><span className="text-muted-foreground">Contratos</span></div></TooltipTrigger>
+                                <TooltipContent><div className="p-2 space-y-1 text-sm">{reporteData.resumen.contratosDetalle.map((d, i) => <p key={i}>{d}</p>)}</div></TooltipContent>
                             </Tooltip>
                             <Separator orientation="vertical" className="h-4"/>
                             <Tooltip>
-                                <TooltipTrigger>
-                                <div className="flex items-center space-x-1.5"><FileText className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.servicios}</span><span className="text-muted-foreground">Servicios</span></div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                     <div className="p-2 space-y-1 text-sm">
-                                        {reporteData.resumen.serviciosDetalle.map((d, i) => <p key={i}>{d}</p>)}
-                                    </div>
-                                </TooltipContent>
+                                <TooltipTrigger asChild><div className="flex items-center space-x-1.5 cursor-pointer"><FileText className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.servicios}</span><span className="text-muted-foreground">Servicios</span></div></TooltipTrigger>
+                                <TooltipContent><div className="p-2 space-y-1 text-sm">{reporteData.resumen.serviciosDetalle.map((d, i) => <p key={i}>{d}</p>)}</div></TooltipContent>
                             </Tooltip>
                             <Separator orientation="vertical" className="h-4"/>
                             <div className="flex items-center space-x-1.5"><Users className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{formatNumber(reporteData.resumen.comensales,0)}</span><span className="text-muted-foreground">Comensales</span></div>
@@ -952,7 +939,7 @@ export default function OfPage() {
                                             </TooltipContent>
                                             </Tooltip>
                                         </TableCell>
-                                        <TableCell className="text-right p-1 font-bold font-mono">{formatNumber(item.udTotales, 2)} {formatUnit(item.unidad}</TableCell>
+                                        <TableCell className="text-right p-1 font-bold font-mono">{formatNumber(item.udTotales, 2)} {formatUnit(item.unidad)}</TableCell>
                                         {reporteData.fechas.map(fecha => {
                                             const fechaKey = format(fecha, 'yyyy-MM-dd');
                                             return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-1 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
