@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -154,6 +155,7 @@ export default function OfPage() {
   const [serviceOrdersMap, setServiceOrdersMap] = useState<Map<string, ServiceOrder>>(new Map());
   
   const [necesidades, setNecesidades] = useState<NecesidadItem[]>([]);
+  const [necesidadesCubiertas, setNecesidadesCubiertas] = useState<NecesidadItem[]>([]);
   const [selectedNecesidades, setSelectedNecesidades] = useState<Set<string>>(new Set());
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfWeek(new Date(), { weekStartsOn: 1 }),
@@ -301,7 +303,10 @@ export default function OfPage() {
       });
     });
 
-    const necesidadesArray = Array.from(necesidadesAgregadas.values()).map(necesidad => {
+    const necesidadesNetas: NecesidadItem[] = [];
+    const necesidadesCubiertas: NecesidadItem[] = [];
+
+    Array.from(necesidadesAgregadas.values()).forEach(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => {
             if (of.elaboracionId !== necesidad.id) return false;
             try {
@@ -322,16 +327,23 @@ export default function OfPage() {
         const stockAUtilizar = Math.min(necesidad.cantidadNecesariaTotal, stockDisponible);
         const cantidadNeta = necesidad.cantidadNecesariaTotal - stockAUtilizar - cantidadPlanificada;
 
-        return {
+        const itemCompleto = {
           ...necesidad,
           stockDisponible: stockAUtilizar,
           cantidadPlanificada,
           cantidadNeta,
           desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
         };
-    }).filter(n => n.cantidadNeta > 0.001);
 
-    setNecesidades(necesidadesArray);
+        if (cantidadNeta > 0.001) {
+            necesidadesNetas.push(itemCompleto);
+        } else {
+            necesidadesCubiertas.push(itemCompleto);
+        }
+    });
+
+    setNecesidades(necesidadesNetas);
+    setNecesidadesCubiertas(necesidadesCubiertas);
 
     // --- STAGE 5: CALCULATE REPORT DATA ---
     if (dateRange.from && dateRange.to) {
@@ -740,8 +752,9 @@ export default function OfPage() {
                 <CardHeader className="flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
                     <div className="flex items-center gap-2">
-                         <Button onClick={loadData} variant="outline" size="icon">
-                           <RefreshCw className="h-4 w-4" />
+                         <Button onClick={loadData} variant="outline" size="sm">
+                           <RefreshCw className="mr-2 h-4 w-4" />
+                           Recalcular Necesidades
                        </Button>
                         <Button size="sm" onClick={handleGenerateOFs} disabled={selectedNecesidades.size === 0}>
                             Generar OF para la selección ({selectedNecesidades.size})
@@ -808,6 +821,46 @@ export default function OfPage() {
                     </div>
                 </CardContent>
             </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">Necesidades Cubiertas</CardTitle>
+                    <CardDescription>Elaboraciones cuya producción ya está planificada o cubierta por el stock para el periodo seleccionado.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <div className="border rounded-lg max-h-96 overflow-y-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="min-w-40">Elaboración</TableHead>
+                                    <TableHead>Partida</TableHead>
+                                    <TableHead className="text-right">Necesidad Total</TableHead>
+                                    <TableHead className="text-right">Stock Utilizado</TableHead>
+                                    <TableHead className="text-right">Planificado</TableHead>
+                                    <TableHead className="text-right font-bold text-green-600">Excedente/Sobrante</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                 {necesidadesCubiertas.length > 0 ? necesidadesCubiertas.map(item => (
+                                    <TableRow key={item.id}>
+                                        <TableCell className="font-semibold">{item.nombre}</TableCell>
+                                        <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
+                                        <TableCell className="text-right font-mono">{formatNumber(item.cantidadNecesariaTotal, 2)} {formatUnit(item.unidad)}</TableCell>
+                                        <TableCell className="text-right font-mono">{formatNumber(item.stockDisponible || 0, 2)} {formatUnit(item.unidad)}</TableCell>
+                                        <TableCell className="text-right font-mono">{formatNumber(item.cantidadPlanificada || 0, 2)} {formatUnit(item.unidad)}</TableCell>
+                                        <TableCell className="text-right font-mono font-bold text-green-600">{formatNumber(Math.abs(item.cantidadNeta), 2)} {formatUnit(item.unidad)}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                            No hay necesidades cubiertas para mostrar.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
         </TabsContent>
         <TabsContent value="creadas" className="mt-4 space-y-4">
              <Card>
@@ -821,7 +874,7 @@ export default function OfPage() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="search"
-                                    placeholder="Buscar por Nº de Lote, Elaboración..."
+                                    placeholder="Buscar por Nº de Lote, Elaboración, Responsable..."
                                     className="pl-8 w-full"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
