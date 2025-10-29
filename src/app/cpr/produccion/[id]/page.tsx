@@ -221,7 +221,7 @@ export default function ProduccionDetallePage() {
                                                               step="0.01" 
                                                               placeholder={ceilToTwoDecimals(cantNecesaria)}
                                                               className="h-8 text-right"
-                                                              defaultValue={consumo?.cantidadReal}
+                                                              defaultValue={consumo?.cantidadReal?.toFixed(2)}
                                                               onBlur={(e) => handleConsumoChange(comp.id, parseFloat(e.target.value) || 0)}
                                                             />
                                                         </TableCell>
@@ -319,7 +319,7 @@ export default function ProduccionDetallePage() {
                         <div className="grid grid-cols-2 gap-4 text-center">
                             <div>
                                 <p className="text-sm text-muted-foreground">Cantidad Planificada</p>
-                                <p className="text-xl font-bold">{orden.cantidadTotal} {orden.unidad}</p>
+                                <p className="text-xl font-bold">{ceilToTwoDecimals(orden.cantidadTotal)} {orden.unidad}</p>
                             </div>
                              <div>
                                 <Label htmlFor="cantidad-real" className="text-sm text-muted-foreground">Cantidad Real Producida ({orden.unidad})</Label>
