@@ -65,7 +65,7 @@ export default function PickingPage() {
         const serviceOrder = osMap.get(briefing.osId);
         if (serviceOrder && briefing.items) {
             briefing.items.forEach((hito, index) => {
-                const pickingState = allPickingStates[hito.id];
+                const pickingState = allPickingStates[hito.id]; // Corrected: use hito.id
                 hitosDePicking.push({
                     ...hito,
                     serviceOrder,
@@ -98,7 +98,6 @@ export default function PickingPage() {
         return { checked: 0, total: 0, percentage: 100, isComplete: true };
     }
 
-    // 1. Identificar todas las elaboraciones únicas necesarias
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const gastroOrder = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).find(go => go.id === hito.id);
     const gastroItems = gastroOrder?.items?.filter(item => item.type === 'item') || [];
@@ -115,12 +114,11 @@ export default function PickingPage() {
 
     const totalItems = elaboracionesNecesarias.size;
 
-    // Si no se necesitan elaboraciones, está completo.
     if (totalItems === 0) {
         return { checked: 0, total: 0, percentage: 100, isComplete: true };
     }
     
-    // 2. Identificar las elaboraciones únicas que ya han sido asignadas
+    // Corrected logic: Look for the specific state of THIS hito
     const state = pickingStates[hito.id];
     if (!state || !state.itemStates) {
         return { checked: 0, total: totalItems, percentage: 0, isComplete: false };
