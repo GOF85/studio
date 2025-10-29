@@ -1,12 +1,10 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat } from 'lucide-react';
-import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
+import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState, LoteAsignado } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -153,6 +151,7 @@ export default function OfPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
+  const [serviceOrdersMap, setServiceOrdersMap] = useState<Map<string, ServiceOrder>>(new Map());
   
   const [necesidades, setNecesidades] = useState<NecesidadItem[]>([]);
   const [selectedNecesidades, setSelectedNecesidades] = useState<Set<string>>(new Set());
@@ -186,6 +185,8 @@ export default function OfPage() {
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
     const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
     setElaboracionesMap(elabMap);
+    const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
+    setServiceOrdersMap(osMap);
 
     if (!dateRange?.from) {
       setNecesidades([]);
@@ -193,7 +194,6 @@ export default function OfPage() {
       return;
     }
     
-    const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
     const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const briefingsMap = new Map(allBriefings.map(b => [b.osId, b]));
@@ -895,7 +895,7 @@ export default function OfPage() {
                                                     {rowContent}
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <div>Asignado al contenedor <Badge variant="secondary">{pickingInfo.containerId}</Badge> para la OS <Badge variant="outline">{osMap.get(pickingInfo.osId)?.serviceNumber}</Badge></div>
+                                                    <div>Asignado al contenedor <Badge variant="secondary">{pickingInfo.containerId}</Badge> para la OS <Badge variant="outline">{serviceOrdersMap.get(pickingInfo.osId)?.serviceNumber}</Badge></div>
                                                 </TooltipContent>
                                             </Tooltip>
                                         );
