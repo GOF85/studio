@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, Separator, ChefHat } from 'lucide-react';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat, Separator } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -571,34 +572,34 @@ export default function OfPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-2">
-        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-            <PopoverTrigger asChild>
-                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="flex flex-col space-y-2 p-2" align="start">
-                <div className="flex gap-1">
-                    <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
-                    <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
-                     <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
-                </div>
-                <div className="rounded-md border">
-                    <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange?.from}
-                        selected={dateRange}
-                        onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
-                        numberOfMonths={2}
-                        locale={es}
-                    />
-                </div>
-            </PopoverContent>
-        </Popover>
-      </div>
+        <div className="flex items-center gap-2 mb-4">
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <PopoverTrigger asChild>
+                    <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="flex flex-col space-y-2 p-2" align="start">
+                    <div className="flex gap-1">
+                        <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
+                        <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
+                        <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
+                    </div>
+                    <div className="rounded-md border">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
+                            numberOfMonths={2}
+                            locale={es}
+                        />
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
       <Tabs defaultValue="planificacion">
         <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="planificacion">Planificación</TabsTrigger>
@@ -611,7 +612,7 @@ export default function OfPage() {
                 <CardHeader className="flex-row justify-between items-center">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
                     <div className="flex items-center gap-2">
-                        <Button onClick={loadData} variant="outline" size="icon">
+                         <Button onClick={loadData} variant="outline" size="icon">
                            <RefreshCw className="h-4 w-4" />
                        </Button>
                         <Button size="sm" onClick={handleGenerateOFs} disabled={selectedNecesidades.size === 0}>
@@ -874,7 +875,7 @@ export default function OfPage() {
                             <span className="text-muted-foreground">Referencias</span>
                         </div>
                         <Separator orientation="vertical" className="h-4"/>
-                        <div className="flex items-center space-x-1.5">
+                         <div className="flex items-center space-x-1.5">
                             <Utensils className="h-4 w-4 text-muted-foreground"/>
                             <span className="font-bold">{formatNumber(reporteData.resumen.unidades,0)}</span>
                             <span className="text-muted-foreground">Uds. Ref.</span>
@@ -911,8 +912,8 @@ export default function OfPage() {
                         <Table className="text-[10px]">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1 w-12 text-center uppercase">Partida</TableHead>
-                                    <TableHead className="sticky left-12 bg-secondary/80 backdrop-blur-sm min-w-48 p-1 uppercase">Referencia / Elaboración</TableHead>
+                                    <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1 w-10 text-center uppercase">Partida</TableHead>
+                                    <TableHead className="sticky left-10 bg-secondary/80 backdrop-blur-sm min-w-48 p-1 uppercase">Referencia / Elaboración</TableHead>
                                     <TableHead className="text-right p-1 uppercase">Total</TableHead>
                                     {reporteData.fechas.map(fecha => (
                                         <TableHead key={fecha.toISOString()} className="text-center p-1 min-w-16">
@@ -927,8 +928,12 @@ export default function OfPage() {
                                 </TableRow>
                                 {reporteData.referencias.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
                                     <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
-                                        <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-[9px] justify-center px-0.5"><div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
-                                        <TableCell className="sticky left-12 bg-inherit font-semibold p-1">
+                                        <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center">
+                                            <Badge variant="outline" className="bg-white/80 w-full text-[9px] justify-center px-0.5">
+                                                <div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="sticky left-10 bg-inherit font-semibold p-1">
                                             <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <span className="cursor-help">{item.nombre}</span>
@@ -951,8 +956,12 @@ export default function OfPage() {
                                     <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">ELABORACIONES</TableCell></TableRow>
                                 {reporteData.elaboraciones.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
                                         <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
-                                        <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-[9px] justify-center px-0.5"><div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
-                                        <TableCell className="sticky left-12 bg-inherit font-semibold p-1">
+                                        <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center">
+                                            <Badge variant="outline" className="bg-white/80 w-full text-[9px] justify-center px-0.5">
+                                                <div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="sticky left-10 bg-inherit font-semibold p-1">
                                             <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <span className="cursor-help">{item.nombre}</span>
@@ -1002,3 +1011,4 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
