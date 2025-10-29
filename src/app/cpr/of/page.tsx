@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers } from 'lucide-react';
+import { useRouter, useParams } from 'next/navigation';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, ChefHat } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -568,7 +568,7 @@ export default function OfPage() {
                 <CardHeader className="flex-row justify-between items-center">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
                     <div className="flex items-center gap-2">
-                         <Button onClick={loadData} variant="outline" size="icon">
+                        <Button onClick={loadData} variant="outline" size="icon">
                            <RefreshCw className="h-4 w-4" />
                        </Button>
                         <Button size="sm" onClick={handleGenerateOFs} disabled={selectedNecesidades.size === 0}>
@@ -905,5 +905,7 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
