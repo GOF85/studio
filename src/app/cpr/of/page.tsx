@@ -63,6 +63,7 @@ type NecesidadItem = {
   stockDisponible?: number;
   cantidadPlanificada?: number;
   desgloseDiario: { fecha: string, cantidad: number }[];
+  recetas: string[];
 };
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -179,7 +180,8 @@ export default function OfPage() {
                         osIDs: new Set(),
                         partida: elab.partidaProduccion,
                         tipoExpedicion: elab.tipoExpedicion,
-                        desgloseDiario: []
+                        desgloseDiario: [],
+                        recetas: [],
                     };
                     necesidadesAgregadas.set(id, necesidad);
                 }
@@ -187,6 +189,10 @@ export default function OfPage() {
                 const cantidadNecesaria = (item.quantity || 1) * elabEnReceta.cantidad;
                 necesidad.cantidad += cantidadNecesaria;
                 necesidad.osIDs.add(gastroOrder.osId);
+                
+                if (!necesidad.recetas.includes(receta.nombre)) {
+                    necesidad.recetas.push(receta.nombre);
+                }
                 
                 const desglose = necesidad.desgloseDiario.find(d => d.fecha === fechaKey);
                 if (desglose) {
@@ -421,7 +427,16 @@ export default function OfPage() {
                                 {necesidades.length > 0 ? necesidades.map(item => (
                                     <TableRow key={item.id}>
                                         <TableCell><Checkbox checked={selectedNecesidades.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(item.id, !!checked)}/></TableCell>
-                                        <TableCell>{item.nombre}</TableCell>
+                                        <TableCell>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="font-semibold cursor-help">{item.nombre}</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Requerido por: {item.recetas.join(', ')}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TableCell>
                                         <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
                                         <TableCell className="text-right font-mono">
                                             <Tooltip>
