@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat, Separator } from 'lucide-react';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, Separator } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -101,7 +100,7 @@ type ReporteData = {
     resumen: {
         contratos: number;
         servicios: number;
-        pax: number;
+        comensales: number;
         referencias: number;
         unidades: number;
         elaboraciones: number;
@@ -344,7 +343,7 @@ export default function OfPage() {
       const resumen = {
           contratos: new Set<string>(),
           servicios: 0,
-          pax: 0,
+          comensales: 0,
           referencias: 0,
           unidades: 0,
           elaboraciones: 0,
@@ -357,7 +356,7 @@ export default function OfPage() {
 
           resumen.contratos.add(os.id);
           resumen.servicios++;
-          resumen.pax += os.asistentes || 0;
+          resumen.comensales += os.asistentes || 0;
           const fechaKey = format(new Date(order.fecha), 'yyyy-MM-dd');
 
           (order.items || []).forEach(item => {
@@ -572,33 +571,33 @@ export default function OfPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-2 mb-4">
-        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-            <PopoverTrigger asChild>
-                <Button id="date" variant={"outline"} className={cn("w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="flex flex-col space-y-2 p-2" align="start">
-                <div className="flex gap-1">
-                    <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
-                    <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
-                    <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
-                </div>
-                <div className="rounded-md border">
-                    <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange?.from}
-                        selected={dateRange}
-                        onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
-                        numberOfMonths={2}
-                        locale={es}
-                    />
-                </div>
-            </PopoverContent>
-        </Popover>
+        <div className="flex items-center gap-2 mb-4">
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <PopoverTrigger asChild>
+                    <Button id="date" variant={"outline"} className={cn("w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="flex flex-col space-y-2 p-2" align="start">
+                    <div className="flex gap-1">
+                        <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
+                        <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
+                        <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
+                    </div>
+                    <div className="rounded-md border">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
+                            numberOfMonths={2}
+                            locale={es}
+                        />
+                    </div>
+                </PopoverContent>
+            </Popover>
         </div>
       <Tabs defaultValue="planificacion">
         <TabsList className="grid w-full grid-cols-4">
@@ -850,54 +849,60 @@ export default function OfPage() {
                     </Select>
                 </div>
                 {reporteData && (
-                    <div className="grid grid-cols-6 gap-2 text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md">
-                        <div className="flex items-center space-x-1.5">
-                            <ClipboardList className="h-4 w-4 text-muted-foreground"/>
-                            <span className="font-bold">{reporteData.resumen.contratos}</span>
-                            <span className="text-muted-foreground">Contratos</span>
+                    <div className="text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md">
+                        <div className="flex items-center justify-around">
+                             <div className="flex items-center space-x-1.5">
+                                <ClipboardList className="h-4 w-4 text-muted-foreground"/>
+                                <span className="font-bold">{reporteData.resumen.contratos}</span>
+                                <span className="text-muted-foreground">Contratos</span>
+                            </div>
+                            <Separator orientation="vertical" className="h-4"/>
+                            <div className="flex items-center space-x-1.5">
+                                <FileText className="h-4 w-4 text-muted-foreground"/>
+                                <span className="font-bold">{reporteData.resumen.servicios}</span>
+                                <span className="text-muted-foreground">Servicios</span>
+                            </div>
+                            <Separator orientation="vertical" className="h-4"/>
+                            <div className="flex items-center space-x-1.5">
+                                <Users className="h-4 w-4 text-muted-foreground"/>
+                                <span className="font-bold">{formatNumber(reporteData.resumen.comensales,0)}</span>
+                                <span className="text-muted-foreground">Comensales</span>
+                            </div>
+                             <Separator orientation="vertical" className="h-4"/>
+                             <div className="flex items-center space-x-1.5">
+                                <Layers className="h-4 w-4 text-muted-foreground"/>
+                                <span className="font-bold">{reporteData.resumen.referencias}</span>
+                                <span className="text-muted-foreground">Referencias</span>
+                            </div>
+                             <Separator orientation="vertical" className="h-4"/>
+                             <div className="flex items-center space-x-1.5">
+                                <Utensils className="h-4 w-4 text-muted-foreground"/>
+                                <span className="font-bold">{formatNumber(reporteData.resumen.unidades,0)}</span>
+                                <span className="text-muted-foreground">Uds. Ref.</span>
+                            </div>
+                             <Separator orientation="vertical" className="h-4"/>
+                            <div className="flex items-center space-x-1.5">
+                                <ChefHat className="h-4 w-4 text-muted-foreground"/>
+                                <span className="font-bold">{reporteData.resumen.elaboraciones}</span>
+                                <span className="text-muted-foreground">Elaboraciones</span>
+                            </div>
                         </div>
-                        <div className="flex items-center space-x-1.5">
-                            <FileText className="h-4 w-4 text-muted-foreground"/>
-                            <span className="font-bold">{reporteData.resumen.servicios}</span>
-                            <span className="text-muted-foreground">Servicios</span>
+                         <Separator className="my-1.5"/>
+                         <div className="flex items-center gap-3 justify-center">
+                            {partidas.map(p => {
+                                const data = reporteData.resumen.resumenPorPartida[p];
+                                if (!data || (data.referencias === 0 && data.unidades === 0 && data.elaboraciones === 0)) return null;
+                                return (
+                                    <div key={p} className="flex items-center gap-2">
+                                        <div className={cn("h-2.5 w-2.5 rounded-full", partidaColorCircles[p])}/>
+                                        <span className="font-bold">{p}:</span>
+                                        <span className="text-muted-foreground">Ref:</span><span className="font-semibold">{data.referencias}</span>
+                                        <span className="text-muted-foreground">Uds:</span><span className="font-semibold">{formatNumber(data.unidades,0)}</span>
+                                        <span className="text-muted-foreground">Elab:</span><span className="font-semibold">{data.elaboraciones}</span>
+                                    </div>
+                                )
+                            })}
                         </div>
-                        <div className="flex items-center space-x-1.5">
-                            <Users className="h-4 w-4 text-muted-foreground"/>
-                            <span className="font-bold">{formatNumber(reporteData.resumen.pax,0)}</span>
-                            <span className="text-muted-foreground">Comensales</span>
-                        </div>
-                        <div className="flex items-center space-x-1.5">
-                            <Layers className="h-4 w-4 text-muted-foreground"/>
-                            <span className="font-bold">{reporteData.resumen.referencias}</span>
-                            <span className="text-muted-foreground">Referencias</span>
-                        </div>
-                         <div className="flex items-center space-x-1.5">
-                            <Utensils className="h-4 w-4 text-muted-foreground"/>
-                            <span className="font-bold">{formatNumber(reporteData.resumen.unidades,0)}</span>
-                            <span className="text-muted-foreground">Uds. Ref.</span>
-                        </div>
-                        <div className="flex items-center space-x-1.5">
-                            <ChefHat className="h-4 w-4 text-muted-foreground"/>
-                            <span className="font-bold">{reporteData.resumen.elaboraciones}</span>
-                            <span className="text-muted-foreground">Elaboraciones</span>
-                        </div>
-                    </div>
-                 )}
-                 {reporteData && (
-                    <div className="flex items-center gap-3 justify-center text-xs font-medium bg-muted/40 p-1.5 mt-2 rounded-md">
-                       {partidas.map(p => {
-                           const data = reporteData.resumen.resumenPorPartida[p];
-                           if (!data || (data.referencias === 0 && data.unidades === 0 && data.elaboraciones === 0)) return null;
-                           return (
-                               <div key={p} className="flex items-center gap-2 border-r pr-3 last:border-r-0">
-                                   <div className={cn("h-2.5 w-2.5 rounded-full", partidaColorCircles[p])}/>
-                                   <span className="font-bold">{p}:</span>
-                                   <span className="text-muted-foreground">Ref:</span><span className="font-semibold">{data.referencias}</span>
-                                   <span className="text-muted-foreground">Uds:</span><span className="font-semibold">{formatNumber(data.unidades,0)}</span>
-                                   <span className="text-muted-foreground">Elab:</span><span className="font-semibold">{data.elaboraciones}</span>
-                               </div>
-                           )
-                       })}
                     </div>
                  )}
             </CardHeader>
@@ -1006,5 +1011,3 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
-
-```
