@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, Info } from 'lucide-react';
+import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, Info, RefreshCw } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -53,10 +52,16 @@ import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/comp
 
 
 type NecesidadDesgloseItem = {
+    osId: string;
+    osNumber: string;
+    osSpace: string;
+    hitoId: string;
+    hitoDescripcion: string;
+    fechaHito: string;
+    recetaId: string;
     recetaNombre: string;
     cantidadReceta: number;
-    fecha: string;
-    cantidadElaboracion: number;
+    cantidadNecesaria: number;
 };
 
 type NecesidadItem = {
@@ -121,6 +126,7 @@ export default function OfPage() {
   const loadData = useCallback(() => {
     
     // --- STAGE 1: RAW DATA ---
+    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
     const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
@@ -128,10 +134,7 @@ export default function OfPage() {
     const stockElaboraciones: Record<string, StockElaboracion> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
     const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
     
-
-    let storedOFs = localStorage.getItem('ordenesFabricacion');
-    const allOFsForState = storedOFs ? JSON.parse(storedOFs) : [];
-    setOrdenes(allOFsForState);
+    setOrdenes(allOFs);
     
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
@@ -143,8 +146,11 @@ export default function OfPage() {
       return;
     }
     
+    const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
     const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
     const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
+    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+    const briefingsMap = new Map(allBriefings.map(b => [b.osId, b]));
 
     const necesidadesAgregadas: Map<string, NecesidadItem> = new Map();
 
@@ -167,6 +173,9 @@ export default function OfPage() {
     gastroOrdersInRange.forEach(gastroOrder => {
       try {
         const fechaKey = format(new Date(gastroOrder.fecha), 'yyyy-MM-dd');
+        const os = osMap.get(gastroOrder.osId);
+        const briefing = briefingsMap.get(gastroOrder.osId);
+        if(!os || !briefing) return;
         
         (gastroOrder.items || []).forEach(item => {
             if (item.type !== 'item') return;
@@ -215,11 +224,18 @@ export default function OfPage() {
                     necesidad.desgloseDiario.push({ fecha: fechaKey, cantidad: cantidadNecesaria });
                 }
                 
+                const hito = briefing.items.find(h => h.id === gastroOrder.id);
                 necesidad.desgloseCompleto.push({
+                    osId: os.id,
+                    osNumber: os.serviceNumber,
+                    osSpace: os.space,
+                    hitoId: hito?.id || '',
+                    hitoDescripcion: hito?.descripcion || '',
+                    fechaHito: hito?.fecha || '',
+                    recetaId: receta.id,
                     recetaNombre: receta.nombre,
                     cantidadReceta: item.quantity || 1,
-                    fecha: fechaKey,
-                    cantidadElaboracion: cantidadNecesaria
+                    cantidadNecesaria: cantidadNecesaria
                 });
             });
         });
@@ -228,9 +244,7 @@ export default function OfPage() {
     });
 
 
-    // --- STAGE 4: CALCULATE NET NEEDS (THE CORRECT WAY) ---
-    
-    // First, get a global view of what's been assigned from stock across ALL pickings
+    // --- STAGE 4: CALCULATE NET NEEDS ---
     const stockAsignadoGlobal: Record<string, number> = {};
     Object.values(allPickingStates).forEach(state => {
       (state.itemStates || []).forEach(assigned => {
@@ -242,7 +256,6 @@ export default function OfPage() {
     });
 
     const necesidadesArray = Array.from(necesidadesAgregadas.values()).map(necesidad => {
-        // Find existing OFs for this item within the date range
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => {
             if (of.elaboracionId !== necesidad.id) return false;
             try {
@@ -251,25 +264,21 @@ export default function OfPage() {
             } catch(e) { return false; }
         });
         
-        // "Planificado" is what OFs are set to produce, or have already produced.
-        const cantidadPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + (of.cantidadReal ?? of.cantidadTotal), 0);
+        const cantidadPlanificada = ofsExistentes.reduce((sum, of) => sum + (of.cantidadReal ?? of.cantidadTotal), 0);
         
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
-        // Real available stock is total minus anything already assigned in ANY picking
         const stockDisponible = Math.max(0, stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0));
 
-        // Net need is total need minus what we can cover with stock, minus what's already planned to be produced.
         const cantidadNeta = necesidad.cantidadNecesariaTotal - stockDisponible - cantidadPlanificada;
         
         return {
           ...necesidad,
-          cantidadNecesariaTotal: necesidad.cantidadNecesariaTotal, 
           cantidadNeta,
-          stockDisponible: stockDisponible, // Show only positive, usable stock
-          cantidadPlanificada: cantidadPlanificada,
+          stockDisponible: Math.max(0, stockDisponible),
+          cantidadPlanificada,
           desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
         };
-    }).filter(n => n.cantidadNeta > 0.001); // Only show if we actually need to produce something
+    }).filter(n => n.cantidadNeta > 0.001);
 
     setNecesidades(necesidadesArray);
     setIsMounted(true);
@@ -297,9 +306,10 @@ export default function OfPage() {
                     : item.fechaFinalizacion ? parseISO(item.fechaFinalizacion) : parseISO(item.fechaProduccionPrevista);
                 
                 if (dateRange.to) {
-                    return isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+                    dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+                } else {
+                    dateMatch = isSameDay(itemDate, dateRange.from);
                 }
-                return isSameDay(itemDate, dateRange.from);
             } catch(e) {
                 dateMatch = false;
             }
@@ -430,9 +440,14 @@ export default function OfPage() {
             <Card>
                 <CardHeader className="flex-row justify-between items-center">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
-                    <Button size="sm" onClick={handleGenerateOFs} disabled={selectedNecesidades.size === 0}>
-                        Generar OF para la selección ({selectedNecesidades.size})
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button onClick={loadData} variant="outline" size="icon">
+                           <RefreshCw className="h-4 w-4" />
+                       </Button>
+                        <Button size="sm" onClick={handleGenerateOFs} disabled={selectedNecesidades.size === 0}>
+                            Generar OF para la selección ({selectedNecesidades.size})
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="border rounded-lg">
@@ -457,7 +472,7 @@ export default function OfPage() {
                                 <TableRow key={item.id}>
                                     <TableCell><Checkbox checked={selectedNecesidades.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(item.id, !!checked)}/></TableCell>
                                     <TableCell>
-                                         <Tooltip>
+                                        <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <div className="font-semibold cursor-help flex items-center gap-2">
                                                     <Info className="h-4 w-4 text-muted-foreground" />
@@ -469,7 +484,7 @@ export default function OfPage() {
                                                     <p className="font-bold mb-1">Recetas que requieren esta elaboración:</p>
                                                     {item.desgloseCompleto.map((d, i) => (
                                                         <p key={i} className="text-xs">
-                                                            {format(new Date(d.fecha), 'dd/MM')}: {d.cantidadReceta} x "{d.recetaNombre}" &rarr; {formatNumber(d.cantidadElaboracion, 2)} {formatUnit(item.unidad)}
+                                                            {format(new Date(d.fechaHito), 'dd/MM')}: {d.cantidadReceta} x "{d.recetaNombre}" &rarr; {formatNumber(d.cantidadNecesaria, 2)} {formatUnit(item.unidad)}
                                                         </p>
                                                     ))}
                                                 </div>
@@ -502,15 +517,7 @@ export default function OfPage() {
                     <CardTitle className="flex items-center gap-2"><Factory/>Órdenes de Fabricación Creadas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center justify-end mb-4">
-                        <Button asChild>
-                            <Link href="/cpr/of/nuevo">
-                                <PlusCircle className="mr-2"/>
-                                Nueva OF Manual
-                            </Link>
-                        </Button>
-                    </div>
-                    <div className="flex flex-col gap-4 mb-4">
+                    <div className="flex items-center justify-between mb-4">
                         <div className="flex flex-col sm:flex-row gap-4">
                             <div className="relative flex-grow">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -531,18 +538,24 @@ export default function OfPage() {
                                     {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                                 </SelectContent>
                             </Select>
+                             <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="w-full sm:w-[240px]">
+                                    <SelectValue placeholder="Filtrar por estado" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                     <SelectItem value="all">Todos los Estados</SelectItem>
+                                    {statusOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm">Estado:</span>
-                            <div className="flex flex-wrap gap-1">
-                                <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
-                                {statusOptions.map(s => (
-                                    <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={()=> setStatusFilter(s)}>{s}</Button>
-                                ))}
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground ml-auto">Limpiar Filtros</Button>
-                        </div>
+                         <Button asChild>
+                            <Link href="/cpr/of/nuevo">
+                                <PlusCircle className="mr-2"/>
+                                Nueva OF Manual
+                            </Link>
+                        </Button>
                     </div>
+                    
 
                     <div className="border rounded-lg">
                         <Table>
@@ -570,18 +583,19 @@ export default function OfPage() {
                                         "cursor-pointer", 
                                         of.partidaAsignada && partidaColorClasses[of.partidaAsignada]
                                     )}
+                                    onClick={() => router.push(`/cpr/of/${of.id}`)}
                                 >
-                                    <TableCell className="font-medium" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.id}</TableCell>
-                                    <TableCell onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.elaboracionNombre}</TableCell>
-                                    <TableCell onClick={() => router.push(`/cpr/of/${of.id}`)}>{formatNumber(of.cantidadTotal, 2)} {formatUnit(of.unidad)}</TableCell>
-                                    <TableCell onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.cantidadReal ? `${formatNumber(of.cantidadReal, 2)} ${formatUnit(of.unidad)}` : '-'}</TableCell>
-                                    <TableCell className="font-semibold" onClick={() => router.push(`/cpr/of/${of.id}`)}>{formatCurrency(costeLote)}</TableCell>
-                                    <TableCell onClick={() => router.push(`/cpr/of/${of.id}`)}>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell onClick={() => router.push(`/cpr/of/${of.id}`)}>
+                                    <TableCell className="font-medium">{of.id}</TableCell>
+                                    <TableCell>{of.elaboracionNombre}</TableCell>
+                                    <TableCell>{formatNumber(of.cantidadTotal, 2)} {formatUnit(of.unidad)}</TableCell>
+                                    <TableCell>{of.cantidadReal ? `${formatNumber(of.cantidadReal, 2)} ${formatUnit(of.unidad)}` : '-'}</TableCell>
+                                    <TableCell className="font-semibold">{formatCurrency(costeLote)}</TableCell>
+                                    <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell>
                                     <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
                                     </TableCell>
                                      <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setOrderToDelete(of.id)}>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => { e.stopPropagation(); setOrderToDelete(of.id)}}>
                                             <Trash2 className="h-4 w-4"/>
                                         </Button>
                                     </TableCell>
@@ -600,7 +614,7 @@ export default function OfPage() {
                 </CardContent>
             </Card>
         </TabsContent>
-         <TabsContent value="asignacion" className="mt-4">
+        <TabsContent value="asignacion" className="mt-4">
              <Card>
                 <CardHeader>
                     <CardTitle>Asignación de Órdenes Pendientes</CardTitle>
@@ -648,6 +662,55 @@ export default function OfPage() {
                     </Table>
                 </CardContent>
              </Card>
+        </TabsContent>
+         <TabsContent value="informe-necesidades" className="mt-4">
+          <Card>
+            <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">Informe Detallado de Necesidades</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="border rounded-lg">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Elaboración</TableHead>
+                                <TableHead>Receta</TableHead>
+                                <TableHead>Evento (OS)</TableHead>
+                                <TableHead>Hito (Servicio)</TableHead>
+                                <TableHead className="text-right">Cant. Receta</TableHead>
+                                <TableHead className="text-right">Cant. Elaboración</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {necesidades.length > 0 ? (
+                                necesidades.map(necesidad =>
+                                    necesidad.desgloseCompleto.map((desglose, index) => (
+                                        <TableRow key={`${necesidad.id}-${desglose.osId}-${desglose.hitoId}-${desglose.recetaId}-${index}`}>
+                                            {index === 0 && (
+                                                <TableCell rowSpan={necesidad.desgloseCompleto.length} className="font-bold align-top border-r">
+                                                    {necesidad.nombre}
+                                                </TableCell>
+                                            )}
+                                            <TableCell>{desglose.recetaNombre}</TableCell>
+                                            <TableCell>{desglose.osNumber}</TableCell>
+                                            <TableCell>{desglose.hitoDescripcion}</TableCell>
+                                            <TableCell className="text-right">{desglose.cantidadReceta}</TableCell>
+                                            <TableCell className="text-right font-mono">{formatNumber(desglose.cantidadNecesaria, 2)} {formatUnit(necesidad.unidad)}</TableCell>
+                                        </TableRow>
+                                    ))
+                                )
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                        No hay necesidades de producción en el rango de fechas seleccionado.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
       <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
