@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -49,20 +48,21 @@ import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 type NecesidadItem = {
   id: string; // elaboracionId
   nombre: string;
-  cantidad: number;
+  cantidadNecesariaTotal: number;
   unidad: string;
   osIDs: Set<string>;
   partida: PartidaProduccion;
   tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
-  stockDisponible?: number;
-  cantidadPlanificada?: number;
+  stockDisponible: number;
+  cantidadPlanificada: number;
   desgloseDiario: { fecha: string, cantidad: number }[];
+  cantidadNeta: number;
   recetas: string[];
 };
 
@@ -175,19 +175,22 @@ export default function OfPage() {
                     necesidad = {
                         id,
                         nombre: elab.nombre,
-                        cantidad: 0,
+                        cantidadNecesariaTotal: 0,
                         unidad: elab.unidadProduccion,
                         osIDs: new Set(),
                         partida: elab.partidaProduccion,
                         tipoExpedicion: elab.tipoExpedicion,
+                        stockDisponible: 0,
+                        cantidadPlanificada: 0,
                         desgloseDiario: [],
+                        cantidadNeta: 0,
                         recetas: [],
                     };
                     necesidadesAgregadas.set(id, necesidad);
                 }
                 
                 const cantidadNecesaria = (item.quantity || 1) * elabEnReceta.cantidad;
-                necesidad.cantidad += cantidadNecesaria;
+                necesidad.cantidadNecesariaTotal += cantidadNecesaria;
                 necesidad.osIDs.add(gastroOrder.osId);
                 
                 if (!necesidad.recetas.includes(receta.nombre)) {
@@ -209,6 +212,7 @@ export default function OfPage() {
 
     // --- STAGE 4: SUBTRACT EXISTING STOCK & OFs ---
     
+    // Calcula la cantidad total de cada elaboración que ya ha sido asignada en CUALQUIER picking.
     const stockAsignadoGlobal: Record<string, number> = {};
     Object.values(allPickingStates).forEach(state => {
       (state.itemStates || []).forEach(assigned => {
@@ -220,27 +224,31 @@ export default function OfPage() {
     });
 
     const necesidadesArray = Array.from(necesidadesAgregadas.values()).map(necesidad => {
+        // Filtra las OFs existentes para esta elaboración DENTRO del rango de fechas seleccionado
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => {
             const ofDate = startOfDay(new Date(of.fechaProduccionPrevista));
             return of.elaboracionId === necesidad.id && isWithinInterval(ofDate, { start: rangeStart, end: rangeEnd });
         });
         
-        const cantidadYaPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + (of.cantidadTotal || 0), 0);
+        // La cantidad planificada es lo que las OFs dicen que van a producir o lo que ya han producido
+        const cantidadYaPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + (of.cantidadReal ?? of.cantidadTotal ?? 0), 0);
         
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
-        const stockYaAsignado = stockAsignadoGlobal[necesidad.id] || 0;
-        const stockDisponibleReal = stockTotalBruto - stockYaAsignado;
+        // El stock disponible REAL es el total menos todo lo que ya está "prometido" en algún picking
+        const stockDisponibleReal = stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0);
         
-        const cantidadNeta = necesidad.cantidad - (cantidadYaPlanificada + stockDisponibleReal);
+        // La necesidad NETA a fabricar es el total menos lo que tenemos y lo que ya está planificado
+        const cantidadNeta = necesidad.cantidadNecesariaTotal - (cantidadYaPlanificada + stockDisponibleReal);
         
         return {
           ...necesidad,
-          cantidad: Math.max(0, cantidadNeta), // No mostrar cantidades negativas
+          cantidadNecesariaTotal: necesidad.cantidadNecesariaTotal, // Keep the original total need
+          cantidadNeta: Math.max(0, cantidadNeta), // This is what we need to produce
           stockDisponible: stockDisponibleReal,
           cantidadPlanificada: cantidadYaPlanificada,
           desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
         };
-    }).filter(n => n.cantidad > 0.001);
+    }).filter(n => n.cantidadNeta > 0.001);
 
     setNecesidades(necesidadesArray);
     setIsMounted(true);
@@ -315,7 +323,7 @@ export default function OfPage() {
     
     selectedNecesidades.forEach(elabId => {
       const necesidad = necesidades.find(n => n.id === elabId);
-      if (!necesidad || necesidad.cantidad <= 0) return;
+      if (!necesidad || necesidad.cantidadNeta <= 0) return;
       
       currentIdCounter++;
       
@@ -325,7 +333,7 @@ export default function OfPage() {
         fechaProduccionPrevista: fechaProduccion,
         elaboracionId: necesidad.id,
         elaboracionNombre: necesidad.nombre,
-        cantidadTotal: necesidad.cantidad,
+        cantidadTotal: necesidad.cantidadNeta,
         unidad: necesidad.unidad as any,
         partidaAsignada: necesidad.partida,
         tipoExpedicion: necesidad.tipoExpedicion,
@@ -418,7 +426,7 @@ export default function OfPage() {
                                     }}/></TableHead>
                                     <TableHead>Elaboración</TableHead>
                                     <TableHead>Partida</TableHead>
-                                    <TableHead className="text-right">Cant. Necesaria</TableHead>
+                                    <TableHead className="text-right">Necesidad Neta</TableHead>
                                     <TableHead className="text-right">Stock Disp.</TableHead>
                                     <TableHead className="text-right">Planificado</TableHead>
                                 </TableRow>
@@ -441,7 +449,7 @@ export default function OfPage() {
                                         <TableCell className="text-right font-mono">
                                             <Tooltip>
                                                 <TooltipTrigger>
-                                                    <span className="cursor-help font-bold">{formatNumber(item.cantidad, 2)} {formatUnit(item.unidad)}</span>
+                                                    <span className="cursor-help font-bold">{formatNumber(item.cantidadNeta, 2)} {formatUnit(item.unidad)}</span>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <div className="p-1 text-xs">
@@ -632,5 +640,5 @@ export default function OfPage() {
         </TabsContent>
       </Tabs>
     </TooltipProvider>
-  )
+  );
 }
