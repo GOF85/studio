@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat } from 'lucide-react';
+import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, Info } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -250,8 +250,9 @@ export default function OfPage() {
         });
         
         const cantidadYaPlanificada = ofsExistentes.reduce((sum: number, of: OrdenFabricacion) => {
-            const cantidad = of.cantidadReal ?? of.cantidadTotal; // Prioritize real produced quantity
-            return sum + (cantidad || 0);
+          // Si la OF está finalizada, usamos la cantidad real, si no, la planificada.
+          const cantidad = of.cantidadReal ?? of.cantidadTotal;
+          return sum + (cantidad || 0);
         }, 0);
         
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
@@ -288,20 +289,16 @@ export default function OfPage() {
         const partidaMatch = partidaFilter === 'all' || item.partidaAsignada === partidaFilter;
         
         let dateMatch = true;
-        if (dateRange?.from && item.fechaProduccionPrevista) {
+        if (dateRange?.from) {
             try {
-                const itemDate = parseISO(item.fechaProduccionPrevista);
-                const from = startOfDay(dateRange.from);
-                const to = endOfDay(dateRange.to || dateRange.from);
-
+                // If it's pending/assigned, filter by planned date
                 if (item.estado === 'Pendiente' || item.estado === 'Asignada') {
-                    // Include if its planned date is in range
-                    return isWithinInterval(itemDate, { start: from, end: to });
+                    const itemDate = parseISO(item.fechaProduccionPrevista);
+                    return isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
                 }
-                
+                // If it's finished, filter by finalization date
                 const finalizationDate = item.fechaFinalizacion ? parseISO(item.fechaFinalizacion) : null;
-                return finalizationDate && isWithinInterval(finalizationDate, { start: from, end: to });
-
+                return finalizationDate && isWithinInterval(finalizationDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
             } catch(e) {
                 dateMatch = false;
             }
@@ -407,7 +404,7 @@ export default function OfPage() {
   }
 
   return (
-    <>
+    <TooltipProvider>
       <Tabs defaultValue="planificacion">
         <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="planificacion">Planificación</TabsTrigger>
@@ -438,7 +435,7 @@ export default function OfPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="border rounded-lg">
-                        <TooltipProvider>
+                        
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -460,7 +457,10 @@ export default function OfPage() {
                                     <TableCell>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <span className="font-semibold cursor-help">{item.nombre}</span>
+                                                <div className="font-semibold cursor-help flex items-center gap-2">
+                                                    <Info className="h-4 w-4 text-muted-foreground" />
+                                                    <span>{item.nombre}</span>
+                                                </div>
                                             </TooltipTrigger>
                                             <TooltipContent className="p-2 max-w-md">
                                                 <div className="space-y-1">
@@ -488,7 +488,7 @@ export default function OfPage() {
                                 )}
                             </TableBody>
                         </Table>
-                        </TooltipProvider>
+                        
                     </div>
                 </CardContent>
             </Card>
@@ -666,6 +666,6 @@ export default function OfPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </TooltipProvider>
   );
 }
