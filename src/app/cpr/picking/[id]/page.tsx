@@ -395,81 +395,87 @@ function PickingPageContent() {
     }, [osId, savePickingState]); 
 
     const { lotesPendientesPorHito, isPickingComplete, elabMap } = useMemo(() => {
-        const lotesPorHito = new Map<string, LoteNecesario[]>();
-        if (!isMounted || !hitosConNecesidades.length) return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: true, elabMap: new Map() };
+      const elabMap = new Map<string, Elaboracion>();
+      const lotesPorHito = new Map<string, LoteNecesario[]>();
     
-        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-        const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+      if (!isMounted || !hitosConNecesidades.length) {
+        return { lotesPendientesPorHito, isPickingComplete: true, elabMap };
+      }
     
-        const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
-
-        let allComplete = true;
+      const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+      const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+      allElaboraciones.forEach(e => elabMap.set(e.id, e));
+      const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     
-        hitosConNecesidades.forEach(hito => {
-            const necesidadesHito: Map<string, LoteNecesario> = new Map();
-            const gastroOrder = allGastroOrders.find(go => go.id === hito.id);
+      let allComplete = true;
     
-            if (gastroOrder && gastroOrder.items) {
-                gastroOrder.items.forEach(item => {
-                    if (item.type === 'item') {
-                        const receta = allRecetas.find(r => r.id === item.id);
-                        if (receta) {
-                            receta.elaboraciones.forEach(elabEnReceta => {
-                                const elabInfo = elabMap.get(elabEnReceta.elaboracionId);
-                                if (elabInfo) {
-                                    const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
-                                    if (cantidadNecesaria < 0.01) return;
+      hitosConNecesidades.forEach(hito => {
+        const necesidadesHito: Map<string, LoteNecesario> = new Map();
+        const gastroOrder = allGastroOrders.find(go => go.id === hito.id);
     
-                                    let existing = necesidadesHito.get(elabInfo.id);
-                                    if (!existing) {
-                                        existing = {
-                                            elaboracionId: elabInfo.id,
-                                            elaboracionNombre: elabInfo.nombre,
-                                            cantidadNecesaria: 0,
-                                            cantidadAsignada: 0,
-                                            unidad: elabInfo.unidadProduccion,
-                                            tipoExpedicion: elabInfo.tipoExpedicion,
-                                            recetas: [],
-                                            lotesDisponibles: [],
-                                            alergenos: []
-                                        };
-                                        necesidadesHito.set(elabInfo.id, existing);
-                                    }
-                                    existing.cantidadNecesaria += cantidadNecesaria;
-                                }
-                            });
-                        }
+        if (gastroOrder && gastroOrder.items) {
+          gastroOrder.items.forEach(item => {
+            if (item.type === 'item') {
+              const receta = allRecetas.find(r => r.id === item.id);
+              if (receta) {
+                receta.elaboraciones.forEach(elabEnReceta => {
+                  const elabInfo = elabMap.get(elabEnReceta.elaboracionId);
+                  if (elabInfo) {
+                    const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
+                    if (cantidadNecesaria < 0.01) return;
+    
+                    let existing = necesidadesHito.get(elabInfo.id);
+                    if (!existing) {
+                      existing = {
+                        elaboracionId: elabInfo.id,
+                        elaboracionNombre: elabInfo.nombre,
+                        cantidadNecesaria: 0,
+                        cantidadAsignada: 0,
+                        unidad: elabInfo.unidadProduccion,
+                        tipoExpedicion: elabInfo.tipoExpedicion,
+                        recetas: [],
+                        lotesDisponibles: [],
+                        alergenos: []
+                      };
+                      necesidadesHito.set(elabInfo.id, existing);
                     }
+                    existing.cantidadNecesaria += cantidadNecesaria;
+                  }
                 });
+              }
             }
+          });
+        }
     
-            const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
-                const cantidadAsignadaTotal = pickingState.itemStates
-                    .filter(a => allValidatedOFs.find(of => of.id === a.ofId)?.elaboracionId === necesidad.elaboracionId && a.hitoId === hito.id)
-                    .reduce((sum, a) => sum + a.quantity, 0) || 0;
-                
-                const lotesDisponibles = allValidatedOFs
-                    .filter(of => of.elaboracionId === necesidad.elaboracionId)
-                    .map(of => ({
-                        ofId: of.id,
-                        cantidadDisponible: (of.cantidadReal || 0) - (allAssignedQuantities[of.id] || 0),
-                        fechaCaducidad: of.fechaFinalizacion || of.fechaCreacion,
-                    }))
-                    .filter(lote => lote.cantidadDisponible > 0.001)
-                    .sort((a,b) => new Date(a.fechaCaducidad).getTime() - new Date(b.fechaCaducidad).getTime());
+        const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
+          const cantidadAsignadaTotal = pickingState.itemStates
+            .filter(a => {
+                const of = allValidatedOFs.find(of => of.id === a.ofId);
+                return of?.elaboracionId === necesidad.elaboracionId && a.hitoId === hito.id
+            })
+            .reduce((sum, a) => sum + a.quantity, 0);
 
-                return { ...necesidad, cantidadAsignada: cantidadAsignadaTotal, lotesDisponibles };
-            }).filter(lote => (lote.cantidadNecesaria - lote.cantidadAsignada) > 0.001);
-            
-            if (lotesPendientesHito.length > 0) {
-                allComplete = false;
-            }
-    
-            lotesPorHito.set(hito.id, lotesPendientesHito);
-        });
-        
-        return { lotesPendientesPorHito, isPickingComplete: allComplete, elabMap };
+          const lotesDisponibles = allValidatedOFs
+            .filter(of => of.elaboracionId === necesidad.elaboracionId)
+            .map(of => ({
+                ofId: of.id,
+                cantidadDisponible: (of.cantidadReal || 0) - (allAssignedQuantities[of.id] || 0),
+                fechaCaducidad: of.fechaFinalizacion || of.fechaCreacion,
+            }))
+            .filter(lote => lote.cantidadDisponible > 0.001)
+            .sort((a,b) => new Date(a.fechaCaducidad).getTime() - new Date(b.fechaCaducidad).getTime());
+
+          return { ...necesidad, cantidadAsignada: cantidadAsignadaTotal, lotesDisponibles };
+        }).filter(lote => (lote.cantidadNecesaria - lote.cantidadAsignada) > 0.001);
+
+        if (lotesPendientesHito.length > 0) {
+            allComplete = false;
+        }
+
+        lotesPorHito.set(hito.id, lotesPendientesHito);
+      });
+      
+      return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete, elabMap };
 
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, allValidatedOFs, allAssignedQuantities]);
     
@@ -694,4 +700,5 @@ function PickingDetailPageWrapper() {
 }
 
 export default PickingDetailPageWrapper;
+
 
