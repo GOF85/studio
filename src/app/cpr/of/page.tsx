@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -227,8 +228,9 @@ export default function OfPage() {
     });
 
 
-    // --- STAGE 4: SUBTRACT EXISTING STOCK & OFs ---
+    // --- STAGE 4: CALCULATE NET NEEDS (THE CORRECT WAY) ---
     
+    // First, get a global view of what's been assigned from stock across ALL pickings
     const stockAsignadoGlobal: Record<string, number> = {};
     Object.values(allPickingStates).forEach(state => {
       (state.itemStates || []).forEach(assigned => {
@@ -240,6 +242,7 @@ export default function OfPage() {
     });
 
     const necesidadesArray = Array.from(necesidadesAgregadas.values()).map(necesidad => {
+        // Find existing OFs for this item within the date range
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => {
             if (of.elaboracionId !== necesidad.id) return false;
             try {
@@ -248,22 +251,25 @@ export default function OfPage() {
             } catch(e) { return false; }
         });
         
-        const cantidadYaPlanificada = ofsExistentes.reduce((sum: number, of: OrdenFabricacion) => sum + (of.cantidadReal ?? of.cantidadTotal), 0);
+        // "Planificado" is what OFs are set to produce, or have already produced.
+        const cantidadPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + (of.cantidadReal ?? of.cantidadTotal), 0);
         
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
-        const stockDisponibleReal = stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0);
-        
-        const cantidadNeta = necesidad.cantidadNecesariaTotal - stockDisponibleReal - cantidadYaPlanificada;
+        // Real available stock is total minus anything already assigned in ANY picking
+        const stockDisponible = Math.max(0, stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0));
+
+        // Net need is total need minus what we can cover with stock, minus what's already planned to be produced.
+        const cantidadNeta = necesidad.cantidadNecesariaTotal - stockDisponible - cantidadPlanificada;
         
         return {
           ...necesidad,
           cantidadNecesariaTotal: necesidad.cantidadNecesariaTotal, 
-          cantidadNeta: cantidadNeta,
-          stockDisponible: stockDisponibleReal,
-          cantidadPlanificada: cantidadYaPlanificada,
+          cantidadNeta,
+          stockDisponible: stockDisponible, // Show only positive, usable stock
+          cantidadPlanificada: cantidadPlanificada,
           desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
         };
-    }).filter(n => n.cantidadNeta > 0.001);
+    }).filter(n => n.cantidadNeta > 0.001); // Only show if we actually need to produce something
 
     setNecesidades(necesidadesArray);
     setIsMounted(true);
@@ -286,20 +292,14 @@ export default function OfPage() {
         let dateMatch = true;
         if (dateRange?.from) {
             try {
-                if (item.estado === 'Pendiente' || item.estado === 'Asignada') {
-                    const itemDate = parseISO(item.fechaProduccionPrevista);
-                    if(dateRange.to) {
-                        return isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
-                    }
-                    return isSameDay(itemDate, dateRange.from);
-                }
-                const finalizationDate = item.fechaFinalizacion ? parseISO(item.fechaFinalizacion) : null;
-                if (!finalizationDate) return false;
-
+                const itemDate = (item.estado === 'Pendiente' || item.estado === 'Asignada') 
+                    ? parseISO(item.fechaProduccionPrevista)
+                    : item.fechaFinalizacion ? parseISO(item.fechaFinalizacion) : parseISO(item.fechaProduccionPrevista);
+                
                 if (dateRange.to) {
-                   return isWithinInterval(finalizationDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+                    return isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
                 }
-                return isSameDay(finalizationDate, dateRange.from);
+                return isSameDay(itemDate, dateRange.from);
             } catch(e) {
                 dateMatch = false;
             }
@@ -446,9 +446,10 @@ export default function OfPage() {
                                     }}/></TableHead>
                                     <TableHead>Elaboración</TableHead>
                                     <TableHead>Partida</TableHead>
-                                    <TableHead className="text-right">Necesidad Neta</TableHead>
+                                    <TableHead className="text-right">Necesidad Total</TableHead>
                                     <TableHead className="text-right">Stock Disp.</TableHead>
                                     <TableHead className="text-right">Planificado</TableHead>
+                                    <TableHead className="text-right font-bold text-primary">Necesidad Neta</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -476,13 +477,14 @@ export default function OfPage() {
                                         </Tooltip>
                                     </TableCell>
                                     <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
-                                    <TableCell className="text-right font-mono font-bold">{formatNumber(item.cantidadNeta, 2)} {formatUnit(item.unidad)}</TableCell>
+                                    <TableCell className="text-right font-mono">{formatNumber(item.cantidadNecesariaTotal, 2)} {formatUnit(item.unidad)}</TableCell>
                                     <TableCell className="text-right font-mono">{formatNumber(item.stockDisponible || 0, 2)} {formatUnit(item.unidad)}</TableCell>
                                     <TableCell className="text-right font-mono">{formatNumber(item.cantidadPlanificada || 0, 2)} {formatUnit(item.unidad)}</TableCell>
+                                    <TableCell className="text-right font-mono font-bold text-primary">{formatNumber(item.cantidadNeta, 2)} {formatUnit(item.unidad)}</TableCell>
                                 </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                                             No hay necesidades de producción en el rango de fechas seleccionado.
                                         </TableCell>
                                     </TableRow>
