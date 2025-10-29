@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -133,7 +134,7 @@ export default function OfPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [partidaFilter, setPartidaFilter] = useState('all');
-  const [partidaInformeFilter, setPartidaInformeFilter] = useState('all');
+  const [partidaInformeFilter, setPartidaInformeFilter] = useState<string>('all');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
@@ -302,7 +303,7 @@ export default function OfPage() {
 
         return {
           ...necesidad,
-          stockDisponible: stockAUtilizar,
+          stockDisponible: stockAUtilizar > 0 ? stockAUtilizar : 0,
           cantidadPlanificada,
           cantidadNeta,
           desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
@@ -753,7 +754,7 @@ export default function OfPage() {
                                         <TableCell><Badge variant="outline">{of.id}</TableCell>
                                         <TableCell className="font-medium">{of.elaboracionNombre}</TableCell>
                                         <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell><Badge variant="secondary">{of.partidaAsignada}</TableCell>
+                                        <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
                                         <TableCell>
                                             <Select onValueChange={(responsable) => handleAssignResponsable(of.id, responsable)}>
                                                 <SelectTrigger>
@@ -789,9 +790,9 @@ export default function OfPage() {
                     <SelectContent>
                         <SelectItem value="all">Todas las Partidas</SelectItem>
                         {partidas.map(p => (
-                            <SelectItem key={p} value={p}>
+                             <SelectItem key={p} value={p}>
                                 <div className="flex items-center gap-2">
-                                    <span className={cn("h-2 w-2 rounded-full", partidaColorClasses[p])}/>
+                                    <span className={cn("h-2 w-2 rounded-full", partidaColorClasses[p].replace('hover:', '').replace('/50','').replace('/80',''))}/>
                                     {p}
                                 </div>
                             </SelectItem>
