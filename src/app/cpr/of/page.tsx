@@ -573,7 +573,7 @@ export default function OfPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4 p-4 border rounded-lg bg-card">
         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
                 <Button id="date" variant={"outline"} className={cn("w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
@@ -581,23 +581,23 @@ export default function OfPage() {
                     {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="flex flex-col space-y-2 p-2" align="start">
+            <PopoverContent className="w-auto p-0" align="start">
+              <div className="p-2 border-b">
                 <div className="flex gap-1">
                     <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
                     <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
                     <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
                 </div>
-                <div className="rounded-md border bg-background">
-                    <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange?.from}
-                        selected={dateRange}
-                        onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
-                        numberOfMonths={2}
-                        locale={es}
-                    />
-                </div>
+              </div>
+              <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false); }}}
+                  numberOfMonths={2}
+                  locale={es}
+              />
             </PopoverContent>
         </Popover>
         <Select value={partidaFilter} onValueChange={setPartidaFilter}>
@@ -833,7 +833,7 @@ export default function OfPage() {
         <TabsContent value="informe-necesidades" className="mt-4">
           <Card>
             <CardHeader>
-                {reporteData && (
+                 {reporteData && (
                      <div className="text-xs font-medium bg-muted/70 p-2 mt-4 rounded-md space-y-1.5">
                         <div className="flex items-center justify-around">
                             <div className="flex items-center space-x-1.5"><ClipboardList className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.contratos}</span><span className="text-muted-foreground">Contratos</span></div>
@@ -972,3 +972,4 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
