@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { format, parseISO, startOfDay, endOfDay, isWithinInterval, addDays, isSameDay } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay, isWithinInterval, addDays, isSameDay, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
@@ -81,6 +81,30 @@ type NecesidadItem = {
 };
 
 
+type ReporteProduccionItem = {
+    id: string;
+    nombre: string;
+    partida: string;
+    udTotales: number;
+    unidad: string;
+    necesidadesPorDia: Record<string, number>;
+};
+type ReporteData = {
+    fechas: Date[];
+    resumen: {
+        contratos: number;
+        servicios: number;
+        pax: number;
+        referencias: number;
+        unidades: number;
+        refsPorDia: Record<string, number>;
+        udsPorDia: Record<string, number>;
+    };
+    recetas: ReporteProduccionItem[];
+    elaboraciones: ReporteProduccionItem[];
+};
+
+
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
   'Asignada': 'secondary',
@@ -118,6 +142,7 @@ export default function OfPage() {
     to: endOfDay(addDays(new Date(), 7)),
   });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [reporteData, setReporteData] = useState<ReporteData | null>(null);
 
 
   const router = useRouter();
@@ -267,21 +292,104 @@ export default function OfPage() {
         const cantidadPlanificada = ofsExistentes.reduce((sum, of) => sum + (of.cantidadReal ?? of.cantidadTotal), 0);
         
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
-        const stockDisponible = Math.max(0, stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0));
-
-        const stockAUsar = Math.min(stockDisponible, necesidad.cantidadNecesariaTotal);
-        const cantidadNeta = necesidad.cantidadNecesariaTotal - stockAUsar - cantidadPlanificada;
+        const stockDisponibleReal = Math.max(0, stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0));
         
+        const stockAUtilizar = Math.min(necesidad.cantidadNecesariaTotal, stockDisponibleReal);
+        const cantidadNeta = necesidad.cantidadNecesariaTotal - stockAUtilizar - cantidadPlanificada;
+
         return {
           ...necesidad,
-          cantidadNeta,
-          stockDisponible: stockAUsar,
+          stockDisponible: stockAUtilizar,
           cantidadPlanificada,
+          cantidadNeta,
           desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
         };
     }).filter(n => n.cantidadNeta > 0.001);
 
     setNecesidades(necesidadesArray);
+
+
+    // --- STAGE 5: CALCULATE REPORT DATA ---
+     if (dateRange.from && dateRange.to) {
+        const fechasDelRango = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+        const recetasInforme: Map<string, ReporteProduccionItem> = new Map();
+        const elaboracionesInforme: Map<string, ReporteProduccionItem> = new Map();
+
+        const resumen = {
+            contratos: new Set<string>(),
+            servicios: 0,
+            pax: 0,
+            refsPorDia: {} as Record<string, number>,
+            udsPorDia: {} as Record<string, number>,
+        };
+
+        fechasDelRango.forEach(fecha => {
+            const fechaKey = format(fecha, 'yyyy-MM-dd');
+            resumen.refsPorDia[fechaKey] = 0;
+            resumen.udsPorDia[fechaKey] = 0;
+        });
+
+        gastroOrdersInRange.forEach(order => {
+            const os = osMap.get(order.osId);
+            if (!os) return;
+
+            resumen.contratos.add(os.id);
+            resumen.servicios++;
+            resumen.pax += os.asistentes || 0;
+            const fechaKey = format(new Date(order.fecha), 'yyyy-MM-dd');
+
+            (order.items || []).forEach(item => {
+                if (item.type !== 'item') return;
+                
+                const receta = recetasMap.get(item.id);
+                if (!receta) return;
+                
+                // Recetas
+                let recetaItem = recetasInforme.get(receta.id);
+                if (!recetaItem) {
+                    recetaItem = { id: receta.id, nombre: receta.nombre, partida: receta.partidaProduccion || 'N/A', udTotales: 0, unidad: 'Uds', necesidadesPorDia: {} };
+                    recetasInforme.set(receta.id, recetaItem);
+                    resumen.refsPorDia[fechaKey] = (resumen.refsPorDia[fechaKey] || 0) + 1;
+                }
+                const cantidadReceta = item.quantity || 0;
+                recetaItem.udTotales += cantidadReceta;
+                recetaItem.necesidadesPorDia[fechaKey] = (recetaItem.necesidadesPorDia[fechaKey] || 0) + cantidadReceta;
+                resumen.udsPorDia[fechaKey] = (resumen.udsPorDia[fechaKey] || 0) + cantidadReceta;
+
+                // Elaboraciones
+                (receta.elaboraciones || []).forEach(elabEnReceta => {
+                    const elab = elabMap.get(elabEnReceta.elaboracionId);
+                    if (!elab) return;
+
+                    let elabItem = elaboracionesInforme.get(elab.id);
+                    if (!elabItem) {
+                        elabItem = { id: elab.id, nombre: elab.nombre, partida: elab.partidaProduccion, udTotales: 0, unidad: elab.unidadProduccion, necesidadesPorDia: {} };
+                        elaboracionesInforme.set(elab.id, elabItem);
+                        resumen.refsPorDia[fechaKey] = (resumen.refsPorDia[fechaKey] || 0) + 1;
+                    }
+                    const cantidadElab = cantidadReceta * elabEnReceta.cantidad;
+                    elabItem.udTotales += cantidadElab;
+                    elabItem.necesidadesPorDia[fechaKey] = (elabItem.necesidadesPorDia[fechaKey] || 0) + cantidadElab;
+                    resumen.udsPorDia[fechaKey] = (resumen.udsPorDia[fechaKey] || 0) + cantidadElab;
+                });
+            });
+        });
+        
+        const finalResumen = {
+            ...resumen,
+            contratos: resumen.contratos.size,
+            referencias: recetasInforme.size + elaboracionesInforme.size,
+            unidades: Object.values(resumen.udsPorDia).reduce((s,v) => s + v, 0),
+        };
+
+        setReporteData({
+            fechas: fechasDelRango,
+            resumen: finalResumen,
+            recetas: Array.from(recetasInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
+            elaboraciones: Array.from(elaboracionesInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
+        });
+    }
+
     setIsMounted(true);
   }, [dateRange]);
 
@@ -670,46 +778,60 @@ export default function OfPage() {
                 <CardTitle className="text-lg flex items-center gap-2">Informe Detallado de Necesidades</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="border rounded-lg">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Elaboración</TableHead>
-                                <TableHead>Receta</TableHead>
-                                <TableHead>Evento (OS)</TableHead>
-                                <TableHead>Hito (Servicio)</TableHead>
-                                <TableHead className="text-right">Cant. Receta</TableHead>
-                                <TableHead className="text-right">Cant. Elaboración</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {necesidades.length > 0 ? (
-                                necesidades.map(necesidad =>
-                                    necesidad.desgloseCompleto.map((desglose, index) => (
-                                        <TableRow key={`${necesidad.id}-${desglose.osId}-${desglose.hitoId}-${desglose.recetaId}-${index}`}>
-                                            {index === 0 && (
-                                                <TableCell rowSpan={necesidad.desgloseCompleto.length} className="font-bold align-top border-r">
-                                                    {necesidad.nombre}
-                                                </TableCell>
-                                            )}
-                                            <TableCell>{desglose.recetaNombre}</TableCell>
-                                            <TableCell>{desglose.osNumber}</TableCell>
-                                            <TableCell>{desglose.hitoDescripcion}</TableCell>
-                                            <TableCell className="text-right">{desglose.cantidadReceta}</TableCell>
-                                            <TableCell className="text-right font-mono">{formatNumber(desglose.cantidadNecesaria, 2)} {formatUnit(necesidad.unidad)}</TableCell>
+                {reporteData && (
+                    <>
+                         <div className="grid grid-cols-5 gap-2 text-center mb-4 p-2 rounded-lg bg-muted">
+                            <div><div className="text-xs text-muted-foreground">Contratos</div><div className="font-bold text-lg">{reporteData.resumen.contratos}</div></div>
+                            <div><div className="text-xs text-muted-foreground">Servicios</div><div className="font-bold text-lg">{reporteData.resumen.servicios}</div></div>
+                            <div><div className="text-xs text-muted-foreground">PAX</div><div className="font-bold text-lg">{formatNumber(reporteData.resumen.pax,0)}</div></div>
+                            <div><div className="text-xs text-muted-foreground">Referencias</div><div className="font-bold text-lg">{reporteData.resumen.referencias}</div></div>
+                            <div><div className="text-xs text-muted-foreground">Unidades</div><div className="font-bold text-lg">{formatNumber(reporteData.resumen.unidades,0)}</div></div>
+                        </div>
+                        <div className="border rounded-lg overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="sticky left-0 bg-background/90 p-2">Partida</TableHead>
+                                        <TableHead className="sticky left-12 bg-background/90 min-w-56 p-2">Elaboración / Receta</TableHead>
+                                        <TableHead className="text-right p-2">Total</TableHead>
+                                        {reporteData.fechas.map(fecha => (
+                                            <TableHead key={fecha.toISOString()} className="text-center p-2">
+                                                <div className="capitalize">{format(fecha, 'EEE', {locale: es})}</div>
+                                                <div>{format(fecha, 'dd/MM')}</div>
+                                            </TableHead>
+                                        ))}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow className="bg-secondary hover:bg-secondary"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">RECETAS</TableCell></TableRow>
+                                    {reporteData.recetas.map(item => (
+                                        <TableRow key={item.id}>
+                                            <TableCell className="sticky left-0 bg-background/90 p-2 text-xs">{item.partida}</TableCell>
+                                            <TableCell className="sticky left-12 bg-background/90 font-semibold p-2">{item.nombre}</TableCell>
+                                            <TableCell className="text-right p-2 font-bold font-mono">{formatNumber(item.udTotales, 2)} {item.unidad}</TableCell>
+                                            {reporteData.fechas.map(fecha => {
+                                                const fechaKey = format(fecha, 'yyyy-MM-dd');
+                                                return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-2 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
+                                            })}
                                         </TableRow>
-                                    ))
-                                )
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                                        No hay necesidades de producción en el rango de fechas seleccionado.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                                    ))}
+                                     <TableRow className="bg-secondary hover:bg-secondary"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">ELABORACIONES</TableCell></TableRow>
+                                    {reporteData.elaboraciones.map(item => (
+                                         <TableRow key={item.id}>
+                                            <TableCell className="sticky left-0 bg-background/90 p-2 text-xs">{item.partida}</TableCell>
+                                            <TableCell className="sticky left-12 bg-background/90 font-semibold p-2">{item.nombre}</TableCell>
+                                            <TableCell className="text-right p-2 font-bold font-mono">{formatNumber(item.udTotales, 2)} {item.unidad}</TableCell>
+                                            {reporteData.fechas.map(fecha => {
+                                                const fechaKey = format(fecha, 'yyyy-MM-dd');
+                                                return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-2 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
+                                            })}
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </>
+                )}
             </CardContent>
           </Card>
         </TabsContent>
