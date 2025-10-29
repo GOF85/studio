@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ListChecks, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, UtensilsCrossed, RefreshCw } from 'lucide-react';
+import { PlusCircle, ListChecks, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, UtensilsCrossed, RefreshCw } from 'lucide-react';
 import type { ServiceOrder, PickingEntregaState, PedidoEntrega, ProductoVenta, EntregaHito, ComercialBriefing, ComercialBriefingItem, Receta } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +28,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { statusVariant } from '@/app/cpr/picking/[id]/page';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+
 
 const ITEMS_PER_PAGE = 20;
 
@@ -40,7 +44,6 @@ type HitoDePicking = ComercialBriefingItem & {
 export default function PickingPage() {
   const [hitos, setHitos] = useState<HitoDePicking[]>([]);
   const [pickingStates, setPickingStates] = useState<Record<string, PickingEntregaState>>({});
-  const [productosVentaMap, setProductosVentaMap] = useState<Map<string, ProductoVenta>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -89,40 +92,10 @@ export default function PickingPage() {
     };
 
   }, [updateTrigger]);
-
-  const filteredHitos = useMemo(() => {
-    return hitos.filter(hito => {
-      const searchMatch = 
-        hito.expedicion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        hito.serviceOrder.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        hito.serviceOrder.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (hito.serviceOrder.finalClient || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        hito.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
-
-      let dateMatch = true;
-      if(dateRange?.from) {
-        const hitoDate = new Date(hito.fecha);
-        if (dateRange.to) {
-            dateMatch = isWithinInterval(hitoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
-        } else {
-            dateMatch = isWithinInterval(hitoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
-        }
-      }
-
-      return searchMatch && dateMatch;
-    });
-  }, [hitos, searchTerm, dateRange]);
-
-  const paginatedHitos = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredHitos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredHitos, currentPage]);
-
-  const totalPages = Math.ceil(filteredHitos.length / ITEMS_PER_PAGE);
-
+  
   const getPickingProgress = (hito: HitoDePicking) => {
     if (!hito.conGastronomia) {
-        return { checked: 0, total: 0, percentage: 100, noAplica: true };
+        return { checked: 0, total: 0, percentage: 100, isComplete: true };
     }
     
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
@@ -147,13 +120,64 @@ export default function PickingPage() {
     }
 
     const checkedItems = state?.checkedItems?.length || 0;
+    const percentage = totalItems > 0 ? (checkedItems / totalItems) * 100 : 100;
     
     return {
       checked: checkedItems,
       total: totalItems,
-      percentage: totalItems > 0 ? (checkedItems / totalItems) * 100 : 100,
+      percentage: percentage,
+      isComplete: percentage >= 100,
     };
   };
+
+  const filteredHitos = useMemo(() => {
+    return hitos.map(hito => ({
+      ...hito,
+      progress: getPickingProgress(hito),
+    })).filter(hito => {
+      const searchMatch = 
+        hito.expedicion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        hito.serviceOrder.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        hito.serviceOrder.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (hito.serviceOrder.finalClient || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        hito.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
+
+      let dateMatch = true;
+      if(dateRange?.from) {
+        const hitoDate = new Date(hito.fecha);
+        if (dateRange.to) {
+            dateMatch = isWithinInterval(hitoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+        } else {
+            dateMatch = isWithinInterval(hitoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+        }
+      }
+
+      return searchMatch && dateMatch;
+    });
+  }, [hitos, searchTerm, dateRange, getPickingProgress]);
+
+  const { incompleteHitos, completeHitos } = useMemo(() => {
+    const incomplete: typeof filteredHitos = [];
+    const complete: typeof filteredHitos = [];
+
+    filteredHitos.forEach(hito => {
+      if (hito.progress.isComplete) {
+        complete.push(hito);
+      } else {
+        incomplete.push(hito);
+      }
+    });
+
+    return { incompleteHitos: incomplete, completeHitos: complete };
+  }, [filteredHitos]);
+
+  const paginatedHitos = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return incompleteHitos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [incompleteHitos, currentPage]);
+
+  const totalPages = Math.ceil(incompleteHitos.length / ITEMS_PER_PAGE);
+
 
   const handleRefresh = () => {
     setUpdateTrigger(Date.now());
@@ -165,13 +189,8 @@ export default function PickingPage() {
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><ListChecks />Picking y Logística</h1>
-            <p className="text-muted-foreground mt-1">Selecciona un servicio para preparar su expedición.</p>
-      </div>
-
-       <div className="flex flex-col md:flex-row gap-4 mb-6">
+    <main>
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input
               placeholder="Buscar por expedición, cliente, OS..."
               value={searchTerm}
@@ -204,60 +223,103 @@ export default function PickingPage() {
             <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
         </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Servicio (Hito)</TableHead>
-              <TableHead>Nº Servicio (OS)</TableHead>
-              <TableHead>Espacio - Cliente</TableHead>
-              <TableHead>Fecha Servicio</TableHead>
-              <TableHead>Estado Picking</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedHitos.length > 0 ? (
-              paginatedHitos.map(hito => {
-                const progress = getPickingProgress(hito);
-                const isDisabled = !hito.conGastronomia;
-                return (
-                    <TableRow 
-                        key={hito.id} 
-                        onClick={() => !isDisabled && router.push(`/cpr/picking/${hito.serviceOrder.id}?hitoId=${hito.id}`)}
-                        className={cn(isDisabled ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed' : 'cursor-pointer')}
-                    >
-                        <TableCell className="font-medium flex items-center gap-2">
-                             {isDisabled && <UtensilsCrossed className="h-4 w-4" />}
-                            {hito.descripcion}
-                        </TableCell>
-                        <TableCell><Badge variant="outline">{hito.serviceOrder.serviceNumber}</Badge></TableCell>
-                        <TableCell>{hito.serviceOrder.space}{hito.serviceOrder.finalClient && ` (${hito.serviceOrder.finalClient})`}</TableCell>
-                        <TableCell>{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.horaInicio}</TableCell>
-                        <TableCell>
-                           {isDisabled ? (
-                                <Badge variant="secondary">No Aplica</Badge>
-                           ) : progress.total > 0 ? (
-                                <div className="flex items-center gap-2">
-                                    <Progress value={progress.percentage} className="w-40" />
-                                    <span className="text-sm text-muted-foreground">{progress.checked} / {progress.total}</span>
-                                </div>
-                            ) : (
-                                <Badge variant="success">Completo</Badge>
-                            )}
+      <Card className="mb-8">
+        <CardHeader>
+            <CardTitle>Servicios Pendientes de Picking</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div className="border rounded-lg">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>Servicio (Hito)</TableHead>
+                    <TableHead>Nº Servicio (OS)</TableHead>
+                    <TableHead>Espacio - Cliente</TableHead>
+                    <TableHead>Fecha Servicio</TableHead>
+                    <TableHead>Estado Picking</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {paginatedHitos.length > 0 ? (
+                    paginatedHitos.map(hito => {
+                        const progress = hito.progress;
+                        const isDisabled = !hito.conGastronomia;
+                        return (
+                            <TableRow 
+                                key={hito.id} 
+                                onClick={() => !isDisabled && router.push(`/cpr/picking/${hito.serviceOrder.id}?hitoId=${hito.id}`)}
+                                className={cn(isDisabled ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed' : 'cursor-pointer')}
+                            >
+                                <TableCell className="font-medium flex items-center gap-2">
+                                    {isDisabled && <UtensilsCrossed className="h-4 w-4" />}
+                                    {hito.descripcion}
+                                </TableCell>
+                                <TableCell><Badge variant="outline">{hito.serviceOrder.serviceNumber}</Badge></TableCell>
+                                <TableCell>{hito.serviceOrder.space}{hito.serviceOrder.finalClient && ` (${hito.serviceOrder.finalClient})`}</TableCell>
+                                <TableCell>{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.horaInicio}</TableCell>
+                                <TableCell>
+                                {isDisabled ? (
+                                        <Badge variant="secondary">No Aplica</Badge>
+                                ) : (
+                                        <div className="flex items-center gap-2">
+                                            <Progress value={progress.percentage} className="w-40" />
+                                            <span className="text-sm text-muted-foreground">{progress.checked} / {progress.total}</span>
+                                        </div>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })
+                    ) : (
+                    <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">
+                        No hay servicios pendientes que coincidan con los filtros.
                         </TableCell>
                     </TableRow>
-                )
-              })
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  No hay servicios que coincidan con los filtros.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                    )}
+                </TableBody>
+                </Table>
+            </div>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+            <CardTitle>Servicios Completados</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div className="border rounded-lg max-h-96 overflow-y-auto">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Servicio (Hito)</TableHead>
+                        <TableHead>Nº Servicio (OS)</TableHead>
+                        <TableHead>Fecha Servicio</TableHead>
+                        <TableHead>Estado</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {completeHitos.length > 0 ? (
+                            completeHitos.map(hito => (
+                                <TableRow key={hito.id} onClick={() => router.push(`/cpr/picking/${hito.serviceOrder.id}?hitoId=${hito.id}`)} className="cursor-pointer bg-green-50/50 hover:bg-green-100/50">
+                                    <TableCell className="font-medium">{hito.descripcion}</TableCell>
+                                    <TableCell><Badge variant="outline">{hito.serviceOrder.serviceNumber}</Badge></TableCell>
+                                    <TableCell>{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.horaInicio}</TableCell>
+                                    <TableCell><Badge variant="success">Completo</Badge></TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                             <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">
+                                No hay servicios completados que coincidan con los filtros.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+        </CardContent>
+      </Card>
     </main>
   );
 }
