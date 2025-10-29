@@ -145,6 +145,40 @@ function PrintLabelDialog({ of, elaboracion, ingredientes }: { of: OrdenFabricac
     );
 }
 
+function TareaRow({ of, router }: { of: OrdenFabricacion, router: any }) {
+    const [elapsedTime, setElapsedTime] = useState<string | null>(null);
+
+    useEffect(() => {
+        let timer: NodeJS.Timeout | null = null;
+        if (of.estado === 'En Proceso' && of.fechaInicioProduccion) {
+            const updateElapsedTime = () => {
+                const startTime = new Date(of.fechaInicioProduccion!);
+                setElapsedTime(formatDistanceToNowStrict(startTime, { locale: es, addSuffix: false }));
+            };
+            updateElapsedTime();
+            timer = setInterval(updateElapsedTime, 1000);
+        }
+        return () => {
+            if (timer) clearInterval(timer);
+        };
+    }, [of.estado, of.fechaInicioProduccion]);
+
+    return (
+        <TableRow 
+            onClick={() => router.push(`/cpr/produccion/${of.id}`)}
+            className={cn("cursor-pointer text-base", of.estado === 'En Proceso' && 'bg-blue-100/50 font-bold')}
+        >
+            <TableCell className="py-4">{of.elaboracionNombre}</TableCell>
+            <TableCell className="py-4">{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+            <TableCell className="py-4">
+                {Math.ceil(of.cantidadTotal * 100) / 100} {of.unidad}
+            </TableCell>
+            <TableCell className="py-4"><Badge variant={statusVariant[of.estado]}>{of.estado}</Badge></TableCell>
+            <TableCell className="py-4 font-mono text-blue-600 font-semibold">{elapsedTime || '--:--'}</TableCell>
+        </TableRow>
+    )
+}
+
 
 export default function ProduccionPage() {
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
@@ -245,27 +279,17 @@ export default function ProduccionPage() {
                                 <TableHead>Fecha</TableHead>
                                 <TableHead>Cantidad</TableHead>
                                 <TableHead>Estado</TableHead>
+                                <TableHead>Cronómetro</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {filteredOrdenesTareas.length > 0 ? (
                                 filteredOrdenesTareas.map(of => (
-                                    <TableRow 
-                                        key={of.id} 
-                                        onClick={() => router.push(`/cpr/produccion/${of.id}`)}
-                                        className={cn("cursor-pointer text-base", of.estado === 'En Proceso' && 'bg-blue-100/50 font-bold')}
-                                    >
-                                        <TableCell className="py-4">{of.elaboracionNombre}</TableCell>
-                                        <TableCell className="py-4">{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell className="py-4">
-                                            {Math.ceil(of.cantidadTotal * 100) / 100} {of.unidad}
-                                        </TableCell>
-                                        <TableCell className="py-4"><Badge variant={statusVariant[of.estado]}>{of.estado}</Badge></TableCell>
-                                    </TableRow>
+                                   <TareaRow key={of.id} of={of} router={router} />
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-48 text-center text-lg text-muted-foreground">
+                                    <TableCell colSpan={5} className="h-48 text-center text-lg text-muted-foreground">
                                         No tienes órdenes de fabricación asignadas.
                                     </TableCell>
                                 </TableRow>
@@ -321,4 +345,3 @@ export default function ProduccionPage() {
     </div>
   );
 }
-
