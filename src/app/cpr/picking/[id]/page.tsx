@@ -399,7 +399,7 @@ function PickingPageContent() {
       const lotesPorHito = new Map<string, LoteNecesario[]>();
     
       if (!isMounted || !hitosConNecesidades.length) {
-        return { lotesPendientesPorHito, isPickingComplete: true, elabMap };
+        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: true, elabMap };
       }
     
       const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
@@ -678,7 +678,7 @@ function PickingPageContent() {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
-                        className="bg-destructive hover:bg-destructive/90"
+                        className="bg-destructive hover:bg-destructive/80"
                         onClick={handleDeletePicking}
                         >
                         Sí, reiniciar
@@ -700,5 +700,6 @@ function PickingDetailPageWrapper() {
 }
 
 export default PickingDetailPageWrapper;
+
 
 
