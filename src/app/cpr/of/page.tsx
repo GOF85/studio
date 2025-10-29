@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, ChefHat, ClipboardList } from 'lucide-react';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, ChefHat, ClipboardList, FileText, Users } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,6 +49,7 @@ import { DateRange } from 'react-day-picker';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 
 
 type NecesidadDesgloseItem = {
@@ -365,8 +366,7 @@ export default function OfPage() {
                 if (!recetaItem) {
                     const componentes = receta.elaboraciones.map(e => {
                         const elabInfo = elabMap.get(e.elaboracionId);
-                        const cantidadTotal = (item.quantity || 0) * e.cantidad;
-                        return { nombre: elabInfo?.nombre || '?', cantidad: e.cantidad, unidad: elabInfo?.unidadProduccion || '?', cantidadTotal };
+                        return { nombre: elabInfo?.nombre || '?', cantidad: e.cantidad, unidad: elabInfo?.unidadProduccion || '?', cantidadTotal: 0 };
                     })
                     recetaItem = { id: receta.id, nombre: receta.nombre, partida: receta.partidaProduccion || 'N/A', udTotales: 0, unidad: 'Uds', necesidadesPorDia: {}, componentes };
                     recetasInforme.set(receta.id, recetaItem);
@@ -799,43 +799,45 @@ export default function OfPage() {
         </TabsContent>
         <TabsContent value="informe-necesidades" className="mt-4">
           <Card>
-            <CardHeader className="flex-row items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">Informe Detallado de Necesidades</CardTitle>
-                 <div className="flex items-center gap-4">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="text-lg flex items-center gap-2">Informe Detallado de Necesidades</CardTitle>
+                    <Select value={partidaInformeFilter} onValueChange={setPartidaInformeFilter}>
+                        <SelectTrigger className="w-[240px] h-9">
+                            <SelectValue placeholder="Filtrar por partida" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas las Partidas</SelectItem>
+                            {partidas.map(p => (
+                                <SelectItem key={p} value={p}>
+                                    <div className="flex items-center gap-2">
+                                        <span className={cn("h-2 w-2 rounded-full", partidaColorCircles[p])}/>
+                                        {p}
+                                    </div>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="flex items-center gap-2 justify-between text-sm font-medium bg-muted/70 p-2 mt-2 rounded-md">
                     <div className="flex items-center space-x-2">
                         <ClipboardList className="h-4 w-4 text-muted-foreground"/>
                         <span className="font-bold">{reporteData?.resumen.contratos || 0}</span>
                         <span className="text-sm text-muted-foreground">Contratos</span>
                     </div>
-                    <Separator orientation="vertical" className="h-6"/>
+                    <Separator orientation="vertical" className="h-4"/>
                      <div className="flex items-center space-x-2">
                         <FileText className="h-4 w-4 text-muted-foreground"/>
                         <span className="font-bold">{reporteData?.resumen.servicios || 0}</span>
                         <span className="text-sm text-muted-foreground">Servicios</span>
                     </div>
-                    <Separator orientation="vertical" className="h-6"/>
+                    <Separator orientation="vertical" className="h-4"/>
                      <div className="flex items-center space-x-2">
                         <Users className="h-4 w-4 text-muted-foreground"/>
                         <span className="font-bold">{formatNumber(reporteData?.resumen.pax || 0,0)}</span>
                         <span className="text-sm text-muted-foreground">PAX</span>
                     </div>
                 </div>
-                 <Select value={partidaInformeFilter} onValueChange={setPartidaInformeFilter}>
-                    <SelectTrigger className="w-[240px] h-9">
-                        <SelectValue placeholder="Filtrar por partida" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Todas las Partidas</SelectItem>
-                        {partidas.map(p => (
-                             <SelectItem key={p} value={p}>
-                                <div className="flex items-center gap-2">
-                                    <span className={cn("h-2 w-2 rounded-full", partidaColorCircles[p])}/>
-                                    {p}
-                                </div>
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
             </CardHeader>
             <CardContent>
                 {reporteData && (
@@ -844,12 +846,12 @@ export default function OfPage() {
                             <Table className="text-xs">
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1 w-24">Partida</TableHead>
-                                        <TableHead className="sticky left-24 bg-secondary/80 backdrop-blur-sm min-w-56 p-1">Elaboración / Referencia</TableHead>
+                                        <TableHead className="sticky left-0 bg-secondary/80 backdrop-blur-sm p-1 w-20 text-center">Partida</TableHead>
+                                        <TableHead className="sticky left-[80px] bg-secondary/80 backdrop-blur-sm min-w-56 p-1">Referencia / Elaboración</TableHead>
                                         <TableHead className="text-right p-1">Total</TableHead>
                                         {reporteData.fechas.map(fecha => (
                                             <TableHead key={fecha.toISOString()} className="text-center p-1 min-w-20">
-                                                <div className="capitalize font-normal text-xs">{format(fecha, 'EEE', {locale: es})}</div>
+                                                <div className="capitalize font-normal">{format(fecha, 'EEE', {locale: es})}</div>
                                                 <div className="font-bold">{format(fecha, 'dd/MM')}</div>
                                             </TableHead>
                                         ))}
@@ -860,8 +862,8 @@ export default function OfPage() {
                                     </TableRow>
                                     {reporteData.recetas.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
                                         <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
-                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-20 justify-center"><div className={cn("h-2 w-2 rounded-full mr-1.5", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
-                                            <TableCell className="sticky left-24 bg-inherit font-semibold p-1.5">
+                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-xs justify-center"><div className={cn("h-2 w-2 rounded-full mr-1.5", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
+                                            <TableCell className="sticky left-[80px] bg-inherit font-semibold p-1.5">
                                                 <Tooltip>
                                                 <TooltipTrigger asChild>
                                                     <span className="cursor-help">{item.nombre}</span>
@@ -884,8 +886,8 @@ export default function OfPage() {
                                      <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">ELABORACIONES</TableCell></TableRow>
                                     {reporteData.elaboraciones.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
                                          <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
-                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-20 justify-center"><div className={cn("h-2 w-2 rounded-full mr-1.5", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
-                                            <TableCell className="sticky left-24 bg-inherit font-semibold p-1.5">
+                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-xs justify-center"><div className={cn("h-2 w-2 rounded-full mr-1.5", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
+                                            <TableCell className="sticky left-[80px] bg-inherit font-semibold p-1.5">
                                                 <Tooltip>
                                                 <TooltipTrigger asChild>
                                                     <span className="cursor-help">{item.nombre}</span>
@@ -940,3 +942,4 @@ export default function OfPage() {
     
 
     
+
