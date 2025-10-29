@@ -1,12 +1,14 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Package, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, UtensilsCrossed, ListChecks } from 'lucide-react';
-import type { ServiceOrder, PickingEntregaState, PedidoEntrega, ProductoVenta, EntregaHito, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, PickingEntregaState, PedidoEntrega, ProductoVenta, EntregaHito, ComercialBriefing, ComercialBriefingItem, Receta } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -17,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -46,12 +49,10 @@ export default function PickingPage() {
 
   useEffect(() => {
     const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas');
-    const allPickingStates = JSON.parse(localStorage.getItem('pickingEntregasState') || '{}') as Record<string, PickingEntregaState>;
+    const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingEntregaState>;
     setPickingStates(allPickingStates);
     
     const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
-    const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
-    setProductosVentaMap(new Map(allProductosVenta.map(p => [p.id, p])));
     
     const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
     const hitosDePicking: HitoDePicking[] = [];
@@ -75,7 +76,7 @@ export default function PickingPage() {
     setIsMounted(true);
 
     const handleStorageChange = () => {
-        const updatedStates = JSON.parse(localStorage.getItem('pickingEntregasState') || '{}');
+        const updatedStates = JSON.parse(localStorage.getItem('pickingStates') || '{}');
         setPickingStates(updatedStates);
     };
 
@@ -120,19 +121,34 @@ export default function PickingPage() {
     if (!hito.conGastronomia) {
         return { checked: 0, total: 0, percentage: 0, noAplica: true };
     }
-    const state = pickingStates[hito.id];
-    if (!hito.gastro_items) return { checked: 0, total: 0, percentage: 0 };
     
-    // This logic may need refinement based on how 'items to pick' are determined
-    const totalItems = hito.gastro_items.filter(item => item.type === 'item').length;
-    if (totalItems === 0) return { checked: 0, total: 0, percentage: 0 };
+    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    const state = pickingStates[hito.id];
+    
+    const gastroItems = hito.gastro_items?.filter(item => item.type === 'item') || [];
+    if (gastroItems.length === 0) {
+        return { checked: 0, total: 0, percentage: 100, isComplete: true };
+    }
+
+    const elaboracionesNecesarias = new Set<string>();
+    gastroItems.forEach(item => {
+        const receta = allRecetas.find(r => r.id === item.id);
+        if (receta) {
+            (receta.elaboraciones || []).forEach(elab => {
+                elaboracionesNecesarias.add(elab.elaboracionId);
+            });
+        }
+    });
+
+    const totalItems = elaboracionesNecesarias.size;
+    if (totalItems === 0) return { checked: 0, total: 0, percentage: 100, isComplete: true };
 
     const checkedItems = state?.checkedItems?.length || 0;
     
     return {
       checked: checkedItems,
       total: totalItems,
-      percentage: (checkedItems / totalItems) * 100
+      percentage: totalItems > 0 ? (checkedItems / totalItems) * 100 : 100,
     };
   };
 
@@ -194,10 +210,10 @@ export default function PickingPage() {
                     <TableRow 
                         key={hito.id} 
                         onClick={() => !isDisabled && router.push(`/cpr/picking/${hito.serviceOrder.id}?hitoId=${hito.id}`)}
-                        className={cn(isDisabled ? 'bg-secondary/50 text-muted-foreground pointer-events-none' : 'cursor-pointer')}
+                        className={cn(isDisabled ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed' : 'cursor-pointer')}
                     >
                         <TableCell className="font-medium flex items-center gap-2">
-                             {!hito.conGastronomia && <UtensilsCrossed className="h-4 w-4" />}
+                             {isDisabled && <UtensilsCrossed className="h-4 w-4" />}
                             {hito.descripcion}
                         </TableCell>
                         <TableCell><Badge variant="outline">{hito.serviceOrder.serviceNumber}</Badge></TableCell>
@@ -212,7 +228,7 @@ export default function PickingPage() {
                                     <span className="text-sm text-muted-foreground">{progress.checked} / {progress.total}</span>
                                 </div>
                             ) : (
-                                <Badge variant="secondary">Vacío</Badge>
+                                <Badge variant="success">Completo</Badge>
                             )}
                         </TableCell>
                     </TableRow>
