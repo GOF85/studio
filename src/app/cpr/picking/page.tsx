@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Package, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, UtensilsCrossed } from 'lucide-react';
+import { Package, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, UtensilsCrossed, ListChecks } from 'lucide-react';
 import type { ServiceOrder, PickingEntregaState, PedidoEntrega, ProductoVenta, EntregaHito, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
