@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, ChefHat, ClipboardList, FileText, Users, Utensils } from 'lucide-react';
@@ -35,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { format, parseISO, startOfDay, endOfDay, isWithinInterval, addDays, isSameDay, eachDayOfInterval } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay, isWithinInterval, addDays, isSameDay, eachDayOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
@@ -107,7 +108,7 @@ type ReporteData = {
         elaboraciones: number;
         resumenPorPartida: Record<string, ReporteResumenPartida>;
     };
-    recetas: ReporteProduccionItem[];
+    referencias: ReporteProduccionItem[];
     elaboraciones: ReporteProduccionItem[];
 };
 
@@ -154,8 +155,8 @@ export default function OfPage() {
   const [necesidades, setNecesidades] = useState<NecesidadItem[]>([]);
   const [selectedNecesidades, setSelectedNecesidades] = useState<Set<string>>(new Set());
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfDay(new Date()),
-    to: endOfDay(addDays(new Date(), 7)),
+    from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+    to: endOfWeek(new Date(), { weekStartsOn: 1 }),
   });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [reporteData, setReporteData] = useState<ReporteData | null>(null);
@@ -430,7 +431,7 @@ export default function OfPage() {
       setReporteData({
           fechas: fechasDelRango,
           resumen: finalResumen,
-          recetas: Array.from(recetasInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
+          referencias: Array.from(recetasInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
           elaboraciones: Array.from(elaboracionesInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
       });
   }
@@ -579,18 +580,32 @@ export default function OfPage() {
             <TabsTrigger value="informe-necesidades">Informe Tabla Necesidades</TabsTrigger>
         </TabsList>
         <div className="flex flex-col md:flex-row gap-4 my-4">
-            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                 <PopoverTrigger asChild>
-                    <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal md:w-[300px]", !dateRange && "text-muted-foreground")}>
+                    <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango</span>)}
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+                <PopoverContent className="flex flex-col space-y-2 p-2" align="start">
+                     <div className="grid grid-cols-3 gap-1">
+                        <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Esta semana</Button>
+                        <Button variant="outline" size="sm" onClick={() => {const nextWeekStart = startOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }); setDateRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) }); setIsDatePickerOpen(false);}}>Próxima semana</Button>
+                         <Button variant="outline" size="sm" onClick={() => {setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }); setIsDatePickerOpen(false);}}>Este mes</Button>
+                    </div>
+                    <div className="rounded-md border">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={setDateRange}
+                            numberOfMonths={2}
+                            locale={es}
+                        />
+                    </div>
                 </PopoverContent>
             </Popover>
-             <Button variant="secondary" onClick={() => { setDateRange({ from: startOfDay(new Date()), to: endOfDay(addDays(new Date(), 7)) }); }}>Próximos 7 días</Button>
         </div>
         <TabsContent value="planificacion" className="mt-4 space-y-4">
             <Card>
@@ -852,7 +867,7 @@ export default function OfPage() {
                         <span className="font-bold">{formatNumber(reporteData?.resumen.pax || 0,0)}</span>
                         <span className="text-muted-foreground">Comensales</span>
                     </div>
-                    <Separator orientation="vertical" className="h-4"/>
+                     <Separator orientation="vertical" className="h-4"/>
                     <div className="flex items-center space-x-1.5">
                         <Layers className="h-4 w-4 text-muted-foreground"/>
                         <span className="font-bold">{reporteData?.resumen.referencias || 0}</span>
@@ -871,7 +886,7 @@ export default function OfPage() {
                         <span className="text-muted-foreground">Elaboraciones</span>
                     </div>
                 </div>
-                 <div className="flex items-center gap-3 justify-center text-xs font-medium bg-muted/40 p-1.5 mt-2 rounded-md">
+                <div className="flex items-center gap-3 justify-center text-xs font-medium bg-muted/40 p-1.5 mt-2 rounded-md">
                    {partidas.map(p => {
                        const data = reporteData?.resumen.resumenPorPartida[p];
                        if (!data || (data.referencias === 0 && data.unidades === 0 && data.elaboraciones === 0)) return null;
@@ -907,7 +922,7 @@ export default function OfPage() {
                             <TableBody>
                                 <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">REFERENCIAS</TableCell>
                                 </TableRow>
-                                {reporteData.recetas.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
+                                {reporteData.referencias.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
                                     <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
                                         <TableCell className="sticky left-0 bg-inherit p-1 font-semibold text-center"><Badge variant="outline" className="bg-white/80 w-full text-[9px] justify-center px-0.5"><div className={cn("h-1.5 w-1.5 rounded-full mr-1", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
                                         <TableCell className="sticky left-12 bg-inherit font-semibold p-1">
@@ -984,4 +999,3 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
-
