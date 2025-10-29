@@ -600,6 +600,15 @@ export default function OfPage() {
                 </div>
             </PopoverContent>
         </Popover>
+        <Select value={partidaFilter} onValueChange={setPartidaFilter}>
+            <SelectTrigger className="w-full sm:w-[240px]">
+                <SelectValue placeholder="Filtrar por partida" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">Todas las Partidas</SelectItem>
+                {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            </SelectContent>
+        </Select>
         <Button variant="secondary" onClick={handleClearFilters}>Limpiar Filtros</Button>
       </div>
       <Tabs defaultValue="planificacion">
@@ -701,15 +710,7 @@ export default function OfPage() {
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
-                            <Select value={partidaFilter} onValueChange={setPartidaFilter}>
-                                <SelectTrigger className="w-full sm:w-[240px]">
-                                    <SelectValue placeholder="Filtrar por partida" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todas las Partidas</SelectItem>
-                                    {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            
                              <Select value={statusFilter} onValueChange={setStatusFilter}>
                                 <SelectTrigger className="w-full sm:w-[240px]">
                                     <SelectValue placeholder="Filtrar por estado" />
@@ -832,25 +833,6 @@ export default function OfPage() {
         <TabsContent value="informe-necesidades" className="mt-4">
           <Card>
             <CardHeader>
-                <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg flex items-center gap-2">Informe Detallado de Necesidades</CardTitle>
-                    <Select value={partidaInformeFilter} onValueChange={setPartidaInformeFilter}>
-                        <SelectTrigger className="w-[240px] h-9">
-                            <SelectValue placeholder="Filtrar por partida" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas las Partidas</SelectItem>
-                            {partidas.map(p => (
-                                <SelectItem key={p} value={p}>
-                                    <div className="flex items-center gap-2">
-                                        <span className={cn("h-2 w-2 rounded-full", partidaColorCircles[p])}/>
-                                        {p}
-                                    </div>
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
                 {reporteData && (
                      <div className="text-xs font-medium bg-muted/70 p-2 mt-4 rounded-md space-y-1.5">
                         <div className="flex items-center justify-around">
