@@ -812,3 +812,4 @@ export default function RecetaFormPage() {
     </div>
   );
 }
+
