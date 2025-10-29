@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -92,8 +93,8 @@ export default function OfPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [partidaFilter, setPartidaFilter] = useState('all');
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
   
   const [necesidades, setNecesidades] = useState<NecesidadItem[]>([]);
@@ -212,7 +213,6 @@ export default function OfPage() {
 
     // --- STAGE 4: SUBTRACT EXISTING STOCK & OFs ---
     
-    // Calcula la cantidad total de cada elaboración que ya ha sido asignada en CUALQUIER picking.
     const stockAsignadoGlobal: Record<string, number> = {};
     Object.values(allPickingStates).forEach(state => {
       (state.itemStates || []).forEach(assigned => {
@@ -224,26 +224,22 @@ export default function OfPage() {
     });
 
     const necesidadesArray = Array.from(necesidadesAgregadas.values()).map(necesidad => {
-        // Filtra las OFs existentes para esta elaboración DENTRO del rango de fechas seleccionado
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => {
             const ofDate = startOfDay(new Date(of.fechaProduccionPrevista));
             return of.elaboracionId === necesidad.id && isWithinInterval(ofDate, { start: rangeStart, end: rangeEnd });
         });
         
-        // La cantidad planificada es lo que las OFs dicen que van a producir o lo que ya han producido
-        const cantidadYaPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + (of.cantidadReal ?? of.cantidadTotal ?? 0), 0);
+        const cantidadYaPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + (of.cantidadReal ?? (of.cantidadTotal || 0)), 0);
         
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
-        // El stock disponible REAL es el total menos todo lo que ya está "prometido" en algún picking
         const stockDisponibleReal = stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0);
         
-        // La necesidad NETA a fabricar es el total menos lo que tenemos y lo que ya está planificado
         const cantidadNeta = necesidad.cantidadNecesariaTotal - (cantidadYaPlanificada + stockDisponibleReal);
         
         return {
           ...necesidad,
-          cantidadNecesariaTotal: necesidad.cantidadNecesariaTotal, // Keep the original total need
-          cantidadNeta: Math.max(0, cantidadNeta), // This is what we need to produce
+          cantidadNecesariaTotal: necesidad.cantidadNecesariaTotal, 
+          cantidadNeta: Math.max(0, cantidadNeta),
           stockDisponible: stockDisponibleReal,
           cantidadPlanificada: cantidadYaPlanificada,
           desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
@@ -269,7 +265,7 @@ export default function OfPage() {
         const partidaMatch = partidaFilter === 'all' || item.partidaAsignada === partidaFilter;
         
         let dateMatch = true;
-        if (dateRange?.from) {
+        if (dateRange?.from && item.fechaProduccionPrevista) {
             const itemDate = parseISO(item.fechaProduccionPrevista);
             if (dateRange.to) {
                 dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
@@ -287,20 +283,16 @@ export default function OfPage() {
     setSearchTerm('');
     setStatusFilter('all');
     setPartidaFilter('all');
-    setSelectedRows(new Set());
     setDateRange({ from: startOfDay(new Date()), to: endOfDay(addDays(new Date(), 7)) });
   };
 
-  const handleSelectRow = (id: string, checked: boolean | 'indeterminate') => {
-    const newSelected = new Set(selectedRows);
-    if (checked) newSelected.add(id);
-    else newSelected.delete(id);
-    setSelectedRows(newSelected);
-  };
-  
-  const handleSelectAll = (checked: boolean | 'indeterminate') => {
-    if (checked) setSelectedRows(new Set(filteredAndSortedItems.map(item => item.id)));
-    else setSelectedRows(new Set());
+  const handleDeleteOrder = () => {
+    if (!orderToDelete) return;
+    const updatedOFs = ordenes.filter(of => of.id !== orderToDelete);
+    localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
+    setOrdenes(updatedOFs);
+    toast({ title: 'Orden de Fabricación Eliminada' });
+    setOrderToDelete(null);
   };
   
   const handleGenerateOFs = () => {
@@ -389,8 +381,9 @@ export default function OfPage() {
   return (
     <TooltipProvider>
       <Tabs defaultValue="planificacion">
-        <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="planificacion">Planificación y Creación</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="planificacion">Planificación</TabsTrigger>
+            <TabsTrigger value="creadas">OF Creadas</TabsTrigger>
             <TabsTrigger value="asignacion">Asignación de Órdenes</TabsTrigger>
         </TabsList>
         <div className="flex flex-col md:flex-row gap-4 my-4">
@@ -476,115 +469,107 @@ export default function OfPage() {
                     </div>
                 </CardContent>
             </Card>
-            
-            <Card>
+        </TabsContent>
+         <TabsContent value="creadas" className="mt-4 space-y-4">
+             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Factory/>Órdenes de Fabricación Creadas</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center justify-end mb-4">
-                    <Button asChild>
-                        <Link href="/cpr/of/nuevo">
-                            <PlusCircle className="mr-2"/>
-                            Nueva OF Manual
-                        </Link>
-                    </Button>
+                        <Button asChild>
+                            <Link href="/cpr/of/nuevo">
+                                <PlusCircle className="mr-2"/>
+                                Nueva OF Manual
+                            </Link>
+                        </Button>
                     </div>
-
                     <div className="flex flex-col gap-4 mb-4">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <div className="relative flex-grow">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="search"
-                                placeholder="Buscar por Nº de Lote o Elaboración..."
-                                className="pl-8 w-full"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <div className="relative flex-grow">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Buscar por Nº de Lote o Elaboración..."
+                                    className="pl-8 w-full"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                            <Select value={partidaFilter} onValueChange={setPartidaFilter}>
+                                <SelectTrigger className="w-full sm:w-[240px]">
+                                    <SelectValue placeholder="Filtrar por partida" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todas las Partidas</SelectItem>
+                                    {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <Select value={partidaFilter} onValueChange={setPartidaFilter}>
-                            <SelectTrigger className="w-full sm:w-[240px]">
-                                <SelectValue placeholder="Filtrar por partida" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas las Partidas</SelectItem>
-                                {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm">Estado:</span>
-                        <div className="flex flex-wrap gap-1">
-                            <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
-                            {statusOptions.map(s => (
-                                <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={()=> setStatusFilter(s)}>{s}</Button>
-                            ))}
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm">Estado:</span>
+                            <div className="flex flex-wrap gap-1">
+                                <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
+                                {statusOptions.map(s => (
+                                    <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={()=> setStatusFilter(s)}>{s}</Button>
+                                ))}
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground ml-auto">Limpiar Filtros</Button>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground ml-auto">Limpiar Filtros</Button>
-                    </div>
                     </div>
 
                     <div className="border rounded-lg">
-                    <Table>
-                        <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-12">
-                            <Checkbox 
-                                checked={selectedRows.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0}
-                                onCheckedChange={handleSelectAll}
-                            />
-                            </TableHead>
-                            <TableHead>Lote / OF</TableHead>
-                            <TableHead>Elaboración</TableHead>
-                            <TableHead>Cant. Planificada</TableHead>
-                            <TableHead>Cant. Producida</TableHead>
-                            <TableHead>Valoración Lote</TableHead>
-                            <TableHead>Fecha Prevista</TableHead>
-                            <TableHead>Estado</TableHead>
-                        </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {filteredAndSortedItems.length > 0 ? (
-                            filteredAndSortedItems.map(of => {
-                                 const elab = elaboracionesMap.get(of.elaboracionId);
-                                 const costeLote = (elab?.costePorUnidad || 0) * (of.cantidadReal || of.cantidadTotal);
-                                return (
-                            <TableRow
-                                key={of.id}
-                                onClick={() => router.push(`/cpr/of/${of.id}`)}
-                                className={cn(
-                                    "cursor-pointer", 
-                                    of.partidaAsignada && partidaColorClasses[of.partidaAsignada],
-                                    selectedRows.has(of.id) && 'bg-primary/10 hover:bg-primary/20'
-                                )}
-                            >
-                                <TableCell onClick={(e) => e.stopPropagation()}>
-                                    <Checkbox 
-                                        checked={selectedRows.has(of.id)}
-                                        onCheckedChange={(checked) => handleSelectRow(of.id, checked)}
-                                    />
-                                </TableCell>
-                                <TableCell className="font-medium">{of.id}</TableCell>
-                                <TableCell>{of.elaboracionNombre}</TableCell>
-                                <TableCell>{ceilToTwoDecimals(of.cantidadTotal)} {formatUnit(of.unidad)}</TableCell>
-                                <TableCell>{ceilToTwoDecimals(of.cantidadReal)} {of.cantidadReal ? formatUnit(of.unidad) : ''}</TableCell>
-                                <TableCell className="font-semibold">{formatCurrency(costeLote)}</TableCell>
-                                <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                                <TableCell>
-                                <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
-                                </TableCell>
-                            </TableRow>
-                            )})
-                        ) : (
+                        <Table>
+                            <TableHeader>
                             <TableRow>
-                            <TableCell colSpan={8} className="h-24 text-center">
-                                No se encontraron órdenes de fabricación.
-                            </TableCell>
+                                <TableHead>Lote / OF</TableHead>
+                                <TableHead>Elaboración</TableHead>
+                                <TableHead>Cant. Planificada</TableHead>
+                                <TableHead>Cant. Producida</TableHead>
+                                <TableHead>Valoración Lote</TableHead>
+                                <TableHead>Fecha Prevista</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead className="text-right w-12">Acciones</TableHead>
                             </TableRow>
-                        )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                            {filteredAndSortedItems.length > 0 ? (
+                                filteredAndSortedItems.map(of => {
+                                    const elab = elaboracionesMap.get(of.elaboracionId);
+                                    const costeLote = (elab?.costePorUnidad || 0) * (of.cantidadReal || of.cantidadTotal);
+                                    return (
+                                <TableRow
+                                    key={of.id}
+                                    className={cn(
+                                        "cursor-pointer", 
+                                        of.partidaAsignada && partidaColorClasses[of.partidaAsignada]
+                                    )}
+                                >
+                                    <TableCell className="font-medium" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.id}</TableCell>
+                                    <TableCell onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.elaboracionNombre}</TableCell>
+                                    <TableCell onClick={() => router.push(`/cpr/of/${of.id}`)}>{ceilToTwoDecimals(of.cantidadTotal)} {formatUnit(of.unidad)}</TableCell>
+                                    <TableCell onClick={() => router.push(`/cpr/of/${of.id}`)}>{ceilToTwoDecimals(of.cantidadReal)} {of.cantidadReal ? formatUnit(of.unidad) : ''}</TableCell>
+                                    <TableCell className="font-semibold" onClick={() => router.push(`/cpr/of/${of.id}`)}>{formatCurrency(costeLote)}</TableCell>
+                                    <TableCell onClick={() => router.push(`/cpr/of/${of.id}`)}>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell onClick={() => router.push(`/cpr/of/${of.id}`)}>
+                                    <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
+                                    </TableCell>
+                                     <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setOrderToDelete(of.id)}>
+                                            <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                                )})
+                            ) : (
+                                <TableRow>
+                                <TableCell colSpan={8} className="h-24 text-center">
+                                    No se encontraron órdenes de fabricación.
+                                </TableCell>
+                                </TableRow>
+                            )}
+                            </TableBody>
+                        </Table>
                     </div>
                 </CardContent>
             </Card>
@@ -639,6 +624,25 @@ export default function OfPage() {
              </Card>
         </TabsContent>
       </Tabs>
+      <AlertDialog open={!!orderToDelete} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la Orden de Fabricación.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDeleteOrder}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 }
