@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -101,7 +100,9 @@ type ReporteData = {
     fechas: Date[];
     resumen: {
         contratos: number;
+        contratosDetalle: string[];
         servicios: number;
+        serviciosDetalle: string[];
         comensales: number;
         referencias: number;
         unidades: number;
@@ -342,23 +343,15 @@ export default function OfPage() {
           'EXPEDICION': { referencias: 0, unidades: 0, elaboraciones: 0 },
       };
 
-      const resumen = {
-          contratos: new Set<string>(),
-          servicios: 0,
-          comensales: 0,
-          referencias: 0,
-          unidades: 0,
-          elaboraciones: 0,
-          resumenPorPartida,
-      };
+      const osDetailsSet = new Set<string>();
+      const serviciosCount: Record<string, number> = {};
 
       gastroOrdersInRange.forEach(order => {
           const os = osMap.get(order.osId);
           if (!os) return;
 
-          resumen.contratos.add(os.id);
-          resumen.servicios++;
-          resumen.comensales += os.asistentes || 0;
+          osDetailsSet.add(`${format(new Date(os.startDate), 'dd/MM/yy')} / ${os.serviceNumber} / ${os.space}`);
+          serviciosCount[order.descripcion] = (serviciosCount[order.descripcion] || 0) + 1;
           const fechaKey = format(new Date(order.fecha), 'yyyy-MM-dd');
 
           (order.items || []).forEach(item => {
@@ -376,16 +369,14 @@ export default function OfPage() {
                   })
                   recetaItem = { id: receta.id, nombre: receta.nombre, partida: receta.partidaProduccion || 'N/A', udTotales: 0, unidad: 'Uds', necesidadesPorDia: {}, componentes };
                   recetasInforme.set(receta.id, recetaItem);
-                  resumen.referencias++;
-                  if(receta.partidaProduccion && resumen.resumenPorPartida[receta.partidaProduccion]){
-                      resumen.resumenPorPartida[receta.partidaProduccion].referencias++;
+                  if(receta.partidaProduccion && resumenPorPartida[receta.partidaProduccion]){
+                      resumenPorPartida[receta.partidaProduccion].referencias++;
                   }
               }
               const cantidadReceta = item.quantity || 0;
               recetaItem.udTotales += cantidadReceta;
-              resumen.unidades += cantidadReceta;
-               if(receta.partidaProduccion && resumen.resumenPorPartida[receta.partidaProduccion]){
-                  resumen.resumenPorPartida[receta.partidaProduccion].unidades += cantidadReceta;
+               if(receta.partidaProduccion && resumenPorPartida[receta.partidaProduccion]){
+                  resumenPorPartida[receta.partidaProduccion].unidades += cantidadReceta;
               }
 
 
@@ -407,9 +398,8 @@ export default function OfPage() {
                   if (!elabItem) {
                       elabItem = { id: elab.id, nombre: elab.nombre, partida: elab.partidaProduccion, udTotales: 0, unidad: elab.unidadProduccion, necesidadesPorDia: {}, usadoEn: [] };
                       elaboracionesInforme.set(elab.id, elabItem);
-                      resumen.elaboraciones++;
-                      if(elab.partidaProduccion && resumen.resumenPorPartida[elab.partidaProduccion]){
-                          resumen.resumenPorPartida[elab.partidaProduccion].elaboraciones++;
+                      if(elab.partidaProduccion && resumenPorPartida[elab.partidaProduccion]){
+                          resumenPorPartida[elab.partidaProduccion].elaboraciones++;
                       }
                   }
                   const elabInReceta = elabItem.usadoEn?.find(r => r.nombre === receta.nombre);
@@ -425,8 +415,17 @@ export default function OfPage() {
       });
       
       const finalResumen = {
-          ...resumen,
-          contratos: resumen.contratos.size,
+          contratos: osDetailsSet.size,
+          contratosDetalle: Array.from(osDetailsSet),
+          servicios: Object.values(serviciosCount).reduce((sum, count) => sum + count, 0),
+          serviciosDetalle: Object.entries(serviciosCount).map(([tipo, count]) => `${count} x ${tipo}`),
+          comensales: allServiceOrders
+                        .filter(os => isWithinInterval(new Date(os.startDate), { start: rangeStart, end: rangeEnd }))
+                        .reduce((sum, os) => sum + (os.asistentes || 0), 0),
+          referencias: recetasInforme.size,
+          unidades: Array.from(recetasInforme.values()).reduce((sum, item) => sum + item.udTotales, 0),
+          elaboraciones: elaboracionesInforme.size,
+          resumenPorPartida,
       };
 
       setReporteData({
@@ -435,7 +434,7 @@ export default function OfPage() {
           referencias: Array.from(recetasInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
           elaboraciones: Array.from(elaboracionesInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
       });
-  }
+    }
 
 
     setIsMounted(true);
@@ -832,13 +831,31 @@ export default function OfPage() {
         </TabsContent>
         <TabsContent value="informe-necesidades" className="mt-4">
           <Card>
-            <CardHeader>
+            <CardContent className="p-2">
                  {reporteData && (
-                     <div className="text-xs font-medium bg-muted/70 p-2 mt-4 rounded-md space-y-1.5">
+                     <div className="text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md space-y-1.5">
                         <div className="flex items-center justify-around">
-                            <div className="flex items-center space-x-1.5"><ClipboardList className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.contratos}</span><span className="text-muted-foreground">Contratos</span></div>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                <div className="flex items-center space-x-1.5"><ClipboardList className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.contratos}</span><span className="text-muted-foreground">Contratos</span></div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <div className="p-2 space-y-1 text-sm">
+                                        {reporteData.resumen.contratosDetalle.map((d, i) => <p key={i}>{d}</p>)}
+                                    </div>
+                                </TooltipContent>
+                            </Tooltip>
                             <Separator orientation="vertical" className="h-4"/>
-                            <div className="flex items-center space-x-1.5"><FileText className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.servicios}</span><span className="text-muted-foreground">Servicios</span></div>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                <div className="flex items-center space-x-1.5"><FileText className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{reporteData.resumen.servicios}</span><span className="text-muted-foreground">Servicios</span></div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                     <div className="p-2 space-y-1 text-sm">
+                                        {reporteData.resumen.serviciosDetalle.map((d, i) => <p key={i}>{d}</p>)}
+                                    </div>
+                                </TooltipContent>
+                            </Tooltip>
                             <Separator orientation="vertical" className="h-4"/>
                             <div className="flex items-center space-x-1.5"><Users className="h-4 w-4 text-muted-foreground"/><span className="font-bold">{formatNumber(reporteData.resumen.comensales,0)}</span><span className="text-muted-foreground">Comensales</span></div>
                             <Separator orientation="vertical" className="h-4"/>
@@ -866,7 +883,7 @@ export default function OfPage() {
                         </div>
                     </div>
                  )}
-            </CardHeader>
+            </CardContent>
             <CardContent>
                 {reporteData && (
                     <div className="border rounded-lg overflow-x-auto max-h-[70vh]">
@@ -935,7 +952,7 @@ export default function OfPage() {
                                             </TooltipContent>
                                             </Tooltip>
                                         </TableCell>
-                                        <TableCell className="text-right p-1 font-bold font-mono">{formatNumber(item.udTotales, 2)} {formatUnit(item.unidad)}</TableCell>
+                                        <TableCell className="text-right p-1 font-bold font-mono">{formatNumber(item.udTotales, 2)} {formatUnit(item.unidad}</TableCell>
                                         {reporteData.fechas.map(fecha => {
                                             const fechaKey = format(fecha, 'yyyy-MM-dd');
                                             return <TableCell key={`${item.id}-${fechaKey}`} className="text-center p-1 font-mono">{item.necesidadesPorDia[fechaKey] ? formatNumber(item.necesidadesPorDia[fechaKey], 2) : '-'}</TableCell>
@@ -972,4 +989,3 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
-
