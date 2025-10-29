@@ -2,13 +2,13 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, ListChecks, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, UtensilsCrossed, RefreshCw } from 'lucide-react';
-import type { ServiceOrder, PickingEntregaState, PedidoEntrega, ProductoVenta, EntregaHito, ComercialBriefing, ComercialBriefingItem, Receta } from '@/types';
+import type { ServiceOrder, PickingEntregaState, PedidoEntrega, ProductoVenta, EntregaHito, ComercialBriefing, ComercialBriefingItem, Receta, OrdenFabricacion, GastronomyOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -93,14 +93,14 @@ export default function PickingPage() {
 
   }, [updateTrigger]);
   
-  const getPickingProgress = (hito: HitoDePicking) => {
+  const getPickingProgress = useCallback((hito: HitoDePicking) => {
+    // Si no tiene gastronomía, está 100% completo por definición.
     if (!hito.conGastronomia) {
         return { checked: 0, total: 0, percentage: 100, isComplete: true };
     }
-    
+
+    // 1. Identificar todas las elaboraciones únicas necesarias
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    const state = pickingStates[hito.id];
-    
     const gastroOrder = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).find(go => go.id === hito.id);
     const gastroItems = gastroOrder?.items?.filter(item => item.type === 'item') || [];
 
@@ -115,20 +115,39 @@ export default function PickingPage() {
     });
 
     const totalItems = elaboracionesNecesarias.size;
+
+    // Si no se necesitan elaboraciones, está completo.
     if (totalItems === 0) {
         return { checked: 0, total: 0, percentage: 100, isComplete: true };
     }
+    
+    // 2. Identificar las elaboraciones únicas que ya han sido asignadas
+    const state = pickingStates[hito.id];
+    if (!state || !state.itemStates) {
+        return { checked: 0, total: totalItems, percentage: 0, isComplete: false };
+    }
 
-    const checkedItems = state?.checkedItems?.length || 0;
-    const percentage = totalItems > 0 ? (checkedItems / totalItems) * 100 : 100;
+    const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+    const ofsMap = new Map(allOFs.map(of => [of.id, of]));
+
+    const elaboracionesAsignadas = new Set<string>();
+    state.itemStates.forEach(assignedLote => {
+        const of = ofsMap.get(assignedLote.ofId);
+        if (of && elaboracionesNecesarias.has(of.elaboracionId)) {
+            elaboracionesAsignadas.add(of.elaboracionId);
+        }
+    });
+    
+    const checkedCount = elaboracionesAsignadas.size;
+    const percentage = totalItems > 0 ? (checkedCount / totalItems) * 100 : 100;
     
     return {
-      checked: checkedItems,
+      checked: checkedCount,
       total: totalItems,
       percentage: percentage,
-      isComplete: percentage >= 100,
+      isComplete: checkedCount >= totalItems,
     };
-  };
+  }, [pickingStates]);
 
   const filteredHitos = useMemo(() => {
     return hitos.map(hito => ({
