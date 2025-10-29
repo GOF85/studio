@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, Separator } from 'lucide-react';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, Separator, ChefHat } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -571,7 +571,7 @@ export default function OfPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col md:flex-row gap-4 my-4">
+      <div className="flex items-center gap-2">
         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
                 <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
@@ -848,61 +848,61 @@ export default function OfPage() {
                         </SelectContent>
                     </Select>
                 </div>
-                {reporteData && (
-                <div className="flex items-center gap-2 justify-between text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md">
-                    <div className="flex items-center space-x-1.5">
-                        <ClipboardList className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{reporteData.resumen.contratos}</span>
-                        <span className="text-muted-foreground">Contratos</span>
-                    </div>
-                    <Separator orientation="vertical" className="h-4"/>
-                    <div className="flex items-center space-x-1.5">
-                        <FileText className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{reporteData.resumen.servicios}</span>
-                        <span className="text-muted-foreground">Servicios</span>
-                    </div>
-                    <Separator orientation="vertical" className="h-4"/>
-                    <div className="flex items-center space-x-1.5">
-                        <Users className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{formatNumber(reporteData.resumen.pax,0)}</span>
-                        <span className="text-muted-foreground">Comensales</span>
-                    </div>
-                    <Separator orientation="vertical" className="h-4"/>
-                    <div className="flex items-center space-x-1.5">
-                        <Layers className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{reporteData.resumen.referencias}</span>
-                        <span className="text-muted-foreground">Referencias</span>
-                    </div>
-                    <Separator orientation="vertical" className="h-4"/>
-                    <div className="flex items-center space-x-1.5">
-                        <Utensils className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{formatNumber(reporteData.resumen.unidades,0)}</span>
-                        <span className="text-muted-foreground">Uds. Ref.</span>
-                    </div>
-                    <Separator orientation="vertical" className="h-4"/>
-                    <div className="flex items-center space-x-1.5">
-                        <ChefHat className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-bold">{reporteData.resumen.elaboraciones}</span>
-                        <span className="text-muted-foreground">Elaboraciones</span>
-                    </div>
-                </div>
-                )}
                  {reporteData && (
-                <div className="flex items-center gap-3 justify-center text-xs font-medium bg-muted/40 p-1.5 mt-2 rounded-md">
-                   {partidas.map(p => {
-                       const data = reporteData.resumen.resumenPorPartida[p];
-                       if (!data || (data.referencias === 0 && data.unidades === 0 && data.elaboraciones === 0)) return null;
-                       return (
-                           <div key={p} className="flex items-center gap-2 border-r pr-3 last:border-r-0">
-                               <div className={cn("h-2.5 w-2.5 rounded-full", partidaColorCircles[p])}/>
-                               <span className="font-bold">{p}:</span>
-                               <span className="text-muted-foreground">Ref:</span><span className="font-semibold">{data.referencias}</span>
-                               <span className="text-muted-foreground">Uds:</span><span className="font-semibold">{formatNumber(data.unidades,0)}</span>
-                               <span className="text-muted-foreground">Elab:</span><span className="font-semibold">{data.elaboraciones}</span>
-                           </div>
-                       )
-                   })}
-                </div>
+                    <div className="flex items-center gap-2 justify-between text-xs font-medium bg-muted/70 p-2 mt-2 rounded-md">
+                        <div className="flex items-center space-x-1.5">
+                            <ClipboardList className="h-4 w-4 text-muted-foreground"/>
+                            <span className="font-bold">{reporteData.resumen.contratos}</span>
+                            <span className="text-muted-foreground">Contratos</span>
+                        </div>
+                        <Separator orientation="vertical" className="h-4"/>
+                        <div className="flex items-center space-x-1.5">
+                            <FileText className="h-4 w-4 text-muted-foreground"/>
+                            <span className="font-bold">{reporteData.resumen.servicios}</span>
+                            <span className="text-muted-foreground">Servicios</span>
+                        </div>
+                        <Separator orientation="vertical" className="h-4"/>
+                        <div className="flex items-center space-x-1.5">
+                            <Users className="h-4 w-4 text-muted-foreground"/>
+                            <span className="font-bold">{formatNumber(reporteData.resumen.pax,0)}</span>
+                            <span className="text-muted-foreground">Comensales</span>
+                        </div>
+                        <Separator orientation="vertical" className="h-4"/>
+                        <div className="flex items-center space-x-1.5">
+                            <Layers className="h-4 w-4 text-muted-foreground"/>
+                            <span className="font-bold">{reporteData.resumen.referencias}</span>
+                            <span className="text-muted-foreground">Referencias</span>
+                        </div>
+                        <Separator orientation="vertical" className="h-4"/>
+                        <div className="flex items-center space-x-1.5">
+                            <Utensils className="h-4 w-4 text-muted-foreground"/>
+                            <span className="font-bold">{formatNumber(reporteData.resumen.unidades,0)}</span>
+                            <span className="text-muted-foreground">Uds. Ref.</span>
+                        </div>
+                        <Separator orientation="vertical" className="h-4"/>
+                        <div className="flex items-center space-x-1.5">
+                            <ChefHat className="h-4 w-4 text-muted-foreground"/>
+                            <span className="font-bold">{reporteData.resumen.elaboraciones}</span>
+                            <span className="text-muted-foreground">Elaboraciones</span>
+                        </div>
+                    </div>
+                 )}
+                 {reporteData && (
+                    <div className="flex items-center gap-3 justify-center text-xs font-medium bg-muted/40 p-1.5 mt-2 rounded-md">
+                       {partidas.map(p => {
+                           const data = reporteData.resumen.resumenPorPartida[p];
+                           if (!data || (data.referencias === 0 && data.unidades === 0 && data.elaboraciones === 0)) return null;
+                           return (
+                               <div key={p} className="flex items-center gap-2 border-r pr-3 last:border-r-0">
+                                   <div className={cn("h-2.5 w-2.5 rounded-full", partidaColorCircles[p])}/>
+                                   <span className="font-bold">{p}:</span>
+                                   <span className="text-muted-foreground">Ref:</span><span className="font-semibold">{data.referencias}</span>
+                                   <span className="text-muted-foreground">Uds:</span><span className="font-semibold">{formatNumber(data.unidades,0)}</span>
+                                   <span className="text-muted-foreground">Elab:</span><span className="font-semibold">{data.elaboraciones}</span>
+                               </div>
+                           )
+                       })}
+                    </div>
                  )}
             </CardHeader>
             <CardContent>
