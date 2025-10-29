@@ -269,12 +269,13 @@ export default function OfPage() {
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         const stockDisponible = Math.max(0, stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0));
 
-        const cantidadNeta = necesidad.cantidadNecesariaTotal - stockDisponible - cantidadPlanificada;
+        const stockAUsar = Math.min(stockDisponible, necesidad.cantidadNecesariaTotal);
+        const cantidadNeta = necesidad.cantidadNecesariaTotal - stockAUsar - cantidadPlanificada;
         
         return {
           ...necesidad,
           cantidadNeta,
-          stockDisponible: Math.max(0, stockDisponible),
+          stockDisponible: stockAUsar,
           cantidadPlanificada,
           desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
         };
@@ -417,10 +418,11 @@ export default function OfPage() {
   return (
     <TooltipProvider>
       <Tabs defaultValue="planificacion">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="planificacion">Planificación</TabsTrigger>
             <TabsTrigger value="creadas">OF Creadas</TabsTrigger>
             <TabsTrigger value="asignacion">Asignación de Órdenes</TabsTrigger>
+            <TabsTrigger value="informe-necesidades">Informe Tabla Necesidades</TabsTrigger>
         </TabsList>
         <div className="flex flex-col md:flex-row gap-4 my-4">
             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
@@ -441,7 +443,7 @@ export default function OfPage() {
                 <CardHeader className="flex-row justify-between items-center">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
                     <div className="flex items-center gap-2">
-                        <Button onClick={loadData} variant="outline" size="icon">
+                         <Button onClick={loadData} variant="outline" size="icon">
                            <RefreshCw className="h-4 w-4" />
                        </Button>
                         <Button size="sm" onClick={handleGenerateOFs} disabled={selectedNecesidades.size === 0}>
@@ -451,7 +453,6 @@ export default function OfPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="border rounded-lg">
-                        
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -472,24 +473,24 @@ export default function OfPage() {
                                 <TableRow key={item.id}>
                                     <TableCell><Checkbox checked={selectedNecesidades.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(item.id, !!checked)}/></TableCell>
                                     <TableCell>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <div className="font-semibold cursor-help flex items-center gap-2">
-                                                    <Info className="h-4 w-4 text-muted-foreground" />
-                                                    <span>{item.nombre}</span>
-                                                </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent className="p-2 max-w-md">
-                                                <div className="space-y-1">
-                                                    <p className="font-bold mb-1">Recetas que requieren esta elaboración:</p>
-                                                    {item.desgloseCompleto.map((d, i) => (
-                                                        <p key={i} className="text-xs">
-                                                            {format(new Date(d.fechaHito), 'dd/MM')}: {d.cantidadReceta} x "{d.recetaNombre}" &rarr; {formatNumber(d.cantidadNecesaria, 2)} {formatUnit(item.unidad)}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            </TooltipContent>
-                                        </Tooltip>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="font-semibold cursor-help flex items-center gap-2">
+                                            <Info className="h-4 w-4 text-muted-foreground" />
+                                            <span>{item.nombre}</span>
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="p-2 max-w-md">
+                                            <div className="space-y-1">
+                                                <p className="font-bold mb-1">Recetas que requieren esta elaboración:</p>
+                                                {item.desgloseCompleto.map((d, i) => (
+                                                    <p key={i} className="text-xs">
+                                                        {format(new Date(d.fechaHito), 'dd/MM')}: {d.cantidadReceta} x "{d.recetaNombre}" &rarr; {formatNumber(d.cantidadNecesaria, 2)} {formatUnit(item.unidad)}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        </TooltipContent>
+                                      </Tooltip>
                                     </TableCell>
                                     <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
                                     <TableCell className="text-right font-mono">{formatNumber(item.cantidadNecesariaTotal, 2)} {formatUnit(item.unidad)}</TableCell>
