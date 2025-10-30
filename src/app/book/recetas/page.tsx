@@ -46,7 +46,7 @@ import { Badge } from '@/components/ui/badge';
 
 const ITEMS_PER_PAGE = 20;
 
-const CSV_HEADERS = [ "id", "nombre", "visibleParaComerciales", "isArchived", "descripcionComercial", "responsableEscandallo", "categoria", "partidaProduccion", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "instruccionesRegeneracion", "instruccionesEmplatado", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "recetaOrigen", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "gramajeTotal", "precioVenta", "alergenos", "requiereRevision" ];
+const CSV_HEADERS = [ "id", "numeroReceta", "nombre", "nombre_en", "visibleParaComerciales", "isArchived", "descripcionComercial", "descripcionComercial_en", "responsableEscandallo", "categoria", "partidaProduccion", "gramajeTotal", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "fotosMiseEnPlaceURLs", "instruccionesRegeneracion", "fotosRegeneracionURLs", "instruccionesEmplatado", "fotosEmplatadoURLs", "fotosComercialesURLs", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "recetaOrigen", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "precioVenta", "alergenos", "requiereRevision", "comentarioRevision", "fechaRevision" ];
 
 export default function RecetasPage() {
   const [items, setItems] = useState<Receta[]>([]);
@@ -103,21 +103,26 @@ export default function RecetasPage() {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay recetas para exportar.' });
       return;
     }
-    const dataToExport = items.map(item => ({
-        ...item,
-        isArchived: !!item.isArchived,
-        elaboraciones: JSON.stringify(item.elaboraciones),
-        menajeAsociado: JSON.stringify(item.menajeAsociado),
-        perfilSaborSecundario: JSON.stringify(item.perfilSaborSecundario),
-        perfilTextura: JSON.stringify(item.perfilTextura),
-        tipoCocina: JSON.stringify(item.tipoCocina),
-        formatoServicioIdeal: JSON.stringify(item.formatoServicioIdeal),
-        equipamientoCritico: JSON.stringify(item.equipamientoCritico),
-        etiquetasTendencia: JSON.stringify(item.etiquetasTendencia),
-        alergenos: JSON.stringify(item.alergenos),
-    }));
+    const dataToExport = items.map(item => {
+        const arrayFieldsToString = (key: keyof Receta) => {
+            const value = item[key];
+            return Array.isArray(value) ? JSON.stringify(value) : value;
+        }
 
-    const csv = Papa.unparse(dataToExport);
+        const exportItem: any = {};
+        CSV_HEADERS.forEach(header => {
+            const key = header as keyof Receta;
+            const value = item[key];
+             if (Array.isArray(value)) {
+                exportItem[key] = JSON.stringify(value);
+            } else {
+                exportItem[key] = value ?? '';
+            }
+        });
+        return exportItem;
+    });
+
+    const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -136,7 +141,8 @@ export default function RecetasPage() {
   
   const safeJsonParse = (jsonString: string, fallback: any = []) => {
     try {
-        return JSON.parse(jsonString);
+        const parsed = JSON.parse(jsonString);
+        return Array.isArray(parsed) ? parsed : fallback;
     } catch (e) {
         return fallback;
     }
@@ -171,6 +177,10 @@ export default function RecetasPage() {
           estabilidadBuffet: parseInt(item.estabilidadBuffet) || 3,
           elaboraciones: safeJsonParse(item.elaboraciones),
           menajeAsociado: safeJsonParse(item.menajeAsociado),
+          fotosMiseEnPlaceURLs: safeJsonParse(item.fotosMiseEnPlaceURLs),
+          fotosRegeneracionURLs: safeJsonParse(item.fotosRegeneracionURLs),
+          fotosEmplatadoURLs: safeJsonParse(item.fotosEmplatadoURLs),
+          fotosComercialesURLs: safeJsonParse(item.fotosComercialesURLs),
           perfilSaborSecundario: safeJsonParse(item.perfilSaborSecundario),
           perfilTextura: safeJsonParse(item.perfilTextura),
           tipoCocina: safeJsonParse(item.tipoCocina),
@@ -513,3 +523,4 @@ export default function RecetasPage() {
   );
 }
 
+  
