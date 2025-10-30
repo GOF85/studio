@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import Image from 'next/image';
 import { Combobox } from '@/components/ui/combobox';
@@ -210,7 +210,17 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
         if (data.requiereRevision && !data.fechaRevision) {
             data.fechaRevision = new Date().toISOString();
         }
-        await onSave(data, costePorUnidad);
+
+        // Recalculate cost right before saving to ensure it's up-to-date
+        let finalCosteTotal = 0;
+        (data.componentes || []).forEach(componente => {
+            const costeConMerma = (componente.costePorUnidad || 0) * (1 + (componente.merma || 0) / 100);
+            finalCosteTotal += costeConMerma * componente.cantidad;
+        });
+        const finalProduccionTotal = data.produccionTotal > 0 ? data.produccionTotal : 1;
+        const finalCostePorUnidad = finalProduccionTotal > 0 ? finalCosteTotal / finalProduccionTotal : 0;
+
+        await onSave(data, finalCostePorUnidad);
     }
   };
   
