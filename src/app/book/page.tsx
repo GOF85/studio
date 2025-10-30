@@ -81,6 +81,7 @@ export default function BookDashboardPage() {
             <StatCard title="Total Elaboraciones" value={stats.totalElaboraciones} icon={Component} bgColorClass="bg-indigo-50" href="/book/elaboraciones"/>
             <StatCard title="Total Ingredientes" value={stats.totalIngredientes} icon={ChefHat} bgColorClass="bg-violet-50" href="/book/ingredientes" />
             <StatCard title="Recetas para Revisar" value={stats.recetasParaRevisar} icon={AlertTriangle} bgColorClass={stats.recetasParaRevisar > 0 ? "bg-amber-100 text-amber-800" : "bg-green-50"} href="/book/informe" />
+            <StatCard title="Elaboraciones para Revisar" value={stats.elaboracionesParaRevisar} icon={AlertTriangle} bgColorClass={stats.elaboracionesParaRevisar > 0 ? "bg-amber-100 text-amber-800" : "bg-green-50"} href="/book/informe" />
         </div>
       </main>
     </div>
