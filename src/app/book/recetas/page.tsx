@@ -26,6 +26,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -377,22 +383,25 @@ export default function RecetasPage() {
                     <TableCell className="py-2">{formatCurrency(item.costeMateriaPrima)}</TableCell>
                     <TableCell className="font-bold text-primary py-2">{formatCurrency(item.precioVenta)}</TableCell>
                     <TableCell className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Abrir menú</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => router.push(`/book/recetas/${item.id}`)}>
-                                    <Pencil className="mr-2 h-4 w-4" /> Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/book/recetas/nueva?cloneId=${item.id}`); }}>
-                                    <Copy className="mr-2 h-4 w-4" /> Clonar
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Abrir menú</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => router.push(`/book/recetas/${item.id}`)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/book/recetas/nueva?cloneId=${item.id}`); }}>
+                            <Copy className="mr-2 h-4 w-4" /> Clonar
+                          </DropdownMenuItem>
+                           <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id)}}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -412,7 +421,9 @@ export default function RecetasPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminarán permanentemente las {numSelected > 1 ? `${numSelected} recetas seleccionadas` : 'receta seleccionada'}.
+              {itemToDelete === 'mass'
+                ? `Esta acción no se puede deshacer. Se eliminarán permanentemente las ${numSelected} recetas seleccionadas.`
+                : 'Esta acción no se puede deshacer. Se eliminará permanentemente la receta.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
