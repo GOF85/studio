@@ -17,7 +17,7 @@ const bookNavLinks = [
     { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
     { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
     { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
-    { title: 'Revisión de Ingredientes', path: '/book/revision-ingredientes', icon: CheckSquare },
+    { title: 'Revisión Gastronómica', path: '/book/revision-ingredientes', icon: CheckSquare },
     { title: 'Información de Alérgenos', path: '/book/alergenos', icon: Sprout },
     { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
 ];

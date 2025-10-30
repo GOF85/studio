@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -41,11 +40,7 @@ export default function BookInformePage() {
     totalRecetas: 0,
     totalElaboraciones: 0,
     totalIngredientes: 0,
-    recetasParaRevisar: 0,
-    elaboracionesParaRevisar: 0,
   });
-  const [recetasNecesitanRevision, setRecetasNecesitanRevision] = useState<Receta[]>([]);
-  const [elaboracionesNecesitanRevision, setElaboracionesNecesitanRevision] = useState<Elaboracion[]>([]);
   const [topUsedRecipes, setTopUsedRecipes] = useState<{ nombre: string, count: number, pvp: number, coste: number, margen: number }[]>([]);
   const [mostUsedElaborationsByUnit, setMostUsedElaborationsByUnit] = useState<{ nombre: string; count: number; pvp: number; coste: number; margen: number; unidad: string; }[]>([]);
   const [mostUsedElaborationsByWeight, setMostUsedElaborationsByWeight] = useState<{ nombre: string; count: number; pvp: number; coste: number; margen: number; unidad: string; }[]>([]);
@@ -58,15 +53,10 @@ export default function BookInformePage() {
     const serviceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const gastronomyOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     
-    setRecetasNecesitanRevision(storedRecetas.filter(r => r.requiereRevision));
-    setElaboracionesNecesitanRevision(storedElaboraciones.filter(e => e.requiereRevision));
-    
     setStats({
       totalRecetas: storedRecetas.length,
       totalElaboraciones: storedElaboraciones.length,
       totalIngredientes: storedIngredientes.length,
-      recetasParaRevisar: storedRecetas.filter(r => r.requiereRevision).length,
-      elaboracionesParaRevisar: storedElaboraciones.filter(e => e.requiereRevision).length,
     });
     
     const now = new Date();
@@ -176,46 +166,11 @@ export default function BookInformePage() {
 
   return (
     <main>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
             <StatCard title="Total Recetas" value={stats.totalRecetas} icon={BookHeart} bgColorClass="bg-blue-50" href="/book/recetas" />
             <StatCard title="Total Elaboraciones" value={stats.totalElaboraciones} icon={Component} bgColorClass="bg-indigo-50" href="/book/elaboraciones"/>
             <StatCard title="Total Ingredientes" value={stats.totalIngredientes} icon={ChefHat} bgColorClass="bg-violet-50" href="/book/ingredientes" />
-            <StatCard title="Recetas para Revisar" value={stats.recetasParaRevisar} icon={AlertTriangle} bgColorClass={stats.recetasParaRevisar > 0 ? "bg-amber-100 text-amber-800" : "bg-green-50"} />
-            <StatCard title="Elaboraciones para Revisar" value={stats.elaboracionesParaRevisar} icon={AlertTriangle} bgColorClass={stats.elaboracionesParaRevisar > 0 ? "bg-amber-100 text-amber-800" : "bg-green-50"} />
         </div>
-
-        <div className="grid lg:grid-cols-2 gap-8 mb-8">
-                {(recetasNecesitanRevision.length > 0) && (
-                    <Card className="border-amber-400 bg-amber-50">
-                        <CardHeader>
-                            <CardTitle className="text-amber-800">Recetas que Requieren Revisión</CardTitle>
-                            <CardDescription>Estas recetas pueden tener costes o alérgenos desactualizados.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ul className="space-y-1">
-                                {recetasNecesitanRevision.map(receta => (
-                                    <li key={receta.id}><Link href={`/book/recetas/${receta.id}`} className="text-sm font-medium text-amber-900 hover:underline">{receta.nombre}</Link></li>
-                                ))}
-                            </ul>
-                        </CardContent>
-                    </Card>
-                )}
-                {(elaboracionesNecesitanRevision.length > 0) && (
-                    <Card className="border-amber-400 bg-amber-50">
-                        <CardHeader>
-                            <CardTitle className="text-amber-800">Elaboraciones que Requieren Revisión</CardTitle>
-                            <CardDescription>Estas elaboraciones pueden tener costes o alérgenos desactualizados.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ul className="space-y-1">
-                                {elaboracionesNecesitanRevision.map(elab => (
-                                    <li key={elab.id}><Link href={`/book/elaboraciones/${elab.id}`} className="text-sm font-medium text-amber-900 hover:underline">{elab.nombre}</Link></li>
-                                ))}
-                            </ul>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
 
         <Card className="mb-8">
             <CardHeader>
