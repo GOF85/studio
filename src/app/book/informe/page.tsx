@@ -184,9 +184,8 @@ export default function BookInformePage() {
             <StatCard title="Elaboraciones para Revisar" value={stats.elaboracionesParaRevisar} icon={AlertTriangle} bgColorClass={stats.elaboracionesParaRevisar > 0 ? "bg-amber-100 text-amber-800" : "bg-green-50"} />
         </div>
 
-        {(recetasNecesitanRevision.length > 0 || elaboracionesNecesitanRevision.length > 0) && (
-            <div className="grid lg:grid-cols-2 gap-8 mb-8">
-                {recetasNecesitanRevision.length > 0 && (
+        <div className="grid lg:grid-cols-2 gap-8 mb-8">
+                {(recetasNecesitanRevision.length > 0) && (
                     <Card className="border-amber-400 bg-amber-50">
                         <CardHeader>
                             <CardTitle className="text-amber-800">Recetas que Requieren Revisión</CardTitle>
@@ -201,7 +200,7 @@ export default function BookInformePage() {
                         </CardContent>
                     </Card>
                 )}
-                {elaboracionesNecesitanRevision.length > 0 && (
+                {(elaboracionesNecesitanRevision.length > 0) && (
                     <Card className="border-amber-400 bg-amber-50">
                         <CardHeader>
                             <CardTitle className="text-amber-800">Elaboraciones que Requieren Revisión</CardTitle>
@@ -217,7 +216,6 @@ export default function BookInformePage() {
                     </Card>
                 )}
             </div>
-        )}
 
         <Card className="mb-8">
             <CardHeader>

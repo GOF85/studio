@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -47,6 +46,7 @@ export default function BookDashboardPage() {
     totalElaboraciones: 0,
     totalIngredientes: 0,
     recetasParaRevisar: 0,
+    elaboracionesParaRevisar: 0,
   });
 
   const [isMounted, setIsMounted] = useState(false);
@@ -62,6 +62,7 @@ export default function BookDashboardPage() {
       totalElaboraciones: storedElaboraciones.length,
       totalIngredientes: storedIngredientes.length,
       recetasParaRevisar: storedRecetas.filter(r => r.requiereRevision).length,
+      elaboracionesParaRevisar: storedElaboraciones.filter(e => e.requiereRevision).length,
     });
     
     setIsMounted(true);
