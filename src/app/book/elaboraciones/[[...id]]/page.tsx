@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -14,7 +13,7 @@ import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-genera
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, MoreHorizontal, Copy, Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw, Pencil } from 'lucide-react';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, MoreHorizontal, Copy, Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta, ComponenteElaboracion } from '@/types';
 import { SABORES_PRINCIPALES, PARTIDAS_PRODUCCION } from '@/types';
 
@@ -71,6 +70,8 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
     return Array.from(elabAlergenos);
 };
 
+const ITEMS_PER_PAGE = 20;
+
 function ElaboracionesListPage() {
   const [items, setItems] = useState<(ElaboracionConAlergenos & { usageCount: number; usedIn: string[] })[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -79,6 +80,7 @@ function ElaboracionesListPage() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [partidaFilter, setPartidaFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -128,6 +130,15 @@ function ElaboracionesListPage() {
         return searchMatch && orphanMatch && partidaMatch;
     });
   }, [items, searchTerm, showOrphanedOnly, partidaFilter]);
+  
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredItems, currentPage]);
+
+  const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
+  const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
 
   const handleDelete = () => {
     if (selectedItems.size === 0) return;
@@ -351,14 +362,27 @@ function ElaboracionesListPage() {
         onChange={handleFileSelected}
       />
       
+       <div className="flex items-center justify-end gap-2 mb-4">
+            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
+            <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox
-                    checked={numSelected > 0 && numSelected === filteredItems.length}
-                    onCheckedChange={handleSelectAll}
+                    checked={numSelected > 0 && numSelected === paginatedItems.length}
+                    onCheckedChange={(checked) => {
+                        const newSelected = new Set(selectedItems);
+                        paginatedItems.forEach(item => {
+                            if (checked) newSelected.add(item.id);
+                            else newSelected.delete(item.id);
+                        });
+                        setSelectedItems(newSelected);
+                    }}
                 />
               </TableHead>
               <TableHead>Nombre Elaboración</TableHead>
@@ -370,8 +394,8 @@ function ElaboracionesListPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredItems.length > 0 ? (
-              filteredItems.map((item) => (
+            {paginatedItems.length > 0 ? (
+              paginatedItems.map((item) => (
                 <TableRow key={item.id} >
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={selectedItems.has(item.id)} onCheckedChange={() => handleSelect(item.id)} />
