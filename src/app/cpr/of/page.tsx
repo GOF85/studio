@@ -716,6 +716,44 @@ export default function OfPage() {
     ).sort((a,b) => a.proveedorNombre.localeCompare(b.proveedorNombre) || a.nombreProducto.localeCompare(b.nombreProducto));
   }, [listaDeLaCompra]);
   
+  const handlePrintReport = () => {
+    const doc = new jsPDF();
+    const tableColumn = ["Proveedor", "Producto (Ref.)", "Cant. a Comprar", "Formato", "Necesidad Neta"];
+    const tableRows: (string | number)[][] = [];
+
+    flatCompraList.forEach(item => {
+        const cantidadAComprar = redondearCompra 
+            ? Math.ceil(item.necesidadNeta / item.unidadConversion) 
+            : (item.necesidadNeta / item.unidadConversion);
+            
+        const row = [
+            item.proveedorNombre,
+            `${item.nombreProducto} (${item.refProveedor})`,
+            redondearCompra ? cantidadAComprar : formatNumber(cantidadAComprar, 2),
+            item.formatoCompra,
+            `${formatNumber(item.necesidadNeta, 3)} ${formatUnit(item.unidadNeta)}`
+        ];
+        tableRows.push(row);
+    });
+
+    const dateTitle = dateRange?.from ? format(dateRange.from, 'dd/MM/yyyy') : '';
+    const dateTitleEnd = dateRange?.to ? ` - ${format(dateRange.to, 'dd/MM/yyyy')}` : '';
+
+    doc.setFontSize(18);
+    doc.text(`Informe de Compra Consolidado`, 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Periodo: ${dateTitle}${dateTitleEnd}`, 14, 30);
+    
+    autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 35,
+        headStyles: { fillColor: [0, 112, 60] }
+    });
+
+    doc.save(`Informe_Compra_${dateTitle}.pdf`);
+  };
+
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Órdenes de Fabricación..." />;
   }
@@ -875,9 +913,9 @@ export default function OfPage() {
              <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
-                         <CardTitle className="text-lg">Lista de la Compra</CardTitle>
+                        <CardTitle className="text-lg">Lista de la Compra</CardTitle>
                         <div className="flex items-center gap-4">
-                             <Button variant="outline" size="sm" onClick={() => setIsReportDialogOpen(true)}>
+                            <Button variant="outline" size="sm" onClick={() => setIsReportDialogOpen(true)}>
                                 <FileText className="mr-2 h-4 w-4"/> Generar Informe
                             </Button>
                             <div className="flex items-center gap-2">
@@ -1330,6 +1368,7 @@ export default function OfPage() {
                 </div>
                  <DialogFooter>
                     <Button variant="outline" onClick={() => setIsReportDialogOpen(false)}>Cerrar</Button>
+                    <Button onClick={handlePrintReport}><Printer className="mr-2 h-4 w-4"/>Descargar PDF</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -1337,3 +1376,4 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
