@@ -530,20 +530,14 @@ function RecetaFormPage() {
     setIsSelectorOpen(false); // Close the modal
   }
   
-  const handleElaborationCreated = (newElab: Elaboracion) => {
+    const handleElaborationCreated = (newElab: Elaboracion) => {
         recalculateCostsAndAllergens();
-        // We need to find the just-created elaboration in the freshly updated dbElaboraciones state
-        const elabWithData = dbElaboraciones.find(e => e.id === newElab.id);
-        if (elabWithData) {
-            onAddElab(elabWithData);
-        } else {
-             // Fallback just in case
-             onAddElab({
-                ...newElab,
-                costePorUnidad: newElab.costePorUnidad || 0,
-                alergenos: calculateElabAlergenos(newElab, ingredientesMap)
-            });
-        }
+        const elabWithData = {
+            ...newElab,
+            costePorUnidad: newElab.costePorUnidad || 0,
+            alergenos: calculateElabAlergenos(newElab, ingredientesMap as any)
+        };
+        onAddElab(elabWithData);
     };
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
@@ -638,11 +632,11 @@ function RecetaFormPage() {
                   </div>
                 
                  <Tabs defaultValue="general">
-                    <TabsList className="grid w-full grid-cols-5">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="general">Info. General</TabsTrigger>
-                        <TabsTrigger value="gastronomica">Clasificación Gastronómica</TabsTrigger>
                         <TabsTrigger value="receta">Receta</TabsTrigger>
                         <TabsTrigger value="pase">Info. Pase</TabsTrigger>
+                        <TabsTrigger value="gastronomica">Clasificación Gastronómica</TabsTrigger>
                     </TabsList>
                     <TabsContent value="general" className="mt-4">
                          <Card>
@@ -734,38 +728,6 @@ function RecetaFormPage() {
                                 <Separator className="my-4"/>
 
                                 <ImageUploadSection name="fotosComercialesURLs" title="Información Comercial" form={form} description="Añade fotos para la propuesta comercial y una descripción atractiva."/>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="gastronomica" className="mt-4">
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BrainCircuit/>Clasificación Gastronómica</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid md:grid-cols-3 gap-4">
-                                    <FormField control={form.control} name="perfilSaborPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Sabor Principal <InfoTooltip text="¿Cuál es el sabor dominante que define el plato?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{SABORES_PRINCIPALES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                    <FormField control={form.control} name="perfilSaborSecundario" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Sabores Secundarios <InfoTooltip text="¿Qué otras notas de sabor son perceptibles?" /></FormLabel><MultiSelect options={['Picante', 'Ahumado', 'Cítrico', 'Herbáceo', 'Floral'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
-                                    <FormField control={form.control} name="perfilTextura" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Texturas <InfoTooltip text="¿Qué texturas clave se encuentran en el plato?" /></FormLabel><MultiSelect options={['Crujiente', 'Cremoso', 'Meloso', 'Gelatinoso', 'Esponjoso', 'Líquido'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
-                                </div>
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <FormField control={form.control} name="tipoCocina" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Tipo de Cocina <InfoTooltip text="¿A qué estilo culinario pertenece?" /></FormLabel><MultiSelect options={['Mediterránea', 'Asiática', 'Fusión', 'De Mercado', 'Tradicional', 'Moderna'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
-                                    <FormField control={form.control} name="recetaOrigen" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Origen / Inspiración <InfoTooltip text="¿De dónde viene esta receta? (Ej: Receta de la abuela, viaje a Tailandia...)" /></FormLabel><FormControl><Input {...field} placeholder="Ej: Receta de la abuela, Inspirado en..."/></FormControl></FormItem>)} />
-                                </div>
-                                <Separator />
-                                <div className="grid md:grid-cols-3 gap-4">
-                                    <FormField control={form.control} name="temperaturaServicio" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Temperatura de Servicio <InfoTooltip text="¿Cómo se debe servir este plato?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                    <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Técnica Principal <InfoTooltip text="¿Cuál es la técnica de cocción más relevante?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{TECNICAS_COCCION.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                    <FormField control={form.control} name="potencialMiseEnPlace" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Potencial de MEP <InfoTooltip text="¿Cuánto trabajo se puede adelantar antes del servicio?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['COMPLETO', 'PARCIAL', 'AL_MOMENTO'].map(s=><SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                </div>
-                                 <div className="grid md:grid-cols-2 gap-4">
-                                    <FormField control={form.control} name="dificultadProduccion" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Dificultad de Producción (1-5) <InfoTooltip text="¿Cuán difícil es producir este plato en grandes cantidades?" /></FormLabel><FormControl><Input type="number" min="1" max="5" {...field} /></FormControl></FormItem>)} />
-                                    <FormField control={form.control} name="estabilidadBuffet" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Estabilidad en Buffet (1-5) <InfoTooltip text="Del 1 al 5, ¿cuánto tiempo aguanta en perfectas condiciones en un buffet?" /></FormLabel><FormControl><Input type="number" min="1" max="5" {...field} /></FormControl></FormItem>)} />
-                                    <FormField control={form.control} name="escalabilidad" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Escalabilidad <InfoTooltip text="¿Es fácil, medio o difícil aumentar la producción de 50 a 500 raciones?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['FACIL', 'MEDIA', 'DIFICIL'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                </div>
-                                <Separator />
-                                 <div className="grid md:grid-cols-2 gap-4">
-                                    <FormField control={form.control} name="formatoServicioIdeal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Formato Ideal de Servicio <InfoTooltip text="¿En qué tipo de servicio o pase encaja mejor este plato?" /></FormLabel><MultiSelect options={['Cocktail', 'Banquete', 'Buffet', 'Box', 'Coffee Break'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
-                                    <FormField control={form.control} name="etiquetasTendencia" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Etiquetas / Tendencias <InfoTooltip text="Palabras clave para marketing y ventas." /></FormLabel><MultiSelect options={['Healthy', 'Vegano', 'Sin Gluten', 'Tradicional', 'De autor', 'Instagrameable'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
-                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -863,6 +825,38 @@ function RecetaFormPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
+                     <TabsContent value="gastronomica" className="mt-4">
+                        <Card>
+                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BrainCircuit/>Clasificación Gastronómica</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid md:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name="perfilSaborPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Sabor Principal <InfoTooltip text="¿Cuál es el sabor dominante que define el plato?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{SABORES_PRINCIPALES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                    <FormField control={form.control} name="perfilSaborSecundario" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Sabores Secundarios <InfoTooltip text="¿Qué otras notas de sabor son perceptibles?" /></FormLabel><MultiSelect options={['Picante', 'Ahumado', 'Cítrico', 'Herbáceo', 'Floral'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
+                                    <FormField control={form.control} name="perfilTextura" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Texturas <InfoTooltip text="¿Qué texturas clave se encuentran en el plato?" /></FormLabel><MultiSelect options={['Crujiente', 'Cremoso', 'Meloso', 'Gelatinoso', 'Esponjoso', 'Líquido'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
+                                </div>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="tipoCocina" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Tipo de Cocina <InfoTooltip text="¿A qué estilo culinario pertenece?" /></FormLabel><MultiSelect options={['Mediterránea', 'Asiática', 'Fusión', 'De Mercado', 'Tradicional', 'Moderna'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
+                                    <FormField control={form.control} name="recetaOrigen" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Origen / Inspiración <InfoTooltip text="¿De dónde viene esta receta? (Ej: Receta de la abuela, viaje a Tailandia...)" /></FormLabel><FormControl><Input {...field} placeholder="Ej: Receta de la abuela, Inspirado en..."/></FormControl></FormItem>)} />
+                                </div>
+                                <Separator />
+                                <div className="grid md:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name="temperaturaServicio" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Temperatura de Servicio <InfoTooltip text="¿Cómo se debe servir este plato?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                    <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Técnica Principal <InfoTooltip text="¿Cuál es la técnica de cocción más relevante?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{TECNICAS_COCCION.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                    <FormField control={form.control} name="potencialMiseEnPlace" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Potencial de MEP <InfoTooltip text="¿Cuánto trabajo se puede adelantar antes del servicio?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['COMPLETO', 'PARCIAL', 'AL_MOMENTO'].map(s=><SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                </div>
+                                 <div className="grid md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="dificultadProduccion" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Dificultad de Producción (1-5) <InfoTooltip text="¿Cuán difícil es producir este plato en grandes cantidades?" /></FormLabel><FormControl><Input type="number" min="1" max="5" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name="estabilidadBuffet" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Estabilidad en Buffet (1-5) <InfoTooltip text="Del 1 al 5, ¿cuánto tiempo aguanta en perfectas condiciones en un buffet?" /></FormLabel><FormControl><Input type="number" min="1" max="5" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name="escalabilidad" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Escalabilidad <InfoTooltip text="¿Es fácil, medio o difícil aumentar la producción de 50 a 500 raciones?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['FACIL', 'MEDIA', 'DIFICIL'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                </div>
+                                <Separator />
+                                 <div className="grid md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="formatoServicioIdeal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Formato Ideal de Servicio <InfoTooltip text="¿En qué tipo de servicio o pase encaja mejor este plato?" /></FormLabel><MultiSelect options={['Cocktail', 'Banquete', 'Buffet', 'Box', 'Coffee Break'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
+                                    <FormField control={form.control} name="etiquetasTendencia" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Etiquetas / Tendencias <InfoTooltip text="Palabras clave para marketing y ventas." /></FormLabel><MultiSelect options={['Healthy', 'Vegano', 'Sin Gluten', 'Tradicional', 'De autor', 'Instagrameable'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
                  </Tabs>
                 </form>
               </FormProvider>
@@ -908,6 +902,7 @@ export default function RecetaPage() {
 
     return <RecetaFormPage />;
 }
+
 
 
 
