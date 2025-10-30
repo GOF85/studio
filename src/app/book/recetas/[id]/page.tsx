@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -177,7 +177,7 @@ function ImageUploadSection({ name, title, form, description }: { name: "fotosMi
         try {
             const url = new URL(newUrl);
             append({ value: url.href });
-            setNewImageUrl('');
+            setNewUrl('');
         } catch (e) {
             toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.' });
         }
@@ -303,7 +303,7 @@ const defaultValues: Partial<RecetaFormValues> = {
     etiquetasTendencia: [] 
 };
 
-export default function RecetaFormPage() {
+function RecetaFormPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -742,4 +742,8 @@ export default function RecetaFormPage() {
       </AlertDialog>
     </>
   );
+}
+
+export default function RecetaPage() {
+    return <RecetaFormPage />
 }
