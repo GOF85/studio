@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { BookHeart, ChefHat, Component, AlertTriangle, Shield, Archive, Trash2, BookCheck, ComponentIcon } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Receta, Elaboracion, IngredienteInterno, ServiceOrder, GastronomyOrder } from '@/types';
 import { isBefore, subMonths, startOfToday, isWithinInterval, addYears } from 'date-fns';
+import { Separator } from '@/components/ui/separator';
 
 type StatCardProps = {
     title: string;
@@ -19,24 +20,24 @@ type StatCardProps = {
 }
 
 function StatCard({ title, value, icon: Icon, description, href, colorClass }: StatCardProps) {
-    return (
-        <Link href={href}>
-            <Card className={`hover:border-primary hover:shadow-lg transition-all h-full flex flex-col ${colorClass}`}>
-                <CardHeader className="flex-row items-center gap-4 space-y-0 pb-2">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                        <Icon className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                        <CardTitle className="text-4xl font-bold">{value}</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                    <p className="text-sm font-semibold">{title}</p>
-                    <p className="text-xs text-muted-foreground">{description}</p>
-                </CardContent>
-            </Card>
-        </Link>
+    const content = (
+         <Card className={`hover:border-primary hover:shadow-lg transition-all h-full flex flex-col ${colorClass}`}>
+            <CardHeader className="flex-row items-center gap-4 space-y-0 pb-2">
+                <div className="bg-primary/10 p-3 rounded-full">
+                    <Icon className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                    <CardTitle className="text-4xl font-bold">{value}</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="flex-grow">
+                <p className="text-sm font-semibold">{title}</p>
+                <p className="text-xs text-muted-foreground">{description}</p>
+            </CardContent>
+        </Card>
     );
+
+    return href ? <Link href={href}>{content}</Link> : content;
 }
 
 export default function BookDashboardPage() {
