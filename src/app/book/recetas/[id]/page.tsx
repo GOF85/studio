@@ -341,6 +341,7 @@ function RecetaFormPage() {
     const ingredientesMap = new Map(storedInternos.map(ing => [ing.id, { ...ing, erp: erpMap.get(ing.productoERPlinkId) }]));
 
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    
     const updatedDbElaboraciones = allElaboraciones.map(e => {
         let costeTotalComponentes = 0;
         (e.componentes || []).forEach(comp => {
@@ -349,6 +350,8 @@ function RecetaFormPage() {
                 const costeReal = ing?.erp ? (ing.erp.precioCompra / (ing.erp.unidadConversion || 1)) * (1 - (ing.erp.descuento || 0) / 100) : 0;
                 costeTotalComponentes += costeReal * comp.cantidad * (1 + (comp.merma || 0) / 100);
             } else if (comp.tipo === 'elaboracion') {
+                // This part is tricky if sub-elaborations are not yet calculated.
+                // We'll rely on stored cost for sub-elabs for now, but a full recursive calculation would be better.
                 const subElab = allElaboraciones.find(sub => sub.id === comp.componenteId);
                 costeTotalComponentes += (subElab?.costePorUnidad || 0) * comp.cantidad * (1 + (comp.merma || 0) / 100);
             }
@@ -363,25 +366,25 @@ function RecetaFormPage() {
     
     setDbElaboraciones(updatedDbElaboraciones);
     
-    // crucial step: update costs in the form state as well
     const currentFormElabs = form.getValues('elaboraciones');
     const updatedFormElabs = currentFormElabs.map(elabInReceta => {
         const matchingDbElab = updatedDbElaboraciones.find(dbElab => dbElab.id === elabInReceta.elaboracionId);
         return {
             ...elabInReceta,
-            coste: matchingDbElab?.costePorUnidad || 0,
+            coste: matchingDbElab?.costePorUnidad || elabInReceta.coste, // Fallback to old cost if not found
             alergenos: matchingDbElab?.alergenos || [],
         };
     });
     
     replace(updatedFormElabs);
-    toast({ title: "Costes y Alérgenos Recalculados", description: "Los datos de la receta se han actualizado." });
-  }, [form, replace, toast]);
+    
+  }, [form, replace]);
 
   useEffect(() => {
     let initialValues: Partial<RecetaFormValues> | null = null;
     
     try {
+      setIsDataLoaded(false); // Set loading state
       setDbCategorias(JSON.parse(localStorage.getItem('categoriasRecetas') || '[]'));
       const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
       setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
@@ -422,7 +425,7 @@ function RecetaFormPage() {
           fotosRegeneracionURLs: (initialValues.fotosRegeneracionURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
         };
         form.reset(processedData);
-        recalculateCostsAndAllergens(); // Recalculate costs on initial load
+        recalculateCostsAndAllergens();
       } else if(isEditing) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
         router.push('/book/recetas');
@@ -468,6 +471,7 @@ function RecetaFormPage() {
   
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [], unidad: elab.unidadProduccion, merma: 0 });
+    setIsSelectorOpen(false); // Close the modal
   }
   
   const handleElaborationCreated = (newElab: Elaboracion) => {
@@ -729,7 +733,7 @@ function RecetaFormPage() {
                                     <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                         <TableBody>
                                         {(elabFields || []).map((field, index) => (
-                                            <SortableTableRow key={field.id} field={{...field, key: field.id}} index={index} remove={removeElab} form={form} />
+                                            <SortableTableRow key={field.key} field={{...field, key: field.key}} index={index} remove={removeElab} form={form} />
                                         ))}
                                         </TableBody>
                                     </SortableContext>

@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
 import type { IngredienteInterno, ArticuloERP, Elaboracion } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatUnit } from '@/lib/utils';
@@ -55,7 +56,7 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
     return (
         <DialogContent className="max-w-4xl">
             <DialogHeader><DialogTitle>Seleccionar Componente</DialogTitle></DialogHeader>
-            <Tabs defaultValue="ingredientes">
+            <Tabs defaultValue="elaboraciones">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="ingredientes">Ingredientes</TabsTrigger>
                     <TabsTrigger value="elaboraciones">Elaboraciones (Sub-recetas)</TabsTrigger>
@@ -70,7 +71,11 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
                                     <TableRow key={ing.id}>
                                         <TableCell>{ing.nombreIngrediente}</TableCell>
                                         <TableCell>{formatCurrency(calculateCosteReal(ing.erp))} / {ing.erp ? formatUnit(ing.erp.unidad) : 'Ud'}</TableCell>
-                                        <TableCell className="text-right"><Button size="sm" type="button" onClick={() => onSelectIngrediente(ing)}>Añadir</Button></TableCell>
+                                        <TableCell className="text-right">
+                                            <DialogClose asChild>
+                                                <Button size="sm" type="button" onClick={() => onSelectIngrediente(ing)}>Añadir</Button>
+                                            </DialogClose>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -87,7 +92,11 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
                                     <TableRow key={elab.id}>
                                         <TableCell>{elab.nombre}</TableCell>
                                         <TableCell>{formatCurrency(elab.costePorUnidad)} / {formatUnit(elab.unidadProduccion)}</TableCell>
-                                        <TableCell className="text-right"><Button size="sm" type="button" onClick={() => onSelectElaboracion(elab)}>Añadir</Button></TableCell>
+                                        <TableCell className="text-right">
+                                            <DialogClose asChild>
+                                                <Button size="sm" type="button" onClick={() => onSelectElaboracion(elab)}>Añadir</Button>
+                                            </DialogClose>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
