@@ -16,7 +16,7 @@ import Papa from 'papaparse';
 
 import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, MoreHorizontal, Copy, Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw, Pencil } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta, ComponenteElaboracion } from '@/types';
-import { SABORES_PRINCIPALES } from '@/types';
+import { SABORES_PRINCIPALES, PARTIDAS_PRODUCCION } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -78,6 +78,7 @@ function ElaboracionesListPage() {
   const [showOrphanedOnly, setShowOrphanedOnly] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [partidaFilter, setPartidaFilter] = useState('all');
 
   const router = useRouter();
   const { toast } = useToast();
@@ -123,9 +124,10 @@ function ElaboracionesListPage() {
     return items.filter(item => {
         const searchMatch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase());
         const orphanMatch = !showOrphanedOnly || item.usageCount === 0;
-        return searchMatch && orphanMatch;
+        const partidaMatch = partidaFilter === 'all' || item.partidaProduccion === partidaFilter;
+        return searchMatch && orphanMatch && partidaMatch;
     });
-  }, [items, searchTerm, showOrphanedOnly]);
+  }, [items, searchTerm, showOrphanedOnly, partidaFilter]);
 
   const handleDelete = () => {
     if (selectedItems.size === 0) return;
@@ -286,6 +288,15 @@ function ElaboracionesListPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <Select value={partidaFilter} onValueChange={setPartidaFilter}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filtrar por partida" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todas las Partidas</SelectItem>
+                    {PARTIDAS_PRODUCCION.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+            </Select>
             <div className="flex items-center space-x-2">
                 <Checkbox id="orphan-filter" checked={showOrphanedOnly} onCheckedChange={(checked) => setShowOrphanedOnly(!!checked)} />
                 <Label htmlFor="orphan-filter">Elaboraciones Huérfanas</Label>
@@ -351,6 +362,7 @@ function ElaboracionesListPage() {
                 />
               </TableHead>
               <TableHead>Nombre Elaboración</TableHead>
+              <TableHead>Partida</TableHead>
               <TableHead>Coste / Ud.</TableHead>
               <TableHead>Presente en Recetas</TableHead>
               <TableHead>Alérgenos</TableHead>
@@ -361,10 +373,11 @@ function ElaboracionesListPage() {
             {filteredItems.length > 0 ? (
               filteredItems.map((item) => (
                 <TableRow key={item.id} >
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={selectedItems.has(item.id)} onCheckedChange={() => handleSelect(item.id)} />
                   </TableCell>
                   <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.nombre}</TableCell>
+                  <TableCell><Badge variant="secondary">{item.partidaProduccion}</Badge></TableCell>
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{formatCurrency(item.costePorUnidad)} / {formatUnit(item.unidadProduccion)}</TableCell>
                   <TableCell className="text-center font-semibold">
                     <Tooltip>
@@ -408,7 +421,7 @@ function ElaboracionesListPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No se encontraron elaboraciones.
                 </TableCell>
               </TableRow>
@@ -572,3 +585,4 @@ export default function ElaboracionesPage() {
         </Suspense>
     );
 }
+
