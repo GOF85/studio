@@ -633,6 +633,7 @@ export type IngredienteInterno = {
     alergenosPresentes: Alergeno[];
     alergenosTrazas: Alergeno[];
     lastRevision?: string;
+    responsableRevision?: string;
 }
 
 export type ComponenteElaboracion = {

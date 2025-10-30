@@ -1,7 +1,7 @@
 
 'use client';
 
-import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare } from 'lucide-react';
+import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare, Shield } from 'lucide-react';
 
 export const cprNav = [
     { title: 'Panel de control', href: '/cpr/dashboard', icon: LayoutDashboard, description: 'Visión general del taller de producción.' },
@@ -21,6 +21,7 @@ export const bookNavLinks = [
     { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
     { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
     { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
+    { title: 'Verificación de Ingredientes', path: '/book/verificacionIngredientes', icon: Shield, exact: true },
     { title: 'Revisión Gastronómica', path: '/book/revision-ingredientes', icon: CheckSquare },
     { title: 'Información de Alérgenos', path: '/book/alergenos', icon: Sprout },
     { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
