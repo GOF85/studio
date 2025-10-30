@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { IngredienteInterno, ArticuloERP, Elaboracion } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,10 +14,12 @@ import { formatCurrency, formatUnit } from '@/lib/utils';
 
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
-export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElaboraciones, onOpenChange }: { onSelectIngrediente: (ing: IngredienteConERP) => void, onSelectElaboracion: (elab: Elaboracion) => void, allElaboraciones: Elaboracion[], onOpenChange: (open: boolean) => void }) {
+export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElaboraciones }: { onSelectIngrediente: (ing: IngredienteConERP) => void, onSelectElaboracion: (elab: Elaboracion) => void, allElaboraciones: Elaboracion[] }) {
     const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [elabSearchTerm, setElabSearchTerm] = useState('');
+    const ingredienteInputRef = useRef<HTMLInputElement>(null);
+    const elaboracionInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
@@ -29,6 +31,11 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
             erp: erpMap.get(ing.productoERPlinkId),
         }));
         setIngredientes(combined);
+    }, []);
+    
+    useEffect(() => {
+        // Focus the input when the component mounts or the tab changes
+        setTimeout(() => ingredienteInputRef.current?.focus(), 0);
     }, []);
 
     const filteredIngredientes = useMemo(() => {
@@ -53,6 +60,18 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
         return costePorUnidadBase * (1 - descuento / 100);
     };
 
+    const handleAddIngrediente = (ing: IngredienteConERP) => {
+        onSelectIngrediente(ing);
+        setSearchTerm('');
+        ingredienteInputRef.current?.focus();
+    }
+    
+    const handleAddElaboracion = (elab: Elaboracion) => {
+        onSelectElaboracion(elab);
+        setElabSearchTerm('');
+        elaboracionInputRef.current?.focus();
+    }
+
     return (
         <DialogContent className="max-w-4xl">
             <DialogHeader><DialogTitle>Seleccionar Componente</DialogTitle></DialogHeader>
@@ -62,7 +81,7 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
                     <TabsTrigger value="elaboraciones">Elaboraciones (Sub-recetas)</TabsTrigger>
                 </TabsList>
                 <TabsContent value="ingredientes">
-                    <Input placeholder="Buscar ingrediente o Id. ERP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="my-2"/>
+                    <Input ref={ingredienteInputRef} placeholder="Buscar ingrediente o Id. ERP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="my-2"/>
                     <div className="max-h-[50vh] overflow-y-auto border rounded-md">
                         <Table>
                             <TableHeader><TableRow><TableHead>Ingrediente</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
@@ -72,7 +91,7 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
                                         <TableCell>{ing.nombreIngrediente}</TableCell>
                                         <TableCell>{formatCurrency(calculateCosteReal(ing.erp))} / {ing.erp ? formatUnit(ing.erp.unidad) : 'Ud'}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button size="sm" type="button" onClick={() => onSelectIngrediente(ing)}>Añadir</Button>
+                                            <Button size="sm" type="button" onClick={() => handleAddIngrediente(ing)}>Añadir</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -81,7 +100,7 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
                     </div>
                 </TabsContent>
                 <TabsContent value="elaboraciones">
-                    <Input placeholder="Buscar elaboración..." value={elabSearchTerm} onChange={e => setElabSearchTerm(e.target.value)} className="my-2"/>
+                    <Input ref={elaboracionInputRef} placeholder="Buscar elaboración..." value={elabSearchTerm} onChange={e => setElabSearchTerm(e.target.value)} className="my-2"/>
                     <div className="max-h-[50vh] overflow-y-auto border rounded-md">
                         <Table>
                              <TableHeader><TableRow><TableHead>Elaboración</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
@@ -91,7 +110,7 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
                                         <TableCell>{elab.nombre}</TableCell>
                                         <TableCell>{formatCurrency(elab.costePorUnidad)} / {formatUnit(elab.unidadProduccion)}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button size="sm" type="button" onClick={() => onSelectElaboracion(elab)}>Añadir</Button>
+                                            <Button size="sm" type="button" onClick={() => handleAddElaboracion(elab)}>Añadir</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}

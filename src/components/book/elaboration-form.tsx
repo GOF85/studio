@@ -116,7 +116,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
           costePorUnidad: costeReal,
           merma: 0,
       });
-      setIsSelectorOpen(false);
+      toast({ title: 'Ingrediente añadido', duration: 1000 });
   }
 
   const handleSelectElaboracion = (elab: Elaboracion) => {
@@ -129,7 +129,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
         costePorUnidad: elab.costePorUnidad || 0,
         merma: 0,
     });
-    setIsSelectorOpen(false);
+    toast({ title: 'Elaboración añadida', duration: 1000 });
   }
   
   const handleAddImageUrl = () => {
@@ -205,12 +205,12 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     };
   }, [watchedComponentes, watchedProduccionTotal, ingredientesData, elaboracionesData]);
   
-  const handleFormSubmit = (data: ElaborationFormValues) => {
+  const handleFormSubmit = async (data: ElaborationFormValues) => {
     if (onSave) {
         if (data.requiereRevision && !data.fechaRevision) {
             data.fechaRevision = new Date().toISOString();
         }
-        onSave(data, costePorUnidad);
+        await onSave(data, costePorUnidad);
     }
   };
   
@@ -491,3 +491,4 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     </TooltipProvider>
   );
 }
+
