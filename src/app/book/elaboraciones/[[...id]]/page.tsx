@@ -293,11 +293,11 @@ function ElaboracionesListPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-2">
           <Input 
             placeholder="Buscar por nombre..."
-            className="flex-grow max-w-sm"
+            className="flex-grow max-w-xs"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -312,53 +312,36 @@ function ElaboracionesListPage() {
           </Select>
           <div className="flex items-center space-x-2">
             <Checkbox id="orphan-filter" checked={showOrphanedOnly} onCheckedChange={(checked) => setShowOrphanedOnly(!!checked)} />
-            <Label htmlFor="orphan-filter">Elaboraciones Huérfanas</Label>
+            <Label htmlFor="orphan-filter">Solo Huérfanas</Label>
           </div>
         </div>
         <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
             <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
             <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
-        </div>
-      </div>
-      <div className="flex items-center justify-end gap-2 mb-6">
-        {numSelected > 0 && (
-          <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar Selección ({numSelected})</Button>
-        )}
-        <Button asChild>
-          <Link href="/book/elaboraciones/nueva">
-            <PlusCircle className="mr-2" />
-            Nueva Elaboración
-          </Link>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Menu />
+             <Button asChild>
+              <Link href="/book/elaboraciones/nueva">
+                <PlusCircle className="mr-2" />
+                Nueva Elaboración
+              </Link>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Exportar a CSV</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={handleExportElaboracionesCSV}>
-              <Download size={16} className="mr-2" />
-              Elaboraciones (Maestro)
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={handleExportComponentesCSV}>
-              <Download size={16} className="mr-2" />
-              Componentes (Detalle)
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Importar desde CSV</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => handleImportClick('elaboraciones')}>
-              <Upload size={16} className="mr-2" />
-              Elaboraciones (Maestro)
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => handleImportClick('componentes')}>
-              <Upload size={16} className="mr-2" />
-              Componentes (Detalle)
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Menu />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Exportar a CSV</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={handleExportElaboracionesCSV}><Download size={16} className="mr-2" />Elaboraciones (Maestro)</DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleExportComponentesCSV}><Download size={16} className="mr-2" />Componentes (Detalle)</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Importar desde CSV</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => handleImportClick('elaboraciones')}><Upload size={16} className="mr-2" />Elaboraciones (Maestro)</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleImportClick('componentes')}><Upload size={16} className="mr-2" />Componentes (Detalle)</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
       </div>
       
       <input
@@ -609,5 +592,6 @@ export default function ElaboracionesPage() {
         </Suspense>
     );
 }
+
 
 
