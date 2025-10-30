@@ -29,7 +29,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDesc, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -151,7 +151,7 @@ const InfoTooltip = ({ text }: { text: string }) => (
     </Tooltip>
 );
 
-const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteConERP>): Alergeno[] => {
+const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteInterno>): Alergeno[] => {
     if (!elaboracion || !elaboracion.componentes) {
       return [];
     }
@@ -363,7 +363,7 @@ function RecetaFormPage() {
     return costeMateriaPrima + costeImputacion;
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
- useEffect(() => {
+  useEffect(() => {
     let initialValues: Partial<RecetaFormValues> | null = null;
     
     try {
@@ -393,11 +393,7 @@ function RecetaFormPage() {
       if (currentId) {
         foundReceta = allRecetas.find(e => e.id === currentId);
         if (foundReceta) {
-          initialValues = { 
-            ...foundReceta,
-            startDate: new Date(foundReceta.startDate),
-            endDate: new Date(foundReceta.endDate),
-            };
+          initialValues = { ...foundReceta };
           if (cloneId) {
             initialValues.id = Date.now().toString();
             initialValues.nombre = `${foundReceta.nombre} (Copia)`;
@@ -419,10 +415,6 @@ function RecetaFormPage() {
         const processedData = {
           ...defaultValues,
           ...initialValues,
-          fotosComercialesURLs: initialValues.fotosComercialesURLs || [],
-          fotosEmplatadoURLs: initialValues.fotosEmplatadoURLs || [],
-          fotosMiseEnPlaceURLs: initialValues.fotosMiseEnPlaceURLs || [],
-          fotosRegeneracionURLs: initialValues.fotosRegeneracionURLs || [],
         };
         form.reset(processedData);
       } else if(isEditing) {
@@ -724,24 +716,27 @@ function RecetaFormPage() {
               </FormProvider>
         </main>
       </TooltipProvider>
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-          <AlertDialogContent>
+      <AlertDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+      >
+        <AlertDialogContent>
           <AlertDialogHeader>
-              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDesc>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
               Esta acción no se puede deshacer. Se eliminará permanentemente la receta.
-              </AlertDialogDesc>
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleDelete}
-              >
+              className="bg-destructive hover:bg-destructive/90"
+            >
               Eliminar Receta
-              </AlertDialogAction>
+            </AlertDialogAction>
           </AlertDialogFooter>
-          </AlertDialogContent>
+        </AlertDialogContent>
       </AlertDialog>
     </>
   );
@@ -750,4 +745,3 @@ function RecetaFormPage() {
 export default function RecetaPage() {
     return <RecetaFormPage />
 }
-`)
