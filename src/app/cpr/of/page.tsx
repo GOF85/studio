@@ -1,12 +1,11 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat } from 'lucide-react';
-import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState, LoteAsignado } from '@/types';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat, Printer } from 'lucide-react';
+import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState, LoteAsignado, ArticuloERP, IngredienteInterno, Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -50,6 +49,11 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from '@/components/ui/dialog';
 
 
 type NecesidadDesgloseItem = {
@@ -114,6 +118,23 @@ type ReporteData = {
     elaboraciones: ReporteProduccionItem[];
 };
 
+type IngredienteDeCompra = {
+    erpId: string;
+    nombreProducto: string;
+    refProveedor: string;
+    formatoCompra: string;
+    necesidadNeta: number;
+    unidadNeta: string;
+    unidadConversion: number;
+    precioCompra: number;
+    descuento: number;
+    desgloseUso: { receta: string, elaboracion: string, cantidad: number }[];
+};
+
+type ProveedorConLista = Proveedor & {
+    listaCompra: IngredienteDeCompra[];
+};
+
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' | 'success' } = {
   'Pendiente': 'secondary',
@@ -165,6 +186,9 @@ export default function OfPage() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [reporteData, setReporteData] = useState<ReporteData | null>(null);
   const [pickingStates, setPickingStates] = useState<Record<string, PickingState>>({});
+
+  const [redondearCompra, setRedondearCompra] = useState(false);
+  const [pedidoParaImprimir, setPedidoParaImprimir] = useState<ProveedorConLista | null>(null);
 
 
   const router = useRouter();
@@ -591,7 +615,96 @@ export default function OfPage() {
       }
       return null;
   };
+  
+  const listaDeLaCompra = useMemo(() => {
+    if (!necesidades || necesidades.length === 0) return [];
+    
+    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
 
+    const allIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+    const ingMap = new Map(allIngredientes.map(i => [i.id, i]));
+    
+    const allArticulosERP = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+    const erpMap = new Map(allArticulosERP.map(a => [a.idreferenciaerp, a]));
+
+    const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+    const proveedoresMap = new Map(allProveedores.map(p => [p.IdERP, p]));
+
+    const ingredientesNecesarios = new Map<string, { cantidad: number, desgloseUso: { receta: string, elaboracion: string, cantidad: number }[] }>();
+
+    function getIngredientesRecursivo(elabId: string, cantidadRequerida: number, recetaNombre: string) {
+        const elaboracion = elabMap.get(elabId);
+        if (!elaboracion) return;
+
+        const ratio = cantidadRequerida / elaboracion.produccionTotal;
+        
+        (elaboracion.componentes || []).forEach(comp => {
+            const cantidadComponente = comp.cantidad * ratio;
+            if (comp.tipo === 'ingrediente') {
+                let ingData = ingredientesNecesarios.get(comp.componenteId);
+                if (!ingData) {
+                    ingData = { cantidad: 0, desgloseUso: [] };
+                    ingredientesNecesarios.set(comp.componenteId, ingData);
+                }
+                ingData.cantidad += cantidadComponente;
+                ingData.desgloseUso.push({ receta: recetaNombre, elaboracion: elaboracion.nombre, cantidad: cantidadComponente });
+            } else if (comp.tipo === 'elaboracion') {
+                getIngredientesRecursivo(comp.componenteId, cantidadComponente, recetaNombre);
+            }
+        });
+    }
+
+    necesidades.forEach(necesidad => {
+        necesidad.desgloseCompleto.forEach(desglose => {
+             getIngredientesRecursivo(necesidad.id, desglose.cantidadNecesaria, desglose.recetaNombre);
+        })
+    });
+    
+    const compraPorProveedor = new Map<string, ProveedorConLista>();
+
+    ingredientesNecesarios.forEach((data, ingId) => {
+        const ingredienteInterno = ingMap.get(ingId);
+        if (!ingredienteInterno) return;
+
+        const articuloERP = erpMap.get(ingredienteInterno.productoERPlinkId);
+        if (!articuloERP) return;
+
+        const proveedor = proveedoresMap.get(articuloERP.idProveedor);
+        if (!proveedor) return;
+
+        let proveedorData = compraPorProveedor.get(proveedor.id);
+        if (!proveedorData) {
+            proveedorData = { ...proveedor, listaCompra: [] };
+            compraPorProveedor.set(proveedor.id, proveedorData);
+        }
+
+        const ingCompra: IngredienteDeCompra = {
+            erpId: articuloERP.idreferenciaerp,
+            nombreProducto: articuloERP.nombreProductoERP,
+            refProveedor: articuloERP.referenciaProveedor || '',
+            formatoCompra: `${articuloERP.unidadConversion} ${formatUnit(articuloERP.unidad)}`,
+            necesidadNeta: data.cantidad,
+            unidadNeta: articuloERP.unidad,
+            unidadConversion: articuloERP.unidadConversion,
+            precioCompra: articuloERP.precioCompra,
+            descuento: articuloERP.descuento || 0,
+            desgloseUso: data.desgloseUso.sort((a,b) => b.cantidad - a.cantidad),
+        };
+        
+        const existingItemIndex = proveedorData.listaCompra.findIndex(item => item.erpId === articuloERP.idreferenciaerp);
+        if (existingItemIndex > -1) {
+            proveedorData.listaCompra[existingItemIndex].necesidadNeta += data.cantidad;
+             proveedorData.listaCompra[existingItemIndex].desgloseUso.push(...data.desgloseUso);
+        } else {
+            proveedorData.listaCompra.push(ingCompra);
+        }
+    });
+
+    return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
+
+  }, [necesidades]);
+  
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Órdenes de Fabricación..." />;
   }
@@ -641,8 +754,9 @@ export default function OfPage() {
         </div>
       </div>
       <Tabs defaultValue="planificacion">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="tabla-necesidades">Tabla Necesidades</TabsTrigger>
+            <TabsTrigger value="lista-compra">Lista de Compra</TabsTrigger>
             <TabsTrigger value="planificacion">Planificación</TabsTrigger>
             <TabsTrigger value="creadas">OF Creadas</TabsTrigger>
             <TabsTrigger value="asignacion">Asignación de Órdenes</TabsTrigger>
@@ -745,6 +859,80 @@ export default function OfPage() {
                 )}
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="lista-compra" className="mt-4">
+             <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                         <CardTitle className="text-lg">Lista de la Compra</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="redondear-switch">Redondear al alza</Label>
+                            <Switch id="redondear-switch" checked={redondearCompra} onCheckedChange={setRedondearCompra}/>
+                        </div>
+                    </div>
+                    <CardDescription>Materias primas necesarias para cubrir las necesidades de producción del periodo.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {listaDeLaCompra.length > 0 ? listaDeLaCompra.map(proveedor => (
+                        <Card key={proveedor.id} className="w-full">
+                            <CardHeader className="flex-row items-start justify-between pb-2">
+                                <div>
+                                    <h4 className="font-bold text-lg">{proveedor.nombreComercial}</h4>
+                                    <div className="text-xs text-muted-foreground flex gap-4">
+                                        <span>{proveedor.nombreEmpresa} ({proveedor.cif})</span>
+                                        <span>{proveedor.telefonoContacto}</span>
+                                        <span>{proveedor.emailContacto}</span>
+                                    </div>
+                                </div>
+                                <Button size="sm" variant="outline" onClick={() => setPedidoParaImprimir(proveedor)}>
+                                    <Printer className="mr-2 h-4 w-4"/> Generar Pedido
+                                </Button>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Producto ERP (Ref. Proveedor)</TableHead>
+                                            <TableHead className="w-48 text-right">Cant. a Comprar</TableHead>
+                                            <TableHead className="w-40 text-right">Formato Compra</TableHead>
+                                            <TableHead className="w-40 text-right">Necesidad Neta</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {proveedor.listaCompra.map(item => {
+                                            const cantidadAComprar = redondearCompra 
+                                                ? Math.ceil(item.necesidadNeta / item.unidadConversion) 
+                                                : (item.necesidadNeta / item.unidadConversion);
+                                            return (
+                                                <TableRow key={item.erpId}>
+                                                    <TableCell>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild><span className="font-semibold cursor-help">{item.nombreProducto} <span className="font-normal text-muted-foreground">({item.refProveedor})</span></span></TooltipTrigger>
+                                                            <TooltipContent className="p-2 max-w-sm">
+                                                                <p className="font-bold mb-1">Destinado a:</p>
+                                                                <ul className="list-disc space-y-1 pl-4 text-xs">
+                                                                    {item.desgloseUso.map((uso, i) => (
+                                                                        <li key={i}>{formatNumber(uso.cantidad, 3)} {formatUnit(item.unidadNeta)} para <strong>{uso.elaboracion}</strong> ({uso.receta})</li>
+                                                                    ))}
+                                                                </ul>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-bold font-mono text-primary text-base">{redondearCompra ? cantidadAComprar : formatNumber(cantidadAComprar, 2)}</TableCell>
+                                                    <TableCell className="text-right">{item.formatoCompra}</TableCell>
+                                                    <TableCell className="text-right font-mono">{formatNumber(item.necesidadNeta, 3)} {formatUnit(item.unidadNeta)}</TableCell>
+                                                </TableRow>
+                                            )
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    )) : (
+                        <div className="text-center text-muted-foreground py-10">No hay ingredientes necesarios para este periodo.</div>
+                    )}
+                </CardContent>
+            </Card>
         </TabsContent>
         <TabsContent value="planificacion" className="mt-4 space-y-4">
             <Card>
@@ -1036,6 +1224,60 @@ export default function OfPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        <Dialog open={!!pedidoParaImprimir} onOpenChange={(open) => !open && setPedidoParaImprimir(null)}>
+            <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>Borrador de Pedido para: {pedidoParaImprimir?.nombreComercial}</DialogTitle>
+                    <DialogDescription>
+                        Este es un prototipo visual. La generación y envío del PDF final se implementará en un futuro.
+                    </DialogDescription>
+                </DialogHeader>
+                 <div className="py-4 border rounded-lg p-6 bg-white text-black font-sans text-sm">
+                    <h2 className="text-2xl font-bold mb-1">Pedido a Proveedor</h2>
+                    <p className="font-semibold text-lg text-primary mb-4">{pedidoParaImprimir?.nombreComercial}</p>
+                    <div className="grid grid-cols-2 gap-4 mb-4 text-xs">
+                        <div>
+                            <p><strong>De:</strong> MICE CATERING</p>
+                            <p>Avda. de la Industria, 38, 28108 Alcobendas, Madrid</p>
+                        </div>
+                        <div className="text-right">
+                             <p><strong>Fecha Pedido:</strong> {format(new Date(), 'dd/MM/yyyy')}</p>
+                             <p><strong>Atención:</strong> {pedidoParaImprimir?.nombreComercial} - {pedidoParaImprimir?.telefonoContacto}</p>
+                        </div>
+                    </div>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="text-black">Ref.</TableHead>
+                                <TableHead className="text-black">Producto</TableHead>
+                                <TableHead className="text-right text-black">Cantidad</TableHead>
+                                <TableHead className="text-right text-black">Formato Compra</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {(pedidoParaImprimir?.listaCompra || []).map(item => {
+                                const cantidadAComprar = redondearCompra 
+                                    ? Math.ceil(item.necesidadNeta / item.unidadConversion) 
+                                    : (item.necesidadNeta / item.unidadConversion);
+                                return (
+                                    <TableRow key={item.erpId}>
+                                        <TableCell className="font-mono text-xs">{item.refProveedor}</TableCell>
+                                        <TableCell>{item.nombreProducto}</TableCell>
+                                        <TableCell className="text-right font-bold">{redondearCompra ? cantidadAComprar : formatNumber(cantidadAComprar, 2)}</TableCell>
+                                        <TableCell className="text-right">{item.formatoCompra}</TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <DialogFooter>
+                    <Button variant="outline" onClick={() => setPedidoParaImprimir(null)}>Cerrar</Button>
+                    <Button disabled><Printer className="mr-2 h-4 w-4"/>Imprimir (próximamente)</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
     </TooltipProvider>
   );
 }
