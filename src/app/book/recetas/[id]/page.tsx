@@ -12,7 +12,7 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive, BrainCircuit } from 'lucide-react';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive, BrainCircuit, AlertTriangle } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, PartidaProduccion, ElaboracionEnReceta, TecnicaCoccion } from '@/types';
 import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, PARTIDAS_PRODUCCION, TECNICAS_COCCION } from '@/types';
 
@@ -102,6 +102,8 @@ const recetaFormSchema = z.object({
   estabilidadBuffet: z.coerce.number().min(1).max(5).optional().default(3),
   escalabilidad: z.enum(['FACIL', 'MEDIA', 'DIFICIL']).optional(),
   etiquetasTendencia: z.array(z.string()).optional().default([]),
+  requiereRevision: z.boolean().optional().default(false),
+  comentarioRevision: z.string().optional().default(''),
 });
 
 type RecetaFormValues = z.infer<typeof recetaFormSchema>;
@@ -169,7 +171,7 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
     return Array.from(elabAlergenos);
 };
 
-function ImageUploadSection({ name, title, form, description }: { name: "fotosMiseEnPlaceURLs" | "fotosRegeneracionURLs" | "fotosEmplatadoURLs" | "fotosComercialesURLs"; title: string; form: any, description?: string }) {
+function ImageUploadSection({ name, title, description, form }: { name: "fotosMiseEnPlaceURLs" | "fotosRegeneracionURLs" | "fotosEmplatadoURLs" | "fotosComercialesURLs"; title: string; description?: string; form: any }) {
     const { fields, append, remove } = useFieldArray({ control: form.control, name });
     const [newUrl, setNewImageUrl] = useState('');
     const { toast } = useToast();
@@ -186,24 +188,36 @@ function ImageUploadSection({ name, title, form, description }: { name: "fotosMi
 
     return (
         <div>
-            {name !== "fotosComercialesURLs" ? (
-                <FormField
+            <h4 className="font-semibold text-lg">{title}</h4>
+            {description && <p className="text-sm text-muted-foreground mb-2">{description}</p>}
+            
+            {name === "fotosComercialesURLs" && (
+                <FormField control={form.control} name="descripcionComercial" render={({ field }) => (
+                    <FormItem className="mb-4">
+                        <FormLabel className="flex items-center gap-2">Descripción Comercial 
+                            <Button size="sm" variant="ghost" type="button" className="h-auto px-1 py-0 text-accent-foreground hover:text-accent-foreground/80">
+                                <Sparkles className="h-3.5 w-3.5"/>
+                            </Button>
+                        </FormLabel>
+                        <FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl>
+                    </FormItem>
+                )} />
+            )}
+            
+            {name !== "fotosComercialesURLs" && (
+                 <FormField
                     control={form.control}
                     name={name === "fotosMiseEnPlaceURLs" ? "instruccionesMiseEnPlace" : name === "fotosRegeneracionURLs" ? "instruccionesRegeneracion" : "instruccionesEmplatado"}
                     render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{title}</FormLabel>
-                            <FormControl><Textarea {...field} rows={5} /></FormControl>
+                        <FormItem className="mb-4">
+                            <FormLabel>Instrucciones</FormLabel>
+                            <FormControl><Textarea {...field} rows={4} /></FormControl>
                         </FormItem>
                     )}
                 />
-            ) : (
-                <>
-                <h4 className="font-semibold text-lg">{title}</h4>
-                {description && <p className="text-sm text-muted-foreground">{description}</p>}
-                </>
             )}
-            <div className="space-y-2 mt-2">
+
+            <div className="space-y-2">
                 <div className="flex gap-2">
                     <Input value={newUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
                     <Button type="button" variant="outline" onClick={handleAdd}><LinkIcon className="mr-2"/>Añadir</Button>
@@ -301,7 +315,9 @@ const defaultValues: Partial<RecetaFormValues> = {
     tipoCocina: [], 
     equipamientoCritico: [], 
     formatoServicioIdeal: [], 
-    etiquetasTendencia: [] 
+    etiquetasTendencia: [],
+    requiereRevision: false,
+    comentarioRevision: '',
 };
 
 function RecetaFormPage() {
@@ -329,7 +345,7 @@ function RecetaFormPage() {
     defaultValues,
   });
 
-  const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab, update: updateElab, replace } = useFieldArray({ control: form.control, name: "elaboraciones", keyName: "key" });
+  const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab, replace } = useFieldArray({ control: form.control, name: "elaboraciones", keyName: "key" });
 
   const watchedElaboraciones = form.watch('elaboraciones');
   const watchedPorcentajeCoste = form.watch('porcentajeCosteProduccion');
@@ -419,8 +435,6 @@ function RecetaFormPage() {
         const processedData = {
           ...defaultValues,
           ...initialValues,
-          startDate: initialValues.startDate ? new Date(initialValues.startDate) : new Date(),
-          endDate: initialValues.endDate ? new Date(initialValues.endDate) : new Date(),
           fotosComercialesURLs: (initialValues.fotosComercialesURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
           fotosEmplatadoURLs: (initialValues.fotosEmplatadoURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
           fotosMiseEnPlaceURLs: (initialValues.fotosMiseEnPlaceURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
@@ -590,8 +604,22 @@ function RecetaFormPage() {
                     </TabsList>
                     <TabsContent value="general" className="mt-4">
                          <Card>
-                          <CardHeader>
+                          <CardHeader className="flex-row justify-between items-start py-3">
                               <CardTitle className="text-lg">Información General y Clasificación</CardTitle>
+                                <div className="flex items-center gap-4">
+                                  <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
+                                      <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-2">
+                                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} id="visible-check" /></FormControl>
+                                          <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas para comerciales." /></FormLabel>
+                                      </FormItem>
+                                  )} />
+                                   <FormField control={form.control} name="isArchived" render={({ field }) => (
+                                      <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-2">
+                                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} id="archived-check" /></FormControl>
+                                          <FormLabel htmlFor="archived-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Archive /><InfoTooltip text="Archivar oculta la receta de todas las listas y selectores." /></FormLabel>
+                                      </FormItem>
+                                  )} />
+                              </div>
                           </CardHeader>
                           <CardContent className="space-y-3 pt-2">
                               <div className="grid md:grid-cols-2 gap-3">
@@ -606,37 +634,6 @@ function RecetaFormPage() {
                                       <FormMessage />
                                   </FormItem>
                                   )} />
-                              </div>
-                              
-                              <div className="flex items-center gap-4">
-                                  <div className="flex-grow space-y-2">
-                                  <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem>
-                                      <FormLabel className="flex items-center gap-2">Descripción Comercial 
-                                          <Button size="sm" variant="ghost" type="button" disabled={isGenerating} className="h-auto px-1 py-0 text-accent-foreground hover:text-accent-foreground/80">
-                                              {isGenerating ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Sparkles className="h-3.5 w-3.5"/>}
-                                          </Button>
-                                      </FormLabel>
-                                      <FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl>
-                                  </FormItem> )} />
-                                  </div>
-                                  <div className="space-y-2 pt-5">
-                                      <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
-                                          <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-3">
-                                              <FormControl>
-                                                  <Switch checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
-                                              </FormControl>
-                                              <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas para comerciales." /></FormLabel>
-                                          </FormItem>
-                                      )} />
-                                       <FormField control={form.control} name="isArchived" render={({ field }) => (
-                                          <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-3">
-                                              <FormControl>
-                                                  <Switch checked={field.value} onCheckedChange={field.onChange} id="archived-check" />
-                                              </FormControl>
-                                              <FormLabel htmlFor="archived-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Archive /><InfoTooltip text="Archivar oculta la receta de todas las listas y selectores." /></FormLabel>
-                                          </FormItem>
-                                      )} />
-                                  </div>
                               </div>
 
                               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -667,8 +664,33 @@ function RecetaFormPage() {
                                       <FormMessage />
                                   </FormItem>)} />
                               </div>
-                              <Separator />
-                              <ImageUploadSection name="fotosComercialesURLs" title="Imágenes Comerciales" description="Añade URLs de imágenes de alta calidad para usar en propuestas. La primera imagen será la principal." form={form} />
+                            
+                            <Separator className="my-4"/>
+
+                            <div className="space-y-4">
+                                <FormField control={form.control} name="requiereRevision" render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                                    <FormControl>
+                                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none">
+                                        <FormLabel className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Requiere Revisión</FormLabel>
+                                        <p className="text-sm text-muted-foreground">Marca esta opción si la receta necesita ser revisada por un responsable (ej. costes desactualizados, alérgenos incorrectos).</p>
+                                    </div>
+                                    </FormItem>
+                                )} />
+                                {form.watch('requiereRevision') && (
+                                    <FormField control={form.control} name="comentarioRevision" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Comentario de Revisión</FormLabel>
+                                            <FormControl><Textarea {...field} placeholder="Describe por qué necesita revisión..." rows={2} /></FormControl>
+                                        </FormItem>
+                                    )} />
+                                )}
+                            </div>
+
+                              <Separator className="my-4"/>
+                              <ImageUploadSection name="fotosComercialesURLs" title="Información Comercial" description="Añade URLs de imágenes de alta calidad para usar en propuestas. La primera imagen será la principal." form={form} />
                           </CardContent>
                       </Card>
                     </TabsContent>
@@ -847,6 +869,7 @@ export default function RecetaPage() {
 
     return <RecetaFormPage />;
 }
+
 
 
 
