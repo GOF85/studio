@@ -177,7 +177,7 @@ function ImageUploadSection({ name, title, form, description }: { name: "fotosMi
         try {
             const url = new URL(newUrl);
             append({ value: url.href });
-            setNewImageUrl('');
+            setNewUrl('');
         } catch (e) {
             toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.' });
         }
@@ -307,12 +307,12 @@ function RecetaFormPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-
-  const id = Array.isArray(params.id) ? params.id[0] : null;
+  
+  const id = params.id as string;
+  const cloneId = searchParams.get('cloneId');
   const isNew = id === 'nueva';
   const isEditing = !isNew && id;
-  const cloneId = searchParams.get('cloneId');
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -364,9 +364,6 @@ function RecetaFormPage() {
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
  useEffect(() => {
-    console.log("--- DEBUG: STARTING DATA LOAD ---");
-    console.log(`[DEBUG] ID from params: ${id}, Clone ID: ${cloneId}`);
-
     let initialValues: Partial<RecetaFormValues> | null = null;
     
     try {
@@ -389,19 +386,24 @@ function RecetaFormPage() {
       setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
       const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-      console.log("[DEBUG] All recipes from localStorage:", allRecetas);
-
       let foundReceta: Receta | undefined;
-      if (isEditing) {
-        foundReceta = allRecetas.find(e => e.id === id);
-        console.log(`[DEBUG] Editing mode. Found recipe for ID ${id}:`, foundReceta);
-      } else if (cloneId) {
-        foundReceta = allRecetas.find(e => e.id === cloneId);
+      
+      const currentId = isEditing ? id : cloneId;
+
+      if (currentId) {
+        foundReceta = allRecetas.find(e => e.id === currentId);
         if (foundReceta) {
-          foundReceta = { ...foundReceta, id: Date.now().toString(), nombre: `${foundReceta.nombre} (Copia)` };
+          initialValues = { 
+            ...foundReceta,
+            startDate: new Date(foundReceta.startDate),
+            endDate: new Date(foundReceta.endDate),
+            };
+          if (cloneId) {
+            initialValues.id = Date.now().toString();
+            initialValues.nombre = `${foundReceta.nombre} (Copia)`;
+          }
         }
-        console.log(`[DEBUG] Cloning mode. Found recipe for cloneId ${cloneId}:`, foundReceta);
-      } else { // isNew
+      } else if (isNew) {
         const lastRecipe = allRecetas.reduce((last, current) => {
             if (!current.numeroReceta || !last?.numeroReceta) return current;
             const currentNum = parseInt(current.numeroReceta.substring(2));
@@ -411,48 +413,30 @@ function RecetaFormPage() {
         const lastNum = lastRecipe && lastRecipe.numeroReceta ? parseInt(lastRecipe.numeroReceta.substring(2)) : 0;
         const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
         initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum };
-        console.log(`[DEBUG] New mode. Generated new recipe number: ${newNum}`);
-      }
-
-      if (foundReceta) {
-        initialValues = { ...foundReceta };
       }
 
       if (initialValues) {
         const processedData = {
           ...defaultValues,
           ...initialValues,
-          // Ensure arrays are not undefined
-          elaboraciones: initialValues.elaboraciones || [],
-          menajeAsociado: initialValues.menajeAsociado || [],
           fotosComercialesURLs: initialValues.fotosComercialesURLs || [],
           fotosEmplatadoURLs: initialValues.fotosEmplatadoURLs || [],
           fotosMiseEnPlaceURLs: initialValues.fotosMiseEnPlaceURLs || [],
           fotosRegeneracionURLs: initialValues.fotosRegeneracionURLs || [],
-          perfilSaborSecundario: initialValues.perfilSaborSecundario || [],
-          perfilTextura: initialValues.perfilTextura || [],
-          tipoCocina: initialValues.tipoCocina || [],
-          equipamientoCritico: initialValues.equipamientoCritico || [],
-          formatoServicioIdeal: initialValues.formatoServicioIdeal || [],
-          etiquetasTendencia: initialValues.etiquetasTendencia || [],
         };
-        console.log("[DEBUG] Final object to be set in form (initialValues):", processedData);
         form.reset(processedData);
-        console.log("[DEBUG] form.reset() has been called.");
       } else if(isEditing) {
-        console.error(`[DEBUG] ERROR: Could not find recipe with ID ${id}. Redirecting.`);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
         router.push('/book/recetas');
       }
 
     } catch (e) {
-      console.error("[DEBUG] CRITICAL ERROR during data load:", e);
+      console.error("Error crítico durante la carga de datos:", e);
       toast({ variant: 'destructive', title: 'Error de carga', description: 'No se pudieron cargar los datos necesarios.' });
     } finally {
       setIsDataLoaded(true);
-      console.log("--- DEBUG: FINISHED DATA LOAD ---");
     }
-}, [id, cloneId, isEditing, form, router, toast]);
+}, [id, cloneId, isNew, isEditing, form, router, toast]);
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [], unidad: elab.unidadProduccion, merma: 0 });
@@ -487,7 +471,7 @@ function RecetaFormPage() {
   }
   
   const onError = (errors: FieldErrors<RecetaFormValues>) => {
-    console.error("[DEBUG] Form validation errors:", errors);
+    console.error("Errores de validación del formulario:", errors);
     const firstError = Object.entries(errors)[0];
     if (firstError) {
         toast({
@@ -509,7 +493,6 @@ function RecetaFormPage() {
         alergenos,
         partidaProduccion: partidasProduccion.join(', '),
     };
-    console.log("[DEBUG] Saving data:", dataToSave);
 
     if (isEditing && !cloneId) {
       const index = allItems.findIndex(p => p.id === id);
@@ -767,5 +750,4 @@ function RecetaFormPage() {
 export default function RecetaPage() {
     return <RecetaFormPage />
 }
-
-    
+`)
