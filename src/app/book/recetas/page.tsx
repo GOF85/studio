@@ -5,8 +5,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown, MoreHorizontal, Pencil, Trash2, Archive, CheckSquare } from 'lucide-react';
-import type { Receta, CategoriaReceta } from '@/types';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown, MoreHorizontal, Pencil, Trash2, Archive, CheckSquare, RefreshCw, Loader2 } from 'lucide-react';
+import type { Receta, CategoriaReceta, Elaboracion, IngredienteInterno, ArticuloERP, ComponenteElaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -26,12 +28,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -44,7 +40,6 @@ import { Badge } from '@/components/ui/badge';
 
 const ITEMS_PER_PAGE = 20;
 
-// Headers for CSV export/import, including all fields of a Receta
 const CSV_HEADERS = [ "id", "nombre", "visibleParaComerciales", "isArchived", "descripcionComercial", "responsableEscandallo", "categoria", "partidaProduccion", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "instruccionesRegeneracion", "instruccionesEmplatado", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "recetaOrigen", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "gramajeTotal", "precioVenta", "alergenos", "requiereRevision" ];
 
 export default function RecetasPage() {
@@ -57,6 +52,7 @@ export default function RecetasPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [isRecalculating, setIsRecalculating] = useState(false);
   
   const router = useRouter();
   const { toast } = useToast();
@@ -226,6 +222,73 @@ export default function RecetasPage() {
         setSelectedItems(new Set());
     }
   }
+  
+  const handleRecalculateAll = () => {
+    setIsRecalculating(true);
+    
+    // Simulating async operation
+    setTimeout(() => {
+        try {
+            // 1. Load all necessary data
+            const allErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+            const allIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+            let allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+            let allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+
+            const erpMap = new Map(allErp.map(item => [item.idreferenciaerp, item]));
+            const ingredientesMap = new Map(allIngredientes.map(item => [item.id, item]));
+
+            // 2. Recalculate all elaborations
+            const elabCostesMap = new Map<string, number>();
+
+            allElaboraciones.forEach(elab => {
+                let costeTotalComponentes = 0;
+                (elab.componentes || []).forEach(comp => {
+                    if (comp.tipo === 'ingrediente') {
+                        const ing = ingredientesMap.get(comp.componenteId);
+                        const erpItem = ing ? erpMap.get(ing.productoERPlinkId) : undefined;
+                        const costeReal = erpItem ? (erpItem.precioCompra / (erpItem.unidadConversion || 1)) * (1 - (erpItem.descuento || 0) / 100) : 0;
+                        const costeConMerma = costeReal * (1 + (comp.merma || 0) / 100);
+                        costeTotalComponentes += costeConMerma * comp.cantidad;
+                    } else { // sub-elaboration
+                        const costeSubElab = elabCostesMap.get(comp.componenteId) || 0;
+                        const costeConMerma = costeSubElab * (1 + (comp.merma || 0) / 100);
+                        costeTotalComponentes += costeConMerma * comp.cantidad;
+                    }
+                });
+                const costePorUnidad = elab.produccionTotal > 0 ? costeTotalComponentes / elab.produccionTotal : 0;
+                elab.costePorUnidad = costePorUnidad;
+                elabCostesMap.set(elab.id, costePorUnidad);
+            });
+            
+            localStorage.setItem('elaboraciones', JSON.stringify(allElaboraciones));
+
+            // 3. Recalculate all recipes
+            allRecetas = allRecetas.map(receta => {
+                const costeMateriaPrima = (receta.elaboraciones || []).reduce((sum, elabEnReceta) => {
+                    const elabCoste = elabCostesMap.get(elabEnReceta.elaboracionId) || 0;
+                    const costeConMerma = elabCoste * (1 + (elabEnReceta.merma || 0) / 100);
+                    return sum + (costeConMerma * elabEnReceta.cantidad);
+                }, 0);
+
+                const precioVenta = costeMateriaPrima * (1 + (receta.porcentajeCosteProduccion || 0) / 100);
+                
+                return { ...receta, costeMateriaPrima, precioVenta };
+            });
+
+            localStorage.setItem('recetas', JSON.stringify(allRecetas));
+            setItems(allRecetas);
+            
+            toast({ title: "¡Éxito!", description: "Se han recalculado y guardado los costes de todas las recetas." });
+
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron recalcular los costes.' });
+        } finally {
+            setIsRecalculating(false);
+        }
+    }, 500); // Small delay to show loading state
+  }
 
 
   if (!isMounted) {
@@ -251,6 +314,9 @@ export default function RecetasPage() {
                 <Button variant="destructive" onClick={() => setItemToDelete('mass')}><Trash2 className="mr-2"/>Borrar ({numSelected})</Button>
               </>
             )}
+             <Button variant="outline" size="icon" onClick={handleRecalculateAll} disabled={isRecalculating}>
+              {isRecalculating ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            </Button>
             <Button asChild>
               <Link href="/book/recetas/nueva"><PlusCircle className="mr-2"/>Nueva Receta</Link>
             </Button>
@@ -440,3 +506,4 @@ export default function RecetasPage() {
     </>
   );
 }
+
