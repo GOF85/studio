@@ -154,7 +154,7 @@ const InfoTooltip = ({ text }: { text: string }) => (
     </Tooltip>
 );
 
-const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteInterno>): Alergeno[] => {
+const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteConERP>): Alergeno[] => {
     if (!elaboracion || !elaboracion.componentes) {
       return [];
     }
@@ -238,12 +238,12 @@ function ImageUploadSection({ name, title, description, form }: { name: "fotosMi
     );
 }
 
-function CreateElaborationModal({ onElaborationCreated, children }: { onElaborationCreated: (newElab: Elaboracion) => void, children: React.ReactNode }) {
+function CreateElaborationModal({ onElaborationCreated, children }: { onElaborationCreated: (newElab: Elaboracion) => Promise<void>, children: React.ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
-    const handleSave = (data: ElaborationFormValues, costePorUnidad: number) => {
+    const handleSave = async (data: ElaborationFormValues, costePorUnidad: number) => {
         setIsSubmitting(true);
         let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
         
@@ -251,12 +251,11 @@ function CreateElaborationModal({ onElaborationCreated, children }: { onElaborat
         allItems.push(dataToSave);
         localStorage.setItem('elaboraciones', JSON.stringify(allItems));
         
-        setTimeout(() => {
-            onElaborationCreated(dataToSave);
-            setIsSubmitting(false);
-            setIsOpen(false);
-            toast({ title: 'Elaboración Creada', description: `Se ha añadido "${data.nombre}" a la base de datos y a la receta.` });
-        }, 500);
+        toast({ title: 'Elaboración Creada', description: `Se ha añadido "${data.nombre}" a la base de datos y a la receta.` });
+        await onElaborationCreated(dataToSave);
+
+        setIsSubmitting(false);
+        setIsOpen(false);
     };
 
     return (
@@ -411,7 +410,7 @@ function RecetaFormPage() {
         return {
             ...e,
             costePorUnidad: costePorUnidad,
-            alergenos: calculateElabAlergenos(e, ingMap as any),
+            alergenos: calculateElabAlergenos(e, ingMap),
         };
     });
     
@@ -530,9 +529,9 @@ function RecetaFormPage() {
     setIsSelectorOpen(false); // Close the modal
   }, [appendElab]);
   
-    const handleElaborationCreated = useCallback(async (newElab: Elaboracion) => {
+    const handleElaborationCreated = async (newElab: Elaboracion) => {
         recalculateCostsAndAllergens();
-        const elabWithData = {
+        const elabWithData: ElaboracionConCoste = {
             ...newElab,
             costePorUnidad: newElab.costePorUnidad || 0,
             alergenos: calculateElabAlergenos(newElab, ingredientesMap),
@@ -540,7 +539,7 @@ function RecetaFormPage() {
         onAddElab(elabWithData);
         // After adding, trigger save for the main recipe form
         await form.handleSubmit(onSubmit)();
-    }, [recalculateCostsAndAllergens, ingredientesMap, onAddElab, form]);
+    };
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
@@ -593,7 +592,7 @@ function RecetaFormPage() {
     setIsLoading(false);
     form.reset(dataToSave as RecetaFormValues); 
 
-    if (!isEditing) {
+    if (!isEditing || cloneId) {
         router.push('/book/recetas');
     } else {
         router.replace(`/book/recetas/${id}?t=${Date.now()}`);
@@ -744,7 +743,7 @@ function RecetaFormPage() {
                                 <div className="space-y-1">
                                   <CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones de la Receta</CardTitle>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex items-center gap-2">
                                     <CreateElaborationModal onElaborationCreated={handleElaborationCreated}>
                                         <Button variant="secondary" size="sm" type="button"><PlusCircle size={16} /> Crear Nueva</Button>
                                     </CreateElaborationModal>
@@ -910,6 +909,7 @@ export default function RecetaPage() {
 
     return <RecetaFormPage />;
 }
+
 
 
 
