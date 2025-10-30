@@ -53,7 +53,8 @@ const elaboracionFormSchema = z.object({
   tipoExpedicion: z.enum(['REFRIGERADO', 'CONGELADO', 'SECO']),
   requiereRevision: z.boolean().optional().default(false),
   comentarioRevision: z.string().optional().default(''),
-  fechaRevision: z.string().optional().default(''),
+  fechaRevision: z.string().optional(),
+  responsable: z.string().optional(),
 });
 
 export type ElaborationFormValues = z.infer<typeof elaboracionFormSchema>;
@@ -224,10 +225,9 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     <Form {...form}>
       <form id="elaboration-form" onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
         <Tabs defaultValue="general">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="general">Info. General</TabsTrigger>
                 <TabsTrigger value="componentes">Componentes</TabsTrigger>
-                <TabsTrigger value="costes">Info. €</TabsTrigger>
                 <TabsTrigger value="preparacion">Info. preparación</TabsTrigger>
             </TabsList>
             <TabsContent value="general" className="mt-4">
@@ -254,22 +254,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                 <FormMessage /></FormItem>
                             )} />
                         </div>
-                        <div className="flex items-center gap-4">
-                            <FormField control={form.control} name="produccionTotal" render={({ field }) => (
-                                <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                                <FormField control={form.control} name="unidadProduccion" render={({ field }) => (
-                                <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Unidad</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{formatUnit(u)}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                <FormMessage /></FormItem>
-                            )} />
-                        </div>
-                         <div className="space-y-4 pt-4 border-t">
+                        <div className="space-y-4 pt-4 border-t">
                             <FormField control={form.control} name="requiereRevision" render={({ field }) => (
                                 <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
                                 <FormControl>
@@ -291,23 +276,59 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                             )}
                         </div>
                     </CardContent>
+                    <CardFooter>
+                       <Card>
+                          <CardHeader className="flex-row items-start justify-between">
+                              <CardTitle className="text-lg">Coste de la Elaboración</CardTitle>
+                              <div className="text-right">
+                                  <div className="flex items-center gap-2">
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
+                                          <RefreshCw className="h-4 w-4" />
+                                      </Button>
+                                      <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
+                                  </div>
+                                  <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
+                              </div>
+                          </CardHeader>
+                          <CardContent>
+                              <p className="text-sm text-muted-foreground">Coste total de materia prima: {formatCurrency(costeTotal)}</p>
+                          </CardContent>
+                      </Card>
+                    </CardFooter>
                 </Card>
             </TabsContent>
             <TabsContent value="componentes" className="mt-4">
                  <Card>
                     <CardHeader className="flex-row items-center justify-between py-3">
-                        <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Componentes</CardTitle>
-                        <CardDescription className="text-xs">Añade los ingredientes y sub-elaboraciones que forman parte de esta preparación.</CardDescription></div>
-                        <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
-                            </DialogTrigger>
-                            <ComponenteSelector 
-                                onSelectIngrediente={handleSelectIngrediente} 
-                                onSelectElaboracion={handleSelectElaboracion} 
-                                allElaboraciones={Array.from(elaboracionesData.values())} 
-                            />
-                        </Dialog>
+                        <div className="space-y-1">
+                            <CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Componentes</CardTitle>
+                            <CardDescription className="text-xs">Añade los ingredientes y sub-elaboraciones que forman parte de esta preparación.</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <FormField control={form.control} name="produccionTotal" render={({ field }) => (
+                                <FormItem className="flex items-center gap-2"><FormLabel>Producir</FormLabel><FormControl><Input type="number" step="any" {...field} className="w-24 h-9"/></FormControl></FormItem>
+                            )} />
+                            <FormField control={form.control} name="unidadProduccion" render={({ field }) => (
+                                <FormItem className="flex items-center gap-2">
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger className="w-24 h-9"><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{formatUnit(u)}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                            )} />
+                            <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
+                                </DialogTrigger>
+                                <ComponenteSelector 
+                                    onSelectIngrediente={handleSelectIngrediente} 
+                                    onSelectElaboracion={handleSelectElaboracion} 
+                                    allElaboraciones={Array.from(elaboracionesData.values())} 
+                                />
+                            </Dialog>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="border rounded-lg">
@@ -393,25 +414,6 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                             </div>
                         </div>
                     </CardFooter>
-                </Card>
-            </TabsContent>
-            <TabsContent value="costes" className="mt-4">
-                <Card>
-                    <CardHeader className="flex-row items-start justify-between">
-                        <CardTitle className="text-lg">Coste de la Elaboración</CardTitle>
-                        <div className="text-right">
-                            <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
-                                    <RefreshCw className="h-4 w-4" />
-                                </Button>
-                                <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
-                            </div>
-                            <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground">Coste total de materia prima: {formatCurrency(costeTotal)}</p>
-                    </CardContent>
                 </Card>
             </TabsContent>
             <TabsContent value="preparacion" className="mt-4">
