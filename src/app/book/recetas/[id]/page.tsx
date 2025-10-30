@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -29,7 +30,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDesc, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -363,11 +364,10 @@ function RecetaFormPage() {
     return costeMateriaPrima + costeImputacion;
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
-  useEffect(() => {
+ useEffect(() => {
     let initialValues: Partial<RecetaFormValues> | null = null;
     
     try {
-      // Load master data
       const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
       const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
       const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
@@ -386,22 +386,15 @@ function RecetaFormPage() {
       const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
       setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
-      // Determine initial form values
       const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
 
+      let foundReceta: Receta | undefined;
       if (isEditing) {
-        const foundReceta = allRecetas.find(e => e.id === id);
-        if (foundReceta) {
-          initialValues = foundReceta;
-        } else {
-          toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
-          router.push('/book/recetas');
-          return;
-        }
+        foundReceta = allRecetas.find(e => e.id === id);
       } else if (cloneId) {
-        const recetaToClone = allRecetas.find(e => e.id === cloneId);
-        if (recetaToClone) {
-          initialValues = { ...recetaToClone, id: Date.now().toString(), nombre: `${recetaToClone.nombre} (Copia)` };
+        foundReceta = allRecetas.find(e => e.id === cloneId);
+        if (foundReceta) {
+          foundReceta = { ...foundReceta, id: Date.now().toString(), nombre: `${foundReceta.nombre} (Copia)` };
         }
       } else { // isNew
         const lastRecipe = allRecetas.reduce((last, current) => {
@@ -415,11 +408,19 @@ function RecetaFormPage() {
         initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum };
       }
 
+      if (foundReceta) {
+        initialValues = { ...foundReceta };
+      }
+
       if (initialValues) {
-        form.reset({
-            ...defaultValues,
-            ...initialValues
-        });
+        const processedData = {
+          ...defaultValues,
+          ...initialValues,
+        };
+        form.reset(processedData);
+      } else if(isEditing) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
+        router.push('/book/recetas');
       }
 
     } catch (e) {
@@ -638,11 +639,6 @@ function RecetaFormPage() {
                               <CardTitle className="flex items-center gap-2">
                                   <TrendingUp/>Análisis de Rentabilidad
                               </CardTitle>
-                               <div className="flex items-center gap-2">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" type="button">
-                                      <RefreshCw className="h-4 w-4" />
-                                  </Button>
-                              </div>
                           </CardHeader>
                           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                               <div>
@@ -725,9 +721,9 @@ function RecetaFormPage() {
           <AlertDialogContent>
           <AlertDialogHeader>
               <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogDesc>
               Esta acción no se puede deshacer. Se eliminará permanentemente la receta.
-              </AlertDialogDescription>
+              </AlertDialogDesc>
           </AlertDialogHeader>
           <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
