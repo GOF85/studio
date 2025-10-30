@@ -46,6 +46,7 @@ import { ElaborationForm, type ElaborationFormValues } from '@/components/book/e
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ComponenteSelector } from '@/components/book/componente-selector';
+import { Label } from '@/components/ui/label';
 
 
 const CSV_HEADERS_ELABORACIONES = [ "id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
@@ -72,111 +73,103 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
 };
 
 function ElaboracionesListPage() {
-  const [items, setItems] = useState<ElaboracionConAlergenos[]>([]);
+  const [items, setItems] = useState<(ElaboracionConAlergenos & { usageCount: number })[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [itemToDelete, setItemToDelete] = useState<Elaboracion | null>(null);
-  const [affectedRecipes, setAffectedRecipes] = useState<Receta[]>([]);
+  const [showOrphanedOnly, setShowOrphanedOnly] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importType, setImportType] = useState<'elaboraciones' | 'componentes' | null>(null);
 
-  useEffect(() => {
-    let storedData = localStorage.getItem('elaboraciones');
-    const elaboraciones = storedData ? JSON.parse(storedData) : [];
-    
-    const storedIngredientes = localStorage.getItem('ingredientesInternos') || '[]';
-    const ingredientes = JSON.parse(storedIngredientes) as IngredienteInterno[];
-    const ingredientesMap = new Map(ingredientes.map(i => [i.id, i]));
-    
-    const elaboracionesConAlergenos = elaboraciones.map((elab: Elaboracion) => ({
+  const loadData = useCallback(() => {
+    const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    const storedElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const storedIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+    const ingredientesMap = new Map(storedIngredientes.map(i => [i.id, i]));
+
+    const usageMap = new Map<string, number>();
+    storedRecetas.forEach(receta => {
+        (receta.elaboraciones || []).forEach(elabEnReceta => {
+            usageMap.set(elabEnReceta.elaboracionId, (usageMap.get(elabEnReceta.elaboracionId) || 0) + 1);
+        });
+    });
+
+    const elaboracionesConDatos = storedElaboraciones.map((elab: Elaboracion) => ({
       ...elab,
-      alergenosCalculados: calculateElabAlergenos(elab, ingredientesMap)
+      alergenosCalculados: calculateElabAlergenos(elab, ingredientesMap),
+      usageCount: usageMap.get(elab.id) || 0,
     }));
 
-    setItems(elaboracionesConAlergenos);
+    setItems(elaboracionesConDatos);
     setIsMounted(true);
   }, []);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+
   const filteredItems = useMemo(() => {
-    return items.filter(item => 
-      item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [items, searchTerm]);
-
-  const handleAttemptDelete = (elaboracion: Elaboracion) => {
-    const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    const recipesUsingElaboracion = allRecetas.filter(receta => 
-      receta.elaboraciones.some(e => e.elaboracionId === elaboracion.id)
-    );
-    setAffectedRecipes(recipesUsingElaboracion);
-    setItemToDelete(elaboracion);
-  };
-
-  const generateReportAndToast = (deletedItemName: string) => {
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text('Informe de Eliminación de Elaboración', 14, 22);
-    doc.setFontSize(12);
-    doc.text(`Se ha eliminado la elaboración: "${deletedItemName}"`, 14, 32);
-    doc.text('Las siguientes recetas se han visto afectadas y necesitan revisión:', 14, 42);
-    
-    const tableColumn = ["ID Receta", "Nombre Receta"];
-    const tableRows: (string | number)[][] = [];
-
-    affectedRecipes.forEach(recipe => {
-      const recipeData = [
-        recipe.id,
-        recipe.nombre,
-      ];
-      tableRows.push(recipeData);
+    return items.filter(item => {
+        const searchMatch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+        const orphanMatch = !showOrphanedOnly || item.usageCount === 0;
+        return searchMatch && orphanMatch;
     });
-
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 50, 
-      styles: { minCellHeight: 8 }, 
-      headStyles: { fillColor: '#e5e7eb', textColor: '#374151' } 
-    });
-    
-    doc.save(`informe_eliminacion_${deletedItemName.replace(/\s+/g, '_')}.pdf`);
-
-    toast({
-        title: 'Informe generado',
-        description: 'Se ha descargado un PDF con las recetas afectadas.'
-    });
-  };
+  }, [items, searchTerm, showOrphanedOnly]);
 
   const handleDelete = () => {
-    if (!itemToDelete) return;
+    if (selectedItems.size === 0) return;
 
-    if (affectedRecipes.length > 0) {
-        generateReportAndToast(itemToDelete.nombre);
-        let allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        const affectedRecipeIds = new Set(affectedRecipes.map(r => r.id));
-        const updatedRecetas = allRecetas.map(r => {
-            if (affectedRecipeIds.has(r.id)) {
-                return { ...r, requiereRevision: true };
-            }
-            return r;
+    // Check if any selected item is in use
+    const itemsInUse = Array.from(selectedItems).filter(id => {
+      const item = items.find(i => i.id === id);
+      return item && item.usageCount > 0;
+    });
+
+    if (itemsInUse.length > 0) {
+        toast({
+            variant: 'destructive',
+            title: 'Error al eliminar',
+            description: `${itemsInUse.length} de las elaboraciones seleccionadas están en uso y no pueden ser eliminadas.`,
         });
-        localStorage.setItem('recetas', JSON.stringify(updatedRecetas));
+        return;
     }
 
-    const updatedData = items.filter(i => i.id !== itemToDelete.id);
+    const updatedData = items.filter(i => !selectedItems.has(i.id));
     localStorage.setItem('elaboraciones', JSON.stringify(updatedData));
     setItems(updatedData);
-    toast({ title: 'Elaboración eliminada' });
-    setItemToDelete(null);
-    setAffectedRecipes([]);
-  }
+    toast({ title: `${selectedItems.size} elaboraciones eliminadas` });
+    setSelectedItems(new Set());
+    setShowDeleteConfirm(false);
+  };
+  
+  const handleSelect = (itemId: string) => {
+    setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(itemId)) {
+            newSet.delete(itemId);
+        } else {
+            newSet.add(itemId);
+        }
+        return newSet;
+    });
+  };
+  
+  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+    if (checked) {
+        setSelectedItems(new Set(filteredItems.map(i => i.id)));
+    } else {
+        setSelectedItems(new Set());
+    }
+  };
 
   const handleExportElaboracionesCSV = () => {
     const dataToExport = items.map(item => {
-        const { componentes, alergenosCalculados, ...rest } = item;
+        const { componentes, alergenosCalculados, usageCount, ...rest } = item;
         return {
             ...rest,
             fotosProduccionURLs: JSON.stringify(item.fotosProduccionURLs || []),
@@ -236,7 +229,7 @@ function ElaboracionesListPage() {
                     fotosProduccionURLs: JSON.parse(item.fotosProduccionURLs || '[]'),
                 }));
                 localStorage.setItem('elaboraciones', JSON.stringify(importedData));
-                setItems(importedData);
+                loadData();
                 toast({ title: 'Importación de Elaboraciones completada', description: `Se importaron ${importedData.length} registros. Ahora importa los componentes.` });
             } else if (importType === 'componentes') {
                 let elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
@@ -260,7 +253,7 @@ function ElaboracionesListPage() {
                 });
                 
                 localStorage.setItem('elaboraciones', JSON.stringify(Array.from(elabMap.values())));
-                setItems(Array.from(elabMap.values()));
+                loadData();
                 toast({ title: 'Importación de Componentes completada', description: `Se procesaron ${results.data.length} componentes.` });
             }
         },
@@ -274,17 +267,28 @@ function ElaboracionesListPage() {
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Elaboraciones..." />;
   }
+  
+  const numSelected = selectedItems.size;
 
   return (
     <TooltipProvider>
       <div className="flex items-center justify-between gap-4 mb-6">
-        <Input 
-          placeholder="Buscar por nombre..."
-          className="flex-grow max-w-lg"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        <div className="flex items-center gap-4">
+            <Input 
+              placeholder="Buscar por nombre..."
+              className="flex-grow max-w-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <div className="flex items-center space-x-2">
+                <Checkbox id="orphan-filter" checked={showOrphanedOnly} onCheckedChange={(checked) => setShowOrphanedOnly(!!checked)} />
+                <Label htmlFor="orphan-filter">Elaboraciones Huérfanas</Label>
+            </div>
+        </div>
         <div className="flex gap-2">
+          {numSelected > 0 && (
+            <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar Selección ({numSelected})</Button>
+          )}
           <Button asChild>
             <Link href="/book/elaboraciones/nuevo">
               <PlusCircle className="mr-2" />
@@ -334,18 +338,29 @@ function ElaboracionesListPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                    checked={numSelected > 0 && numSelected === filteredItems.length}
+                    onCheckedChange={handleSelectAll}
+                />
+              </TableHead>
               <TableHead>Nombre Elaboración</TableHead>
               <TableHead>Coste / Ud.</TableHead>
+              <TableHead>Presente en Recetas</TableHead>
               <TableHead>Alérgenos</TableHead>
               <TableHead className="text-right w-24">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredItems.length > 0 ? (
-              filteredItems.map((item, index) => (
-                <TableRow key={`${item.id}-${index}`} >
+              filteredItems.map((item) => (
+                <TableRow key={item.id} >
+                  <TableCell>
+                    <Checkbox checked={selectedItems.has(item.id)} onCheckedChange={() => handleSelect(item.id)} />
+                  </TableCell>
                   <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.nombre}</TableCell>
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{formatCurrency(item.costePorUnidad)} / {formatUnit(item.unidadProduccion)}</TableCell>
+                  <TableCell className="text-center font-semibold">{item.usageCount}</TableCell>
                   <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {(item.alergenosCalculados || []).map(alergeno => (
@@ -367,9 +382,6 @@ function ElaboracionesListPage() {
                         <DropdownMenuItem onClick={() => router.push(`/book/elaboraciones/nuevo?cloneId=${item.id}`)}>
                           <Copy className="mr-2 h-4 w-4" /> Clonar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleAttemptDelete(item)}}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -377,7 +389,7 @@ function ElaboracionesListPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   No se encontraron elaboraciones.
                 </TableCell>
               </TableRow>
@@ -386,34 +398,24 @@ function ElaboracionesListPage() {
         </Table>
       </div>
 
-     <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+     <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-              {affectedRecipes.length > 0 && <AlertTriangle className="text-destructive" />}
-              ¿Estás seguro?
+              <AlertTriangle className="text-destructive" />
+              ¿Confirmar Borrado Masivo?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            {affectedRecipes.length > 0 ? (
-              <div>
-                  <span className="font-bold text-destructive">¡Atención! Esta elaboración se usa en {affectedRecipes.length} receta(s) que serán marcadas para revisión:</span>
-                  <ul className="list-disc pl-5 mt-2 text-sm text-muted-foreground max-h-40 overflow-y-auto">
-                      {affectedRecipes.map(r => <li key={r.id}>{r.nombre}</li>)}
-                  </ul>
-                  <p className="mt-3">Si continúas, se generará un informe en PDF con las recetas afectadas. Esta acción no se puede deshacer.</p>
-              </div>
-            ) : (
-              'Esta acción no se puede deshacer. Se eliminará permanentemente la elaboración.'
-            )}
+            Vas a eliminar permanentemente <strong>{numSelected}</strong> elaboraciones. Las elaboraciones que estén en uso no serán eliminadas. ¿Estás seguro?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => { setItemToDelete(null); setAffectedRecipes([]); }}>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => setShowDeleteConfirm(false)}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
             className="bg-destructive hover:bg-destructive/90"
             onClick={handleDelete}
           >
-            {affectedRecipes.length > 0 ? 'Generar Informe y Eliminar' : 'Eliminar'}
+            Sí, eliminar selección
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
