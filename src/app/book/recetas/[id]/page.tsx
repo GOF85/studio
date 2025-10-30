@@ -309,7 +309,9 @@ function ElaborationSelector({ allElaboraciones, onSelect }: { allElaboraciones:
                                 <TableCell>{elab.nombre}</TableCell>
                                 <TableCell>{formatCurrency(elab.costePorUnidad)} / {formatUnit(elab.unidadProduccion)}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button size="sm" type="button" onClick={() => onSelect(elab)}>Añadir</Button>
+                                    <DialogClose asChild>
+                                        <Button size="sm" type="button" onClick={() => onSelect(elab)}>Añadir</Button>
+                                    </DialogClose>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -371,7 +373,7 @@ function RecetaFormPage() {
   const [dbElaboraciones, setDbElaboraciones] = useState<ElaborationConCoste[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
-  const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
+  const [ingredientesMap, setIngredientesMap] = useState<Map<string, IngredienteConERP>>(new Map());
 
 
   const form = useForm<RecetaFormValues>({
@@ -388,8 +390,8 @@ function RecetaFormPage() {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
-    const ingredientesMap = new Map(storedInternos.map(ing => [ing.id, { ...ing, erp: erpMap.get(ing.productoERPlinkId) }]));
-    setIngredientesData(ingredientesMap);
+    const ingMap = new Map(storedInternos.map(ing => [ing.id, { ...ing, erp: erpMap.get(ing.productoERPlinkId) }]));
+    setIngredientesMap(ingMap);
 
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     
@@ -397,7 +399,7 @@ function RecetaFormPage() {
         let costeTotalComponentes = 0;
         (e.componentes || []).forEach(comp => {
             if (comp.tipo === 'ingrediente') {
-                const ing = ingredientesMap.get(comp.componenteId);
+                const ing = ingMap.get(comp.componenteId);
                 const costeReal = ing?.erp ? (ing.erp.precioCompra / (ing.erp.unidadConversion || 1)) * (1 - (ing.erp.descuento || 0) / 100) : 0;
                 costeTotalComponentes += costeReal * comp.cantidad * (1 + (comp.merma || 0) / 100);
             } else if (comp.tipo === 'elaboracion') {
@@ -409,7 +411,7 @@ function RecetaFormPage() {
         return {
             ...e,
             costePorUnidad: costePorUnidad,
-            alergenos: calculateElabAlergenos(e, ingredientesMap as any),
+            alergenos: calculateElabAlergenos(e, ingMap as any),
         };
     });
     
@@ -472,6 +474,7 @@ function RecetaFormPage() {
         const processedData = {
           ...defaultValues,
           ...initialValues,
+          responsableEscandallo: initialValues.responsableEscandallo || '',
           fotosComercialesURLs: (initialValues.fotosComercialesURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
           fotosEmplatadoURLs: (initialValues.fotosEmplatadoURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
           fotosMiseEnPlaceURLs: (initialValues.fotosMiseEnPlaceURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
@@ -529,12 +532,18 @@ function RecetaFormPage() {
   
   const handleElaborationCreated = (newElab: Elaboracion) => {
         recalculateCostsAndAllergens();
-        const elabWithData = {
-            ...newElab,
-            costePorUnidad: newElab.costePorUnidad || 0,
-            alergenos: calculateElabAlergenos(newElab, ingredientesData)
-        };
-        onAddElab(elabWithData);
+        // We need to find the just-created elaboration in the freshly updated dbElaboraciones state
+        const elabWithData = dbElaboraciones.find(e => e.id === newElab.id);
+        if (elabWithData) {
+            onAddElab(elabWithData);
+        } else {
+             // Fallback just in case
+             onAddElab({
+                ...newElab,
+                costePorUnidad: newElab.costePorUnidad || 0,
+                alergenos: calculateElabAlergenos(newElab, ingredientesMap)
+            });
+        }
     };
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
@@ -549,6 +558,7 @@ function RecetaFormPage() {
   }
   
   const onError = (errors: any) => {
+    console.error("Errores de validación del formulario:", errors);
     toast({
         variant: 'destructive',
         title: 'Error de validación',
@@ -631,7 +641,6 @@ function RecetaFormPage() {
                     <TabsList className="grid w-full grid-cols-5">
                         <TabsTrigger value="general">Info. General</TabsTrigger>
                         <TabsTrigger value="gastronomica">Clasificación Gastronómica</TabsTrigger>
-                        <TabsTrigger value="costes">Info. €</TabsTrigger>
                         <TabsTrigger value="receta">Receta</TabsTrigger>
                         <TabsTrigger value="pase">Info. Pase</TabsTrigger>
                     </TabsList>
@@ -760,34 +769,6 @@ function RecetaFormPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="costes" className="mt-4">
-                         <Card>
-                          <CardHeader className="text-lg flex-row items-center justify-between">
-                              <CardTitle className="flex items-center gap-2">
-                                  <TrendingUp/>Análisis de Rentabilidad
-                              </CardTitle>
-                              <Button type="button" variant="outline" size="sm" onClick={recalculateCostsAndAllergens}>
-                                <RefreshCw className="mr-2 h-4 w-4"/>Recalcular Costes
-                               </Button>
-                          </CardHeader>
-                          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                              <div>
-                                  <Label>Coste Materia Prima</Label>
-                                  <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
-                              </div>
-                              <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                                  <FormItem>
-                                      <Label>Imputación CPR (%)</Label>
-                                      <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
-                                  </FormItem>
-                              )} />
-                              <div>
-                                  <Label>PVP Teórico</Label>
-                                  <p className="font-bold text-lg text-green-600">{formatCurrency(pvpTeorico)}</p>
-                              </div>
-                          </CardContent>
-                      </Card>
-                    </TabsContent>
                     <TabsContent value="receta" className="mt-4">
                         <Card>
                             <CardHeader className="flex-row items-center justify-between py-3">
@@ -833,15 +814,39 @@ function RecetaFormPage() {
                                 </div>
                             </CardContent>
                              <CardFooter className="flex-col items-start gap-3 mt-4">
-                                <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Resumen de Alérgenos</h4>
-                                <div className="w-full space-y-2">
-                                     <div className="border rounded-md p-2 w-full bg-background min-h-8">
-                                        {alergenos.length > 0 ? (
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {alergenos.map(a => <AllergenBadge key={a} allergen={a as Alergeno}/>)}
-                                            </div>
-                                        ) : <p className="text-xs text-muted-foreground italic">Ninguno</p>}
+                                <div className="flex w-full items-start justify-between gap-4">
+                                    <div className="flex-1">
+                                        <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Resumen de Alérgenos</h4>
+                                        <div className="border rounded-md p-2 w-full bg-background min-h-8">
+                                            {alergenos.length > 0 ? (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {alergenos.map(a => <AllergenBadge key={a} allergen={a as Alergeno}/>)}
+                                                </div>
+                                            ) : <p className="text-xs text-muted-foreground italic">Ninguno</p>}
+                                        </div>
                                     </div>
+                                    <Card className="flex-shrink-0">
+                                        <CardHeader className="flex-row items-center justify-between pb-2">
+                                            <CardTitle className="text-base">Coste y PVP</CardTitle>
+                                             <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={recalculateCostsAndAllergens}>
+                                                <RefreshCw className="h-4 w-4" />
+                                            </Button>
+                                        </CardHeader>
+                                        <CardContent className="space-y-1 text-sm">
+                                             <div className="flex justify-between gap-4"><span>Coste Materia Prima:</span><span className="font-bold">{formatCurrency(costeMateriaPrima)}</span></div>
+                                            <div className="flex justify-between gap-4 items-center">
+                                                <Label>Imputación CPR (%):</Label>
+                                                <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
+                                                  <Input type="number" {...field} className="w-20 h-7 text-xs text-right" />
+                                                )} />
+                                            </div>
+                                            <Separator />
+                                            <div className="flex justify-between font-bold text-base pt-1">
+                                                <span>PVP Teórico:</span>
+                                                <span className="text-green-600">{formatCurrency(pvpTeorico)}</span>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
                                 </div>
                             </CardFooter>
                         </Card>
@@ -903,6 +908,7 @@ export default function RecetaPage() {
 
     return <RecetaFormPage />;
 }
+
 
 
 

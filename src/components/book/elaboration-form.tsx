@@ -206,10 +206,12 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
   }, [watchedComponentes, watchedProduccionTotal, ingredientesData, elaboracionesData]);
   
   const handleFormSubmit = (data: ElaborationFormValues) => {
-    if (data.requiereRevision && !data.fechaRevision) {
-        data.fechaRevision = new Date().toISOString();
+    if (onSave) {
+        if (data.requiereRevision && !data.fechaRevision) {
+            data.fechaRevision = new Date().toISOString();
+        }
+        onSave(data, costePorUnidad);
     }
-    onSave(data, costePorUnidad);
   };
   
   const forceRecalculate = () => {
@@ -300,10 +302,10 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                  <Card>
                     <CardHeader className="flex-row items-center justify-between py-3">
                         <div className="space-y-1">
-                            <CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Componentes</CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-lg"><Component />Componentes</CardTitle>
                             <CardDescription className="text-xs">Añade los ingredientes y sub-elaboraciones que forman parte de esta preparación.</CardDescription>
                         </div>
-                        <div className="flex items-center gap-4">
+                         <div className="flex items-center gap-4">
                             <FormField control={form.control} name="produccionTotal" render={({ field }) => (
                                 <FormItem className="flex items-center gap-2"><FormLabel>Producir</FormLabel><FormControl><Input type="number" step="any" {...field} className="w-24 h-9"/></FormControl></FormItem>
                             )} />
@@ -319,7 +321,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                             )} />
                             <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                                 <DialogTrigger asChild>
-                                    <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
+                                    <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir</Button>
                                 </DialogTrigger>
                                 <ComponenteSelector 
                                     onSelectIngrediente={handleSelectIngrediente} 
