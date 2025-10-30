@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { format, parseISO, startOfDay, endOfDay, isWithinInterval, addDays, isSameDay, eachDayOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, addDays, isSameDay, eachDayOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
@@ -190,6 +190,7 @@ export default function OfPage() {
 
   const [redondearCompra, setRedondearCompra] = useState(false);
   const [pedidoParaImprimir, setPedidoParaImprimir] = useState<ProveedorConLista | null>(null);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
 
 
   const router = useRouter();
@@ -705,6 +706,15 @@ export default function OfPage() {
     return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
 
   }, [necesidades]);
+
+  const flatCompraList = useMemo(() => {
+    return listaDeLaCompra.flatMap(proveedor => 
+        proveedor.listaCompra.map(item => ({
+            ...item,
+            proveedorNombre: proveedor.nombreComercial,
+        }))
+    ).sort((a,b) => a.proveedorNombre.localeCompare(b.proveedorNombre) || a.nombreProducto.localeCompare(b.nombreProducto));
+  }, [listaDeLaCompra]);
   
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Órdenes de Fabricación..." />;
@@ -866,9 +876,14 @@ export default function OfPage() {
                 <CardHeader>
                     <div className="flex items-center justify-between">
                          <CardTitle className="text-lg">Lista de la Compra</CardTitle>
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor="redondear-switch">Redondear al alza</Label>
-                            <Switch id="redondear-switch" checked={redondearCompra} onCheckedChange={setRedondearCompra}/>
+                        <div className="flex items-center gap-4">
+                             <Button variant="outline" size="sm" onClick={() => setIsReportDialogOpen(true)}>
+                                <FileText className="mr-2 h-4 w-4"/> Generar Informe
+                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="redondear-switch">Redondear al alza</Label>
+                                <Switch id="redondear-switch" checked={redondearCompra} onCheckedChange={setRedondearCompra}/>
+                            </div>
                         </div>
                     </div>
                     <CardDescription>Materias primas necesarias para cubrir las necesidades de producción del periodo.</CardDescription>
@@ -1275,6 +1290,46 @@ export default function OfPage() {
                  <DialogFooter>
                     <Button variant="outline" onClick={() => setPedidoParaImprimir(null)}>Cerrar</Button>
                     <Button disabled><Printer className="mr-2 h-4 w-4"/>Imprimir (próximamente)</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Informe Consolidado de Compra</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-[70vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Proveedor</TableHead>
+                                <TableHead>Producto ERP (Ref.)</TableHead>
+                                <TableHead className="text-right">Cant. a Comprar</TableHead>
+                                <TableHead>Formato Compra</TableHead>
+                                <TableHead className="text-right">Necesidad Neta</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {flatCompraList.map(item => {
+                                 const cantidadAComprar = redondearCompra 
+                                    ? Math.ceil(item.necesidadNeta / item.unidadConversion) 
+                                    : (item.necesidadNeta / item.unidadConversion);
+                                return (
+                                <TableRow key={`${item.proveedorNombre}-${item.erpId}`}>
+                                    <TableCell>{item.proveedorNombre}</TableCell>
+                                    <TableCell>
+                                        {item.nombreProducto} <span className="text-xs text-muted-foreground">({item.refProveedor})</span>
+                                    </TableCell>
+                                    <TableCell className="text-right font-bold text-primary">{redondearCompra ? cantidadAComprar : formatNumber(cantidadAComprar, 2)}</TableCell>
+                                    <TableCell>{item.formatoCompra}</TableCell>
+                                    <TableCell className="text-right font-mono">{formatNumber(item.necesidadNeta, 3)} {formatUnit(item.unidadNeta)}</TableCell>
+                                </TableRow>
+                            )})}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsReportDialogOpen(false)}>Cerrar</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
