@@ -30,7 +30,7 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
             </SheetHeader>
             <nav className="grid items-start gap-1 p-4">
                 {bookNavLinks.map((item, index) => {
-                    const isActive = item.exact ? pathname === item.path : pathname.startsWith(item.path) && !item.exact;
+                    const isActive = item.exact ? pathname === item.path : pathname.startsWith(item.path);
                     return (
                     <Link
                         key={index}
@@ -58,24 +58,29 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [pageTitle, setPageTitle] = useState('');
     
-    useEffect(() => {
+    const { currentPage, isDetailPage } = useMemo(() => {
         const pathSegments = pathname.split('/').filter(Boolean);
-        if(pathSegments.length === 3 && pathSegments[1] === 'recetas' && pathSegments[2] !== 'nueva'){
-            const recipeId = pathSegments[2];
+        const moduleSegment = pathSegments[1] || 'book';
+        const isDetail = pathSegments.length > 2;
+
+        const page = bookNavLinks.find(link => link.path.endsWith(moduleSegment));
+
+        return {
+            currentPage: page,
+            isDetailPage: isDetail && page?.path !== '/book'
+        };
+    }, [pathname]);
+
+    useEffect(() => {
+        if (isDetailPage && currentPage?.path.includes('recetas')) {
+            const recipeId = pathname.split('/').pop();
             const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
             const recipe = allRecetas.find(r => r.id === recipeId);
-            setPageTitle(recipe?.nombre || 'Editar Receta');
-        } else if (pathSegments.length === 3 && pathSegments[1] === 'elaboraciones' && pathSegments[2] !== 'nuevo'){
-             setPageTitle('Editar Elaboración');
+            setPageTitle(recipe?.nombre || '');
         } else {
             setPageTitle('');
         }
-    }, [pathname]);
-
-    const currentPage = useMemo(() => {
-        const currentPath = pathname.split('/').slice(0, 3).join('/');
-        return bookNavLinks.find(link => currentPath === link.path);
-    }, [pathname]);
+    }, [pathname, currentPage, isDetailPage]);
 
     return (
         <>
@@ -105,10 +110,10 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                                 </Link>
                             </>
                         )}
-                         {pageTitle && (
+                         {isDetailPage && pageTitle && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <span className="text-primary">{pageTitle}</span>
+                                <span className="text-primary font-bold">{pageTitle}</span>
                             </>
                          )}
                     </div>
