@@ -73,7 +73,7 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
 };
 
 function ElaboracionesListPage() {
-  const [items, setItems] = useState<(ElaboracionConAlergenos & { usageCount: number })[]>([]);
+  const [items, setItems] = useState<(ElaboracionConAlergenos & { usageCount: number; usedIn: string[] })[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showOrphanedOnly, setShowOrphanedOnly] = useState(false);
@@ -91,18 +91,25 @@ function ElaboracionesListPage() {
     const storedIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const ingredientesMap = new Map(storedIngredientes.map(i => [i.id, i]));
 
-    const usageMap = new Map<string, number>();
+    const usageMap = new Map<string, string[]>();
     storedRecetas.forEach(receta => {
         (receta.elaboraciones || []).forEach(elabEnReceta => {
-            usageMap.set(elabEnReceta.elaboracionId, (usageMap.get(elabEnReceta.elaboracionId) || 0) + 1);
+            const currentUses = usageMap.get(elabEnReceta.elaboracionId) || [];
+            if (!currentUses.includes(receta.nombre)) {
+                usageMap.set(elabEnReceta.elaboracionId, [...currentUses, receta.nombre]);
+            }
         });
     });
 
-    const elaboracionesConDatos = storedElaboraciones.map((elab: Elaboracion) => ({
-      ...elab,
-      alergenosCalculados: calculateElabAlergenos(elab, ingredientesMap),
-      usageCount: usageMap.get(elab.id) || 0,
-    }));
+    const elaboracionesConDatos = storedElaboraciones.map((elab: Elaboracion) => {
+        const usedInRecetas = usageMap.get(elab.id) || [];
+        return {
+          ...elab,
+          alergenosCalculados: calculateElabAlergenos(elab, ingredientesMap),
+          usageCount: usedInRecetas.length,
+          usedIn: usedInRecetas
+        }
+    });
 
     setItems(elaboracionesConDatos);
     setIsMounted(true);
@@ -169,7 +176,7 @@ function ElaboracionesListPage() {
 
   const handleExportElaboracionesCSV = () => {
     const dataToExport = items.map(item => {
-        const { componentes, alergenosCalculados, usageCount, ...rest } = item;
+        const { componentes, alergenosCalculados, usageCount, usedIn, ...rest } = item;
         return {
             ...rest,
             fotosProduccionURLs: JSON.stringify(item.fotosProduccionURLs || []),
@@ -360,7 +367,20 @@ function ElaboracionesListPage() {
                   </TableCell>
                   <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.nombre}</TableCell>
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{formatCurrency(item.costePorUnidad)} / {formatUnit(item.unidadProduccion)}</TableCell>
-                  <TableCell className="text-center font-semibold">{item.usageCount}</TableCell>
+                  <TableCell className="text-center font-semibold">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                           <span className="cursor-default">{item.usageCount}</span>
+                        </TooltipTrigger>
+                        {item.usedIn && item.usedIn.length > 0 && (
+                            <TooltipContent>
+                                <ul className="list-disc pl-4 text-xs">
+                                    {item.usedIn.map(recetaName => <li key={recetaName}>{recetaName}</li>)}
+                                </ul>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                  </TableCell>
                   <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {(item.alergenosCalculados || []).map(alergeno => (
