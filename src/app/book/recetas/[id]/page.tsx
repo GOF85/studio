@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -29,7 +28,6 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
@@ -42,6 +40,7 @@ import { ElaborationForm, type ElaborationFormValues } from '@/components/book/e
 import { ComponenteSelector } from '@/components/book/componente-selector';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -199,8 +198,8 @@ function ImageUploadSection({ name, title, form, description }: { name: "fotosMi
                 />
             ) : (
                 <>
-                <CardTitle className="text-lg">{title}</CardTitle>
-                {description && <CardDescription>{description}</CardDescription>}
+                <h4 className="font-semibold text-lg">{title}</h4>
+                {description && <p className="text-sm text-muted-foreground">{description}</p>}
                 </>
             )}
             <div className="space-y-2 mt-2">
@@ -368,7 +367,7 @@ function RecetaFormPage() {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
-    const ingredientesMap = new Map(storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) })));
+    const ingredientesMap = new Map(storedInternos.map(ing => [ing.id, { ...ing, erp: erpMap.get(ing.productoERPlinkId) }]));
 
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     const updatedDbElaboraciones = allElaboraciones.map(e => {
@@ -497,16 +496,13 @@ function RecetaFormPage() {
     }
   }
   
-  const onError = (errors: FieldErrors<RecetaFormValues>) => {
+  const onError = (errors: any) => {
     console.error("Errores de validación del formulario:", errors);
-    const firstError = Object.entries(errors)[0];
-    if (firstError) {
-        toast({
-            variant: 'destructive',
-            title: 'Error de validación',
-            description: `Por favor, revisa todos los campos obligatorios.`,
-        })
-    }
+    toast({
+        variant: 'destructive',
+        title: 'Error de validación',
+        description: `Por favor, revisa todos los campos obligatorios.`,
+    })
   };
 
   function onSubmit(data: RecetaFormValues) {
@@ -576,8 +572,15 @@ function RecetaFormPage() {
                       </div>
                   </div>
                 
-                  <div className="space-y-4">
-                      <Card>
+                 <Tabs defaultValue="general">
+                    <TabsList className="grid w-full grid-cols-4">
+                        <TabsTrigger value="general">Info. General</TabsTrigger>
+                        <TabsTrigger value="costes">Info. €</TabsTrigger>
+                        <TabsTrigger value="receta">Receta</TabsTrigger>
+                        <TabsTrigger value="pase">Info. Pase</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="general" className="mt-4">
+                         <Card>
                           <CardHeader>
                               <CardTitle className="text-lg">Información General y Clasificación</CardTitle>
                           </CardHeader>
@@ -655,20 +658,13 @@ function RecetaFormPage() {
                                       <FormMessage />
                                   </FormItem>)} />
                               </div>
+                              <Separator />
+                              <ImageUploadSection name="fotosComercialesURLs" title="Imágenes Comerciales" description="Añade URLs de imágenes de alta calidad para usar en propuestas. La primera imagen será la principal." form={form} />
                           </CardContent>
                       </Card>
-
-                      <Card>
-                          <CardHeader className="py-4">
-                              <CardTitle className="text-lg">Imágenes Comerciales</CardTitle>
-                               <CardDescription>Añade URLs de imágenes de alta calidad para usar en propuestas. La primera imagen será la principal.</CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                              <ImageUploadSection name="fotosComercialesURLs" title="Imágenes Comerciales" form={form} />
-                          </CardContent>
-                      </Card>
-                      
-                      <Card>
+                    </TabsContent>
+                    <TabsContent value="costes" className="mt-4">
+                         <Card>
                           <CardHeader className="text-lg flex-row items-center justify-between">
                               <CardTitle className="flex items-center gap-2">
                                   <TrendingUp/>Análisis de Rentabilidad
@@ -691,62 +687,78 @@ function RecetaFormPage() {
                               </div>
                           </CardContent>
                       </Card>
-                      
-                      <Card>
-                          <CardHeader className="flex-row items-center justify-between py-3">
-                              <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones</CardTitle>
-                              <CardDescription className="text-xs">Añade los componentes que forman parte de esta receta.</CardDescription></div>
-                              <div className="flex gap-2">
-                                  <CreateElaborationModal onElaborationCreated={handleElaborationCreated}>
-                                      <Button variant="secondary" size="sm" type="button"><PlusCircle size={16} /> Crear Nueva</Button>
-                                  </CreateElaborationModal>
-                                  <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                                      <DialogTrigger asChild>
+                    </TabsContent>
+                    <TabsContent value="receta" className="mt-4">
+                        <Card>
+                            <CardHeader className="flex-row items-center justify-between py-3">
+                                <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones</CardTitle>
+                                <CardDescription className="text-xs">Añade los componentes que forman parte de esta receta.</CardDescription></div>
+                                <div className="flex gap-2">
+                                    <CreateElaborationModal onElaborationCreated={handleElaborationCreated}>
+                                        <Button variant="secondary" size="sm" type="button"><PlusCircle size={16} /> Crear Nueva</Button>
+                                    </CreateElaborationModal>
+                                    <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                                        <DialogTrigger asChild>
                                         <Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>
-                                      </DialogTrigger>
-                                      <ComponenteSelector onSelectIngrediente={() => {}} onSelectElaboracion={onAddElab} allElaboraciones={Array.from(dbElaboraciones.values())} />
-                                  </Dialog>
-                              </div>
-                          </CardHeader>
-                          <CardContent>
-                              <div className="border rounded-lg">
-                            <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e)} collisionDetection={closestCenter}>
-                              <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-10 p-2"></TableHead>
-                                        <TableHead className="py-2 px-3">Nombre</TableHead>
-                                        <TableHead className="w-28 py-2 px-3 text-right">Coste / Ud.</TableHead>
-                                        <TableHead className="w-28 py-2 px-3">Cantidad</TableHead>
-                                        <TableHead className="w-24 py-2 px-3">% Merma</TableHead>
-                                        <TableHead className="w-24 py-2 px-3">Unidad</TableHead>
-                                        <TableHead className="w-32 py-2 px-3 text-right">Subtotal</TableHead>
-                                        <TableHead className="w-12 py-2 px-3"></TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                                      <TableBody>
-                                      {(elabFields || []).map((field, index) => (
-                                          <SortableTableRow key={field.id} field={{...field, key: field.id}} index={index} remove={removeElab} form={form} />
-                                      ))}
-                                      </TableBody>
-                                  </SortableContext>
-                              </Table>
-                            </DndContext>
-                            </div>
-                          </CardContent>
-                      </Card>
-                      <Card>
-                          <CardHeader className="py-3">
-                              <CardTitle className="flex items-center gap-2 text-lg"><FilePenLine/>Instrucciones y Medios</CardTitle>
-                          </CardHeader>
-                          <CardContent className="grid lg:grid-cols-3 gap-6 pt-2">
-                              <ImageUploadSection name="fotosMiseEnPlaceURLs" title="Instrucciones Mise en Place" form={form} />
-                              <ImageUploadSection name="fotosRegeneracionURLs" title="Instrucciones Regeneración" form={form} />
-                              <ImageUploadSection name="fotosEmplatadoURLs" title="Instrucciones Emplatado" form={form} />
-                          </CardContent>
-                      </Card>
-                  </div>
+                                        </DialogTrigger>
+                                        <ComponenteSelector onSelectIngrediente={() => {}} onSelectElaboracion={onAddElab} allElaboraciones={Array.from(dbElaboraciones.values())} />
+                                    </Dialog>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="border rounded-lg">
+                                <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e)} collisionDetection={closestCenter}>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-10 p-2"></TableHead>
+                                            <TableHead className="py-2 px-3">Nombre</TableHead>
+                                            <TableHead className="w-28 py-2 px-3 text-right">Coste / Ud.</TableHead>
+                                            <TableHead className="w-28 py-2 px-3">Cantidad</TableHead>
+                                            <TableHead className="w-24 py-2 px-3">% Merma</TableHead>
+                                            <TableHead className="w-24 py-2 px-3">Unidad</TableHead>
+                                            <TableHead className="w-32 py-2 px-3 text-right">Subtotal</TableHead>
+                                            <TableHead className="w-12 py-2 px-3"></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                        <TableBody>
+                                        {(elabFields || []).map((field, index) => (
+                                            <SortableTableRow key={field.id} field={{...field, key: field.id}} index={index} remove={removeElab} form={form} />
+                                        ))}
+                                        </TableBody>
+                                    </SortableContext>
+                                </Table>
+                                </DndContext>
+                                </div>
+                            </CardContent>
+                             <CardFooter className="flex-col items-start gap-3 mt-4">
+                                <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Resumen de Alérgenos</h4>
+                                <div className="w-full space-y-2">
+                                     <div className="border rounded-md p-2 w-full bg-background min-h-8">
+                                        {alergenos.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {alergenos.map(a => <AllergenBadge key={a} allergen={a}/>)}
+                                            </div>
+                                        ) : <p className="text-xs text-muted-foreground italic">Ninguno</p>}
+                                    </div>
+                                </div>
+                            </CardFooter>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="pase" className="mt-4">
+                        <Card>
+                            <CardHeader className="py-3">
+                                <CardTitle className="flex items-center gap-2 text-lg"><FilePenLine/>Instrucciones y Medios</CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid lg:grid-cols-3 gap-6 pt-2">
+                                <ImageUploadSection name="fotosMiseEnPlaceURLs" title="Instrucciones Mise en Place" form={form} />
+                                <ImageUploadSection name="fotosRegeneracionURLs" title="Instrucciones Regeneración" form={form} />
+                                <ImageUploadSection name="fotosEmplatadoURLs" title="Instrucciones Emplatado" form={form} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                 </Tabs>
                 </form>
               </FormProvider>
         </main>
@@ -781,3 +793,4 @@ export default function RecetaPage() {
     return <RecetaFormPage />
 }
 
+    
