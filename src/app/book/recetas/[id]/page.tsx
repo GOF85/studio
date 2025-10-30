@@ -190,9 +190,10 @@ function ImageUploadSection({ name, title, description, form }: { name: "fotosMi
     return (
         <div>
             <h4 className="font-semibold text-lg">{title}</h4>
-            {description && <p className="text-sm text-muted-foreground mb-2">{description}</p>}
             
-            {name === "fotosComercialesURLs" && (
+            {name === "fotosComercialesURLs" ? (
+                <>
+                <p className="text-sm text-muted-foreground mb-2">{description}</p>
                 <FormField control={form.control} name="descripcionComercial" render={({ field }) => (
                     <FormItem className="mb-4">
                         <FormLabel className="flex items-center gap-2">Descripción Comercial 
@@ -203,9 +204,8 @@ function ImageUploadSection({ name, title, description, form }: { name: "fotosMi
                         <FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl>
                     </FormItem>
                 )} />
-            )}
-            
-            {name !== "fotosComercialesURLs" && (
+                </>
+            ) : (
                  <FormField
                     control={form.control}
                     name={name === "fotosMiseEnPlaceURLs" ? "instruccionesMiseEnPlace" : name === "fotosRegeneracionURLs" ? "instruccionesRegeneracion" : "instruccionesEmplatado"}
@@ -555,7 +555,7 @@ function RecetaFormPage() {
 
     localStorage.setItem('recetas', JSON.stringify(allItems));
     setIsLoading(false);
-    form.reset(dataToSave); 
+    form.reset(dataToSave as RecetaFormValues); 
     router.push('/book/recetas');
   }
 
@@ -630,7 +630,7 @@ function RecetaFormPage() {
                                     <FormField control={form.control} name="responsableEscandallo" render={({ field }) => (
                                     <FormItem className="flex flex-col">
                                         <FormLabel className="flex items-center gap-1.5">Responsable del Escandallo <InfoTooltip text="Persona encargada de definir y mantener los costes y componentes de esta receta." /></FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value || ''}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un responsable..." /></SelectTrigger></FormControl>
                                         <SelectContent>{personalCPR.map((p) => (<SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>))}</SelectContent>
                                         </Select>
@@ -694,7 +694,7 @@ function RecetaFormPage() {
                                 
                                 <Separator className="my-4"/>
 
-                                <ImageUploadSection name="fotosComercialesURLs" title="Información Comercial" form={form} />
+                                <ImageUploadSection name="fotosComercialesURLs" title="Información Comercial" form={form} description="Añade fotos para la propuesta comercial y una descripción atractiva."/>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -873,6 +873,7 @@ export default function RecetaPage() {
 
     return <RecetaFormPage />;
 }
+
 
 
 

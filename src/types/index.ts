@@ -477,7 +477,7 @@ export type AtipicoOrder = {
 export type PersonalMiceOrder = {
     id: string;
     osId: string;
-    solicitadoPor: 'Sala' | 'Pase' | 'Otro';
+    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
     nombre: string;
     dni: string;
     tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
