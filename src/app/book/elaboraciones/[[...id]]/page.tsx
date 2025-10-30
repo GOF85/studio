@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -178,13 +179,14 @@ function ElaboracionesListPage() {
     });
   };
   
-  const handleSelectAll = (checked: boolean | 'indeterminate') => {
-    if (checked) {
-        setSelectedItems(new Set(filteredItems.map(i => i.id)));
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+        setSelectedItems(new Set(filteredItems.map(item => item.id)));
     } else {
         setSelectedItems(new Set());
     }
   };
+
 
   const handleExportElaboracionesCSV = () => {
     const dataToExport = items.map(item => {
@@ -291,67 +293,72 @@ function ElaboracionesListPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center justify-between gap-4 mb-6">
+      <div className="flex items-center justify-between gap-4 mb-4">
         <div className="flex items-center gap-4">
-            <Input 
-              placeholder="Buscar por nombre..."
-              className="flex-grow max-w-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Select value={partidaFilter} onValueChange={setPartidaFilter}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filtrar por partida" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Todas las Partidas</SelectItem>
-                    {PARTIDAS_PRODUCCION.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                </SelectContent>
-            </Select>
-            <div className="flex items-center space-x-2">
-                <Checkbox id="orphan-filter" checked={showOrphanedOnly} onCheckedChange={(checked) => setShowOrphanedOnly(!!checked)} />
-                <Label htmlFor="orphan-filter">Elaboraciones Huérfanas</Label>
-            </div>
+          <Input 
+            placeholder="Buscar por nombre..."
+            className="flex-grow max-w-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Select value={partidaFilter} onValueChange={setPartidaFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filtrar por partida" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las Partidas</SelectItem>
+              {PARTIDAS_PRODUCCION.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center space-x-2">
+            <Checkbox id="orphan-filter" checked={showOrphanedOnly} onCheckedChange={(checked) => setShowOrphanedOnly(!!checked)} />
+            <Label htmlFor="orphan-filter">Elaboraciones Huérfanas</Label>
+          </div>
         </div>
-        <div className="flex gap-2">
-          {numSelected > 0 && (
-            <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar Selección ({numSelected})</Button>
-          )}
-          <Button asChild>
-            <Link href="/book/elaboraciones/nueva">
-              <PlusCircle className="mr-2" />
-              Nueva Elaboración
-            </Link>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Menu />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Exportar a CSV</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={handleExportElaboracionesCSV}>
-                <Download size={16} className="mr-2" />
-                Elaboraciones (Maestro)
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={handleExportComponentesCSV}>
-                <Download size={16} className="mr-2" />
-                Componentes (Detalle)
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Importar desde CSV</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => handleImportClick('elaboraciones')}>
-                <Upload size={16} className="mr-2" />
-                Elaboraciones (Maestro)
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleImportClick('componentes')}>
-                <Upload size={16} className="mr-2" />
-                Componentes (Detalle)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
+            <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
         </div>
+      </div>
+      <div className="flex items-center justify-end gap-2 mb-6">
+        {numSelected > 0 && (
+          <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar Selección ({numSelected})</Button>
+        )}
+        <Button asChild>
+          <Link href="/book/elaboraciones/nueva">
+            <PlusCircle className="mr-2" />
+            Nueva Elaboración
+          </Link>
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon">
+              <Menu />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Exportar a CSV</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={handleExportElaboracionesCSV}>
+              <Download size={16} className="mr-2" />
+              Elaboraciones (Maestro)
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleExportComponentesCSV}>
+              <Download size={16} className="mr-2" />
+              Componentes (Detalle)
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Importar desde CSV</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => handleImportClick('elaboraciones')}>
+              <Upload size={16} className="mr-2" />
+              Elaboraciones (Maestro)
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleImportClick('componentes')}>
+              <Upload size={16} className="mr-2" />
+              Componentes (Detalle)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       
       <input
@@ -361,12 +368,6 @@ function ElaboracionesListPage() {
         accept=".csv"
         onChange={handleFileSelected}
       />
-      
-       <div className="flex items-center justify-end gap-2 mb-4">
-            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
-            <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-            <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
-        </div>
 
       <div className="border rounded-lg">
         <Table>
@@ -533,7 +534,7 @@ function ElaborationFormPage() {
 
     }, [idParam, isNew, isEditing, cloneId]);
 
-    const handleSave = (data: ElaborationFormValues, costePorUnidad: number) => {
+    const handleSave = async (data: ElaborationFormValues, costePorUnidad: number) => {
         setIsLoading(true);
         let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
         let message = '';
@@ -556,11 +557,10 @@ function ElaborationFormPage() {
 
         localStorage.setItem('elaboraciones', JSON.stringify(allItems));
         
-        setTimeout(() => {
-          toast({ description: message });
-          setIsLoading(false);
-          router.push('/book/elaboraciones');
-        }, 1000);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        toast({ description: message });
+        setIsLoading(false);
+        router.push('/book/elaboraciones');
     }
     
     if (!isDataLoaded) {
@@ -609,4 +609,5 @@ export default function ElaboracionesPage() {
         </Suspense>
     );
 }
+
 
