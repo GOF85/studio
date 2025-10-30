@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -9,7 +7,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil, Check, CircleX, Shield } from 'lucide-react';
-import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta, FamiliaERP, ServiceOrder, GastronomyOrder } from '@/types';
+import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta, FamiliaERP, ServiceOrder, GastronomyOrder, Proveedor } from '@/types';
 import { ALERGENOS } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -35,7 +33,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as React from 'react';
 import { isBefore, subMonths, startOfToday, addYears, isWithinInterval, addDays, format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { Combobox } from '@/components/ui/combobox';
@@ -53,6 +51,7 @@ type IngredienteFormValues = z.infer<typeof ingredienteFormSchema>;
 type IngredienteConERP = IngredienteInterno & {
     erp?: ArticuloERP;
     urgency?: 'high' | 'medium' | 'low';
+    precioCalculado?: number;
 };
 
 const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "alergenosPresentes", "alergenosTrazas", "historialRevisiones"];
@@ -279,6 +278,10 @@ function IngredientesPageContent() {
     const articulosERP = JSON.parse(storedErp) as ArticuloERP[];
     const erpMap = new Map(articulosERP.map(item => [item.idreferenciaerp, item]));
 
+    const storedProveedores = localStorage.getItem('proveedores') || '[]';
+    const proveedoresMap = new Map((JSON.parse(storedProveedores) as Proveedor[]).map(p => [p.IdERP, p.nombreComercial]));
+
+
     let storedIngredientes = localStorage.getItem('ingredientesInternos') || '[]';
     const ingredientesInternos = JSON.parse(storedIngredientes) as IngredienteInterno[];
     
@@ -333,11 +336,9 @@ function IngredientesPageContent() {
                 erpItem.categoriaMice = familia.Categoria;
                 erpItem.tipo = familia.Familia;
             }
+            erpItem.nombreProveedor = proveedoresMap.get(erpItem.idProveedor || '') || erpItem.nombreProveedor || 'N/A';
         }
         
-        const presentes = ing.alergenosPresentes || [];
-        const trazas = ing.alergenosTrazas || [];
-
         const usageDate = ingredientUsageDate.get(ing.id);
         let urgency: IngredienteConERP['urgency'] = 'low';
         if (usageDate) {
@@ -345,11 +346,18 @@ function IngredientesPageContent() {
             else if (isBefore(usageDate, next30days)) urgency = 'medium';
         }
 
+        const calculatePrice = (p?: ArticuloERP) => {
+            if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
+            const basePrice = p.precioCompra / (p.unidadConversion || 1);
+            const discount = p.descuento || 0;
+            return basePrice * (1 - discount / 100);
+        }
+
         return {
             ...ing,
             erp: erpItem,
-            alergenos: [...new Set([...presentes, ...trazas])] as Alergeno[],
             urgency,
+            precioCalculado: calculatePrice(erpItem)
         }
     });
 
@@ -546,23 +554,19 @@ function IngredientesPageContent() {
       });
   }
 
+  const getInitials = (name: string) => {
+    if (!name) return '';
+    const nameParts = name.split(' ');
+    if (nameParts.length > 1) {
+        return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
+
   if (!isMounted) return <LoadingSkeleton title="Cargando Ingredientes..." />;
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Shield />Verificación de Ingredientes</h1>
-        <div className="flex gap-2">
-            <Button onClick={() => setEditingIngredient({})}><PlusCircle className="mr-2" />Nuevo Ingrediente</Button>
-            <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><Menu /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}><FileUp size={16} className="mr-2"/>Importar CSV</DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportCSV}><FileDown size={16} className="mr-2"/>Exportar CSV</DropdownMenuItem>
-            </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
-      </div>
         
         <div className="flex items-center justify-between gap-4 mb-4">
           <Input placeholder="Buscar..." className="flex-grow max-w-lg" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -582,8 +586,9 @@ function IngredientesPageContent() {
             <TableHeader><TableRow>
                 <TableHead>Ingrediente</TableHead>
                 <TableHead>Producto ERP Vinculado</TableHead>
-                <TableHead>Categoría MICE</TableHead>
+                <TableHead>Proveedor</TableHead>
                 <TableHead>Categoría ERP</TableHead>
+                <TableHead>Precio/Ud.</TableHead>
                 <TableHead>Última Revisión</TableHead>
                 <TableHead>Responsable</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
@@ -593,22 +598,21 @@ function IngredientesPageContent() {
                 paginatedItems.map(item => {
                     const latestRevision = item.historialRevisiones?.[item.historialRevisiones.length - 1];
                     const needsReview = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
-                    
                     const urgencyClass = needsReview && item.urgency === 'high' ? 'bg-red-100/50' 
                                        : needsReview && item.urgency === 'medium' ? 'bg-amber-100/50'
                                        : '';
-
                     return (
                         <TableRow key={item.id} className={cn(needsReview && 'bg-amber-50', urgencyClass)}>
                             <TableCell className="font-medium">{item.nombreIngrediente}</TableCell>
                             <TableCell>{item.erp?.nombreProductoERP || <span className="text-destructive">No Vinculado</span>}</TableCell>
-                            <TableCell>{item.erp?.categoriaMice || '-'}</TableCell>
+                            <TableCell>{item.erp?.nombreProveedor}</TableCell>
                             <TableCell>{item.erp?.tipo || '-'}</TableCell>
+                            <TableCell className="font-mono text-right">{formatCurrency(item.precioCalculado || 0)}</TableCell>
                             <TableCell className={cn(needsReview && 'text-destructive font-bold')}>
                                 {latestRevision ? format(new Date(latestRevision.fecha), 'dd/MM/yyyy') : 'Nunca'}
                                 {needsReview && <AlertTriangle className="inline ml-2 h-4 w-4" />}
                             </TableCell>
-                            <TableCell>{latestRevision?.responsable || '-'}</TableCell>
+                            <TableCell>{latestRevision ? getInitials(latestRevision.responsable) : '-'}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex gap-2 justify-end">
                                 <Button size="sm" variant="secondary" onClick={() => handleValidate(item)}><Check className="mr-2 h-4 w-4" />Validar</Button>
@@ -618,7 +622,7 @@ function IngredientesPageContent() {
                         </TableRow>
                     )
                 })
-              ) : <TableRow><TableCell colSpan={7} className="h-24 text-center">No se encontraron ingredientes.</TableCell></TableRow>}
+              ) : <TableRow><TableCell colSpan={8} className="h-24 text-center">No se encontraron ingredientes.</TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>
@@ -667,6 +671,7 @@ function IngredientesPageContent() {
 }
 
 export default function IngredientesPageWrapper() {
+    const [headerActions, setHeaderActions] = useState<React.ReactNode>(null);
     return (
         <Suspense fallback={<LoadingSkeleton title="Cargando Ingredientes..." />}>
             <IngredientesPageContent />
