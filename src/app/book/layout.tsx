@@ -57,68 +57,43 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
 export default function BookLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
-    const [pageTitle, setPageTitle] = useState('');
     
-    const { currentPage, isDetailPage, detailId, isNewPage } = useMemo(() => {
-        console.log('[Layout-Debug] Pathname:', pathname);
+    const { currentPage, pageTitle } = useMemo(() => {
         const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['book', 'recetas', '12345']
         
-        // Base case for /book
-        if (pathSegments.length <= 1) {
-            console.log('[Layout-Debug] Current Page Logic: Main Book Page');
-            return { currentPage: bookNavLinks.find(link => link.path === '/book'), isDetailPage: false, detailId: null, isNewPage: false };
-        }
-
-        const moduleSegment = pathSegments[1];
+        const moduleSegment = pathSegments[1] || 'book';
         const idSegment = pathSegments[2];
-        const isNew = idSegment === 'nuevo';
-        
+        const cloneId = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('cloneId');
+
         const page = bookNavLinks.find(link => link.path.includes(`/book/${moduleSegment}`));
-
-        if (page && idSegment) {
-             console.log('[Layout-Debug] Current Page Logic: Detail Page');
-             return {
-                currentPage: page,
-                isDetailPage: true,
-                detailId: isNew ? null : idSegment,
-                isNewPage: isNew,
-            };
-        }
-
-        if (page) {
-            console.log('[Layout-Debug] Current Page Logic: Module List Page');
-            return { currentPage: page, isDetailPage: false, detailId: null, isNewPage: false };
+        
+        let title = '';
+        if (idSegment) {
+            if (idSegment === 'nuevo' || idSegment === 'nueva') {
+                if (cloneId) {
+                    title = `Clonando ${page?.path.includes('recetas') ? 'Receta' : 'Elaboración'}`;
+                } else {
+                    title = `Nueva ${page?.path.includes('recetas') ? 'Receta' : 'Elaboración'}`;
+                }
+            } else if (typeof window !== 'undefined') {
+                try {
+                    if (page?.path.includes('recetas')) {
+                        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+                        const recipe = allRecetas.find(r => r.id === idSegment);
+                        title = recipe?.nombre || '';
+                    } else if (page?.path.includes('elaboraciones')) {
+                        const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+                        const elaboracion = allElaboraciones.find(e => e.id === idSegment);
+                        title = elaboracion?.nombre || '';
+                    }
+                } catch(e) {
+                    console.error("Failed to parse from localStorage:", e);
+                }
+            }
         }
         
-        console.log('[Layout-Debug] Current Page Logic: Fallback to main');
-        return { currentPage: bookNavLinks.find(link => link.path === '/book'), isDetailPage: false, detailId: null, isNewPage: false };
+        return { currentPage: page, pageTitle: title };
     }, [pathname]);
-
-    useEffect(() => {
-        if (isDetailPage) {
-            if (isNewPage) {
-                const moduleName = currentPage?.path.includes('recetas') ? 'Nueva Receta' : 'Nueva Elaboración';
-                setPageTitle(moduleName);
-                console.log('[Layout-Debug] Page Title Set:', moduleName);
-            } else if (detailId) {
-                let title = '';
-                 if (currentPage?.path.includes('recetas')) {
-                    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-                    const recipe = allRecetas.find(r => r.id === detailId);
-                    title = recipe?.nombre || '';
-                } else if (currentPage?.path.includes('elaboraciones')) {
-                    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-                    const elaboracion = allElaboraciones.find(e => e.id === detailId);
-                    title = elaboracion?.nombre || '';
-                }
-                setPageTitle(title);
-                console.log('[Layout-Debug] Page Title Set:', title);
-            }
-        } else {
-            setPageTitle('');
-            console.log('[Layout-Debug] Page Title Set: (empty)');
-        }
-    }, [pathname, currentPage, isDetailPage, detailId, isNewPage]);
 
     return (
         <>
@@ -148,7 +123,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                                 </Link>
                             </>
                         )}
-                         {isDetailPage && pageTitle && (
+                         {pageTitle && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
                                 <span className="text-primary font-bold">{pageTitle}</span>
