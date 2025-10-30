@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Component, ChefHat, PlusCircle, Trash2, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon, RefreshCw, Sprout } from 'lucide-react';
+import { Loader2, Component, ChefHat, PlusCircle, Trash2, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon, RefreshCw, Sprout, AlertTriangle } from 'lucide-react';
 import type { Elaboracion, IngredienteInterno, UnidadMedida, ArticuloERP, PartidaProduccion, FormatoExpedicion, Alergeno } from '@/types';
 import { UNIDADES_MEDIDA, ALERGENOS } from '@/types';
 
@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AllergenBadge } from '../icons/allergen-badge';
 import { ComponenteSelector } from '@/components/book/componente-selector';
+import { Switch } from '../ui/switch';
 
 const componenteSchema = z.object({
     id: z.string(),
@@ -50,6 +51,9 @@ const elaboracionFormSchema = z.object({
   formatoExpedicion: z.string().optional().default(''),
   ratioExpedicion: z.coerce.number().optional().default(0),
   tipoExpedicion: z.enum(['REFRIGERADO', 'CONGELADO', 'SECO']),
+  requiereRevision: z.boolean().optional().default(false),
+  comentarioRevision: z.string().optional().default(''),
+  fechaRevision: z.string().optional().default(''),
 });
 
 export type ElaborationFormValues = z.infer<typeof elaboracionFormSchema>;
@@ -202,6 +206,9 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
   }, [watchedComponentes, watchedProduccionTotal, ingredientesData, elaboracionesData]);
   
   const handleFormSubmit = (data: ElaborationFormValues) => {
+    if (data.requiereRevision && !data.fechaRevision) {
+        data.fechaRevision = new Date().toISOString();
+    }
     onSave(data, costePorUnidad);
   };
   
@@ -216,13 +223,17 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     <TooltipProvider>
     <Form {...form}>
       <form id="elaboration-form" onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
-        <div className="grid lg:grid-cols-[1fr_320px] gap-4 items-start">
-            <div className="space-y-4">
-                <Card>
+        <Tabs defaultValue="general">
+            <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="general">Info. General</TabsTrigger>
+                <TabsTrigger value="componentes">Componentes</TabsTrigger>
+                <TabsTrigger value="costes">Info. €</TabsTrigger>
+                <TabsTrigger value="preparacion">Info. preparación</TabsTrigger>
+            </TabsList>
+            <TabsContent value="general" className="mt-4">
+                 <Card>
                     <CardHeader className="flex flex-row justify-between items-start py-3">
-                        <div>
-                            <CardTitle className="text-lg">Información General</CardTitle>
-                        </div>
+                        <div><CardTitle className="text-lg">Información General</CardTitle></div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-4">
@@ -258,10 +269,32 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                 <FormMessage /></FormItem>
                             )} />
                         </div>
+                         <div className="space-y-4 pt-4 border-t">
+                            <FormField control={form.control} name="requiereRevision" render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                                <FormControl>
+                                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Requiere Revisión</FormLabel>
+                                    <p className="text-sm text-muted-foreground">Marca esta opción si la elaboración necesita ser revisada.</p>
+                                </div>
+                                </FormItem>
+                            )} />
+                            {form.watch('requiereRevision') && (
+                                <FormField control={form.control} name="comentarioRevision" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Comentario de Revisión</FormLabel>
+                                        <FormControl><Textarea {...field} placeholder="Describe por qué necesita revisión..." rows={2} /></FormControl>
+                                    </FormItem>
+                                )} />
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
-                
-                <Card>
+            </TabsContent>
+            <TabsContent value="componentes" className="mt-4">
+                 <Card>
                     <CardHeader className="flex-row items-center justify-between py-3">
                         <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Componentes</CardTitle>
                         <CardDescription className="text-xs">Añade los ingredientes y sub-elaboraciones que forman parte de esta preparación.</CardDescription></div>
@@ -335,8 +368,53 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                         </div>
                         {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.message}</p>}
                     </CardContent>
+                    <CardFooter className="flex-col items-start gap-3 mt-4">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Resumen de Alérgenos</h4>
+                        <div className="w-full space-y-2">
+                            <div>
+                                <p className="text-xs font-bold text-muted-foreground mb-1">Presentes:</p>
+                                <div className="border rounded-md p-2 w-full bg-background min-h-8">
+                                    {alergenosPresentes.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {alergenosPresentes.map(a => <AllergenBadge key={a} allergen={a}/>)}
+                                        </div>
+                                    ) : <p className="text-xs text-muted-foreground italic">Ninguno</p>}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-muted-foreground mb-1">Trazas:</p>
+                                <div className="border rounded-md p-2 w-full bg-background min-h-8">
+                                    {alergenosTrazas.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {alergenosTrazas.map(a => <AllergenBadge key={a} allergen={a} isTraza/>)}
+                                        </div>
+                                    ) : <p className="text-xs text-muted-foreground italic">Ninguna</p>}
+                                </div>
+                            </div>
+                        </div>
+                    </CardFooter>
                 </Card>
-
+            </TabsContent>
+            <TabsContent value="costes" className="mt-4">
+                <Card>
+                    <CardHeader className="flex-row items-start justify-between">
+                        <CardTitle className="text-lg">Coste de la Elaboración</CardTitle>
+                        <div className="text-right">
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
+                                <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
+                            </div>
+                            <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">Coste total de materia prima: {formatCurrency(costeTotal)}</p>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="preparacion" className="mt-4">
                 <Card>
                     <CardHeader className="py-3">
                         <CardTitle className="text-lg">Instrucciones y Medios</CardTitle>
@@ -366,91 +444,47 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                 ))}
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
-            </div>
-            <div className="space-y-4">
-                <Card className="sticky top-24">
-                    <CardHeader className="flex-row items-start justify-between">
-                        <CardTitle className="text-lg">Coste de la Elaboración</CardTitle>
-                        <div className="text-right">
-                            <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
-                                    <RefreshCw className="h-4 w-4" />
-                                </Button>
-                                <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
-                            </div>
-                            <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground">Coste total de materia prima: {formatCurrency(costeTotal)}</p>
-                    </CardContent>
-                    <CardFooter className="flex-col items-start gap-3">
-                        <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Resumen de Alérgenos</h4>
-                        <div className="w-full space-y-2">
-                            <div>
-                                <p className="text-xs font-bold text-muted-foreground mb-1">Presentes:</p>
-                                <div className="border rounded-md p-2 w-full bg-background min-h-8">
-                                    {alergenosPresentes.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {alergenosPresentes.map(a => <AllergenBadge key={a} allergen={a}/>)}
-                                        </div>
-                                    ) : <p className="text-xs text-muted-foreground italic">Ninguno</p>}
+                         <Card>
+                            <CardHeader className="py-3">
+                                <CardTitle className="text-base">Datos de Expedición</CardTitle>
+                                <CardDescription className="text-xs">Define cómo se empaqueta y conserva esta elaboración.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <FormField control={form.control} name="formatoExpedicion" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Formato Expedición</FormLabel>
+                                        <Combobox
+                                            options={formatosExpedicion.map(f => ({ value: f.nombre, label: f.nombre }))}
+                                            value={field.value || ''}
+                                            onChange={field.onChange}
+                                            placeholder="Ej: Barqueta 1kg"
+                                        />
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="ratioExpedicion" render={({ field }) => (
+                                        <FormItem><FormLabel>Ratio Expedición</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="tipoExpedicion" render={({ field }) => (
+                                        <FormItem><FormLabel>Tipo de Expedición</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="REFRIGERADO">Refrigerado</SelectItem>
+                                                    <SelectItem value="CONGELADO">Congelado</SelectItem>
+                                                    <SelectItem value="SECO">Seco</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        <FormMessage /></FormItem>
+                                    )} />
                                 </div>
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-muted-foreground mb-1">Trazas:</p>
-                                <div className="border rounded-md p-2 w-full bg-background min-h-8">
-                                    {alergenosTrazas.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {alergenosTrazas.map(a => <AllergenBadge key={a} allergen={a} isTraza/>)}
-                                        </div>
-                                    ) : <p className="text-xs text-muted-foreground italic">Ninguna</p>}
-                                </div>
-                            </div>
-                        </div>
-                    </CardFooter>
-                </Card>
-                <Card>
-                    <CardHeader className="py-3">
-                        <CardTitle className="text-lg">Datos de Expedición</CardTitle>
-                        <CardDescription className="text-xs">Define cómo se empaqueta y conserva esta elaboración.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <FormField control={form.control} name="formatoExpedicion" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Formato Expedición</FormLabel>
-                                <Combobox
-                                    options={formatosExpedicion.map(f => ({ value: f.nombre, label: f.nombre }))}
-                                    value={field.value || ''}
-                                    onChange={field.onChange}
-                                    placeholder="Ej: Barqueta 1kg"
-                                />
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="ratioExpedicion" render={({ field }) => (
-                                <FormItem><FormLabel>Ratio Expedición</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={form.control} name="tipoExpedicion" render={({ field }) => (
-                                <FormItem><FormLabel>Tipo de Expedición</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="REFRIGERADO">Refrigerado</SelectItem>
-                                            <SelectItem value="CONGELADO">Congelado</SelectItem>
-                                            <SelectItem value="SECO">Seco</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                <FormMessage /></FormItem>
-                            )} />
-                        </div>
+                            </CardContent>
+                        </Card>
                     </CardContent>
                 </Card>
-            </div>
-        </div>
+            </TabsContent>
+        </Tabs>
       </form>
     </Form>
     </TooltipProvider>

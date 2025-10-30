@@ -645,10 +645,12 @@ export type ComponenteElaboracion = {
     merma: number;
 }
 
+export const PARTIDAS_PRODUCCION = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'] as const;
+export type PartidaProduccion = typeof PARTIDAS_PRODUCCION[number];
+
 export type Elaboracion = {
     id: string;
     nombre: string;
-    responsable?: string;
     produccionTotal: number;
     unidadProduccion: UnidadMedida;
     partidaProduccion: PartidaProduccion;
@@ -680,9 +682,6 @@ export type ElaboracionEnReceta = {
 
 export const SABORES_PRINCIPALES = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
 export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
-
-export const PARTIDAS_PRODUCCION = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'] as const;
-export type PartidaProduccion = typeof PARTIDAS_PRODUCCION[number];
 
 export const TECNICAS_COCCION = ['Horneado / Asado', 'Fritura', 'Guiso / Estofado', 'Plancha / Salteado', 'Vapor / Hervido', 'Crudo / Marinado', 'Baja Temperatura / Sous-vide'] as const;
 export type TecnicaCoccion = typeof TECNICAS_COCCION[number];
