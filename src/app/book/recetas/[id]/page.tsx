@@ -38,7 +38,6 @@ import { formatCurrency, formatUnit, cn } from '@/lib/utils';
 import Image from 'next/image';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
-import { ComponenteSelector } from '@/components/book/componente-selector';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -104,7 +103,7 @@ const recetaFormSchema = z.object({
   etiquetasTendencia: z.array(z.string()).optional().default([]),
   requiereRevision: z.boolean().optional().default(false),
   comentarioRevision: z.string().optional().default(''),
-  fechaRevision: z.string().optional().default(''),
+  fechaRevision: z.string().optional(),
 });
 
 type RecetaFormValues = z.infer<typeof recetaFormSchema>;
@@ -293,6 +292,35 @@ function CreateElaborationModal({ onElaborationCreated, children }: { onElaborat
     );
 }
 
+function ElaborationSelector({ allElaboraciones, onSelect }: { allElaboraciones: ElaboracionConCoste[], onSelect: (elab: ElaboracionConCoste) => void }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const filtered = allElaboraciones.filter(e => e.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    return (
+        <DialogContent>
+            <DialogHeader><DialogTitle>Seleccionar Elaboración</DialogTitle></DialogHeader>
+            <Input placeholder="Buscar elaboración..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="my-2" />
+            <div className="max-h-[50vh] overflow-y-auto border rounded-md">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Elaboración</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {filtered.map(elab => (
+                            <TableRow key={elab.id}>
+                                <TableCell>{elab.nombre}</TableCell>
+                                <TableCell>{formatCurrency(elab.costePorUnidad)} / {formatUnit(elab.unidadProduccion)}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button size="sm" type="button" onClick={() => onSelect(elab)}>Añadir</Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        </DialogContent>
+    );
+}
+
+
 const defaultValues: Partial<RecetaFormValues> = { 
     id: '', 
     nombre: '', 
@@ -343,6 +371,8 @@ function RecetaFormPage() {
   const [dbElaboraciones, setDbElaboraciones] = useState<ElaborationConCoste[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
+  const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
+
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
@@ -359,6 +389,7 @@ function RecetaFormPage() {
     const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
     const ingredientesMap = new Map(storedInternos.map(ing => [ing.id, { ...ing, erp: erpMap.get(ing.productoERPlinkId) }]));
+    setIngredientesData(ingredientesMap);
 
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     
@@ -501,7 +532,7 @@ function RecetaFormPage() {
         const elabWithData = {
             ...newElab,
             costePorUnidad: newElab.costePorUnidad || 0,
-            alergenos: calculateElabAlergenos(newElab, ingredientesData as any)
+            alergenos: calculateElabAlergenos(newElab, ingredientesData)
         };
         onAddElab(elabWithData);
     };
@@ -518,11 +549,10 @@ function RecetaFormPage() {
   }
   
   const onError = (errors: any) => {
-    console.error("Errores de validación del formulario:", errors);
     toast({
         variant: 'destructive',
         title: 'Error de validación',
-        description: `Por favor, revisa todos los campos obligatorios.`,
+        description: `Por favor, revisa todos los campos obligatorios. Errores: ${Object.keys(errors).join(', ')}`,
     })
   };
 
@@ -771,7 +801,7 @@ function RecetaFormPage() {
                                         <DialogTrigger asChild>
                                         <Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>
                                         </DialogTrigger>
-                                        <ComponenteSelector onSelectIngrediente={() => {}} onSelectElaboracion={onAddElab} allElaboraciones={Array.from(dbElaboraciones.values())} />
+                                        <ElaborationSelector allElaboraciones={dbElaboraciones} onSelect={onAddElab} />
                                     </Dialog>
                                 </div>
                             </CardHeader>
@@ -808,7 +838,7 @@ function RecetaFormPage() {
                                      <div className="border rounded-md p-2 w-full bg-background min-h-8">
                                         {alergenos.length > 0 ? (
                                             <div className="flex flex-wrap gap-1.5">
-                                                {alergenos.map(a => <AllergenBadge key={a} allergen={a}/>)}
+                                                {alergenos.map(a => <AllergenBadge key={a} allergen={a as Alergeno}/>)}
                                             </div>
                                         ) : <p className="text-xs text-muted-foreground italic">Ninguno</p>}
                                     </div>
@@ -873,6 +903,7 @@ export default function RecetaPage() {
 
     return <RecetaFormPage />;
 }
+
 
 
 
