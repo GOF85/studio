@@ -699,7 +699,7 @@ export default function OfPage() {
                                             <TooltipContent>
                                                 <div className="p-1 max-w-xs text-xs">
                                                     <p className="font-bold">Elaboraciones que la componen:</p>
-                                                    <ul className="list-disc pl-4">{(item.componentes || []).map((c, i) => <li key={i}>{c.nombre} ({formatNumber(c.cantidad * item.udTotales,2)} {c.unidad})</li>)}</ul>
+                                                    <ul className="list-disc pl-4">{(item.componentes || []).map((c, i) => <li key={i}>{c.nombre} ({formatNumber(c.cantidadTotal, 2)} {c.unidad})</li>)}</ul>
                                                 </div>
                                             </TooltipContent>
                                             </Tooltip>
@@ -1039,5 +1039,3 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
-
-```
