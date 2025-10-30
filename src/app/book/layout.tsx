@@ -60,43 +60,63 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
     const [pageTitle, setPageTitle] = useState('');
     
     const { currentPage, isDetailPage, detailId, isNewPage } = useMemo(() => {
+        console.log('[Layout-Debug] Pathname:', pathname);
         const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['book', 'recetas', '12345']
-        let pageInfo = { currentPage: bookNavLinks.find(link => pathname.startsWith(link.path) && !(link.exact && pathname !== link.path)), isDetailPage: false, detailId: null, isNewPage: false };
+        
+        // Base case for /book
+        if (pathSegments.length <= 1) {
+            console.log('[Layout-Debug] Current Page Logic: Main Book Page');
+            return { currentPage: bookNavLinks.find(link => link.path === '/book'), isDetailPage: false, detailId: null, isNewPage: false };
+        }
 
-        if (pathSegments.length > 2) {
-            const moduleSegment = pathSegments[1];
-            const idSegment = pathSegments[2];
-            const page = bookNavLinks.find(link => link.path.includes(moduleSegment));
-            
-            if (page) {
-                 pageInfo.currentPage = page;
-                 pageInfo.isDetailPage = true;
-                 pageInfo.detailId = idSegment;
-                 pageInfo.isNewPage = idSegment === 'nuevo';
-            }
+        const moduleSegment = pathSegments[1];
+        const idSegment = pathSegments[2];
+        const isNew = idSegment === 'nuevo';
+        
+        const page = bookNavLinks.find(link => link.path.includes(`/book/${moduleSegment}`));
+
+        if (page && idSegment) {
+             console.log('[Layout-Debug] Current Page Logic: Detail Page');
+             return {
+                currentPage: page,
+                isDetailPage: true,
+                detailId: isNew ? null : idSegment,
+                isNewPage: isNew,
+            };
+        }
+
+        if (page) {
+            console.log('[Layout-Debug] Current Page Logic: Module List Page');
+            return { currentPage: page, isDetailPage: false, detailId: null, isNewPage: false };
         }
         
-        return pageInfo;
+        console.log('[Layout-Debug] Current Page Logic: Fallback to main');
+        return { currentPage: bookNavLinks.find(link => link.path === '/book'), isDetailPage: false, detailId: null, isNewPage: false };
     }, [pathname]);
 
     useEffect(() => {
-        if (isDetailPage && detailId) {
+        if (isDetailPage) {
             if (isNewPage) {
                 const moduleName = currentPage?.path.includes('recetas') ? 'Nueva Receta' : 'Nueva Elaboración';
                 setPageTitle(moduleName);
-            } else {
+                console.log('[Layout-Debug] Page Title Set:', moduleName);
+            } else if (detailId) {
+                let title = '';
                  if (currentPage?.path.includes('recetas')) {
                     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
                     const recipe = allRecetas.find(r => r.id === detailId);
-                    setPageTitle(recipe?.nombre || '');
+                    title = recipe?.nombre || '';
                 } else if (currentPage?.path.includes('elaboraciones')) {
                     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
                     const elaboracion = allElaboraciones.find(e => e.id === detailId);
-                    setPageTitle(elaboracion?.nombre || '');
+                    title = elaboracion?.nombre || '';
                 }
+                setPageTitle(title);
+                console.log('[Layout-Debug] Page Title Set:', title);
             }
         } else {
             setPageTitle('');
+            console.log('[Layout-Debug] Page Title Set: (empty)');
         }
     }, [pathname, currentPage, isDetailPage, detailId, isNewPage]);
 
@@ -123,7 +143,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
                                 <Link href={currentPage.path} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-                                    <currentPage.icon className="h-5 w-5"/>
+                                    {currentPage.icon && <currentPage.icon className="h-5 w-5"/>}
                                     <span>{currentPage.title}</span>
                                 </Link>
                             </>
