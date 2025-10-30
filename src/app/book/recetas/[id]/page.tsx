@@ -11,7 +11,7 @@ import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-ki
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
 
 import { Loader2, Save, X, BookHeart, Utensils, Sprout, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive } from 'lucide-react';
-import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, TipoCocina, ElaboracionEnReceta } from '@/types';
+import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta, ComponenteElaboracion } from '@/types';
 import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, PARTIDAS_PRODUCCION } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -318,7 +318,7 @@ export default function RecetaFormPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const { toast } = useToast();
-  const [dbElaboraciones, setDbElaboraciones] = useState<ElaborationConCoste[]>([]);
+  const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
 
@@ -364,68 +364,70 @@ export default function RecetaFormPage() {
   
   useEffect(() => {
     let initialValues: Partial<RecetaFormValues> | null = null;
+    
     try {
-        // Load master data first
-        const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-        const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
-        const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
-        const ingredientesMap = new Map(combinedIngredientes.map(i => [i.id, i]));
-        
-        const elaboracionesData = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-        const elaboracionesConDatos = elaboracionesData.map(e => ({
-            ...e,
-            costePorUnidad: e.costePorUnidad || 0,
-            alergenos: calculateElabAlergenos(e, ingredientesMap)
-        }));
-        
-        setDbElaboraciones(elaboracionesConDatos);
-        setDbCategorias(JSON.parse(localStorage.getItem('categoriasRecetas') || '[]'));
-        const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
+      // Load master data
+      const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+      const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+      const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
+      const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
+      const ingredientesMap = new Map(combinedIngredientes.map(i => [i.id, i]));
+      
+      const elaboracionesData = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+      const elaboracionesConDatos = elaboracionesData.map(e => ({
+          ...e,
+          costePorUnidad: e.costePorUnidad || 0,
+          alergenos: calculateElabAlergenos(e, ingredientesMap)
+      }));
+      
+      setDbElaboraciones(elaboracionesConDatos);
+      setDbCategorias(JSON.parse(localStorage.getItem('categoriasRecetas') || '[]'));
+      const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+      setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
-        // Determine form initial values
-        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+      // Determine initial form values
+      const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
 
-        if (isEditing) {
-            const foundReceta = allRecetas.find(e => e.id === id);
-            if (foundReceta) {
-                initialValues = foundReceta;
-            } else {
-                toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
-                router.push('/book/recetas');
-                return;
-            }
-        } else if (cloneId) {
-            const recetaToClone = allRecetas.find(e => e.id === cloneId);
-            if (recetaToClone) {
-                initialValues = { ...recetaToClone, id: Date.now().toString(), nombre: `${recetaToClone.nombre} (Copia)` };
-            }
-        } else { // isNew
-            const lastRecipe = allRecetas.reduce((last, current) => {
-                if (!current.numeroReceta || !last?.numeroReceta) return current;
-                const currentNum = parseInt(current.numeroReceta.substring(2));
-                const lastNum = parseInt(last.numeroReceta.substring(2));
-                return currentNum > lastNum ? current : last;
-            }, null as Receta | null);
-            const lastNum = lastRecipe && lastRecipe.numeroReceta ? parseInt(lastRecipe.numeroReceta.substring(2)) : 0;
-            const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
-            initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum };
+      if (isEditing) {
+        const foundReceta = allRecetas.find(e => e.id === id);
+        if (foundReceta) {
+          initialValues = foundReceta;
+        } else {
+          toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
+          router.push('/book/recetas');
+          return;
         }
-
-        if (initialValues) {
-            form.reset({
-                ...defaultValues,
-                ...initialValues
-            });
+      } else if (cloneId) {
+        const recetaToClone = allRecetas.find(e => e.id === cloneId);
+        if (recetaToClone) {
+          initialValues = { ...recetaToClone, id: Date.now().toString(), nombre: `${recetaToClone.nombre} (Copia)` };
         }
+      } else { // isNew
+        const lastRecipe = allRecetas.reduce((last, current) => {
+            if (!current.numeroReceta || !last?.numeroReceta) return current;
+            const currentNum = parseInt(current.numeroReceta.substring(2));
+            const lastNum = parseInt(last.numeroReceta.substring(2));
+            return currentNum > lastNum ? current : last;
+        }, null as Receta | null);
+        const lastNum = lastRecipe && lastRecipe.numeroReceta ? parseInt(lastRecipe.numeroReceta.substring(2)) : 0;
+        const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
+        initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum };
+      }
+
+      if (initialValues) {
+        form.reset({
+            ...defaultValues,
+            ...initialValues
+        });
+      }
+
     } catch (e) {
-        console.error("Failed to load data:", e);
-        toast({ variant: 'destructive', title: 'Error de carga', description: 'No se pudieron cargar los datos necesarios.' });
+      console.error("Failed to load data:", e);
+      toast({ variant: 'destructive', title: 'Error de carga', description: 'No se pudieron cargar los datos necesarios.' });
     } finally {
-        setIsDataLoaded(true);
+      setIsDataLoaded(true);
     }
-}, [id, cloneId, isEditing, isNew, form, router, toast]);
+}, [id, cloneId, isEditing, form, router, toast]);
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [], unidad: elab.unidadProduccion, merma: 0 });
@@ -460,6 +462,7 @@ export default function RecetaFormPage() {
   }
   
   const onError = (errors: FieldErrors<RecetaFormValues>) => {
+    console.log(errors);
     const firstError = Object.entries(errors)[0];
     if (firstError) {
         toast({
@@ -515,226 +518,227 @@ export default function RecetaFormPage() {
   const pageTitle = cloneId ? 'Clonar Receta' : (isNew ? 'Nueva Receta' : 'Editar Receta');
 
   return (
-    <TooltipProvider>
-      <main>
-        <FormProvider {...form}>
-            <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <BookHeart className="h-8 w-8" />
-                        <h1 className="text-3xl font-headline font-bold">{pageTitle} {cloneId && <span className="text-xl text-muted-foreground">(Clonando)</span>}</h1>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" type="button" onClick={() => router.push('/book/recetas')}> <X className="mr-2"/> Cancelar</Button>
-                        {isEditing && (
-                           <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/> Borrar</Button>
-                        )}
-                        <Button type="submit" form="receta-form" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                        <span className="ml-2">{isEditing && !cloneId ? 'Guardar Cambios' : 'Guardar Receta'}</span>
-                        </Button>
-                    </div>
-                </div>
-              
-                <div className="space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Información General y Clasificación</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 pt-2">
-                            <div className="grid md:grid-cols-2 gap-3">
-                                <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={form.control} name="responsableEscandallo" render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel className="flex items-center gap-1.5">Responsable del Escandallo <InfoTooltip text="Persona encargada de definir y mantener los costes y componentes de esta receta." /></FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un responsable..." /></SelectTrigger></FormControl>
-                                    <SelectContent>{personalCPR.map((p) => (<SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>))}</SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                                )} />
-                            </div>
-                            
-                            <div className="flex items-center gap-4">
-                                <div className="flex-grow space-y-2">
-                                <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem>
-                                    <FormLabel className="flex items-center gap-2">Descripción Comercial 
-                                        <Button size="sm" variant="ghost" type="button" disabled={isGenerating} className="h-auto px-1 py-0 text-accent-foreground hover:text-accent-foreground/80">
-                                            {isGenerating ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Sparkles className="h-3.5 w-3.5"/>}
-                                        </Button>
-                                    </FormLabel>
-                                    <FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl>
-                                </FormItem> )} />
-                                </div>
-                                <div className="space-y-2 pt-5">
-                                    <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-3">
-                                            <FormControl>
-                                                <Switch checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
-                                            </FormControl>
-                                            <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas para comerciales." /></FormLabel>
-                                        </FormItem>
-                                    )} />
-                                     <FormField control={form.control} name="isArchived" render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-3">
-                                            <FormControl>
-                                                <Switch checked={field.value} onCheckedChange={field.onChange} id="archived-check" />
-                                            </FormControl>
-                                            <FormLabel htmlFor="archived-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Archive /><InfoTooltip text="Archivar oculta la receta de todas las listas y selectores." /></FormLabel>
-                                        </FormItem>
-                                    )} />
-                                </div>
-                            </div>
+    <>
+      <TooltipProvider>
+        <main>
+          <FormProvider {...form}>
+              <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                          <BookHeart className="h-8 w-8" />
+                          <h1 className="text-3xl font-headline font-bold">{pageTitle} {cloneId && <span className="text-xl text-muted-foreground">(Clonando)</span>}</h1>
+                      </div>
+                      <div className="flex gap-2">
+                          <Button variant="outline" type="button" onClick={() => router.push('/book/recetas')}> <X className="mr-2"/> Cancelar</Button>
+                          {isEditing && (
+                            <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/> Borrar</Button>
+                          )}
+                          <Button type="submit" form="receta-form" disabled={isLoading}>
+                          {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                          <span className="ml-2">{isEditing && !cloneId ? 'Guardar Cambios' : 'Guardar Receta'}</span>
+                          </Button>
+                      </div>
+                  </div>
+                
+                  <div className="space-y-4">
+                      <Card>
+                          <CardHeader>
+                              <CardTitle className="text-lg">Información General y Clasificación</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3 pt-2">
+                              <div className="grid md:grid-cols-2 gap-3">
+                                  <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                  <FormField control={form.control} name="responsableEscandallo" render={({ field }) => (
+                                  <FormItem className="flex flex-col">
+                                      <FormLabel className="flex items-center gap-1.5">Responsable del Escandallo <InfoTooltip text="Persona encargada de definir y mantener los costes y componentes de esta receta." /></FormLabel>
+                                      <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un responsable..." /></SelectTrigger></FormControl>
+                                      <SelectContent>{personalCPR.map((p) => (<SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>))}</SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                  </FormItem>
+                                  )} />
+                              </div>
+                              
+                              <div className="flex items-center gap-4">
+                                  <div className="flex-grow space-y-2">
+                                  <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem>
+                                      <FormLabel className="flex items-center gap-2">Descripción Comercial 
+                                          <Button size="sm" variant="ghost" type="button" disabled={isGenerating} className="h-auto px-1 py-0 text-accent-foreground hover:text-accent-foreground/80">
+                                              {isGenerating ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Sparkles className="h-3.5 w-3.5"/>}
+                                          </Button>
+                                      </FormLabel>
+                                      <FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl>
+                                  </FormItem> )} />
+                                  </div>
+                                  <div className="space-y-2 pt-5">
+                                      <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
+                                          <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-3">
+                                              <FormControl>
+                                                  <Switch checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
+                                              </FormControl>
+                                              <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas para comerciales." /></FormLabel>
+                                          </FormItem>
+                                      )} />
+                                       <FormField control={form.control} name="isArchived" render={({ field }) => (
+                                          <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-3">
+                                              <FormControl>
+                                                  <Switch checked={field.value} onCheckedChange={field.onChange} id="archived-check" />
+                                              </FormControl>
+                                              <FormLabel htmlFor="archived-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Archive /><InfoTooltip text="Archivar oculta la receta de todas las listas y selectores." /></FormLabel>
+                                          </FormItem>
+                                      )} />
+                                  </div>
+                              </div>
 
-                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem className="flex flex-col">
-                                    <FormLabel>Categoría</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            {dbCategorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                <FormMessage /></FormItem> )} />
-                                <FormItem className="flex flex-col">
-                                    <FormLabel className="flex items-center gap-1.5">Partida de Producción <InfoTooltip text="Se calcula automáticamente a partir de las elaboraciones añadidas." /></FormLabel>
-                                    <div className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                        <div className="flex flex-wrap gap-1">
-                                            {partidasProduccion.length > 0 ? (
-                                                partidasProduccion.map(p => <Badge key={p} variant="secondary">{p}</Badge>)
-                                            ) : (
-                                                <span className="text-muted-foreground">N/A</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </FormItem>
-                                <FormField control={form.control} name="gramajeTotal" render={({ field }) => ( <FormItem className="flex flex-col">
-                                    <FormLabel>Gramaje Total (g)</FormLabel>
-                                    <FormControl><Input type="number" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>)} />
-                            </div>
-                        </CardContent>
-                    </Card>
+                              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem className="flex flex-col">
+                                      <FormLabel>Categoría</FormLabel>
+                                      <Select onValueChange={field.onChange} value={field.value}>
+                                          <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
+                                          <SelectContent>
+                                              {dbCategorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
+                                          </SelectContent>
+                                      </Select>
+                                  <FormMessage /></FormItem> )} />
+                                  <FormItem className="flex flex-col">
+                                      <FormLabel className="flex items-center gap-1.5">Partida de Producción <InfoTooltip text="Se calcula automáticamente a partir de las elaboraciones añadidas." /></FormLabel>
+                                      <div className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                          <div className="flex flex-wrap gap-1">
+                                              {partidasProduccion.length > 0 ? (
+                                                  partidasProduccion.map(p => <Badge key={p} variant="secondary">{p}</Badge>)
+                                              ) : (
+                                                  <span className="text-muted-foreground">N/A</span>
+                                              )}
+                                          </div>
+                                      </div>
+                                  </FormItem>
+                                  <FormField control={form.control} name="gramajeTotal" render={({ field }) => ( <FormItem className="flex flex-col">
+                                      <FormLabel>Gramaje Total (g)</FormLabel>
+                                      <FormControl><Input type="number" {...field} /></FormControl>
+                                      <FormMessage />
+                                  </FormItem>)} />
+                              </div>
+                          </CardContent>
+                      </Card>
 
-                    <Card>
-                        <CardHeader className="py-4">
-                            <CardTitle className="text-lg">Imágenes Comerciales</CardTitle>
-                             <CardDescription>Añade URLs de imágenes de alta calidad para usar en propuestas. La primera imagen será la principal.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ImageUploadSection name="fotosComercialesURLs" title="Imágenes Comerciales" form={form} />
-                        </CardContent>
-                    </Card>
-                    
-                    <Card>
-                        <CardHeader className="text-lg flex-row items-center justify-between">
-                            <CardTitle className="flex items-center gap-2">
-                                <TrendingUp/>Análisis de Rentabilidad
-                            </CardTitle>
-                             <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" type="button">
-                                    <RefreshCw className="h-4 w-4" />
-                                </Button>
+                      <Card>
+                          <CardHeader className="py-4">
+                              <CardTitle className="text-lg">Imágenes Comerciales</CardTitle>
+                               <CardDescription>Añade URLs de imágenes de alta calidad para usar en propuestas. La primera imagen será la principal.</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                              <ImageUploadSection name="fotosComercialesURLs" title="Imágenes Comerciales" form={form} />
+                          </CardContent>
+                      </Card>
+                      
+                      <Card>
+                          <CardHeader className="text-lg flex-row items-center justify-between">
+                              <CardTitle className="flex items-center gap-2">
+                                  <TrendingUp/>Análisis de Rentabilidad
+                              </CardTitle>
+                               <div className="flex items-center gap-2">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" type="button">
+                                      <RefreshCw className="h-4 w-4" />
+                                  </Button>
+                              </div>
+                          </CardHeader>
+                          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                              <div>
+                                  <Label>Coste Materia Prima</Label>
+                                  <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                              </div>
+                              <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
+                                  <FormItem>
+                                      <Label>Imputación CPR (%)</Label>
+                                      <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
+                                  </FormItem>
+                              )} />
+                              <div>
+                                  <Label>PVP Teórico</Label>
+                                  <p className="font-bold text-lg text-green-600">{formatCurrency(pvpTeorico)}</p>
+                              </div>
+                          </CardContent>
+                      </Card>
+                      
+                      <Card>
+                          <CardHeader className="flex-row items-center justify-between py-3">
+                              <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones</CardTitle>
+                              <CardDescription className="text-xs">Añade los componentes que forman parte de esta receta.</CardDescription></div>
+                              <div className="flex gap-2">
+                                  <CreateElaborationModal onElaborationCreated={handleElaborationCreated}>
+                                      <Button variant="secondary" size="sm" type="button"><PlusCircle size={16} /> Crear Nueva</Button>
+                                  </CreateElaborationModal>
+                                  <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                                      <DialogTrigger asChild>
+                                        <Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>
+                                      </DialogTrigger>
+                                      <ComponenteSelector onSelectIngrediente={() => {}} onSelectElaboracion={onAddElab} allElaboraciones={Array.from(dbElaboraciones.values())} />
+                                  </Dialog>
+                              </div>
+                          </CardHeader>
+                          <CardContent>
+                              <div className="border rounded-lg">
+                            <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e)} collisionDetection={closestCenter}>
+                              <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-10 p-2"></TableHead>
+                                        <TableHead className="py-2 px-3">Nombre</TableHead>
+                                        <TableHead className="w-28 py-2 px-3 text-right">Coste / Ud.</TableHead>
+                                        <TableHead className="w-28 py-2 px-3">Cantidad</TableHead>
+                                        <TableHead className="w-24 py-2 px-3">% Merma</TableHead>
+                                        <TableHead className="w-24 py-2 px-3">Unidad</TableHead>
+                                        <TableHead className="w-32 py-2 px-3 text-right">Subtotal</TableHead>
+                                        <TableHead className="w-12 py-2 px-3"></TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                      <TableBody>
+                                      {(elabFields || []).map((field, index) => (
+                                          <SortableTableRow key={field.id} field={{...field, key: field.id}} index={index} remove={removeElab} form={form} />
+                                      ))}
+                                      </TableBody>
+                                  </SortableContext>
+                              </Table>
+                            </DndContext>
                             </div>
-                        </CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                            <div>
-                                <Label>Coste Materia Prima</Label>
-                                <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
-                            </div>
-                            <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                                <FormItem>
-                                    <Label>Imputación CPR (%)</Label>
-                                    <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
-                                </FormItem>
-                            )} />
-                            <div>
-                                <Label>PVP Teórico</Label>
-                                <p className="font-bold text-lg text-green-600">{formatCurrency(pvpTeorico)}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    
-                    <Card>
-                        <CardHeader className="flex-row items-center justify-between py-3">
-                            <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones</CardTitle>
-                            <CardDescription className="text-xs">Añade los componentes que forman parte de esta receta.</CardDescription></div>
-                            <div className="flex gap-2">
-                                <CreateElaborationModal onElaborationCreated={handleElaborationCreated}>
-                                    <Button variant="secondary" size="sm" type="button"><PlusCircle size={16} /> Crear Nueva</Button>
-                                </CreateElaborationModal>
-                                <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                                    <DialogTrigger asChild>
-                                      <Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>
-                                    </DialogTrigger>
-                                    <ComponenteSelector onSelectIngrediente={() => {}} onSelectElaboracion={onAddElab} allElaboraciones={Array.from(dbElaboraciones.values())} />
-                                </Dialog>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="border rounded-lg">
-                          <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e)} collisionDetection={closestCenter}>
-                            <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                      <TableHead className="w-10 p-2"></TableHead>
-                                      <TableHead className="py-2 px-3">Nombre</TableHead>
-                                      <TableHead className="w-28 py-2 px-3 text-right">Coste / Ud.</TableHead>
-                                      <TableHead className="w-28 py-2 px-3">Cantidad</TableHead>
-                                      <TableHead className="w-24 py-2 px-3">% Merma</TableHead>
-                                      <TableHead className="w-24 py-2 px-3">Unidad</TableHead>
-                                      <TableHead className="w-32 py-2 px-3 text-right">Subtotal</TableHead>
-                                      <TableHead className="w-12 py-2 px-3"></TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                                    <TableBody>
-                                    {(elabFields || []).map((field, index) => (
-                                        <SortableTableRow key={field.id} field={{...field, key: field.id}} index={index} remove={removeElab} form={form} />
-                                    ))}
-                                    </TableBody>
-                                </SortableContext>
-                            </Table>
-                          </DndContext>
-                          </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="py-3">
-                            <CardTitle className="flex items-center gap-2 text-lg"><FilePenLine/>Instrucciones y Medios</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid lg:grid-cols-3 gap-6 pt-2">
-                            <ImageUploadSection name="fotosMiseEnPlaceURLs" title="Instrucciones Mise en Place" form={form} />
-                            <ImageUploadSection name="fotosRegeneracionURLs" title="Instrucciones Regeneración" form={form} />
-                            <ImageUploadSection name="fotosEmplatadoURLs" title="Instrucciones Emplatado" form={form} />
-                        </CardContent>
-                    </Card>
-                </div>
-              </form>
-            </FormProvider>
-          <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-              <AlertDialogContent>
-              <AlertDialogHeader>
-                  <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                  Esta acción no se puede deshacer. Se eliminará permanentemente la receta.
-                  </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                  className="bg-destructive hover:bg-destructive/90"
-                  onClick={handleDelete}
-                  >
-                  Eliminar Receta
-                  </AlertDialogAction>
-              </AlertDialogFooter>
-              </AlertDialogContent>
-          </AlertDialog>
+                          </CardContent>
+                      </Card>
+                      <Card>
+                          <CardHeader className="py-3">
+                              <CardTitle className="flex items-center gap-2 text-lg"><FilePenLine/>Instrucciones y Medios</CardTitle>
+                          </CardHeader>
+                          <CardContent className="grid lg:grid-cols-3 gap-6 pt-2">
+                              <ImageUploadSection name="fotosMiseEnPlaceURLs" title="Instrucciones Mise en Place" form={form} />
+                              <ImageUploadSection name="fotosRegeneracionURLs" title="Instrucciones Regeneración" form={form} />
+                              <ImageUploadSection name="fotosEmplatadoURLs" title="Instrucciones Emplatado" form={form} />
+                          </CardContent>
+                      </Card>
+                  </div>
+                </form>
+              </FormProvider>
         </main>
       </TooltipProvider>
-    </div>
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <AlertDialogContent>
+          <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la receta.
+              </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDelete}
+              >
+              Eliminar Receta
+              </AlertDialogAction>
+          </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
