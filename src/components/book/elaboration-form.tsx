@@ -33,7 +33,7 @@ const componenteSchema = z.object({
     tipo: z.enum(['ingrediente', 'elaboracion']),
     componenteId: z.string(),
     nombre: z.string(),
-    cantidad: z.coerce.number().min(0.001, 'La cantidad debe ser mayor que 0'),
+    cantidad: z.coerce.number().positive('La cantidad debe ser mayor que 0'),
     costePorUnidad: z.coerce.number().optional().default(0),
     merma: z.coerce.number().optional().default(0),
 });
@@ -324,7 +324,6 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                     onSelectIngrediente={handleSelectIngrediente} 
                                     onSelectElaboracion={handleSelectElaboracion} 
                                     allElaboraciones={Array.from(elaboracionesData.values())} 
-                                    onOpenChange={setIsSelectorOpen}
                                 />
                             </Dialog>
                         </div>
@@ -491,4 +490,3 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     </TooltipProvider>
   );
 }
-
