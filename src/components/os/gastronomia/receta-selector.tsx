@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -24,7 +25,7 @@ export function RecetaSelector({ onSelect }: RecetaSelectorProps) {
 
     useEffect(() => {
         const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[])
-            .filter(r => r.visibleParaComerciales);
+            .filter(r => r.visibleParaComerciales && !r.isArchived); // Ocultar archivadas
         setRecetas(allRecetas);
         
         const allCategorias = JSON.parse(localStorage.getItem('categoriasRecetas') || '[]') as CategoriaReceta[];

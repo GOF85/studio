@@ -13,7 +13,7 @@ import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-ki
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro } from 'lucide-react';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta } from '@/types';
 import { SABORES_PRINCIPALES } from '@/types';
 
@@ -46,6 +46,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ComponenteSelector } from '@/components/book/componente-selector';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -73,6 +74,7 @@ const recetaFormSchema = z.object({
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   nombre_en: z.string().optional().default(''),
   visibleParaComerciales: z.boolean().default(true),
+  isArchived: z.boolean().optional().default(false),
   descripcionComercial: z.string().optional().default(''),
   descripcionComercial_en: z.string().optional().default(''),
   responsableEscandallo: z.string().optional().default(''),
@@ -283,7 +285,8 @@ const defaultValues: Partial<RecetaFormValues> = {
     id: '', 
     nombre: '', 
     nombre_en: '', 
-    visibleParaComerciales: true, 
+    visibleParaComerciales: true,
+    isArchived: false,
     descripcionComercial: '', 
     descripcionComercial_en: '', 
     responsableEscandallo: '', 
@@ -375,9 +378,10 @@ export default function RecetaFormPage() {
     return costeMateriaPrima + costeImputacion;
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
-
   useEffect(() => {
-    // This effect runs once to load all master data.
+    let initialValues: Partial<RecetaFormValues> | null = null;
+    
+    // Load master data once
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
@@ -399,11 +403,10 @@ export default function RecetaFormPage() {
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
-    // This effect handles the form data logic.
-    let initialValues: Partial<RecetaFormValues> | null = null;
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
 
-    if (isEditing && id) {
+    // Determine form data based on context (edit, clone, new)
+    if (isEditing) {
         const foundReceta = allRecetas.find(e => e.id === id);
         if (foundReceta) {
             initialValues = foundReceta;
@@ -416,10 +419,8 @@ export default function RecetaFormPage() {
         const recetaToClone = allRecetas.find(e => e.id === cloneId);
         if (recetaToClone) {
             initialValues = { ...recetaToClone, id: Date.now().toString(), nombre: `${recetaToClone.nombre} (Copia)` };
-        } else {
-            // Handle cloneId not found
         }
-    } else if (isNew) {
+    } else { // isNew
         const lastRecipe = allRecetas.reduce((last, current) => {
             if (!current.numeroReceta || !last?.numeroReceta) return current;
             const currentNum = parseInt(current.numeroReceta.substring(2));
@@ -439,8 +440,7 @@ export default function RecetaFormPage() {
     }
 
     setIsDataLoaded(true);
-
-}, [id, isEditing, cloneId, isNew, form, router, toast]);
+}, [id, cloneId, isEditing, isNew, form, router, toast]);
 
   const forceRecalculate = () => {
     const currentElaboraciones = form.getValues('elaboraciones');
@@ -468,7 +468,7 @@ export default function RecetaFormPage() {
         toast({ title: 'Elaboración Creada', description: `Se ha añadido "${newElab.nombre}" a la receta.` });
         
         const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const ingredientesMap = new Map(storedInternos.map(i => [i.id, i]));
+        const ingredientesMap = new Map(storedInternos.map(i => [i.id, i as IngredienteConERP]));
         const elabWithData = {
             ...newElab,
             costePorUnidad: newElab.costePorUnidad || 0,
@@ -578,7 +578,7 @@ export default function RecetaFormPage() {
   return (
     <div>
     <TooltipProvider>
-      <main className="container mx-auto px-4 py-8">
+      <main>
         <FormProvider {...form}>
             <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
@@ -588,8 +588,8 @@ export default function RecetaFormPage() {
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" type="button" onClick={() => router.push('/book/recetas')}> <X className="mr-2"/> Cancelar</Button>
-                        {isEditing && !cloneId && (
-                            <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}> <Trash2 className="mr-2"/> Borrar</Button>
+                        {isEditing && (
+                            <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/> Borrar</Button>
                         )}
                         <Button type="submit" form="receta-form" disabled={isLoading}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -618,8 +618,8 @@ export default function RecetaFormPage() {
                                 )} />
                             </div>
                             
-                            <div className="flex items-start gap-4">
-                                <div className="flex-grow">
+                            <div className="flex items-center gap-4">
+                                <div className="flex-grow space-y-2">
                                 <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem>
                                     <FormLabel className="flex items-center gap-2">Descripción Comercial 
                                         <Button size="sm" variant="ghost" type="button" onClick={handleGenerateDescription} disabled={isGenerating} className="h-auto px-1 py-0 text-accent-foreground hover:text-accent-foreground/80">
@@ -629,14 +629,24 @@ export default function RecetaFormPage() {
                                     <FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl>
                                 </FormItem> )} />
                                 </div>
-                                <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-2 pt-9">
-                                        <FormControl>
-                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
-                                        </FormControl>
-                                        <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas y herramientas para el equipo comercial." /></FormLabel>
-                                    </FormItem>
-                                )} />
+                                <div className="space-y-2 pt-5">
+                                    <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-3">
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
+                                            </FormControl>
+                                            <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas para comerciales." /></FormLabel>
+                                        </FormItem>
+                                    )} />
+                                     <FormField control={form.control} name="isArchived" render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-3">
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} id="archived-check" />
+                                            </FormControl>
+                                            <FormLabel htmlFor="archived-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Archive /><InfoTooltip text="Archivar oculta la receta de todas las listas y selectores." /></FormLabel>
+                                        </FormItem>
+                                    )} />
+                                </div>
                             </div>
 
                             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">

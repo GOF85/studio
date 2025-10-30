@@ -685,6 +685,7 @@ export type Receta = {
     nombre: string;
     nombre_en?: string;
     visibleParaComerciales: boolean;
+    isArchived?: boolean;
     descripcionComercial: string;
     descripcionComercial_en?: string;
     responsableEscandallo: string;

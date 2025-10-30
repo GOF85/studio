@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown, MoreHorizontal, Pencil, Trash2, Archive, CheckSquare } from 'lucide-react';
 import type { Receta, CategoriaReceta } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,12 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -39,20 +33,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const ITEMS_PER_PAGE = 20;
 
 // Headers for CSV export/import, including all fields of a Receta
-const CSV_HEADERS = [ "id", "nombre", "visibleParaComerciales", "descripcionComercial", "responsableEscandallo", "categoria", "partidaProduccion", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "instruccionesRegeneracion", "instruccionesEmplatado", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "recetaOrigen", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "gramajeTotal", "precioVenta", "alergenos", "requiereRevision" ];
-
+const CSV_HEADERS = [ "id", "nombre", "visibleParaComerciales", "isArchived", "descripcionComercial", "responsableEscandallo", "categoria", "partidaProduccion", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "instruccionesRegeneracion", "instruccionesEmplatado", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "recetaOrigen", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "gramajeTotal", "precioVenta", "alergenos", "requiereRevision" ];
 
 export default function RecetasPage() {
   const [items, setItems] = useState<Receta[]>([]);
   const [categories, setCategories] = useState<CategoriaReceta[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showVisibleOnly, setShowVisibleOnly] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<'active' | 'archived' | 'all'>('active');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -73,13 +68,13 @@ export default function RecetasPage() {
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-        const matchesVisibility = !showVisibleOnly || item.visibleParaComerciales;
+        const matchesVisibility = statusFilter === 'all' || (statusFilter === 'archived' ? item.isArchived : !item.isArchived);
         const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCategory = selectedCategory === 'all' || item.categoria === selectedCategory;
       return matchesVisibility && matchesSearch && matchesCategory;
     });
-  }, [items, searchTerm, showVisibleOnly, selectedCategory]);
+  }, [items, searchTerm, statusFilter, selectedCategory]);
 
   const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
   const paginatedItems = useMemo(() => {
@@ -102,6 +97,7 @@ export default function RecetasPage() {
     }
     const dataToExport = items.map(item => ({
         ...item,
+        isArchived: !!item.isArchived,
         elaboraciones: JSON.stringify(item.elaboraciones),
         menajeAsociado: JSON.stringify(item.menajeAsociado),
         perfilSaborSecundario: JSON.stringify(item.perfilSaborSecundario),
@@ -157,6 +153,7 @@ export default function RecetasPage() {
         const importedData: Receta[] = results.data.map(item => ({
           ...item,
           visibleParaComerciales: item.visibleParaComerciales === 'true',
+          isArchived: item.isArchived === 'true',
           requiereRevision: item.requiereRevision === 'true',
           porcentajeCosteProduccion: parseFloat(item.porcentajeCosteProduccion) || 0,
           costeMateriaPrima: parseFloat(item.costeMateriaPrima) || 0,
@@ -188,19 +185,48 @@ export default function RecetasPage() {
     }
   };
 
-  const handleDelete = () => {
-    if (!itemToDelete) return;
-    const updatedData = items.filter(i => i.id !== itemToDelete);
-    localStorage.setItem('recetas', JSON.stringify(updatedData));
-    setItems(updatedData);
-    toast({ title: 'Receta eliminada' });
+  const handleMassAction = (action: 'archive' | 'delete') => {
+    let updatedItems = [...items];
+    if (action === 'archive') {
+      updatedItems = items.map(item => selectedItems.has(item.id) ? { ...item, isArchived: true } : item);
+      toast({ title: `${selectedItems.size} recetas archivadas.` });
+    } else if (action === 'delete') {
+      updatedItems = items.filter(item => !selectedItems.has(item.id));
+      toast({ title: `${selectedItems.size} recetas eliminadas.` });
+    }
+    
+    localStorage.setItem('recetas', JSON.stringify(updatedItems));
+    setItems(updatedItems);
+    setSelectedItems(new Set());
     setItemToDelete(null);
   };
+  
+  const handleSelect = (itemId: string) => {
+    setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(itemId)) {
+            newSet.delete(itemId);
+        } else {
+            newSet.add(itemId);
+        }
+        return newSet;
+    });
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+        setSelectedItems(new Set(filteredItems.map(item => item.id)));
+    } else {
+        setSelectedItems(new Set());
+    }
+  }
 
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Recetas..." />;
   }
+  
+  const numSelected = selectedItems.size;
 
   return (
     <>
@@ -213,6 +239,12 @@ export default function RecetasPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <div className="flex gap-2">
+             {numSelected > 0 && (
+              <>
+                <Button variant="outline" onClick={() => handleMassAction('archive')}><Archive className="mr-2"/>Archivar ({numSelected})</Button>
+                <Button variant="destructive" onClick={() => setItemToDelete('mass')}><Trash2 className="mr-2"/>Borrar ({numSelected})</Button>
+              </>
+            )}
             <Button asChild>
               <Link href="/book/recetas/nueva"><PlusCircle className="mr-2"/>Nueva Receta</Link>
             </Button>
@@ -254,10 +286,16 @@ export default function RecetasPage() {
                 </Select>
             </div>
             <div className="lg:col-span-2 flex items-center justify-between gap-4">
-                <div className="flex items-center space-x-2 whitespace-nowrap">
-                    <Checkbox id="visible-comerciales" checked={showVisibleOnly} onCheckedChange={(checked) => setShowVisibleOnly(Boolean(checked))} />
-                    <label htmlFor="visible-comerciales" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"><Eye size={16}/>Mostrar solo visibles</label>
-                </div>
+                 <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
+                    <SelectTrigger className="w-full max-w-xs">
+                        <SelectValue placeholder="Filtrar por estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="active">Activas</SelectItem>
+                        <SelectItem value="archived">Archivadas</SelectItem>
+                        <SelectItem value="all">Todas</SelectItem>
+                    </SelectContent>
+                </Select>
                 <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                     <span className="text-sm text-muted-foreground">
                         Pág. {currentPage}/{totalPages || 1}
@@ -282,23 +320,45 @@ export default function RecetasPage() {
             </div>
         </div>
 
-
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                   <Checkbox
+                        checked={numSelected > 0 && numSelected === paginatedItems.length}
+                        onCheckedChange={(checked) => {
+                            const newSelected = new Set(selectedItems);
+                            paginatedItems.forEach(item => {
+                                if (checked) newSelected.add(item.id);
+                                else newSelected.delete(item.id);
+                            });
+                            setSelectedItems(newSelected);
+                        }}
+                    />
+                </TableHead>
                 <TableHead className="py-2">Nombre Receta</TableHead>
                 <TableHead className="py-2">Categoría</TableHead>
                 <TableHead className="py-2">Partida Producción</TableHead>
                 <TableHead className="py-2">Coste M.P.</TableHead>
-                <TableHead className="py-2">Precio Venta</TableHead>
+                <TableHead className="py-2">PVP Teórico</TableHead>
                 <TableHead className="w-24 text-right py-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedItems.length > 0 ? (
                 paginatedItems.map(item => (
-                  <TableRow key={item.id} onClick={() => router.push(`/book/recetas/${item.id}`)} className="cursor-pointer">
+                  <TableRow 
+                    key={item.id} 
+                    className={cn(item.isArchived && "bg-secondary/50 text-muted-foreground", "cursor-pointer")}
+                    onClick={() => router.push(`/book/recetas/${item.id}`)}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox 
+                            checked={selectedItems.has(item.id)}
+                            onCheckedChange={() => handleSelect(item.id)}
+                        />
+                    </TableCell>
                     <TableCell className="font-medium py-2 flex items-center gap-2">
                         {item.requiereRevision && (
                             <Tooltip>
@@ -316,10 +376,10 @@ export default function RecetasPage() {
                     <TableCell className="py-2">{item.partidaProduccion}</TableCell>
                     <TableCell className="py-2">{formatCurrency(item.costeMateriaPrima)}</TableCell>
                     <TableCell className="font-bold text-primary py-2">{formatCurrency(item.precioVenta)}</TableCell>
-                    <TableCell className="py-2 text-right">
+                    <TableCell className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
                                 <span className="sr-only">Abrir menú</span>
                                 <MoreHorizontal className="h-4 w-4" />
                                 </Button>
@@ -330,9 +390,6 @@ export default function RecetasPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/book/recetas/nueva?cloneId=${item.id}`); }}>
                                     <Copy className="mr-2 h-4 w-4" /> Clonar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id); }}>
-                                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -355,14 +412,14 @@ export default function RecetasPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente la receta.
+              Esta acción no se puede deshacer. Se eliminarán permanentemente las {numSelected > 1 ? `${numSelected} recetas seleccionadas` : 'receta seleccionada'}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
-              onClick={handleDelete}
+              onClick={() => handleMassAction('delete')}
             >
               Eliminar
             </AlertDialogAction>
