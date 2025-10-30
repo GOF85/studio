@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil, Check, CircleX } from 'lucide-react';
-import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta } from '@/types';
+import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta, FamiliaERP } from '@/types';
 import { ALERGENOS } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -275,12 +275,21 @@ function IngredientesPageContent() {
     let storedIngredientes = localStorage.getItem('ingredientesInternos') || '[]';
     const ingredientesInternos = JSON.parse(storedIngredientes) as IngredienteInterno[];
     
+    const allFamilias = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
+    const familiasMap = new Map(allFamilias.map(f => [f.familiaCategoria, f.Categoria]));
+
     const combinedData = ingredientesInternos.map(ing => {
         const presentes = ing.alergenosPresentes || [];
         const trazas = ing.alergenosTrazas || [];
+        const erpItem = erpMap.get(ing.productoERPlinkId);
+        
+        if (erpItem) {
+          erpItem.categoriaMice = familiasMap.get(erpItem.familiaCategoria || '') || erpItem.categoriaMice;
+        }
+
         return {
             ...ing,
-            erp: erpMap.get(ing.productoERPlinkId),
+            erp: erpItem,
             alergenos: [...new Set([...presentes, ...trazas])] as Alergeno[],
         }
     });
@@ -370,7 +379,7 @@ function IngredientesPageContent() {
         item.nombreIngrediente.toLowerCase().includes(term) ||
         (item.erp?.nombreProductoERP || '').toLowerCase().includes(term) ||
         (item.erp?.idreferenciaerp || '').toLowerCase().includes(term) ||
-        (item.erp?.familiaCategoria || '').toLowerCase().includes(term)
+        (item.erp?.categoriaMice || '').toLowerCase().includes(term)
       );
     });
   }, [ingredientes, searchTerm]);
@@ -470,7 +479,7 @@ function IngredientesPageContent() {
 
         <div className="border rounded-lg">
           <Table>
-            <TableHeader><TableRow><TableHead>Ingrediente</TableHead><TableHead>Producto ERP Vinculado</TableHead><TableHead>Id. ERP</TableHead><TableHead>Categoría ERP</TableHead><TableHead>Alérgenos</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Ingrediente</TableHead><TableHead>Producto ERP Vinculado</TableHead><TableHead>Id. ERP</TableHead><TableHead>Categoría MICE</TableHead><TableHead>Alérgenos</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
             <TableBody>
               {paginatedItems.length > 0 ? (
                 paginatedItems.map(item => (
@@ -485,7 +494,7 @@ function IngredientesPageContent() {
                       ) : <span className="text-destructive text-sm font-semibold">No vinculado</span>}
                     </TableCell>
                      <TableCell>{item.erp?.idreferenciaerp}</TableCell>
-                     <TableCell>{item.erp?.familiaCategoria}</TableCell>
+                     <TableCell>{item.erp?.categoriaMice}</TableCell>
                     <TableCell><div className="flex flex-wrap gap-1">{item.alergenos?.length > 0 && item.alergenos.map(alergeno => <AllergenBadge key={alergeno} allergen={alergeno} />)}</div></TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
