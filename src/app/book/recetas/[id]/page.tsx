@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -170,14 +171,14 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
 
 function ImageUploadSection({ name, title, form, description }: { name: "fotosMiseEnPlaceURLs" | "fotosRegeneracionURLs" | "fotosEmplatadoURLs" | "fotosComercialesURLs"; title: string; form: any, description?: string }) {
     const { fields, append, remove } = useFieldArray({ control: form.control, name });
-    const [newUrl, setNewUrl] = useState('');
+    const [newUrl, setNewImageUrl] = useState('');
     const { toast } = useToast();
 
     const handleAdd = () => {
         try {
             const url = new URL(newUrl);
             append({ value: url.href });
-            setNewUrl('');
+            setNewImageUrl('');
         } catch (e) {
             toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.' });
         }
@@ -204,7 +205,7 @@ function ImageUploadSection({ name, title, form, description }: { name: "fotosMi
             )}
             <div className="space-y-2 mt-2">
                 <div className="flex gap-2">
-                    <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
+                    <Input value={newUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
                     <Button type="button" variant="outline" onClick={handleAdd}><LinkIcon className="mr-2"/>Añadir</Button>
                 </div>
                 {form.formState.errors[name] && <p className="text-sm font-medium text-destructive">{(form.formState.errors[name] as any).message}</p>}
@@ -311,7 +312,7 @@ function RecetaFormPage() {
   const id = params.id as string;
   const cloneId = searchParams.get('cloneId');
   const isNew = id === 'nueva';
-  const isEditing = !isNew && id;
+  const isEditing = !isNew;
 
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -333,36 +334,6 @@ function RecetaFormPage() {
   const watchedElaboraciones = form.watch('elaboraciones');
   const watchedPorcentajeCoste = form.watch('porcentajeCosteProduccion');
 
-  const { costeMateriaPrima, alergenos, partidasProduccion } = useMemo(() => {
-    let coste = 0;
-    const allAlergenos = new Set<Alergeno>();
-    const allPartidas = new Set<PartidaProduccion>();
-
-    (watchedElaboraciones || []).forEach(elab => {
-        const elabData = dbElaboraciones.find(dbElab => dbElab.id === elab.elaboracionId);
-        const costeUnitarioReal = elab.coste || 0;
-        const costeConMerma = costeUnitarioReal * (1 + (elab.merma || 0) / 100);
-        coste += costeConMerma * elab.cantidad;
-        
-        (elabData?.alergenos || []).forEach(a => allAlergenos.add(a as Alergeno));
-
-        if (elabData?.partidaProduccion) {
-            allPartidas.add(elabData.partidaProduccion);
-        }
-    });
-
-    return { 
-        costeMateriaPrima: coste, 
-        alergenos: Array.from(allAlergenos),
-        partidasProduccion: Array.from(allPartidas)
-    };
-  }, [watchedElaboraciones, dbElaboraciones]);
-
-  const pvpTeorico = useMemo(() => {
-    const costeImputacion = costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100);
-    return costeMateriaPrima + costeImputacion;
-  }, [costeMateriaPrima, watchedPorcentajeCoste]);
-  
   const recalculateCostsAndAllergens = useCallback(() => {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
@@ -392,6 +363,7 @@ function RecetaFormPage() {
     
     setDbElaboraciones(updatedDbElaboraciones);
     
+    // crucial step: update costs in the form state as well
     const currentFormElabs = form.getValues('elaboraciones');
     const updatedFormElabs = currentFormElabs.map(elabInReceta => {
         const matchingDbElab = updatedDbElaboraciones.find(dbElab => dbElab.id === elabInReceta.elaboracionId);
@@ -410,7 +382,6 @@ function RecetaFormPage() {
     let initialValues: Partial<RecetaFormValues> | null = null;
     
     try {
-      recalculateCostsAndAllergens();
       setDbCategorias(JSON.parse(localStorage.getItem('categoriasRecetas') || '[]'));
       const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
       setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
@@ -451,6 +422,7 @@ function RecetaFormPage() {
           fotosRegeneracionURLs: (initialValues.fotosRegeneracionURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
         };
         form.reset(processedData);
+        recalculateCostsAndAllergens(); // Recalculate costs on initial load
       } else if(isEditing) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
         router.push('/book/recetas');
@@ -464,6 +436,36 @@ function RecetaFormPage() {
     }
   }, [id, cloneId, isNew, isEditing, form, router, toast, recalculateCostsAndAllergens]);
 
+  const { costeMateriaPrima, alergenos, partidasProduccion } = useMemo(() => {
+    let coste = 0;
+    const allAlergenos = new Set<Alergeno>();
+    const allPartidas = new Set<PartidaProduccion>();
+
+    (watchedElaboraciones || []).forEach(elab => {
+        const elabData = dbElaboraciones.find(dbElab => dbElab.id === elab.elaboracionId);
+        const costeUnitarioReal = elab.coste || 0;
+        const costeConMerma = costeUnitarioReal * (1 + (elab.merma || 0) / 100);
+        coste += costeConMerma * elab.cantidad;
+        
+        (elabData?.alergenos || []).forEach(a => allAlergenos.add(a as Alergeno));
+
+        if (elabData?.partidaProduccion) {
+            allPartidas.add(elabData.partidaProduccion);
+        }
+    });
+
+    return { 
+        costeMateriaPrima: coste, 
+        alergenos: Array.from(allAlergenos),
+        partidasProduccion: Array.from(allPartidas)
+    };
+  }, [watchedElaboraciones, dbElaboraciones]);
+
+  const pvpTeorico = useMemo(() => {
+    const costeImputacion = costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100);
+    return costeMateriaPrima + costeImputacion;
+  }, [costeMateriaPrima, watchedPorcentajeCoste]);
+  
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [], unidad: elab.unidadProduccion, merma: 0 });
   }
@@ -669,6 +671,9 @@ function RecetaFormPage() {
                               <CardTitle className="flex items-center gap-2">
                                   <TrendingUp/>Análisis de Rentabilidad
                               </CardTitle>
+                              <Button type="button" variant="outline" size="sm" onClick={recalculateCostsAndAllergens}>
+                                <RefreshCw className="mr-2 h-4 w-4"/>Recalcular Costes
+                               </Button>
                           </CardHeader>
                           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                               <div>
