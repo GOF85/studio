@@ -426,7 +426,7 @@ function ElaboracionesListPage() {
               ¿Confirmar Borrado Masivo?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Vas a eliminar permanentemente <strong>{numSelected}</strong> elaboraciones. Las elaboraciones que estén en uso no serán eliminadas. ¿Estás seguro?
+            Vas a eliminar permanentemente <strong>{numSelected}</strong> elaboraciones. Las elaboraciones que estén en uso en alguna receta no se podrán eliminar. ¿Estás seguro?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -499,7 +499,6 @@ function ElaborationFormPage() {
         
         const dataToSave: Elaboracion = { 
           ...data, 
-          costePorUnidad 
         };
 
         if (isEditing && !cloneId) {
@@ -568,3 +567,4 @@ export default function ElaboracionesPage() {
         </Suspense>
     );
 }
+

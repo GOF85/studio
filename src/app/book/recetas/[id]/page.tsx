@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -32,7 +33,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatUnit, cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -328,7 +329,7 @@ function RecetaFormPage() {
     defaultValues,
   });
 
-  const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab, update: updateElab } = useFieldArray({ control: form.control, name: "elaboraciones", keyName: "key" });
+  const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab, update: updateElab, replace } = useFieldArray({ control: form.control, name: "elaboraciones", keyName: "key" });
 
   const watchedElaboraciones = form.watch('elaboraciones');
   const watchedPorcentajeCoste = form.watch('porcentajeCosteProduccion');
@@ -363,24 +364,54 @@ function RecetaFormPage() {
     return costeMateriaPrima + costeImputacion;
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
+  const recalculateCostsAndAllergens = useCallback(() => {
+    const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+    const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+    const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
+    const ingredientesMap = new Map(storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) })));
+
+    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const updatedDbElaboraciones = allElaboraciones.map(e => {
+        let costeTotalComponentes = 0;
+        (e.componentes || []).forEach(comp => {
+            if (comp.tipo === 'ingrediente') {
+                const ing = ingredientesMap.get(comp.componenteId);
+                const costeReal = ing?.erp ? (ing.erp.precioCompra / (ing.erp.unidadConversion || 1)) * (1 - (ing.erp.descuento || 0) / 100) : 0;
+                costeTotalComponentes += costeReal * comp.cantidad * (1 + (comp.merma || 0) / 100);
+            } else if (comp.tipo === 'elaboracion') {
+                const subElab = allElaboraciones.find(sub => sub.id === comp.componenteId);
+                costeTotalComponentes += (subElab?.costePorUnidad || 0) * comp.cantidad * (1 + (comp.merma || 0) / 100);
+            }
+        });
+        const costePorUnidad = e.produccionTotal > 0 ? costeTotalComponentes / e.produccionTotal : 0;
+        return {
+            ...e,
+            costePorUnidad: costePorUnidad,
+            alergenos: calculateElabAlergenos(e, ingredientesMap as any),
+        };
+    });
+    
+    setDbElaboraciones(updatedDbElaboraciones);
+    
+    const currentFormElabs = form.getValues('elaboraciones');
+    const updatedFormElabs = currentFormElabs.map(elabInReceta => {
+        const matchingDbElab = updatedDbElaboraciones.find(dbElab => dbElab.id === elabInReceta.elaboracionId);
+        return {
+            ...elabInReceta,
+            coste: matchingDbElab?.costePorUnidad || 0,
+            alergenos: matchingDbElab?.alergenos || [],
+        };
+    });
+    
+    replace(updatedFormElabs);
+    toast({ title: "Costes y Alérgenos Recalculados", description: "Los datos de la receta se han actualizado." });
+  }, [form, replace, toast]);
+
   useEffect(() => {
     let initialValues: Partial<RecetaFormValues> | null = null;
     
     try {
-      const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-      const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-      const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
-      const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
-      const ingredientesMap = new Map(combinedIngredientes.map(i => [i.id, i]));
-      
-      const elaboracionesData = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-      const elaboracionesConDatos = elaboracionesData.map(e => ({
-          ...e,
-          costePorUnidad: e.costePorUnidad || 0,
-          alergenos: calculateElabAlergenos(e, ingredientesMap)
-      }));
-      
-      setDbElaboraciones(elaboracionesConDatos);
+      recalculateCostsAndAllergens();
       setDbCategorias(JSON.parse(localStorage.getItem('categoriasRecetas') || '[]'));
       const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
       setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
@@ -415,6 +446,10 @@ function RecetaFormPage() {
         const processedData = {
           ...defaultValues,
           ...initialValues,
+          fotosComercialesURLs: (initialValues.fotosComercialesURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
+          fotosEmplatadoURLs: (initialValues.fotosEmplatadoURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
+          fotosMiseEnPlaceURLs: (initialValues.fotosMiseEnPlaceURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
+          fotosRegeneracionURLs: (initialValues.fotosRegeneracionURLs || []).map(url => typeof url === 'string' ? {value: url} : url),
         };
         form.reset(processedData);
       } else if(isEditing) {
@@ -428,7 +463,7 @@ function RecetaFormPage() {
     } finally {
       setIsDataLoaded(true);
     }
-}, [id, cloneId, isNew, isEditing, form, router, toast]);
+  }, [id, cloneId, isNew, isEditing, form, router, toast, recalculateCostsAndAllergens]);
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [], unidad: elab.unidadProduccion, merma: 0 });
@@ -444,7 +479,7 @@ function RecetaFormPage() {
         const elabWithData = {
             ...newElab,
             costePorUnidad: newElab.costePorUnidad || 0,
-            alergenos: calculateElabAlergenos(newElab, ingredientesMap)
+            alergenos: calculateElabAlergenos(newElab, ingredientesMap as any)
         };
         
         setDbElaboraciones(prev => [...prev, elabWithData]);
@@ -745,3 +780,4 @@ function RecetaFormPage() {
 export default function RecetaPage() {
     return <RecetaFormPage />
 }
+
