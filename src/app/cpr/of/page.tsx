@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -379,8 +380,7 @@ export default function OfPage() {
               if (!recetaItem) {
                   const componentes = receta.elaboraciones.map(e => {
                       const elabInfo = elabMap.get(e.elaboracionId);
-                      const cantidadTotal = e.cantidad * (item.quantity || 0)
-                      return { nombre: elabInfo?.nombre || '?', cantidad: e.cantidad, unidad: elabInfo?.unidadProduccion || '?', cantidadTotal };
+                      return { nombre: elabInfo?.nombre || '?', cantidad: e.cantidad, unidad: elabInfo?.unidadProduccion || '?', cantidadTotal: 0 };
                   })
                   recetaItem = { id: receta.id, nombre: receta.nombre, partida: receta.partidaProduccion || 'N/A', udTotales: 0, unidad: 'Uds', necesidadesPorDia: {}, componentes };
                   recetasInforme.set(receta.id, recetaItem);
@@ -393,7 +393,6 @@ export default function OfPage() {
                if(receta.partidaProduccion && resumenPorPartida[receta.partidaProduccion]){
                   resumenPorPartida[receta.partidaProduccion].unidades += cantidadReceta;
               }
-
 
               recetaItem.componentes?.forEach(c => {
                   const elabReceta = receta.elaboraciones.find(e => elabMap.get(e.elaboracionId)?.nombre === c.nombre);
@@ -700,7 +699,7 @@ export default function OfPage() {
                                             <TooltipContent>
                                                 <div className="p-1 max-w-xs text-xs">
                                                     <p className="font-bold">Elaboraciones que la componen:</p>
-                                                    <ul className="list-disc pl-4">{(item.componentes || []).map((c, i) => <li key={i}>{c.nombre} ({formatNumber(c.cantidadTotal,2)} {c.unidad})</li>)}</ul>
+                                                    <ul className="list-disc pl-4">{(item.componentes || []).map((c, i) => <li key={i}>{c.nombre} ({formatNumber(c.cantidad * item.udTotales,2)} {c.unidad})</li>)}</ul>
                                                 </div>
                                             </TooltipContent>
                                             </Tooltip>
@@ -1040,3 +1039,5 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
+```
