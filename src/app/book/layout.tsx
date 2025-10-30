@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -7,20 +6,12 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import type { Receta, Elaboracion } from '@/types';
-import { BookHeart, ChefHat, Component, Package, Sprout, CheckSquare, ChevronRight, Menu, FilePenLine, BarChart3 } from 'lucide-react';
+import { BookHeart, ChevronRight, Menu } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-
-const bookNavLinks = [
-    { title: 'Panel de Control', path: '/book', icon: BookHeart, exact: true },
-    { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
-    { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
-    { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
-    { title: 'Revisión Gastronómica', path: '/book/revision-ingredientes', icon: CheckSquare },
-    { title: 'Información de Alérgenos', path: '/book/alergenos', icon: Sprout },
-    { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
-];
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { bookNavLinks } from '@/lib/cpr-nav'; // Assuming nav links are defined here
+import { Skeleton } from '@/components/ui/skeleton';
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
     const pathname = usePathname();
@@ -54,46 +45,61 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
     );
 }
 
+
 export default function BookLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
-    
-    const { currentPage, pageTitle } = useMemo(() => {
-        const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['book', 'recetas', '12345']
-        
-        const moduleSegment = pathSegments[1] || 'book';
-        const idSegment = pathSegments[2];
-        const cloneId = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('cloneId');
+    const [pageTitle, setPageTitle] = useState<string | null>(null);
+    const [isClient, setIsClient] = useState(false);
 
-        const page = bookNavLinks.find(link => link.path.includes(`/book/${moduleSegment}`));
-        
-        let title = '';
-        if (idSegment) {
-            if (idSegment === 'nuevo' || idSegment === 'nueva') {
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    const currentPage = useMemo(() => {
+        if (!pathname) return null;
+        return bookNavLinks.find(link => pathname.startsWith(link.path) && link.path !== '/book');
+    }, [pathname]);
+
+    useEffect(() => {
+        if (!isClient || !pathname) return;
+
+        const pathSegments = pathname.split('/').filter(Boolean);
+        const hasId = pathSegments.length > 2;
+
+        if (hasId) {
+            const moduleSegment = pathSegments[1];
+            const idSegment = pathSegments[2];
+            const cloneId = new URLSearchParams(window.location.search).get('cloneId');
+
+            let title = '';
+            if (idSegment === 'nuevo' || cloneId) {
                 if (cloneId) {
-                    title = `Clonando ${page?.path.includes('recetas') ? 'Receta' : 'Elaboración'}`;
+                    title = `Clonando ${moduleSegment === 'recetas' ? 'Receta' : 'Elaboración'}`;
                 } else {
-                    title = `Nueva ${page?.path.includes('recetas') ? 'Receta' : 'Elaboración'}`;
+                    title = `Nueva ${moduleSegment === 'recetas' ? 'Receta' : 'Elaboración'}`;
                 }
-            } else if (typeof window !== 'undefined') {
+            } else {
                 try {
-                    if (page?.path.includes('recetas')) {
+                    if (moduleSegment === 'recetas') {
                         const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
                         const recipe = allRecetas.find(r => r.id === idSegment);
                         title = recipe?.nombre || '';
-                    } else if (page?.path.includes('elaboraciones')) {
+                    } else if (moduleSegment === 'elaboraciones') {
                         const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
                         const elaboracion = allElaboraciones.find(e => e.id === idSegment);
                         title = elaboracion?.nombre || '';
                     }
-                } catch(e) {
+                } catch (e) {
                     console.error("Failed to parse from localStorage:", e);
+                    title = '...';
                 }
             }
+            setPageTitle(title);
+        } else {
+            setPageTitle(null);
         }
-        
-        return { currentPage: page, pageTitle: title };
-    }, [pathname]);
+    }, [pathname, isClient]);
 
     return (
         <>
@@ -114,7 +120,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                             <BookHeart className="h-5 w-5"/>
                             <span>Book Gastronómico</span>
                         </Link>
-                        {currentPage && currentPage.path !== '/book' && (
+                        {currentPage && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
                                 <Link href={currentPage.path} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
@@ -127,6 +133,13 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
                                 <span className="text-primary font-bold">{pageTitle}</span>
+                            </>
+                         )}
+                         {/* Skeleton for initial client render */}
+                         {!pageTitle && isClient && pathname.split('/').filter(Boolean).length > 2 && (
+                            <>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground"/>
+                                <Skeleton className="h-5 w-32" />
                             </>
                          )}
                     </div>

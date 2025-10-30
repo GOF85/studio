@@ -1,7 +1,7 @@
 
 'use client';
 
-import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat } from 'lucide-react';
+import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout } from 'lucide-react';
 
 export const cprNav = [
     { title: 'Panel de control', href: '/cpr/dashboard', icon: LayoutDashboard, description: 'Visión general del taller de producción.' },
@@ -14,4 +14,14 @@ export const cprNav = [
     { title: 'Informe de Picking', href: '/cpr/informe-picking', icon: Printer, description: 'Consulta el picking completo de una OS.' },
     { title: 'Trazabilidad', href: '/cpr/trazabilidad', icon: History, description: 'Consulta lotes y su histórico.' },
     { title: 'Incidencias', href: '/cpr/incidencias', icon: AlertTriangle, description: 'Revisa las incidencias de producción.' },
+];
+
+export const bookNavLinks = [
+    { title: 'Panel de Control', path: '/book', icon: BookHeart, exact: true },
+    { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
+    { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
+    { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
+    { title: 'Revisión Gastronómica', path: '/book/revision-ingredientes', icon: CheckSquare },
+    { title: 'Información de Alérgenos', path: '/book/alergenos', icon: Sprout },
+    { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
 ];
