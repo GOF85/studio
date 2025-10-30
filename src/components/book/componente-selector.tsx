@@ -14,7 +14,7 @@ import { formatCurrency, formatUnit } from '@/lib/utils';
 
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
-export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElaboraciones }: { onSelectIngrediente: (ing: IngredienteConERP) => void, onSelectElaboracion: (elab: Elaboracion) => void, allElaboraciones: Elaboracion[] }) {
+export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElaboraciones, onOpenChange }: { onSelectIngrediente: (ing: IngredienteConERP) => void, onSelectElaboracion: (elab: Elaboracion) => void, allElaboraciones: Elaboracion[], onOpenChange: (open: boolean) => void }) {
     const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [elabSearchTerm, setElabSearchTerm] = useState('');
@@ -56,7 +56,7 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
     return (
         <DialogContent className="max-w-4xl">
             <DialogHeader><DialogTitle>Seleccionar Componente</DialogTitle></DialogHeader>
-            <Tabs defaultValue="elaboraciones">
+            <Tabs defaultValue="ingredientes">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="ingredientes">Ingredientes</TabsTrigger>
                     <TabsTrigger value="elaboraciones">Elaboraciones (Sub-recetas)</TabsTrigger>

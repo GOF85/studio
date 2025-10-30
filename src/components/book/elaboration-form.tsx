@@ -116,7 +116,6 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
           costePorUnidad: costeReal,
           merma: 0,
       });
-      setIsSelectorOpen(false);
   }
 
   const handleSelectElaboracion = (elab: Elaboracion) => {
@@ -129,7 +128,6 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
         costePorUnidad: elab.costePorUnidad || 0,
         merma: 0,
     });
-    setIsSelectorOpen(false);
   }
   
   const handleAddImageUrl = () => {
@@ -278,7 +276,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                         </div>
                     </CardContent>
                     <CardFooter>
-                       <Card>
+                       <Card className="w-full">
                           <CardHeader className="flex-row items-start justify-between">
                               <CardTitle className="text-lg">Coste de la Elaboración</CardTitle>
                               <div className="text-right">
@@ -327,6 +325,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                     onSelectIngrediente={handleSelectIngrediente} 
                                     onSelectElaboracion={handleSelectElaboracion} 
                                     allElaboraciones={Array.from(elaboracionesData.values())} 
+                                    onOpenChange={setIsSelectorOpen}
                                 />
                             </Dialog>
                         </div>
