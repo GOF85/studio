@@ -379,9 +379,7 @@ export default function RecetaFormPage() {
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
   useEffect(() => {
-    let initialValues: Partial<RecetaFormValues> | null = null;
-    
-    // Load master data once
+    // Load all necessary master data
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
@@ -390,8 +388,8 @@ export default function RecetaFormPage() {
     
     const elaboracionesData = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     const elaboracionesConDatos = elaboracionesData.map(e => ({
-        ...e, 
-        costePorUnidad: e.costePorUnidad || 0, 
+        ...e,
+        costePorUnidad: e.costePorUnidad || 0,
         alergenos: calculateElabAlergenos(e, ingredientesMap)
     }));
     
@@ -403,9 +401,10 @@ export default function RecetaFormPage() {
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
+    // Determine form initial values
+    let initialValues: Partial<RecetaFormValues> | null = null;
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
 
-    // Determine form data based on context (edit, clone, new)
     if (isEditing) {
         const foundReceta = allRecetas.find(e => e.id === id);
         if (foundReceta) {
@@ -800,3 +799,4 @@ export default function RecetaFormPage() {
     </div>
   );
 }
+
