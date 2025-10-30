@@ -12,22 +12,24 @@ export const AllergenBadge = ({ allergen, isTraza = false }: { allergen: Alergen
     if (!info) return null;
 
     return (
-        <Tooltip>
-            <TooltipTrigger>
-                <Badge
-                    className={cn(
-                        "text-white text-xs font-bold w-10 h-5 flex items-center justify-center cursor-default",
-                        info.color,
-                        isTraza && "opacity-60"
-                    )}
-                    style={{ backgroundColor: info.color.startsWith('bg-') ? undefined : info.color }}
-                >
-                    {info.abbr}
-                </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-                <p>{allergen.charAt(0) + allergen.slice(1).toLowerCase().replace('_', ' ')} {isTraza && '(trazas)'}</p>
-            </TooltipContent>
-        </Tooltip>
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger>
+                    <Badge
+                        className={cn(
+                            "text-white text-xs font-bold w-10 h-5 flex items-center justify-center cursor-default",
+                            info.color,
+                            isTraza && "opacity-60"
+                        )}
+                        style={{ backgroundColor: info.color.startsWith('bg-') ? undefined : info.color }}
+                    >
+                        {info.abbr}
+                    </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>{allergen.charAt(0) + allergen.slice(1).toLowerCase().replace('_', ' ')} {isTraza && '(trazas)'}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
     );
 };
