@@ -316,10 +316,10 @@ function ElaboracionesListPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
+             <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
             <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
             <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
-             <Button asChild>
+            <Button asChild>
               <Link href="/book/elaboraciones/nueva">
                 <PlusCircle className="mr-2" />
                 Nueva Elaboración
@@ -567,8 +567,8 @@ function ElaborationFormPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
-                    <Button type="submit" form="elaboration-form" disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : <Save />}
+                    <Button type="submit" form="elaboration-form" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">{isNew || cloneId ? 'Guardar Elaboración' : 'Guardar Cambios'}</span>
                     </Button>
                 </div>
@@ -592,6 +592,7 @@ export default function ElaboracionesPage() {
         </Suspense>
     );
 }
+
 
 
 
