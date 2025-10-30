@@ -14,7 +14,7 @@ import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-genera
 
 import { Loader2, Save, X, BookHeart, Utensils, Sprout, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive, BrainCircuit } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, PartidaProduccion, ElaboracionEnReceta } from '@/types';
-import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, PARTIDAS_PRODUCCION } from '@/types';
+import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, PARTIDAS_PRODUCCION, TECNICAS_COCCION } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -94,7 +94,7 @@ const recetaFormSchema = z.object({
   tipoCocina: z.array(z.string()).optional().default([]),
   recetaOrigen: z.string().optional().default(''),
   temperaturaServicio: z.enum(['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO']).optional(),
-  tecnicaCoccionPrincipal: z.string().optional().default(''),
+  tecnicaCoccionPrincipal: z.enum(TECNICAS_COCCION).optional(),
   potencialMiseEnPlace: z.enum(['COMPLETO', 'PARCIAL', 'AL_MOMENTO']).optional(),
   formatoServicioIdeal: z.array(z.string()).optional().default([]),
   equipamientoCritico: z.array(z.string()).optional().default([]),
@@ -320,7 +320,7 @@ function RecetaFormPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const { toast } = useToast();
-  const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
+  const [dbElaboraciones, setDbElaboraciones] = useState<ElaborationConCoste[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
 
@@ -350,7 +350,6 @@ function RecetaFormPage() {
                 const costeReal = ing?.erp ? (ing.erp.precioCompra / (ing.erp.unidadConversion || 1)) * (1 - (ing.erp.descuento || 0) / 100) : 0;
                 costeTotalComponentes += costeReal * comp.cantidad * (1 + (comp.merma || 0) / 100);
             } else if (comp.tipo === 'elaboracion') {
-                // This is a recursive calculation that should be handled carefully. For now, assume sub-elaboration costs are pre-calculated.
                 const subElab = allElaboraciones.find(sub => sub.id === comp.componenteId);
                 costeTotalComponentes += (subElab?.costePorUnidad || 0) * comp.cantidad * (1 + (comp.merma || 0) / 100);
             }
@@ -370,7 +369,7 @@ function RecetaFormPage() {
         const matchingDbElab = updatedDbElaboraciones.find(dbElab => dbElab.id === elabInReceta.elaboracionId);
         return {
             ...elabInReceta,
-            coste: matchingDbElab?.costePorUnidad || elabInReceta.coste, // Fallback to old cost if not found
+            coste: matchingDbElab?.costePorUnidad || elabInReceta.coste,
             alergenos: matchingDbElab?.alergenos || [],
         };
     });
@@ -580,7 +579,7 @@ function RecetaFormPage() {
                  <Tabs defaultValue="general">
                     <TabsList className="grid w-full grid-cols-5">
                         <TabsTrigger value="general">Info. General</TabsTrigger>
-                        <TabsTrigger value="gastronomica">Info. Gastronómica</TabsTrigger>
+                        <TabsTrigger value="gastronomica">Clasificación Gastronómica</TabsTrigger>
                         <TabsTrigger value="costes">Info. €</TabsTrigger>
                         <TabsTrigger value="receta">Receta</TabsTrigger>
                         <TabsTrigger value="pase">Info. Pase</TabsTrigger>
@@ -671,7 +670,7 @@ function RecetaFormPage() {
                     </TabsContent>
                     <TabsContent value="gastronomica" className="mt-4">
                         <Card>
-                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BrainCircuit/>Información Gastronómica</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BrainCircuit/>Clasificación Gastronómica</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid md:grid-cols-3 gap-4">
                                     <FormField control={form.control} name="perfilSaborPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Sabor Principal <InfoTooltip text="¿Cuál es el sabor dominante que define el plato?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{SABORES_PRINCIPALES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
@@ -685,7 +684,7 @@ function RecetaFormPage() {
                                 <Separator />
                                 <div className="grid md:grid-cols-3 gap-4">
                                     <FormField control={form.control} name="temperaturaServicio" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Temperatura de Servicio <InfoTooltip text="¿Cómo se debe servir este plato?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                    <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Técnica Principal <InfoTooltip text="¿Cuál es la técnica de cocción más relevante?" /></FormLabel><FormControl><Input {...field} placeholder="Ej: Fritura, Horneado..."/></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Técnica Principal <InfoTooltip text="¿Cuál es la técnica de cocción más relevante?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{TECNICAS_COCCION.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
                                     <FormField control={form.control} name="potencialMiseEnPlace" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Potencial de MEP <InfoTooltip text="¿Cuánto trabajo se puede adelantar antes del servicio?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['COMPLETO', 'PARCIAL', 'AL_MOMENTO'].map(s=><SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}</SelectContent></Select></FormItem>)} />
                                 </div>
                                  <div className="grid md:grid-cols-2 gap-4">

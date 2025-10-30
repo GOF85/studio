@@ -679,6 +679,9 @@ export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
 export const PARTIDAS_PRODUCCION = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'] as const;
 export type PartidaProduccion = typeof PARTIDAS_PRODUCCION[number];
 
+export const TECNICAS_COCCION = ['Horneado / Asado', 'Fritura', 'Guiso / Estofado', 'Plancha / Salteado', 'Vapor / Hervido', 'Crudo / Marinado', 'Baja Temperatura / Sous-vide'] as const;
+export type TecnicaCoccion = typeof TECNICAS_COCCION[number];
+
 export type Receta = {
     id: string;
     numeroReceta?: string;
@@ -710,7 +713,7 @@ export type Receta = {
     tipoCocina?: string[];
     recetaOrigen?: string;
     temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE' | 'FRIO' | 'HELADO';
-    tecnicaCoccionPrincipal?: string;
+    tecnicaCoccionPrincipal?: TecnicaCoccion;
     potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL' | 'AL_MOMENTO';
     formatoServicioIdeal?: string[];
     equipamientoCritico?: string[];
