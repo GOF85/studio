@@ -365,6 +365,7 @@ export type GastronomyOrderItem = {
     costeMateriaPrima?: number;
     precioVenta?: number;
     quantity?: number;
+    comentarios?: string;
 }
 export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Listo' | 'Incidencia';
 
@@ -476,7 +477,7 @@ export type AtipicoOrder = {
 export type PersonalMiceOrder = {
     id: string;
     osId: string;
-    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
+    solicitadoPor: 'Sala' | 'Pase' | 'Otro';
     nombre: string;
     dni: string;
     tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
@@ -659,6 +660,8 @@ export type Elaboracion = {
     tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
     costePorUnidad?: number;
     alergenos?: Alergeno[];
+    requiereRevision?: boolean;
+    comentarioRevision?: string;
 }
 
 export type ElaboracionEnReceta = {
@@ -721,11 +724,11 @@ export type Receta = {
     estabilidadBuffet?: number; // 1-5
     escalabilidad?: 'FACIL' | 'MEDIA' | 'DIFICIL';
     etiquetasTendencia?: string[];
-    // Calculated fields
     costeMateriaPrima?: number;
     precioVenta?: number;
     alergenos?: Alergeno[];
     requiereRevision?: boolean;
+    comentarioRevision?: string;
 }
 
 export type OrdenFabricacion = {
@@ -751,6 +754,7 @@ export type OrdenFabricacion = {
     responsableCalidad?: string;
     fechaValidacionCalidad?: string;
     tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    consumosReales?: { componenteId: string; cantidadReal: number }[];
 }
 
 export type PickingItemState = {

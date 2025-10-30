@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import type { Receta } from '@/types';
-import { BookHeart, ChefHat, Component, Package, Sprout, CheckSquare, ChevronRight, Menu, FilePenLine } from 'lucide-react';
+import { BookHeart, ChefHat, Component, Package, Sprout, CheckSquare, ChevronRight, Menu, FilePenLine, BarChart3 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -19,6 +19,7 @@ const bookNavLinks = [
     { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
     { title: 'Revisión de Ingredientes', path: '/book/revision-ingredientes', icon: CheckSquare },
     { title: 'Información de Alérgenos', path: '/book/alergenos', icon: Sprout },
+    { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
 ];
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
