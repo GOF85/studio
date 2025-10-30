@@ -31,7 +31,6 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
@@ -105,7 +104,7 @@ function ElaboracionesListPage() {
         const usedInRecetas = usageMap.get(elab.id) || [];
         return {
           ...elab,
-          alergenosCalculados: calculateElabAlergenos(elab, ingredientesMap),
+          alergenosCalculados: calculateElabAlergenos(elab, ingredientesMap as any),
           usageCount: usedInRecetas.length,
           usedIn: usedInRecetas
         }
@@ -450,9 +449,9 @@ function ElaborationFormPage() {
     const params = useParams();
     const searchParams = useSearchParams();
 
-    const id = Array.isArray(params.id) ? params.id[0] : null;
-    const isNew = id === 'nuevo';
-    const isEditing = !isNew && id;
+    const idParam = Array.isArray(params.id) ? params.id[0] : params.id;
+    const isNew = idParam === 'nuevo';
+    const isEditing = !isNew && idParam;
     const cloneId = searchParams.get('cloneId');
 
     const [initialData, setInitialData] = useState<Partial<ElaborationFormValues> | null>(null);
@@ -460,37 +459,55 @@ function ElaborationFormPage() {
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     
     useEffect(() => {
-        let elabToLoad: Partial<ElaborationFormValues> | null = null;
-        const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-        
-        if (cloneId) {
-            const elabToClone = allElaboraciones.find(e => e.id === cloneId);
-            if (elabToClone) {
-                elabToLoad = { ...elabToClone, id: Date.now().toString(), nombre: `${elabToClone.nombre} (Copia)` };
-            }
-        } else if (isEditing) {
-            elabToLoad = allElaboraciones.find(e => e.id === id) || null;
-        } else if (isNew) {
-            elabToLoad = { 
-                id: Date.now().toString(), 
-                nombre: '', 
-                produccionTotal: 1, 
-                unidadProduccion: 'KG', 
-                partidaProduccion: 'FRIO', 
-                componentes: [],
-                tipoExpedicion: 'REFRIGERADO', 
-                formatoExpedicion: '', 
-                ratioExpedicion: 0,
-                instruccionesPreparacion: '', 
-                videoProduccionURL: '', 
-                fotosProduccionURLs: [],
-            };
-        }
-        
-        setInitialData(elabToLoad);
-        setIsDataLoaded(true);
+        console.log('--- DEBUG: STARTING FORM PAGE LOAD ---');
+        console.log(`[DEBUG] idParam: ${idParam}, isNew: ${isNew}, isEditing: ${isEditing}, cloneId: ${cloneId}`);
 
-    }, [id, isNew, isEditing, cloneId]);
+        let elabToLoad: Partial<ElaborationFormValues> | null = null;
+        try {
+            const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+            console.log(`[DEBUG] Loaded ${allElaboraciones.length} elaboraciones from localStorage`);
+            
+            if (cloneId) {
+                console.log(`[DEBUG] Clone mode. Searching for ID: ${cloneId}`);
+                const elabToClone = allElaboraciones.find(e => e.id === cloneId);
+                if (elabToClone) {
+                    console.log('[DEBUG] Found elaboration to clone:', elabToClone);
+                    elabToLoad = { ...elabToClone, id: Date.now().toString(), nombre: `${elabToClone.nombre} (Copia)` };
+                } else {
+                     console.log('[DEBUG] Elaboration to clone not found.');
+                }
+            } else if (isEditing) {
+                console.log(`[DEBUG] Edit mode. Searching for ID: ${idParam}`);
+                elabToLoad = allElaboraciones.find(e => e.id === idParam) || null;
+                console.log('[DEBUG] Found elaboration to edit:', elabToLoad);
+            } else if (isNew) {
+                console.log('[DEBUG] New mode.');
+                elabToLoad = { 
+                    id: Date.now().toString(), 
+                    nombre: '', 
+                    produccionTotal: 1, 
+                    unidadProduccion: 'KG', 
+                    partidaProduccion: 'FRIO', 
+                    componentes: [],
+                    tipoExpedicion: 'REFRIGERADO', 
+                    formatoExpedicion: '', 
+                    ratioExpedicion: 0,
+                    instruccionesPreparacion: '', 
+                    videoProduccionURL: '', 
+                    fotosProduccionURLs: [],
+                };
+            }
+            
+            console.log('[DEBUG] Final data to load into form:', elabToLoad);
+            setInitialData(elabToLoad);
+        } catch(e) {
+            console.error('[DEBUG] Error during data loading:', e);
+        } finally {
+            setIsDataLoaded(true);
+            console.log('--- DEBUG: FINISHED DATA LOAD ---');
+        }
+
+    }, [idParam, isNew, isEditing, cloneId]);
 
     function onSubmit(data: ElaborationFormValues, costePorUnidad: number) {
         setIsLoading(true);
@@ -499,10 +516,11 @@ function ElaborationFormPage() {
         
         const dataToSave: Elaboracion = { 
           ...data, 
+          costePorUnidad: costePorUnidad,
         };
 
         if (isEditing && !cloneId) {
-          const index = allItems.findIndex(p => p.id === id);
+          const index = allItems.findIndex(p => p.id === idParam);
           if (index !== -1) {
             allItems[index] = dataToSave;
             message = 'Elaboración actualizada correctamente.';
@@ -542,8 +560,8 @@ function ElaborationFormPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
-                    <Button type="submit" form="elaboration-form" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                    <Button type="submit" form="elaboration-form" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">{isNew || cloneId ? 'Guardar Elaboración' : 'Guardar Cambios'}</span>
                     </Button>
                 </div>
@@ -551,7 +569,7 @@ function ElaborationFormPage() {
             <ElaborationForm
                 initialData={initialData}
                 onSave={onSubmit}
-                isSubmitting={isLoading}
+                isSubmitting={isSubmitting}
             />
       </main>
     );
@@ -567,4 +585,3 @@ export default function ElaboracionesPage() {
         </Suspense>
     );
 }
-
