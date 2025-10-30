@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -10,7 +11,7 @@ import { BookHeart, ChevronRight, Menu } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { bookNavLinks } from '@/lib/cpr-nav'; // Assuming nav links are defined here
+import { bookNavLinks } from '@/lib/cpr-nav';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
@@ -70,32 +71,35 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
         if (hasId) {
             const moduleSegment = pathSegments[1];
             const idSegment = pathSegments[2];
-            const cloneId = new URLSearchParams(window.location.search).get('cloneId');
-
+            const isNew = idSegment === 'nueva';
+            const searchParams = new URLSearchParams(window.location.search);
+            const cloneId = searchParams.get('cloneId');
+            
             let title = '';
-            if (idSegment === 'nuevo' || cloneId) {
+
+            if (isNew) {
                 if (cloneId) {
-                    title = `Clonando ${moduleSegment === 'recetas' ? 'Receta' : 'Elaboración'}`;
+                     title = `Clonando ${moduleSegment === 'recetas' ? 'Receta' : 'Elaboración'}`;
                 } else {
                     title = `Nueva ${moduleSegment === 'recetas' ? 'Receta' : 'Elaboración'}`;
                 }
             } else {
-                try {
+                 try {
                     if (moduleSegment === 'recetas') {
                         const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
                         const recipe = allRecetas.find(r => r.id === idSegment);
-                        title = recipe?.nombre || '';
+                        title = recipe?.nombre || '...';
                     } else if (moduleSegment === 'elaboraciones') {
                         const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
                         const elaboracion = allElaboraciones.find(e => e.id === idSegment);
-                        title = elaboracion?.nombre || '';
+                        title = elaboracion?.nombre || '...';
                     }
                 } catch (e) {
                     console.error("Failed to parse from localStorage:", e);
                     title = '...';
                 }
             }
-            setPageTitle(title);
+             setPageTitle(title);
         } else {
             setPageTitle(null);
         }

@@ -296,7 +296,7 @@ function ElaboracionesListPage() {
             <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar Selección ({numSelected})</Button>
           )}
           <Button asChild>
-            <Link href="/book/elaboraciones/nuevo">
+            <Link href="/book/elaboraciones/nueva">
               <PlusCircle className="mr-2" />
               Nueva Elaboración
             </Link>
@@ -398,7 +398,7 @@ function ElaboracionesListPage() {
                         <DropdownMenuItem onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/book/elaboraciones/nuevo?cloneId=${item.id}`)}>
+                        <DropdownMenuItem onClick={() => router.push(`/book/elaboraciones/nueva?cloneId=${item.id}`)}>
                           <Copy className="mr-2 h-4 w-4" /> Clonar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -450,7 +450,7 @@ function ElaborationFormPage() {
     const searchParams = useSearchParams();
 
     const idParam = Array.isArray(params.id) ? params.id[0] : params.id;
-    const isNew = idParam === 'nuevo';
+    const isNew = idParam === 'nueva';
     const isEditing = !isNew && idParam;
     const cloneId = searchParams.get('cloneId');
 
@@ -572,4 +572,3 @@ export default function ElaboracionesPage() {
         </Suspense>
     );
 }
-

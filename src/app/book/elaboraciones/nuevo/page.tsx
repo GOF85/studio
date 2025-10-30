@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 export default function NuevaElaboracionRedirectPage() {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/book/elaboraciones/nuevo');
+        router.replace('/book/elaboraciones/nueva');
     }, [router]);
     return null;
 }
