@@ -1,21 +1,18 @@
 
-
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useForm, useFieldArray, FieldErrors, FormProvider, useFormContext } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive } from 'lucide-react';
-import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta } from '@/types';
-import { SABORES_PRINCIPALES } from '@/types';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive } from 'lucide-react';
+import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, TipoCocina, ElaboracionEnReceta } from '@/types';
+import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, PARTIDAS_PRODUCCION } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -24,7 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -34,16 +31,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { Combobox } from '@/components/ui/combobox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Slider } from '@/components/ui/slider';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatUnit, cn } from '@/lib/utils';
 import Image from 'next/image';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { ComponenteSelector } from '@/components/book/componente-selector';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -57,7 +50,7 @@ const elaboracionEnRecetaSchema = z.object({
   coste: z.coerce.number().optional().default(0),
   gramaje: z.coerce.number().default(0),
   alergenos: z.array(z.string()).optional().default([]),
-  unidad: z.enum(['KG', 'L', 'UD']),
+  unidad: z.enum(UNIDADES_MEDIDA),
   merma: z.coerce.number().optional().default(0),
 });
 
@@ -326,16 +319,8 @@ export default function RecetaFormPage() {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const { toast } = useToast();
   const [dbElaboraciones, setDbElaboraciones] = useState<ElaborationConCoste[]>([]);
-  const [dbMenaje, setDbMenaje] = useState<MenajeDB[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
-  const [dbTiposCocina, setDbTiposCocina] = useState<TipoCocina[]>([]);
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
-  const [saboresSecundarios, setSaboresSecundarios] = useState<string[]>([]);
-  const [texturas, setTexturas] = useState<string[]>([]);
-  const [tecnicasCoccion, setTecnicasCoccion] = useState<string[]>([]);
-  const [formatosServicio, setFormatosServicio] = useState<string[]>(['Cóctel (bocado)', 'Buffet', 'Emplatado en mesa', 'Estación de cocina en vivo (Showcooking)']);
-  const [equipamientos, setEquipamientos] = useState<string[]>(['Horno de convección', 'Abatidor', 'Sifón', 'Roner']);
-  const [etiquetasTendencia, setEtiquetasTendencia] = useState<string[]>(['Plant-based', 'Comfort food', 'Superalimentos', 'Kilómetro 0', 'Sin gluten', 'Keto']);
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
@@ -343,7 +328,6 @@ export default function RecetaFormPage() {
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab, update: updateElab } = useFieldArray({ control: form.control, name: "elaboraciones", keyName: "key" });
-  const { fields: menajeFields, append: appendMenaje, remove: removeMenaje, move: moveMenaje } = useFieldArray({ control: form.control, name: "menajeAsociado" });
 
   const watchedElaboraciones = form.watch('elaboraciones');
   const watchedPorcentajeCoste = form.watch('porcentajeCosteProduccion');
@@ -379,95 +363,81 @@ export default function RecetaFormPage() {
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
   useEffect(() => {
-    // Load all necessary master data
-    const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-    const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-    const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
-    const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
-    const ingredientesMap = new Map(combinedIngredientes.map(i => [i.id, i]));
-    
-    const elaboracionesData = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    const elaboracionesConDatos = elaboracionesData.map(e => ({
-        ...e,
-        costePorUnidad: e.costePorUnidad || 0,
-        alergenos: calculateElabAlergenos(e, ingredientesMap)
-    }));
-    
-    setDbElaboraciones(elaboracionesConDatos);
-    setDbMenaje(JSON.parse(localStorage.getItem('menajeDB') || '[]') as MenajeDB[]);
-    setDbCategorias(JSON.parse(localStorage.getItem('categoriasRecetas') || '[]') as CategoriaReceta[]);
-    setDbTiposCocina(JSON.parse(localStorage.getItem('tiposCocina') || '[]') as TipoCocina[]);
-    
-    const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-    setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
-
-    // Determine form initial values
     let initialValues: Partial<RecetaFormValues> | null = null;
-    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    try {
+        // Load master data first
+        const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+        const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+        const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
+        const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
+        const ingredientesMap = new Map(combinedIngredientes.map(i => [i.id, i]));
+        
+        const elaboracionesData = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        const elaboracionesConDatos = elaboracionesData.map(e => ({
+            ...e,
+            costePorUnidad: e.costePorUnidad || 0,
+            alergenos: calculateElabAlergenos(e, ingredientesMap)
+        }));
+        
+        setDbElaboraciones(elaboracionesConDatos);
+        setDbCategorias(JSON.parse(localStorage.getItem('categoriasRecetas') || '[]'));
+        const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+        setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
-    if (isEditing) {
-        const foundReceta = allRecetas.find(e => e.id === id);
-        if (foundReceta) {
-            initialValues = foundReceta;
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
-            router.push('/book/recetas');
-            return;
+        // Determine form initial values
+        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+
+        if (isEditing) {
+            const foundReceta = allRecetas.find(e => e.id === id);
+            if (foundReceta) {
+                initialValues = foundReceta;
+            } else {
+                toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
+                router.push('/book/recetas');
+                return;
+            }
+        } else if (cloneId) {
+            const recetaToClone = allRecetas.find(e => e.id === cloneId);
+            if (recetaToClone) {
+                initialValues = { ...recetaToClone, id: Date.now().toString(), nombre: `${recetaToClone.nombre} (Copia)` };
+            }
+        } else { // isNew
+            const lastRecipe = allRecetas.reduce((last, current) => {
+                if (!current.numeroReceta || !last?.numeroReceta) return current;
+                const currentNum = parseInt(current.numeroReceta.substring(2));
+                const lastNum = parseInt(last.numeroReceta.substring(2));
+                return currentNum > lastNum ? current : last;
+            }, null as Receta | null);
+            const lastNum = lastRecipe && lastRecipe.numeroReceta ? parseInt(lastRecipe.numeroReceta.substring(2)) : 0;
+            const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
+            initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum };
         }
-    } else if (cloneId) {
-        const recetaToClone = allRecetas.find(e => e.id === cloneId);
-        if (recetaToClone) {
-            initialValues = { ...recetaToClone, id: Date.now().toString(), nombre: `${recetaToClone.nombre} (Copia)` };
+
+        if (initialValues) {
+            form.reset({
+                ...defaultValues,
+                ...initialValues
+            });
         }
-    } else { // isNew
-        const lastRecipe = allRecetas.reduce((last, current) => {
-            if (!current.numeroReceta || !last?.numeroReceta) return current;
-            const currentNum = parseInt(current.numeroReceta.substring(2));
-            const lastNum = parseInt(last.numeroReceta.substring(2));
-            return currentNum > lastNum ? current : last;
-        }, null as Receta | null);
-        const lastNum = lastRecipe && lastRecipe.numeroReceta ? parseInt(lastRecipe.numeroReceta.substring(2)) : 0;
-        const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
-        initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum };
+    } catch (e) {
+        console.error("Failed to load data:", e);
+        toast({ variant: 'destructive', title: 'Error de carga', description: 'No se pudieron cargar los datos necesarios.' });
+    } finally {
+        setIsDataLoaded(true);
     }
-
-    if (initialValues) {
-        form.reset({
-            ...defaultValues,
-            ...initialValues
-        });
-    }
-
-    setIsDataLoaded(true);
 }, [id, cloneId, isEditing, isNew, form, router, toast]);
-
-  const forceRecalculate = () => {
-    const currentElaboraciones = form.getValues('elaboraciones');
-    const updatedElaboraciones = currentElaboraciones.map(elab => {
-        const masterElab = dbElaboraciones.find(dbElab => dbElab.id === elab.elaboracionId);
-        if (masterElab && masterElab.costePorUnidad !== elab.coste) {
-            return { ...elab, coste: masterElab.costePorUnidad || 0 };
-        }
-        return elab;
-    });
-    form.setValue('elaboraciones', updatedElaboraciones, { shouldDirty: true });
-    toast({ title: 'Costes recalculados', description: 'Se han actualizado los costes unitarios de las elaboraciones.' });
-};
-
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [], unidad: elab.unidadProduccion, merma: 0 });
-  }
-
-  const onAddMenaje = (menaje: MenajeDB) => {
-    appendMenaje({ id: menaje.id, menajeId: menaje.id, descripcion: menaje.descripcion, ratio: 1 });
   }
   
   const handleElaborationCreated = (newElab: Elaboracion) => {
         toast({ title: 'Elaboración Creada', description: `Se ha añadido "${newElab.nombre}" a la receta.` });
         
         const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const ingredientesMap = new Map(storedInternos.map(i => [i.id, i as IngredienteConERP]));
+        const erpMap = new Map((JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[]).map(i => [i.idreferenciaerp, i]));
+        const ingredientesMap = new Map(storedInternos.map(ing => [ing.id, { ...ing, erp: erpMap.get(ing.productoERPlinkId) }]));
+
         const elabWithData = {
             ...newElab,
             costePorUnidad: newElab.costePorUnidad || 0,
@@ -480,52 +450,22 @@ export default function RecetaFormPage() {
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
-  function handleDragEnd(event: DragEndEvent, type: 'elab' | 'menaje') {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-        const oldIndex = (type === 'elab' ? elabFields : menajeFields).findIndex(f => f.id === active.id);
-        const newIndex = (type === 'elab' ? elabFields : menajeFields).findIndex(f => f.id === over.id);
-        if(type === 'elab') moveElab(oldIndex, newIndex);
-        else moveMenaje(oldIndex, newIndex);
+        const oldIndex = elabFields.findIndex(f => f.id === active.id);
+        const newIndex = elabFields.findIndex(f => f.id === over.id);
+        moveElab(oldIndex, newIndex);
     }
   }
-
-  const handleGenerateDescription = async () => {
-    setIsGenerating(true);
-    try {
-        const formData = form.getValues();
-        const description = await recipeDescriptionGenerator({
-          nombre: formData.nombre,
-          tipoCocina: formData.tipoCocina?.join(', '),
-          perfilSaborPrincipal: formData.perfilSaborPrincipal,
-          perfilSaborSecundario: formData.perfilSaborSecundario,
-          perfilTextura: formData.perfilTextura,
-          tecnicaCoccionPrincipal: formData.tecnicaCoccionPrincipal,
-        });
-        form.setValue('descripcionComercial', description, { shouldDirty: true });
-        toast({ title: 'Descripción generada', description: 'La IA ha generado una nueva descripción comercial.' });
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar la descripción.' });
-    } finally {
-        setIsGenerating(false);
-    }
-  };
   
   const onError = (errors: FieldErrors<RecetaFormValues>) => {
     const firstError = Object.entries(errors)[0];
     if (firstError) {
-        const [fieldName, errorDetails] = firstError;
-        let errorMessage = errorDetails.message;
-        if (errorDetails.root) { // For array errors
-            errorMessage = errorDetails.root.message;
-        }
-        if (typeof errorDetails === 'object' && !errorMessage && 'message' in errorDetails) {
-            errorMessage = (errorDetails as any).message;
-        }
         toast({
             variant: 'destructive',
             title: 'Error de validación',
-            description: `${fieldName}: ${errorMessage}`,
+            description: `Por favor, revisa todos los campos obligatorios.`,
         })
     }
   };
@@ -575,7 +515,6 @@ export default function RecetaFormPage() {
   const pageTitle = cloneId ? 'Clonar Receta' : (isNew ? 'Nueva Receta' : 'Editar Receta');
 
   return (
-    <div>
     <TooltipProvider>
       <main>
         <FormProvider {...form}>
@@ -588,7 +527,7 @@ export default function RecetaFormPage() {
                     <div className="flex gap-2">
                         <Button variant="outline" type="button" onClick={() => router.push('/book/recetas')}> <X className="mr-2"/> Cancelar</Button>
                         {isEditing && (
-                            <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/> Borrar</Button>
+                           <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/> Borrar</Button>
                         )}
                         <Button type="submit" form="receta-form" disabled={isLoading}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -621,7 +560,7 @@ export default function RecetaFormPage() {
                                 <div className="flex-grow space-y-2">
                                 <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem>
                                     <FormLabel className="flex items-center gap-2">Descripción Comercial 
-                                        <Button size="sm" variant="ghost" type="button" onClick={handleGenerateDescription} disabled={isGenerating} className="h-auto px-1 py-0 text-accent-foreground hover:text-accent-foreground/80">
+                                        <Button size="sm" variant="ghost" type="button" disabled={isGenerating} className="h-auto px-1 py-0 text-accent-foreground hover:text-accent-foreground/80">
                                             {isGenerating ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Sparkles className="h-3.5 w-3.5"/>}
                                         </Button>
                                     </FormLabel>
@@ -695,7 +634,7 @@ export default function RecetaFormPage() {
                                 <TrendingUp/>Análisis de Rentabilidad
                             </CardTitle>
                              <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" type="button">
                                     <RefreshCw className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -736,7 +675,7 @@ export default function RecetaFormPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="border rounded-lg">
-                          <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e, 'elab')} collisionDetection={closestCenter}>
+                          <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e)} collisionDetection={closestCenter}>
                             <Table>
                                 <TableHeader>
                                   <TableRow>
