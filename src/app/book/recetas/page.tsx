@@ -5,16 +5,38 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown } from 'lucide-react';
+import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { Receta, CategoriaReceta } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
@@ -33,6 +55,7 @@ export default function RecetasPage() {
   const [showVisibleOnly, setShowVisibleOnly] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   
   const router = useRouter();
   const { toast } = useToast();
@@ -165,12 +188,22 @@ export default function RecetasPage() {
     }
   };
 
+  const handleDelete = () => {
+    if (!itemToDelete) return;
+    const updatedData = items.filter(i => i.id !== itemToDelete);
+    localStorage.setItem('recetas', JSON.stringify(updatedData));
+    setItems(updatedData);
+    toast({ title: 'Receta eliminada' });
+    setItemToDelete(null);
+  };
+
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Recetas..." />;
   }
 
   return (
+    <>
     <TooltipProvider>
       <div className="flex items-center justify-between mb-6">
           <Input 
@@ -259,7 +292,7 @@ export default function RecetasPage() {
                 <TableHead className="py-2">Partida Producción</TableHead>
                 <TableHead className="py-2">Coste M.P.</TableHead>
                 <TableHead className="py-2">Precio Venta</TableHead>
-                <TableHead className="w-12 text-right py-2"></TableHead>
+                <TableHead className="w-24 text-right py-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -284,22 +317,31 @@ export default function RecetasPage() {
                     <TableCell className="py-2">{formatCurrency(item.costeMateriaPrima)}</TableCell>
                     <TableCell className="font-bold text-primary py-2">{formatCurrency(item.precioVenta)}</TableCell>
                     <TableCell className="py-2 text-right">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push(`/book/recetas/nueva?cloneId=${item.id}`); }}>
-                                    <Copy className="h-4 w-4"/>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                                <span className="sr-only">Abrir menú</span>
+                                <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Clonar</p>
-                            </TooltipContent>
-                        </Tooltip>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => router.push(`/book/recetas/${item.id}`)}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/book/recetas/nueva?cloneId=${item.id}`); }}>
+                                    <Copy className="mr-2 h-4 w-4" /> Clonar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id); }}>
+                                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     No se encontraron recetas.
                   </TableCell>
                 </TableRow>
@@ -308,6 +350,25 @@ export default function RecetasPage() {
           </Table>
         </div>
     </TooltipProvider>
+    <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la receta.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
-
