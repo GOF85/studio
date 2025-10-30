@@ -117,7 +117,9 @@ function SortableTableRow({ field, index, remove, form }: { field: ElaboracionEn
         transition,
     };
     
-    const costeTotal = (field.coste || 0) * (form.watch(`elaboraciones.${index}.cantidad`) || 0);
+    const costeConMerma = (field.coste || 0) * (1 + (field.merma || 0) / 100);
+    const costeTotal = costeConMerma * (form.watch(`elaboraciones.${index}.cantidad`) || 0);
+
 
     return (
         <TableRow ref={setNodeRef} style={style} {...attributes}>
@@ -252,6 +254,8 @@ function CreateElaborationModal({ onElaborationCreated, children }: { onElaborat
         localStorage.setItem('elaboraciones', JSON.stringify(allItems));
         
         toast({ title: 'Elaboración Creada', description: `Se ha añadido "${data.nombre}" a la base de datos y a la receta.` });
+        
+        // This is the key part: wait for the parent to handle the new elaboration
         await onElaborationCreated(dataToSave);
 
         setIsSubmitting(false);
@@ -500,11 +504,10 @@ function RecetaFormPage() {
     const allPartidas = new Set<PartidaProduccion>();
 
     (watchedElaboraciones || []).forEach(elab => {
-        const elabData = dbElaboraciones.find(dbElab => dbElab.id === elab.elaboracionId);
-        const costeUnitarioReal = elab.coste || 0;
-        const costeConMerma = costeUnitarioReal * (1 + (elab.merma || 0) / 100);
+        const costeConMerma = (elab.coste || 0) * (1 + (elab.merma || 0) / 100);
         coste += costeConMerma * elab.cantidad;
         
+        const elabData = dbElaboraciones.find(dbElab => dbElab.id === elab.elaboracionId);
         (elabData?.alergenos || []).forEach(a => allAlergenos.add(a as Alergeno));
 
         if (elabData?.partidaProduccion) {
@@ -517,7 +520,7 @@ function RecetaFormPage() {
         alergenos: Array.from(allAlergenos),
         partidasProduccion: Array.from(allPartidas)
     };
-  }, [watchedElaboraciones, dbElaboraciones]);
+}, [watchedElaboraciones, dbElaboraciones]);
 
   const pvpTeorico = useMemo(() => {
     const costeImputacion = costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100);
@@ -910,14 +913,4 @@ export default function RecetaPage() {
     return <RecetaFormPage />;
 }
 
-
-
-
-
-
-
-
-
-
-
-
+    
