@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
-import type { Receta } from '@/types';
+import type { Receta, Elaboracion } from '@/types';
 import { BookHeart, ChefHat, Component, Package, Sprout, CheckSquare, ChevronRight, Menu, FilePenLine, BarChart3 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -59,29 +59,43 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [pageTitle, setPageTitle] = useState('');
     
-    const { currentPage, isDetailPage } = useMemo(() => {
-        const pathSegments = pathname.split('/').filter(Boolean);
-        const moduleSegment = pathSegments[1] || 'book';
-        const isDetail = pathSegments.length > 2;
+     const { currentPage, isDetailPage, detailId } = useMemo(() => {
+        const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['book', 'recetas', '12345']
+        
+        if (pathSegments.length > 2 && (pathSegments[1] === 'recetas' || pathSegments[1] === 'elaboraciones')) {
+            const moduleSegment = pathSegments[1];
+            const page = bookNavLinks.find(link => link.path.includes(moduleSegment));
+            return {
+                currentPage: page,
+                isDetailPage: true,
+                detailId: pathSegments[2]
+            };
+        }
 
-        const page = bookNavLinks.find(link => link.path.endsWith(moduleSegment));
-
+        const page = bookNavLinks.find(link => pathname.startsWith(link.path) && !(link.exact && pathname !== link.path));
+        
         return {
             currentPage: page,
-            isDetailPage: isDetail && page?.path !== '/book'
+            isDetailPage: false,
+            detailId: null,
         };
     }, [pathname]);
 
     useEffect(() => {
-        if (isDetailPage && currentPage?.path.includes('recetas')) {
-            const recipeId = pathname.split('/').pop();
-            const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-            const recipe = allRecetas.find(r => r.id === recipeId);
-            setPageTitle(recipe?.nombre || '');
+        if (isDetailPage && detailId) {
+            if (currentPage?.path.includes('recetas')) {
+                const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+                const recipe = allRecetas.find(r => r.id === detailId);
+                setPageTitle(recipe?.nombre || '');
+            } else if (currentPage?.path.includes('elaboraciones')) {
+                const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+                const elaboracion = allElaboraciones.find(e => e.id === detailId);
+                setPageTitle(elaboracion?.nombre || '');
+            }
         } else {
             setPageTitle('');
         }
-    }, [pathname, currentPage, isDetailPage]);
+    }, [pathname, currentPage, isDetailPage, detailId]);
 
     return (
         <>
