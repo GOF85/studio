@@ -59,7 +59,7 @@ const elaboracionFormSchema = z.object({
 export type ElaborationFormValues = z.infer<typeof elaboracionFormSchema>;
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
-export function ElaborationForm({ initialData, onSave, isSubmitting }: { initialData: Partial<ElaborationFormValues> | null, onSave: (data: ElaborationFormValues, costePorUnidad: number) => void, isSubmitting: boolean }) {
+export function ElaborationForm({ initialData, onSave, isSubmitting }: { initialData: Partial<ElaborationFormValues> | null, onSave: (data: ElaborationFormValues, costePorUnidad: number) => void | Promise<void>, isSubmitting: boolean }) {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
   const [elaboracionesData, setElaboracionesData] = useState<Map<string, Elaboracion>>(new Map());
@@ -116,6 +116,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
           costePorUnidad: costeReal,
           merma: 0,
       });
+      setIsSelectorOpen(false);
   }
 
   const handleSelectElaboracion = (elab: Elaboracion) => {
@@ -128,6 +129,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
         costePorUnidad: elab.costePorUnidad || 0,
         merma: 0,
     });
+    setIsSelectorOpen(false);
   }
   
   const handleAddImageUrl = () => {
@@ -274,9 +276,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                 )} />
                             )}
                         </div>
-                    </CardContent>
-                    <CardFooter>
-                       <Card className="w-full">
+                        <Card>
                           <CardHeader className="flex-row items-start justify-between">
                               <CardTitle className="text-lg">Coste de la Elaboración</CardTitle>
                               <div className="text-right">
@@ -292,8 +292,8 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                           <CardContent>
                               <p className="text-sm text-muted-foreground">Coste total de materia prima: {formatCurrency(costeTotal)}</p>
                           </CardContent>
-                      </Card>
-                    </CardFooter>
+                        </Card>
+                    </CardContent>
                 </Card>
             </TabsContent>
             <TabsContent value="componentes" className="mt-4">
@@ -301,7 +301,6 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                     <CardHeader className="flex-row items-center justify-between py-3">
                         <div className="space-y-1">
                             <CardTitle className="flex items-center gap-2 text-lg"><Component />Componentes</CardTitle>
-                            <CardDescription className="text-xs">Añade los ingredientes y sub-elaboraciones que forman parte de esta preparación.</CardDescription>
                         </div>
                          <div className="flex items-center gap-4">
                             <FormField control={form.control} name="produccionTotal" render={({ field }) => (

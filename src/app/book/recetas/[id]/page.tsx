@@ -255,7 +255,7 @@ function CreateElaborationModal({ onElaborationCreated, children }: { onElaborat
             onElaborationCreated(dataToSave);
             setIsSubmitting(false);
             setIsOpen(false);
-            toast({ title: 'Elaboración Creada', description: `Se ha añadido "${data.nombre}" a la receta.` });
+            toast({ title: 'Elaboración Creada', description: `Se ha añadido "${data.nombre}" a la base de datos y a la receta.` });
         }, 500);
     };
 
@@ -525,20 +525,22 @@ function RecetaFormPage() {
     return costeMateriaPrima + costeImputacion;
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
-  const onAddElab = (elab: ElaboracionConCoste) => {
+  const onAddElab = useCallback((elab: ElaboracionConCoste) => {
     appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [], unidad: elab.unidadProduccion, merma: 0 });
     setIsSelectorOpen(false); // Close the modal
-  }
+  }, [appendElab]);
   
-    const handleElaborationCreated = (newElab: Elaboracion) => {
+    const handleElaborationCreated = useCallback(async (newElab: Elaboracion) => {
         recalculateCostsAndAllergens();
         const elabWithData = {
             ...newElab,
             costePorUnidad: newElab.costePorUnidad || 0,
-            alergenos: calculateElabAlergenos(newElab, ingredientesMap as any)
+            alergenos: calculateElabAlergenos(newElab, ingredientesMap),
         };
         onAddElab(elabWithData);
-    };
+        // After adding, trigger save for the main recipe form
+        await form.handleSubmit(onSubmit)();
+    }, [recalculateCostsAndAllergens, ingredientesMap, onAddElab, form]);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
@@ -560,7 +562,7 @@ function RecetaFormPage() {
     })
   };
 
-  function onSubmit(data: RecetaFormValues) {
+  const onSubmit = (data: RecetaFormValues) => {
     setIsLoading(true);
     let allItems = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     
@@ -590,7 +592,12 @@ function RecetaFormPage() {
     localStorage.setItem('recetas', JSON.stringify(allItems));
     setIsLoading(false);
     form.reset(dataToSave as RecetaFormValues); 
-    router.push('/book/recetas');
+
+    if (!isEditing) {
+        router.push('/book/recetas');
+    } else {
+        router.replace(`/book/recetas/${id}?t=${Date.now()}`);
+    }
   }
 
   const handleDelete = () => {
@@ -734,13 +741,14 @@ function RecetaFormPage() {
                     <TabsContent value="receta" className="mt-4">
                         <Card>
                             <CardHeader className="flex-row items-center justify-between py-3">
-                                <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones</CardTitle>
-                                <CardDescription className="text-xs">Añade los componentes que forman parte de esta receta.</CardDescription></div>
+                                <div className="space-y-1">
+                                  <CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones de la Receta</CardTitle>
+                                </div>
                                 <div className="flex gap-2">
                                     <CreateElaborationModal onElaborationCreated={handleElaborationCreated}>
                                         <Button variant="secondary" size="sm" type="button"><PlusCircle size={16} /> Crear Nueva</Button>
                                     </CreateElaborationModal>
-                                    <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                                     <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                                         <DialogTrigger asChild>
                                         <Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>
                                         </DialogTrigger>
@@ -902,6 +910,7 @@ export default function RecetaPage() {
 
     return <RecetaFormPage />;
 }
+
 
 
 
