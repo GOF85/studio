@@ -1,54 +1,55 @@
 
-
 'use client';
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { BookHeart, ChefHat, Component, AlertTriangle, Shield } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { BookHeart, ChefHat, Component, AlertTriangle, Shield, Archive, Trash2, BookCheck, ComponentIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import type { Receta, Elaboracion, IngredienteInterno, ServiceOrder, GastronomyOrder } from '@/types';
-import { useRouter } from 'next/navigation';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Separator } from '@/components/ui/separator';
-import { format, isWithinInterval, addYears, startOfToday, subMonths, isBefore } from 'date-fns';
-import { formatCurrency, formatNumber } from '@/lib/utils';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { isBefore, subMonths, startOfToday, isWithinInterval, addYears } from 'date-fns';
 
 type StatCardProps = {
     title: string;
     value: number;
     icon: React.ElementType;
-    bgColorClass: string;
-    href?: string;
+    description: string;
+    href: string;
+    colorClass?: string;
 }
 
-function StatCard({ title, value, icon: Icon, bgColorClass, href }: StatCardProps) {
-    const router = useRouter();
-    const content = (
-         <Card className={`hover:shadow-lg transition-all ${href ? 'cursor-pointer' : ''} ${bgColorClass}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
-            </CardContent>
-        </Card>
+function StatCard({ title, value, icon: Icon, description, href, colorClass }: StatCardProps) {
+    return (
+        <Link href={href}>
+            <Card className={`hover:border-primary hover:shadow-lg transition-all h-full flex flex-col ${colorClass}`}>
+                <CardHeader className="flex-row items-center gap-4 space-y-0 pb-2">
+                    <div className="bg-primary/10 p-3 rounded-full">
+                        <Icon className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                        <CardTitle className="text-4xl font-bold">{value}</CardTitle>
+                    </div>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                    <p className="text-sm font-semibold">{title}</p>
+                    <p className="text-xs text-muted-foreground">{description}</p>
+                </CardContent>
+            </Card>
+        </Link>
     );
-
-    return href ? <Link href={href}>{content}</Link> : content;
 }
 
 export default function BookDashboardPage() {
   const [stats, setStats] = useState({
     totalRecetas: 0,
+    totalRecetasActivas: 0,
+    totalRecetasArchivadas: 0,
     totalElaboraciones: 0,
     totalIngredientes: 0,
+    elaboracionesHuerfanas: 0,
+    ingredientesPorVerificarCount: 0,
     recetasParaRevisarCount: 0,
     elaboracionesParaRevisarCount: 0,
-    ingredientesPorVerificarCount: 0,
   });
   
   const [isMounted, setIsMounted] = useState(false);
@@ -58,88 +59,139 @@ export default function BookDashboardPage() {
     const storedElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
     const storedIngredientes = (JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[]);
     
-    // --- Lógica para el KPI de Ingredientes por Verificar ---
+    // --- Cálculos de Totales ---
+    const totalRecetas = storedRecetas.length;
+    const totalRecetasActivas = storedRecetas.filter(r => !r.isArchived).length;
+    const totalRecetasArchivadas = totalRecetas - totalRecetasActivas;
+    const recetasParaRevisarCount = storedRecetas.filter(r => r.requiereRevision).length;
+    const elaboracionesParaRevisarCount = storedElaboraciones.filter(e => e.requiereRevision).length;
+
+    // --- Lógica para Elaboraciones Huérfanas ---
+    const elaboracionesEnUso = new Set<string>();
+    storedRecetas.forEach(receta => {
+      (receta.elaboraciones || []).forEach(elab => {
+        elaboracionesEnUso.add(elab.elaboracionId);
+      });
+    });
+    const elaboracionesHuerfanas = storedElaboraciones.filter(elab => !elaboracionesEnUso.has(elab.id)).length;
+
+    // --- Lógica para Ingredientes por Verificar ---
     const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
     const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
 
     const today = startOfToday();
     const sixMonthsAgo = subMonths(today, 6);
     
-    // 1. Encontrar todas las recetas que se usarán en el próximo año
     const recetasEnUsoIds = new Set<string>();
     allServiceOrders.forEach(os => {
         const osDate = new Date(os.startDate);
         if (isWithinInterval(osDate, { start: today, end: addYears(today, 1) })) {
-            const pedidosGastro = allGastroOrders.filter(go => go.osId === os.id);
-            pedidosGastro.forEach(pedido => {
-                (pedido.items || []).forEach(item => {
-                    if (item.type === 'item') {
-                        recetasEnUsoIds.add(item.id);
-                    }
+            allGastroOrders
+                .filter(go => go.osId === os.id)
+                .forEach(pedido => {
+                    (pedido.items || []).forEach(item => {
+                        if (item.type === 'item') recetasEnUsoIds.add(item.id);
+                    });
                 });
-            });
         }
     });
 
-    // 2. Obtener todas las elaboraciones de esas recetas
     const elaboracionesEnUsoIds = new Set<string>();
     storedRecetas.forEach(receta => {
         if (recetasEnUsoIds.has(receta.id)) {
-            (receta.elaboraciones || []).forEach(elab => {
-                elaboracionesEnUsoIds.add(elab.elaboracionId);
-            });
+            (receta.elaboraciones || []).forEach(elab => elaboracionesEnUsoIds.add(elab.elaboracionId));
         }
     });
 
-    // 3. Obtener todos los ingredientes de esas elaboraciones
     const ingredientesEnUsoIds = new Set<string>();
     storedElaboraciones.forEach(elab => {
         if (elaboracionesEnUsoIds.has(elab.id)) {
             (elab.componentes || []).forEach(comp => {
-                if (comp.tipo === 'ingrediente') {
-                    ingredientesEnUsoIds.add(comp.componenteId);
-                }
+                if (comp.tipo === 'ingrediente') ingredientesEnUsoIds.add(comp.componenteId);
             });
         }
     });
 
-    // 4. Filtrar los ingredientes que necesitan verificación Y están en uso
     const ingredientesPorVerificar = storedIngredientes.filter(ing => {
         const latestRevision = ing.historialRevisiones?.[ing.historialRevisiones.length - 1];
         const necesitaRevision = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
         const estaEnUso = ingredientesEnUsoIds.has(ing.id);
         return necesitaRevision && estaEnUso;
     });
-    // --- Fin de la lógica del KPI ---
-    
+
     setStats({
-      totalRecetas: storedRecetas.length,
+      totalRecetas,
+      totalRecetasActivas,
+      totalRecetasArchivadas,
       totalElaboraciones: storedElaboraciones.length,
       totalIngredientes: storedIngredientes.length,
-      recetasParaRevisarCount: storedRecetas.filter(r => r.requiereRevision).length,
-      elaboracionesParaRevisarCount: storedElaboraciones.filter(e => e.requiereRevision).length,
+      elaboracionesHuerfanas,
       ingredientesPorVerificarCount: ingredientesPorVerificar.length,
+      recetasParaRevisarCount,
+      elaboracionesParaRevisarCount,
     });
     
     setIsMounted(true);
   }, []);
-
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Panel de Control del Book..." />;
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
-            <StatCard title="Total Recetas" value={stats.totalRecetas} icon={BookHeart} bgColorClass="bg-blue-50" href="/book/recetas" />
-            <StatCard title="Total Elaboraciones" value={stats.totalElaboraciones} icon={Component} bgColorClass="bg-indigo-50" href="/book/elaboraciones"/>
-            <StatCard title="Total Ingredientes" value={stats.totalIngredientes} icon={ChefHat} bgColorClass="bg-violet-50" href="/book/ingredientes" />
-            <StatCard title="Ingredientes por Verificar" value={stats.ingredientesPorVerificarCount} icon={Shield} bgColorClass={stats.ingredientesPorVerificarCount > 0 ? "bg-red-100" : "bg-green-50"} href="/book/verificacionIngredientes" />
-            <StatCard title="Necesitan Revisión" value={stats.elaboracionesParaRevisarCount + stats.recetasParaRevisarCount} icon={AlertTriangle} bgColorClass="bg-amber-50" href="/book/revision-ingredientes" />
+    <main>
+        <div className="mb-10">
+            <h2 className="text-2xl font-headline font-semibold tracking-tight">Totales del Book</h2>
+            <p className="text-muted-foreground">Una visión general del contenido de tu base de datos gastronómica.</p>
         </div>
-      </main>
-    </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mb-12">
+            <StatCard title="Total Recetas" value={stats.totalRecetas} icon={BookHeart} description="Número total de recetas en el sistema." href="/book/recetas" />
+            <StatCard title="Recetas Activas" value={stats.totalRecetasActivas} icon={BookHeart} description="Recetas visibles para comerciales." href="/book/recetas" />
+            <StatCard title="Recetas Archivadas" value={stats.totalRecetasArchivadas} icon={Archive} description="Recetas ocultas y fuera de uso." href="/book/recetas" />
+            <StatCard title="Total Elaboraciones" value={stats.totalElaboraciones} icon={Component} description="Componentes y sub-recetas." href="/book/elaboraciones"/>
+            <StatCard title="Total Ingredientes" value={stats.totalIngredientes} icon={ChefHat} description="Materias primas vinculadas a ERP." href="/book/ingredientes" />
+        </div>
+        
+        <Separator />
+        
+        <div className="my-10">
+            <h2 className="text-2xl font-headline font-semibold tracking-tight">Mantenimiento y Calidad de Datos</h2>
+            <p className="text-muted-foreground">Tareas pendientes para asegurar la integridad y precisión de los datos del book.</p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+             <StatCard 
+                title="Elaboraciones Huérfanas" 
+                value={stats.elaboracionesHuerfanas} 
+                icon={Trash2} 
+                description="Elaboraciones que no se usan en ninguna receta. Candidatas a ser eliminadas." 
+                href="/book/elaboraciones?huérfanas=true"
+                colorClass={stats.elaboracionesHuerfanas > 0 ? "bg-amber-50" : "bg-green-50"} 
+             />
+             <StatCard 
+                title="Ingredientes por Verificar" 
+                value={stats.ingredientesPorVerificarCount} 
+                icon={Shield} 
+                description="Ingredientes en uso cuya información de alérgenos/ERP necesita ser validada." 
+                href="/book/verificacionIngredientes"
+                colorClass={stats.ingredientesPorVerificarCount > 0 ? "bg-amber-50" : "bg-green-50"} 
+            />
+            <StatCard 
+                title="Recetas Pendientes de Revisión" 
+                value={stats.recetasParaRevisarCount} 
+                icon={BookCheck} 
+                description="Recetas marcadas manualmente para su revisión por cambios o errores." 
+                href="/book/revision-ingredientes"
+                colorClass={stats.recetasParaRevisarCount > 0 ? "bg-red-50" : "bg-green-50"}
+            />
+            <StatCard 
+                title="Elaboraciones Pendientes de Revisión" 
+                value={stats.elaboracionesParaRevisarCount} 
+                icon={ComponentIcon} 
+                description="Elaboraciones marcadas manualmente para su revisión." 
+                href="/book/revision-ingredientes"
+                colorClass={stats.elaboracionesParaRevisarCount > 0 ? "bg-red-50" : "bg-green-50"}
+            />
+        </div>
+    </main>
   );
 }
