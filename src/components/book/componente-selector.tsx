@@ -72,9 +72,7 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
                                         <TableCell>{ing.nombreIngrediente}</TableCell>
                                         <TableCell>{formatCurrency(calculateCosteReal(ing.erp))} / {ing.erp ? formatUnit(ing.erp.unidad) : 'Ud'}</TableCell>
                                         <TableCell className="text-right">
-                                            <DialogClose asChild>
-                                                <Button size="sm" type="button" onClick={() => onSelectIngrediente(ing)}>Añadir</Button>
-                                            </DialogClose>
+                                            <Button size="sm" type="button" onClick={() => onSelectIngrediente(ing)}>Añadir</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -93,9 +91,7 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
                                         <TableCell>{elab.nombre}</TableCell>
                                         <TableCell>{formatCurrency(elab.costePorUnidad)} / {formatUnit(elab.unidadProduccion)}</TableCell>
                                         <TableCell className="text-right">
-                                            <DialogClose asChild>
-                                                <Button size="sm" type="button" onClick={() => onSelectElaboracion(elab)}>Añadir</Button>
-                                            </DialogClose>
+                                            <Button size="sm" type="button" onClick={() => onSelectElaboracion(elab)}>Añadir</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}

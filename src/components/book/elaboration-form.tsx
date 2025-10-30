@@ -54,7 +54,6 @@ const elaboracionFormSchema = z.object({
   requiereRevision: z.boolean().optional().default(false),
   comentarioRevision: z.string().optional().default(''),
   fechaRevision: z.string().optional(),
-  responsable: z.string().optional(),
 });
 
 export type ElaborationFormValues = z.infer<typeof elaboracionFormSchema>;
@@ -232,7 +231,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
             </TabsList>
             <TabsContent value="general" className="mt-4">
                  <Card>
-                    <CardHeader className="flex flex-row justify-between items-start py-3">
+                    <CardHeader className="flex-row justify-between items-start py-3">
                         <div><CardTitle className="text-lg">Información General</CardTitle></div>
                     </CardHeader>
                     <CardContent className="space-y-4">
