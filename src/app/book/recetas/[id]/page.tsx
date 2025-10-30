@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -178,7 +177,7 @@ function ImageUploadSection({ name, title, form, description }: { name: "fotosMi
         try {
             const url = new URL(newUrl);
             append({ value: url.href });
-            setNewUrl('');
+            setNewImageUrl('');
         } catch (e) {
             toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.' });
         }
@@ -326,7 +325,7 @@ function RecetaFormPage() {
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: defaultValues,
+    defaultValues,
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab, update: updateElab } = useFieldArray({ control: form.control, name: "elaboraciones", keyName: "key" });
@@ -365,6 +364,9 @@ function RecetaFormPage() {
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
  useEffect(() => {
+    console.log("--- DEBUG: STARTING DATA LOAD ---");
+    console.log(`[DEBUG] ID from params: ${id}, Clone ID: ${cloneId}`);
+
     let initialValues: Partial<RecetaFormValues> | null = null;
     
     try {
@@ -387,15 +389,18 @@ function RecetaFormPage() {
       setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
       const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+      console.log("[DEBUG] All recipes from localStorage:", allRecetas);
 
       let foundReceta: Receta | undefined;
       if (isEditing) {
         foundReceta = allRecetas.find(e => e.id === id);
+        console.log(`[DEBUG] Editing mode. Found recipe for ID ${id}:`, foundReceta);
       } else if (cloneId) {
         foundReceta = allRecetas.find(e => e.id === cloneId);
         if (foundReceta) {
           foundReceta = { ...foundReceta, id: Date.now().toString(), nombre: `${foundReceta.nombre} (Copia)` };
         }
+        console.log(`[DEBUG] Cloning mode. Found recipe for cloneId ${cloneId}:`, foundReceta);
       } else { // isNew
         const lastRecipe = allRecetas.reduce((last, current) => {
             if (!current.numeroReceta || !last?.numeroReceta) return current;
@@ -406,6 +411,7 @@ function RecetaFormPage() {
         const lastNum = lastRecipe && lastRecipe.numeroReceta ? parseInt(lastRecipe.numeroReceta.substring(2)) : 0;
         const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
         initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum };
+        console.log(`[DEBUG] New mode. Generated new recipe number: ${newNum}`);
       }
 
       if (foundReceta) {
@@ -416,18 +422,35 @@ function RecetaFormPage() {
         const processedData = {
           ...defaultValues,
           ...initialValues,
+          // Ensure arrays are not undefined
+          elaboraciones: initialValues.elaboraciones || [],
+          menajeAsociado: initialValues.menajeAsociado || [],
+          fotosComercialesURLs: initialValues.fotosComercialesURLs || [],
+          fotosEmplatadoURLs: initialValues.fotosEmplatadoURLs || [],
+          fotosMiseEnPlaceURLs: initialValues.fotosMiseEnPlaceURLs || [],
+          fotosRegeneracionURLs: initialValues.fotosRegeneracionURLs || [],
+          perfilSaborSecundario: initialValues.perfilSaborSecundario || [],
+          perfilTextura: initialValues.perfilTextura || [],
+          tipoCocina: initialValues.tipoCocina || [],
+          equipamientoCritico: initialValues.equipamientoCritico || [],
+          formatoServicioIdeal: initialValues.formatoServicioIdeal || [],
+          etiquetasTendencia: initialValues.etiquetasTendencia || [],
         };
+        console.log("[DEBUG] Final object to be set in form (initialValues):", processedData);
         form.reset(processedData);
+        console.log("[DEBUG] form.reset() has been called.");
       } else if(isEditing) {
+        console.error(`[DEBUG] ERROR: Could not find recipe with ID ${id}. Redirecting.`);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
         router.push('/book/recetas');
       }
 
     } catch (e) {
-      console.error("Failed to load data:", e);
+      console.error("[DEBUG] CRITICAL ERROR during data load:", e);
       toast({ variant: 'destructive', title: 'Error de carga', description: 'No se pudieron cargar los datos necesarios.' });
     } finally {
       setIsDataLoaded(true);
+      console.log("--- DEBUG: FINISHED DATA LOAD ---");
     }
 }, [id, cloneId, isEditing, form, router, toast]);
 
@@ -464,7 +487,7 @@ function RecetaFormPage() {
   }
   
   const onError = (errors: FieldErrors<RecetaFormValues>) => {
-    console.log(errors);
+    console.error("[DEBUG] Form validation errors:", errors);
     const firstError = Object.entries(errors)[0];
     if (firstError) {
         toast({
@@ -486,6 +509,7 @@ function RecetaFormPage() {
         alergenos,
         partidaProduccion: partidasProduccion.join(', '),
     };
+    console.log("[DEBUG] Saving data:", dataToSave);
 
     if (isEditing && !cloneId) {
       const index = allItems.findIndex(p => p.id === id);
@@ -512,7 +536,7 @@ function RecetaFormPage() {
     toast({ title: 'Receta eliminada' });
     router.push('/book/recetas');
   }
-
+  
   if (!isDataLoaded) {
     return <LoadingSkeleton title="Cargando receta..." />;
   }
@@ -743,3 +767,5 @@ function RecetaFormPage() {
 export default function RecetaPage() {
     return <RecetaFormPage />
 }
+
+    
