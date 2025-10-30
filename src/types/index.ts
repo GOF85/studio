@@ -632,8 +632,7 @@ export type IngredienteInterno = {
     productoERPlinkId: string;
     alergenosPresentes: Alergeno[];
     alergenosTrazas: Alergeno[];
-    lastRevision?: string;
-    responsableRevision?: string;
+    historialRevisiones?: { fecha: string; responsable: string }[];
 }
 
 export type ComponenteElaboracion = {

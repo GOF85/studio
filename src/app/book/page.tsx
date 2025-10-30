@@ -12,7 +12,9 @@ import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
-import { format, isWithinInterval, addYears, startOfToday, subMonths } from 'date-fns';
+import { format, isWithinInterval, addYears, startOfToday, subMonths, isBefore } from 'date-fns';
+import { formatCurrency, formatNumber } from '@/lib/utils';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 type StatCardProps = {
     title: string;
@@ -61,13 +63,13 @@ export default function BookDashboardPage() {
     const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
 
     const today = startOfToday();
-    const oneYearFromNow = addYears(today, 1);
-
+    const sixMonthsAgo = subMonths(today, 6);
+    
     // 1. Encontrar todas las recetas que se usarán en el próximo año
     const recetasEnUsoIds = new Set<string>();
     allServiceOrders.forEach(os => {
         const osDate = new Date(os.startDate);
-        if (isWithinInterval(osDate, { start: today, end: oneYearFromNow })) {
+        if (isWithinInterval(osDate, { start: today, end: addYears(today, 1) })) {
             const pedidosGastro = allGastroOrders.filter(go => go.osId === os.id);
             pedidosGastro.forEach(pedido => {
                 (pedido.items || []).forEach(item => {
@@ -102,9 +104,9 @@ export default function BookDashboardPage() {
     });
 
     // 4. Filtrar los ingredientes que necesitan verificación Y están en uso
-    const sixMonthsAgo = subMonths(today, 6);
     const ingredientesPorVerificar = storedIngredientes.filter(ing => {
-        const necesitaRevision = !ing.lastRevision || isBefore(new Date(ing.lastRevision), sixMonthsAgo);
+        const latestRevision = ing.historialRevisiones?.[ing.historialRevisiones.length - 1];
+        const necesitaRevision = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
         const estaEnUso = ingredientesEnUsoIds.has(ing.id);
         return necesitaRevision && estaEnUso;
     });
