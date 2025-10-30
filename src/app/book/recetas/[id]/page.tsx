@@ -604,95 +604,96 @@ function RecetaFormPage() {
                     </TabsList>
                     <TabsContent value="general" className="mt-4">
                          <Card>
-                          <CardHeader className="flex-row justify-between items-start py-3">
-                              <CardTitle className="text-lg">Información General y Clasificación</CardTitle>
+                            <CardHeader className="flex-row justify-between items-start py-3">
+                                <CardTitle className="text-lg">Información General y Clasificación</CardTitle>
                                 <div className="flex items-center gap-4">
-                                  <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
-                                      <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-2">
-                                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} id="visible-check" /></FormControl>
-                                          <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas para comerciales." /></FormLabel>
-                                      </FormItem>
-                                  )} />
-                                   <FormField control={form.control} name="isArchived" render={({ field }) => (
-                                      <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-2">
-                                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} id="archived-check" /></FormControl>
-                                          <FormLabel htmlFor="archived-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Archive /><InfoTooltip text="Archivar oculta la receta de todas las listas y selectores." /></FormLabel>
-                                      </FormItem>
-                                  )} />
-                              </div>
-                          </CardHeader>
-                          <CardContent className="space-y-3 pt-2">
-                              <div className="grid md:grid-cols-2 gap-3">
-                                  <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                  <FormField control={form.control} name="responsableEscandallo" render={({ field }) => (
-                                  <FormItem className="flex flex-col">
-                                      <FormLabel className="flex items-center gap-1.5">Responsable del Escandallo <InfoTooltip text="Persona encargada de definir y mantener los costes y componentes de esta receta." /></FormLabel>
-                                      <Select onValueChange={field.onChange} value={field.value}>
-                                      <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un responsable..." /></SelectTrigger></FormControl>
-                                      <SelectContent>{personalCPR.map((p) => (<SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>))}</SelectContent>
-                                      </Select>
-                                      <FormMessage />
-                                  </FormItem>
-                                  )} />
-                              </div>
-
-                              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                  <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem className="flex flex-col">
-                                      <FormLabel>Categoría</FormLabel>
-                                      <Select onValueChange={field.onChange} value={field.value}>
-                                          <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
-                                          <SelectContent>
-                                              {dbCategorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
-                                          </SelectContent>
-                                      </Select>
-                                  <FormMessage /></FormItem> )} />
-                                  <FormItem className="flex flex-col">
-                                      <FormLabel className="flex items-center gap-1.5">Partida de Producción <InfoTooltip text="Se calcula automáticamente a partir de las elaboraciones añadidas." /></FormLabel>
-                                      <div className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                          <div className="flex flex-wrap gap-1">
-                                              {partidasProduccion.length > 0 ? (
-                                                  partidasProduccion.map(p => <Badge key={p} variant="secondary">{p}</Badge>)
-                                              ) : (
-                                                  <span className="text-muted-foreground">N/A</span>
-                                              )}
-                                          </div>
-                                      </div>
-                                  </FormItem>
-                                  <FormField control={form.control} name="gramajeTotal" render={({ field }) => ( <FormItem className="flex flex-col">
-                                      <FormLabel>Gramaje Total (g)</FormLabel>
-                                      <FormControl><Input type="number" {...field} /></FormControl>
-                                      <FormMessage />
-                                  </FormItem>)} />
-                              </div>
-                            
-                            <Separator className="my-4"/>
-
-                            <div className="space-y-4">
-                                <FormField control={form.control} name="requiereRevision" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                                    <FormControl>
-                                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none">
-                                        <FormLabel className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Requiere Revisión</FormLabel>
-                                        <p className="text-sm text-muted-foreground">Marca esta opción si la receta necesita ser revisada por un responsable (ej. costes desactualizados, alérgenos incorrectos).</p>
-                                    </div>
-                                    </FormItem>
-                                )} />
-                                {form.watch('requiereRevision') && (
-                                    <FormField control={form.control} name="comentarioRevision" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Comentario de Revisión</FormLabel>
-                                            <FormControl><Textarea {...field} placeholder="Describe por qué necesita revisión..." rows={2} /></FormControl>
+                                    <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-2">
+                                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} id="visible-check" /></FormControl>
+                                            <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas para comerciales." /></FormLabel>
                                         </FormItem>
                                     )} />
-                                )}
-                            </div>
+                                    <FormField control={form.control} name="isArchived" render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-2">
+                                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} id="archived-check" /></FormControl>
+                                            <FormLabel htmlFor="archived-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Archive /><InfoTooltip text="Archivar oculta la receta de todas las listas y selectores." /></FormLabel>
+                                        </FormItem>
+                                    )} />
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3 pt-2">
+                                <div className="grid md:grid-cols-2 gap-3">
+                                    <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={form.control} name="responsableEscandallo" render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel className="flex items-center gap-1.5">Responsable del Escandallo <InfoTooltip text="Persona encargada de definir y mantener los costes y componentes de esta receta." /></FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un responsable..." /></SelectTrigger></FormControl>
+                                        <SelectContent>{personalCPR.map((p) => (<SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>))}</SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )} />
+                                </div>
 
+                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem className="flex flex-col">
+                                        <FormLabel>Categoría</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {dbCategorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    <FormMessage /></FormItem> )} />
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel className="flex items-center gap-1.5">Partida de Producción <InfoTooltip text="Se calcula automáticamente a partir de las elaboraciones añadidas." /></FormLabel>
+                                        <div className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                            <div className="flex flex-wrap gap-1">
+                                                {partidasProduccion.length > 0 ? (
+                                                    partidasProduccion.map(p => <Badge key={p} variant="secondary">{p}</Badge>)
+                                                ) : (
+                                                    <span className="text-muted-foreground">N/A</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </FormItem>
+                                    <FormField control={form.control} name="gramajeTotal" render={({ field }) => ( <FormItem className="flex flex-col">
+                                        <FormLabel>Gramaje Total (g)</FormLabel>
+                                        <FormControl><Input type="number" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>)} />
+                                </div>
+                              
                               <Separator className="my-4"/>
-                              <ImageUploadSection name="fotosComercialesURLs" title="Información Comercial" description="Añade URLs de imágenes de alta calidad para usar en propuestas. La primera imagen será la principal." form={form} />
-                          </CardContent>
-                      </Card>
+                              
+                               <div className="space-y-4">
+                                  <FormField control={form.control} name="requiereRevision" render={({ field }) => (
+                                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                                      <FormControl>
+                                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                      </FormControl>
+                                      <div className="space-y-1 leading-none">
+                                          <FormLabel className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Requiere Revisión</FormLabel>
+                                          <p className="text-sm text-muted-foreground">Marca esta opción si la receta necesita ser revisada por un responsable (ej. costes desactualizados, alérgenos incorrectos).</p>
+                                      </div>
+                                      </FormItem>
+                                  )} />
+                                  {form.watch('requiereRevision') && (
+                                      <FormField control={form.control} name="comentarioRevision" render={({ field }) => (
+                                          <FormItem>
+                                              <FormLabel>Comentario de Revisión</FormLabel>
+                                              <FormControl><Textarea {...field} placeholder="Describe por qué necesita revisión..." rows={2} /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                  )}
+                              </div>
+                                
+                                <Separator className="my-4"/>
+
+                                <ImageUploadSection name="fotosComercialesURLs" title="Información Comercial" form={form} />
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                     <TabsContent value="gastronomica" className="mt-4">
                         <Card>
@@ -869,6 +870,7 @@ export default function RecetaPage() {
 
     return <RecetaFormPage />;
 }
+
 
 
 
