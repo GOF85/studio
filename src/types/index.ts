@@ -652,7 +652,7 @@ export type Elaboracion = {
     partidaProduccion: PartidaProduccion;
     componentes: ComponenteElaboracion[];
     instruccionesPreparacion: string;
-    fotosProduccionURLs?: string[];
+    fotosProduccionURLs?: { value: string }[];
     videoProduccionURL?: string;
     formatoExpedicion: string;
     ratioExpedicion: number;
@@ -709,14 +709,14 @@ export type Receta = {
     perfilTextura?: string[];
     tipoCocina?: string[];
     recetaOrigen?: string;
-    temperaturaServicio?: 'CALIENTE' | 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO';
+    temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE' | 'FRIO' | 'HELADO';
     tecnicaCoccionPrincipal?: string;
-    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL', 'AL_MOMENTO';
+    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL' | 'AL_MOMENTO';
     formatoServicioIdeal?: string[];
     equipamientoCritico?: string[];
     dificultadProduccion?: number; // 1-5
     estabilidadBuffet?: number; // 1-5
-    escalabilidad?: 'FACIL' | 'MEDIA', 'DIFICIL';
+    escalabilidad?: 'FACIL' | 'MEDIA' | 'DIFICIL';
     etiquetasTendencia?: string[];
     // Calculated fields
     costeMateriaPrima?: number;

@@ -12,8 +12,8 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive } from 'lucide-react';
-import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta, ComponenteElaboracion } from '@/types';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive, BrainCircuit } from 'lucide-react';
+import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, PartidaProduccion, ElaboracionEnReceta } from '@/types';
 import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, PARTIDAS_PRODUCCION } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -350,8 +350,6 @@ function RecetaFormPage() {
                 const costeReal = ing?.erp ? (ing.erp.precioCompra / (ing.erp.unidadConversion || 1)) * (1 - (ing.erp.descuento || 0) / 100) : 0;
                 costeTotalComponentes += costeReal * comp.cantidad * (1 + (comp.merma || 0) / 100);
             } else if (comp.tipo === 'elaboracion') {
-                // This part is tricky if sub-elaborations are not yet calculated.
-                // We'll rely on stored cost for sub-elabs for now, but a full recursive calculation would be better.
                 const subElab = allElaboraciones.find(sub => sub.id === comp.componenteId);
                 costeTotalComponentes += (subElab?.costePorUnidad || 0) * comp.cantidad * (1 + (comp.merma || 0) / 100);
             }
@@ -579,8 +577,9 @@ function RecetaFormPage() {
                   </div>
                 
                  <Tabs defaultValue="general">
-                    <TabsList className="grid w-full grid-cols-4">
+                    <TabsList className="grid w-full grid-cols-5">
                         <TabsTrigger value="general">Info. General</TabsTrigger>
+                        <TabsTrigger value="gastronomica">Info. Gastronómica</TabsTrigger>
                         <TabsTrigger value="costes">Info. €</TabsTrigger>
                         <TabsTrigger value="receta">Receta</TabsTrigger>
                         <TabsTrigger value="pase">Info. Pase</TabsTrigger>
@@ -668,6 +667,38 @@ function RecetaFormPage() {
                               <ImageUploadSection name="fotosComercialesURLs" title="Imágenes Comerciales" description="Añade URLs de imágenes de alta calidad para usar en propuestas. La primera imagen será la principal." form={form} />
                           </CardContent>
                       </Card>
+                    </TabsContent>
+                    <TabsContent value="gastronomica" className="mt-4">
+                        <Card>
+                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BrainCircuit/>Información Gastronómica</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid md:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name="perfilSaborPrincipal" render={({ field }) => (<FormItem><FormLabel>Sabor Principal</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{SABORES_PRINCIPALES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                    <FormField control={form.control} name="perfilSaborSecundario" render={({ field }) => (<FormItem><FormLabel>Sabores Secundarios</FormLabel><MultiSelect options={['Picante', 'Ahumado', 'Cítrico', 'Herbáceo', 'Floral'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
+                                    <FormField control={form.control} name="perfilTextura" render={({ field }) => (<FormItem><FormLabel>Texturas</FormLabel><MultiSelect options={['Crujiente', 'Cremoso', 'Meloso', 'Gelatinoso', 'Esponjoso', 'Líquido'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
+                                </div>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="tipoCocina" render={({ field }) => (<FormItem><FormLabel>Tipo de Cocina</FormLabel><MultiSelect options={['Mediterránea', 'Asiática', 'Fusión', 'De Mercado', 'Tradicional', 'Moderna'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
+                                    <FormField control={form.control} name="recetaOrigen" render={({ field }) => (<FormItem><FormLabel>Origen / Inspiración</FormLabel><FormControl><Input {...field} placeholder="Ej: Receta de la abuela, Inspirado en..."/></FormControl></FormItem>)} />
+                                </div>
+                                <Separator />
+                                <div className="grid md:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name="temperaturaServicio" render={({ field }) => (<FormItem><FormLabel>Temperatura de Servicio</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                    <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => (<FormItem><FormLabel>Técnica Principal</FormLabel><FormControl><Input {...field} placeholder="Ej: Fritura, Horneado..."/></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name="potencialMiseEnPlace" render={({ field }) => (<FormItem><FormLabel>Potencial de MEP</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['COMPLETO', 'PARCIAL', 'AL_MOMENTO'].map(s=><SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                </div>
+                                 <div className="grid md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="dificultadProduccion" render={({ field }) => (<FormItem><FormLabel>Dificultad de Producción (1-5)</FormLabel><FormControl><Input type="number" min="1" max="5" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name="estabilidadBuffet" render={({ field }) => (<FormItem><FormLabel>Estabilidad en Buffet (1-5)</FormLabel><FormControl><Input type="number" min="1" max="5" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name="escalabilidad" render={({ field }) => (<FormItem><FormLabel>Escalabilidad</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl><SelectContent>{['FACIL', 'MEDIA', 'DIFICIL'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                </div>
+                                <Separator />
+                                 <div className="grid md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="formatoServicioIdeal" render={({ field }) => (<FormItem><FormLabel>Formato Ideal de Servicio</FormLabel><MultiSelect options={['Cocktail', 'Banquete', 'Buffet', 'Box', 'Coffee Break'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
+                                    <FormField control={form.control} name="etiquetasTendencia" render={({ field }) => (<FormItem><FormLabel>Etiquetas / Tendencias</FormLabel><MultiSelect options={['Healthy', 'Vegano', 'Sin Gluten', 'Tradicional', 'De autor', 'Instagrameable'].map(s=>({label: s, value:s}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem>)} />
+                                </div>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                     <TabsContent value="costes" className="mt-4">
                          <Card>
@@ -801,5 +832,3 @@ function RecetaFormPage() {
 export default function RecetaPage() {
     return <RecetaFormPage />
 }
-
-    
