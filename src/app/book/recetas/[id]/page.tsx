@@ -104,6 +104,7 @@ const recetaFormSchema = z.object({
   etiquetasTendencia: z.array(z.string()).optional().default([]),
   requiereRevision: z.boolean().optional().default(false),
   comentarioRevision: z.string().optional().default(''),
+  fechaRevision: z.string().optional().default(''),
 });
 
 type RecetaFormValues = z.infer<typeof recetaFormSchema>;
@@ -241,6 +242,7 @@ function ImageUploadSection({ name, title, description, form }: { name: "fotosMi
 function CreateElaborationModal({ onElaborationCreated, children }: { onElaborationCreated: (newElab: Elaboracion) => void, children: React.ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { toast } = useToast();
 
     const handleSave = (data: ElaborationFormValues, costePorUnidad: number) => {
         setIsSubmitting(true);
@@ -254,6 +256,7 @@ function CreateElaborationModal({ onElaborationCreated, children }: { onElaborat
             onElaborationCreated(dataToSave);
             setIsSubmitting(false);
             setIsOpen(false);
+            toast({ title: 'Elaboración Creada', description: `Se ha añadido "${data.nombre}" a la receta.` });
         }, 500);
     };
 
@@ -318,6 +321,7 @@ const defaultValues: Partial<RecetaFormValues> = {
     etiquetasTendencia: [],
     requiereRevision: false,
     comentarioRevision: '',
+    fechaRevision: '',
 };
 
 function RecetaFormPage() {
@@ -390,7 +394,9 @@ function RecetaFormPage() {
         };
     });
     
-    replace(updatedFormElabs);
+    if (JSON.stringify(currentFormElabs) !== JSON.stringify(updatedFormElabs)) {
+        replace(updatedFormElabs);
+    }
     
   }, [form, replace]);
 
@@ -491,19 +497,12 @@ function RecetaFormPage() {
   }
   
   const handleElaborationCreated = (newElab: Elaboracion) => {
-        toast({ title: 'Elaboración Creada', description: `Se ha añadido "${newElab.nombre}" a la receta.` });
-        
-        const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const erpMap = new Map((JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[]).map(i => [i.idreferenciaerp, i]));
-        const ingredientesMap = new Map(storedInternos.map(ing => [ing.id, { ...ing, erp: erpMap.get(ing.productoERPlinkId) }]));
-
+        recalculateCostsAndAllergens();
         const elabWithData = {
             ...newElab,
             costePorUnidad: newElab.costePorUnidad || 0,
-            alergenos: calculateElabAlergenos(newElab, ingredientesMap as any)
+            alergenos: calculateElabAlergenos(newElab, ingredientesData as any)
         };
-        
-        setDbElaboraciones(prev => [...prev, elabWithData]);
         onAddElab(elabWithData);
     };
 
@@ -530,6 +529,10 @@ function RecetaFormPage() {
   function onSubmit(data: RecetaFormValues) {
     setIsLoading(true);
     let allItems = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    
+    if (data.requiereRevision && !data.fechaRevision) {
+        data.fechaRevision = new Date().toISOString();
+    }
     
     const dataToSave: Receta = { 
         ...data, 
@@ -870,6 +873,7 @@ export default function RecetaPage() {
 
     return <RecetaFormPage />;
 }
+
 
 
 

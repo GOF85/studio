@@ -648,6 +648,7 @@ export type ComponenteElaboracion = {
 export type Elaboracion = {
     id: string;
     nombre: string;
+    responsable?: string;
     produccionTotal: number;
     unidadProduccion: UnidadMedida;
     partidaProduccion: PartidaProduccion;
@@ -662,6 +663,7 @@ export type Elaboracion = {
     alergenos?: Alergeno[];
     requiereRevision?: boolean;
     comentarioRevision?: string;
+    fechaRevision?: string;
 }
 
 export type ElaboracionEnReceta = {
@@ -729,6 +731,7 @@ export type Receta = {
     alergenos?: Alergeno[];
     requiereRevision?: boolean;
     comentarioRevision?: string;
+    fechaRevision?: string;
 }
 
 export type OrdenFabricacion = {
