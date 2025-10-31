@@ -1,15 +1,14 @@
 
-
 'use client';
 
 import * as React from "react"
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { AreaChart, BarChart3, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon } from 'lucide-react';
+import { AreaChart, BarChart as RechartsBarChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format, startOfMonth, endOfMonth, isWithinInterval, endOfDay, startOfYear, endOfQuarter, subDays, startOfDay, getMonth, getYear } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
+import { ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, GastronomyOrder, Receta, PersonalMiceOrder, PersonalExterno, PersonalExternoAjuste, CosteFijoCPR, ObjetivoMensualCPR } from '@/types';
@@ -271,12 +270,12 @@ export default function CprControlExplotacionPage() {
                                     <TableCell className="text-right">{formatPercentage(pctSventas)}</TableCell>
                                 </TableRow>
                             )})}
+                             <TableRow className="bg-primary/20 hover:bg-primary/20 text-lg font-bold">
+                                <TableCell>RESULTADO EXPLOTACIÓN</TableCell>
+                                <TableCell className="text-right">{formatCurrency(kpis.resultado)}</TableCell>
+                                <TableCell colSpan={4}></TableCell>
+                            </TableRow>
                         </TableBody>
-                        <TableRow className="bg-primary/20 hover:bg-primary/20 text-lg font-bold">
-                            <TableCell>RESULTADO EXPLOTACIÓN</TableCell>
-                            <TableCell className="text-right">{formatCurrency(kpis.resultado)}</TableCell>
-                            <TableCell colSpan={4}></TableCell>
-                        </TableRow>
                     </Table>
                 </CardContent>
             </Card>
@@ -305,7 +304,7 @@ export default function CprControlExplotacionPage() {
                      <div>
                         <h3 className="font-semibold mb-2">Evolución Mensual (Próximamente)</h3>
                         <div className="h-64 flex items-center justify-center bg-muted/50 rounded-lg">
-                            <BarChart3 className="h-16 w-16 text-muted-foreground/50"/>
+                            <BarChart className="h-16 w-16 text-muted-foreground/50"/>
                         </div>
                     </div>
                 </CardContent>
@@ -313,4 +312,5 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
 
