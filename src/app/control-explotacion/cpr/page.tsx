@@ -281,9 +281,9 @@ export default function CprControlExplotacionPage() {
     const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos } = dataCalculada;
     
     const tablaExplotacion = [
-        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true, detailType: 'ventaGastronomia' },
-        { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0 },
-        { label: GASTO_LABELS.gastronomia, real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, hasDetail: true, detailType: 'costeMP' },
+        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, isGasto: false, detailType: 'ventaGastronomia' },
+        { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0, isGasto: false },
+        { label: GASTO_LABELS.gastronomia, real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, detailType: 'costeMP' },
         { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true },
         { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: 0, isGasto: true, isManual: true, setter: setCostePersonalEtt },
         { label: "Otros Gastos", real: otrosGastos, ppto: 0, isGasto: true, isManual: true },
@@ -293,26 +293,14 @@ export default function CprControlExplotacionPage() {
         const desviacion = row.real - row.ppto;
         const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
         return (
-             <TooltipProvider key={`${row.label}-${index}`}>
-                <TableRow className="hover:bg-muted/50">
-                    <TableCell className={cn("p-0 font-medium sticky left-0 bg-background z-10")}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-2 h-full w-full px-2 py-1">
-                                    <Info className="h-3 w-3 text-muted-foreground" />
-                                    {row.label}
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent><p>{row.label}</p></TooltipContent>
-                        </Tooltip>
-                    </TableCell>
-                    <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.real)}</TableCell>
-                    <TableCell className="py-1 px-2 text-right font-mono border-l">{formatCurrency(row.ppto)}</TableCell>
-                    <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{formatCurrency(desviacion)}</TableCell>
-                    <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
-                    <TableCell className={cn("py-1 px-2 text-right font-mono border-l", pctSventas > (objetivo.presupuestoGastosMP / objetivo.presupuestoVentas) && row.isGasto && "text-destructive font-bold")}>{formatPercentage(pctSventas)}</TableCell>
-                </TableRow>
-             </TooltipProvider>
+            <TableRow key={`${row.label}-${index}`} className="hover:bg-muted/50">
+                <TableCell className="p-2 font-medium sticky left-0 bg-background z-10 w-48">{row.label}</TableCell>
+                <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.real)}</TableCell>
+                <TableCell className="py-1 px-2 text-right font-mono border-l">{formatCurrency(row.ppto)}</TableCell>
+                <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{formatCurrency(desviacion)}</TableCell>
+                <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
+                <TableCell className="py-1 px-2 text-right font-mono border-l">{formatPercentage(pctSventas)}</TableCell>
+            </TableRow>
         )
     };
 
@@ -351,13 +339,13 @@ export default function CprControlExplotacionPage() {
                     <TabsTrigger value="acumulado-mensual">Acumulado Mensual</TabsTrigger>
                 </TabsList>
                 <TabsContent value="control-explotacion" className="space-y-4 mt-4">
-                    <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                     <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                         <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} className="bg-green-100/60" />
                         <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} className="bg-red-100/60"/>
                         <KpiCard title="Resultado Explotación" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
-                        <KpiCard title="% Coste MP" value={formatPercentage(kpis.costeMPPct)} icon={AreaChart} />
-                        <KpiCard title="% Coste Personal" value={formatPercentage(kpis.costePersonalPct)} icon={AreaChart} />
-                        <KpiCard title="% Otros" value={formatPercentage(kpis.costeOtrosPct)} icon={AreaChart} />
+                        <KpiCard title="% Coste MP" value={formatPercentage(kpis.costeMPPct)} icon={BarChart} />
+                        <KpiCard title="% Coste Personal" value={formatPercentage(kpis.costePersonalPct)} icon={BarChart} />
+                         <KpiCard title="% Otros" value={formatPercentage(kpis.costeOtrosPct)} icon={BarChart} />
                     </div>
                     
                     <Card>
