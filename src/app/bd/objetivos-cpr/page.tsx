@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -7,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Target, Save, Loader2 } from 'lucide-react';
+import { Target, Save, Loader2, Percent } from 'lucide-react';
 import type { ObjetivoMensualCPR } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -97,12 +98,18 @@ export default function ObjetivosCprPage() {
         newDate.setFullYear(parseInt(year));
         setSelectedDate(newDate);
     };
-
-    const watchedValues = form.watch();
-    const totalIngresos = (watchedValues.presupuestoVentas || 0) + (watchedValues.presupuestoCesionPersonal || 0);
-    const totalGastos = (watchedValues.presupuestoGastosMP || 0) + (watchedValues.presupuestoGastosPersonalMice || 0) + (watchedValues.presupuestoGastosPersonalExterno || 0) + (watchedValues.presupuestoOtrosGastos || 0);
-    const resultado = totalIngresos - totalGastos;
-
+    
+    const renderField = (name: keyof FormValues, label: string) => (
+         <FormField control={form.control} name={name} render={({ field }) => (
+            <FormItem>
+                <FormLabel>{label}</FormLabel>
+                <div className="flex items-center">
+                    <FormControl><Input type="number" step="0.1" {...field} className="rounded-r-none" /></FormControl>
+                    <span className="p-2 border border-l-0 rounded-r-md bg-muted text-muted-foreground"><Percent size={16}/></span>
+                </div>
+            </FormItem>
+        )}/>
+    )
 
     return (
         <main>
@@ -113,7 +120,7 @@ export default function ObjetivosCprPage() {
                             <Target className="h-8 w-8 text-primary" />
                             <div>
                                 <h1 className="text-3xl font-headline font-bold">Gestión de Objetivos Mensuales del CPR</h1>
-                                <p className="text-muted-foreground">Define los presupuestos para la cuenta de explotación del Centro de Producción.</p>
+                                <p className="text-muted-foreground">Define los presupuestos como porcentajes sobre la facturación.</p>
                             </div>
                         </div>
                          <Button type="submit" disabled={isLoading}>
@@ -125,7 +132,7 @@ export default function ObjetivosCprPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Selección del Periodo</CardTitle>
-                            <CardDescription>Elige el mes y año para definir los objetivos.</CardDescription>
+                            <CardDescription>Elige el mes y año para definir los objetivos porcentuales.</CardDescription>
                             <div className="flex gap-4 pt-2">
                                 <Select value={String(selectedDate.getFullYear())} onValueChange={handleYearChange}>
                                     <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
@@ -140,35 +147,17 @@ export default function ObjetivosCprPage() {
                         <CardContent className="space-y-4">
                             <div className="grid md:grid-cols-2 gap-8">
                                 <div className="space-y-4">
-                                    <h3 className="font-semibold text-lg text-green-700">Ingresos Presupuestados</h3>
-                                    <FormField control={form.control} name="presupuestoVentas" render={({ field }) => (
-                                        <FormItem><FormLabel>Venta Gastronomía a Eventos</FormLabel><FormControl><Input type="number" step="100" {...field} /></FormControl></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="presupuestoCesionPersonal" render={({ field }) => (
-                                        <FormItem><FormLabel>Cesión de Personal a otros Dptos.</FormLabel><FormControl><Input type="number" step="100" {...field} /></FormControl></FormItem>
-                                    )}/>
+                                    <h3 className="font-semibold text-lg text-green-700">Ingresos (%)</h3>
+                                    {renderField("presupuestoVentas", "Venta Gastronomía a Eventos")}
+                                    {renderField("presupuestoCesionPersonal", "Cesión de Personal a otros Dptos.")}
                                 </div>
                                  <div className="space-y-4">
-                                    <h3 className="font-semibold text-lg text-red-700">Gastos Presupuestados</h3>
-                                    <FormField control={form.control} name="presupuestoGastosMP" render={({ field }) => (
-                                        <FormItem><FormLabel>{GASTO_LABELS.gastronomia}</FormLabel><FormControl><Input type="number" step="100" {...field} /></FormControl></FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name="presupuestoGastosPersonalMice" render={({ field }) => (
-                                        <FormItem><FormLabel>{GASTO_LABELS.personalMice}</FormLabel><FormControl><Input type="number" step="100" {...field} /></FormControl></FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name="presupuestoGastosPersonalExterno" render={({ field }) => (
-                                        <FormItem><FormLabel>{GASTO_LABELS.personalExterno}</FormLabel><FormControl><Input type="number" step="100" {...field} /></FormControl></FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name="presupuestoOtrosGastos" render={({ field }) => (
-                                        <FormItem><FormLabel>Otros Gastos (Fijos)</FormLabel><FormControl><Input type="number" step="100" {...field} /></FormControl></FormItem>
-                                    )}/>
+                                    <h3 className="font-semibold text-lg text-red-700">Gastos (%)</h3>
+                                    {renderField("presupuestoGastosMP", GASTO_LABELS.gastronomia)}
+                                    {renderField("presupuestoGastosPersonalMice", GASTO_LABELS.personalMice)}
+                                    {renderField("presupuestoGastosPersonalExterno", GASTO_LABELS.personalExterno)}
+                                    {renderField("presupuestoOtrosGastos", "Otros Gastos (Fijos)")}
                                 </div>
-                            </div>
-                             <div className="border-t pt-4 mt-4 text-lg font-bold flex justify-between items-center">
-                                <span>Resultado de Explotación Previsto:</span>
-                                <span className={resultado >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                    {formatCurrency(resultado)}
-                                </span>
                             </div>
                         </CardContent>
                     </Card>

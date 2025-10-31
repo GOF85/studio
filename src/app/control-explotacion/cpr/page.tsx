@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from "react"
@@ -191,7 +192,7 @@ export default function CprControlExplotacionPage() {
             costeOtrosPct: ingresosTotales > 0 ? otrosGastos / ingresosTotales : 0,
         };
         
-        return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos };
+        return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos, facturacionNeta: ingresosTotales };
 
     }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, costePersonalEtt]);
 
@@ -273,23 +274,29 @@ export default function CprControlExplotacionPage() {
         return <LoadingSkeleton title="Calculando rentabilidad del CPR..." />;
     }
 
-    const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos } = dataCalculada;
+    const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos, facturacionNeta } = dataCalculada;
     
     const tablaExplotacion = [
-        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, isGasto: false, detailType: 'ventaGastronomia' },
-        { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: objetivo.presupuestoCesionPersonal, isGasto: false },
-        { label: GASTO_LABELS.gastronomia, real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, detailType: 'costeMP' },
-        { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonalMice, isGasto: true, isManual: true },
-        { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: objetivo.presupuestoGastosPersonalExterno, isGasto: true, isManual: true, setter: setCostePersonalEtt },
-        { label: "Otros Gastos", real: otrosGastos, ppto: objetivo.presupuestoOtrosGastos, isGasto: true, isManual: true },
+        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: facturacionNeta * ((objetivo.presupuestoVentas || 0) / 100), isGasto: false, detailType: 'ventaGastronomia' },
+        { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), isGasto: false },
+        { label: GASTO_LABELS.gastronomia, real: costeEscandallo, ppto: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), isGasto: true, detailType: 'costeMP' },
+        { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: facturacionNeta * ((objetivo.presupuestoGastosPersonalMice || 0) / 100), isGasto: true, isManual: true },
+        { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), isGasto: true, isManual: true, setter: setCostePersonalEtt },
+        { label: "Otros Gastos", real: otrosGastos, ppto: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), isGasto: true, isManual: true },
     ];
     
     const renderCostRow = (row: any, index: number) => {
         const desviacion = row.real - row.ppto;
         const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
         return (
-            <TableRow key={`${row.label}-${index}`} className="hover:bg-muted/50">
-                <TableCell className="p-2 font-medium sticky left-0 bg-background z-10 w-48">{row.label}</TableCell>
+             <TableRow key={`${row.label}-${index}`} className="hover:bg-muted/50">
+                <TableCell className="p-2 font-medium sticky left-0 bg-background z-10 w-48">
+                    {row.detailType ? (
+                         <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
+                            {row.label} <Info size={14}/>
+                        </Link>
+                    ): row.label}
+                </TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.real)}</TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono border-l">{formatCurrency(row.ppto)}</TableCell>
                 <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{formatCurrency(desviacion)}</TableCell>
@@ -334,7 +341,7 @@ export default function CprControlExplotacionPage() {
                     <TabsTrigger value="acumulado-mensual">Acumulado Mensual</TabsTrigger>
                 </TabsList>
                 <TabsContent value="control-explotacion" className="space-y-4 mt-4">
-                     <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                     <div className="grid gap-2 grid-cols-6">
                         <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} className="bg-green-100/60" />
                         <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} className="bg-red-100/60"/>
                         <KpiCard title="Resultado Explotación" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
@@ -361,7 +368,7 @@ export default function CprControlExplotacionPage() {
                                         <TableRow className="bg-primary/10 hover:bg-primary/10">
                                             <TableCell className="font-bold py-1 px-2">INGRESOS</TableCell>
                                             <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.ingresos)}</TableCell>
-                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoVentas + objetivo.presupuestoCesionPersonal)}</TableCell>
+                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(facturacionNeta * (((objetivo.presupuestoVentas || 0) + (objetivo.presupuestoCesionPersonal || 0)) / 100))}</TableCell>
                                             <TableCell colSpan={3}></TableCell>
                                         </TableRow>
                                         {tablaExplotacion.filter(r => !r.isGasto).map(renderCostRow)}
@@ -369,7 +376,7 @@ export default function CprControlExplotacionPage() {
                                         <TableRow className="bg-destructive/10 hover:bg-destructive/10">
                                             <TableCell className="font-bold py-1 px-2">GASTOS</TableCell>
                                             <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.gastos)}</TableCell>
-                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoGastosMP + objetivo.presupuestoGastosPersonalMice + objetivo.presupuestoGastosPersonalExterno + objetivo.presupuestoOtrosGastos)}</TableCell>
+                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(facturacionNeta * (((objetivo.presupuestoGastosMP || 0) + (objetivo.presupuestoGastosPersonalMice || 0) + (objetivo.presupuestoGastosPersonalExterno || 0) + (objetivo.presupuestoOtrosGastos || 0)) / 100))}</TableCell>
                                             <TableCell colSpan={3}></TableCell>
                                         </TableRow>
                                         {tablaExplotacion.filter(r => r.isGasto).map(renderCostRow)}
