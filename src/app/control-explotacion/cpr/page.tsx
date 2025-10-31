@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AreaChart, BarChart as RechartsBarChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info } from 'lucide-react';
+import { AreaChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, endOfDay, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subDays, startOfMonth, getMonth, getYear, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -238,7 +238,7 @@ export default function CprControlExplotacionPage() {
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
+                            <Button size="sm" variant="outline" onClick={()={() => setDatePreset('q3')}>Q3</Button>
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
                         </div>
                     </div>
@@ -342,3 +342,6 @@ export default function CprControlExplotacionPage() {
 
 
 
+
+
+    
