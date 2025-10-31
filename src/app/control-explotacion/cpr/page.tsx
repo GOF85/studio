@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from "react"
@@ -25,6 +24,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
 import { GASTO_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip as ShadTooltip, TooltipContent as ShadTooltipContent, TooltipProvider, TooltipTrigger as ShadTooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 
 type KpiCardProps = {
@@ -50,6 +51,11 @@ function KpiCard({ title, value, icon: Icon, description, className }: KpiCardPr
     )
 }
 
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+const MONTHS = Array.from({ length: 12 }, (_, i) => i);
+
+
 export default function CprControlExplotacionPage() {
     const [isMounted, setIsMounted] = useState(false);
     const router = useRouter();
@@ -69,6 +75,8 @@ export default function CprControlExplotacionPage() {
     });
     
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [objetivoMes, setObjetivoMes] = useState<Date>(new Date());
+
 
     // Estados para datos maestros
     const [allServiceOrders, setAllServiceOrders] = useState<ServiceOrder[]>([]);
@@ -174,8 +182,8 @@ export default function CprControlExplotacionPage() {
 
         const costesFijosPeriodo = allCostesFijos.reduce((sum, fijo) => sum + (fijo.importeMensual || 0), 0);
 
-        const mesObjetivo = format(dateRange.from, 'yyyy-MM');
-        const objetivo = allObjetivos.find(o => o.mes === mesObjetivo) || { presupuestoVentas: 0, presupuestoCesionPersonal: 0, presupuestoGastosMP: 0, presupuestoGastosPersonalMice: 0, presupuestoGastosPersonalExterno: 0, presupuestoOtrosGastos: 0 };
+        const mesObjetivoKey = format(objetivoMes, 'yyyy-MM');
+        const objetivo = allObjetivos.find(o => o.mes === mesObjetivoKey) || { presupuestoVentas: 0, presupuestoCesionPersonal: 0, presupuestoGastosMP: 0, presupuestoGastosPersonalMice: 0, presupuestoGastosPersonalExterno: 0, presupuestoOtrosGastos: 0 };
         
         const ingresosTotales = ingresosVenta + ingresosCesionPersonal;
         const otrosGastos = costesFijosPeriodo;
@@ -194,7 +202,7 @@ export default function CprControlExplotacionPage() {
         
         return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos, facturacionNeta: ingresosTotales };
 
-    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, costePersonalEtt]);
+    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, costePersonalEtt, objetivoMes]);
 
     const dataAcumulada = useMemo(() => {
         if (!isMounted) return [];
@@ -277,32 +285,41 @@ export default function CprControlExplotacionPage() {
     const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos, facturacionNeta } = dataCalculada;
     
     const tablaExplotacion = [
-        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: facturacionNeta * ((objetivo.presupuestoVentas || 0) / 100), isGasto: false, detailType: 'ventaGastronomia' },
+        { label: "Venta Gastronomía", real: ingresosVenta, ppto: facturacionNeta * ((objetivo.presupuestoVentas || 0) / 100), isGasto: false, detailType: 'ventaGastronomia' },
         { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), isGasto: false },
         { label: GASTO_LABELS.gastronomia, real: costeEscandallo, ppto: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), isGasto: true, detailType: 'costeMP' },
-        { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: facturacionNeta * ((objetivo.presupuestoGastosPersonalMice || 0) / 100), isGasto: true, isManual: true },
-        { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), isGasto: true, isManual: true, setter: setCostePersonalEtt },
-        { label: "Otros Gastos", real: otrosGastos, ppto: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), isGasto: true, isManual: true },
+        { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: facturacionNeta * ((objetivo.presupuestoGastosPersonalMice || 0) / 100), isGasto: true },
+        { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), isGasto: true, setter: setCostePersonalEtt },
+        { label: "Otros Gastos", real: otrosGastos, ppto: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), isGasto: true },
     ];
     
     const renderCostRow = (row: any, index: number) => {
         const desviacion = row.real - row.ppto;
         const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
         return (
-             <TableRow key={`${row.label}-${index}`} className="hover:bg-muted/50">
-                <TableCell className="p-2 font-medium sticky left-0 bg-background z-10 w-48">
-                    {row.detailType ? (
-                         <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
-                            {row.label} <Info size={14}/>
-                        </Link>
-                    ): row.label}
+            <TooltipProvider key={`${row.label}-${index}`}>
+            <TableRow className="hover:bg-muted/50">
+                <TableCell className="p-0 font-medium sticky left-0 bg-background z-10 w-48">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 h-full w-full px-2 py-1">
+                                {row.detailType ? (
+                                    <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
+                                        {row.label} <Info size={14}/>
+                                    </Link>
+                                ): row.label}
+                            </div>
+                        </TooltipTrigger>
+                    </Tooltip>
                 </TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.real)}</TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono border-l">{formatCurrency(row.ppto)}</TableCell>
+                <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSventas)}</TableCell>
+                
+                <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.ppto)}</TableCell>
                 <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{formatCurrency(desviacion)}</TableCell>
-                <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono border-l">{formatPercentage(pctSventas)}</TableCell>
+                <TableCell className={cn("py-1 px-2 text-right font-mono border-r", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
             </TableRow>
+            </TooltipProvider>
         )
     };
 
@@ -310,7 +327,7 @@ export default function CprControlExplotacionPage() {
     return (
         <div className="space-y-4">
             <Card>
-                <CardContent className="flex flex-col xl:flex-row gap-4 p-4">
+                <CardContent className="flex flex-col xl:flex-row gap-4 p-4 justify-between">
                      <div className="flex flex-wrap items-center gap-2">
                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
@@ -332,6 +349,17 @@ export default function CprControlExplotacionPage() {
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
                         </div>
                     </div>
+                     <div className="flex items-center gap-2">
+                        <Label className="font-semibold whitespace-nowrap">Mes de Objetivos:</Label>
+                        <Select value={String(objetivoMes.getMonth())} onValueChange={(m) => setObjetivoMes(prev => new Date(prev.getFullYear(), parseInt(m)))}>
+                            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                            <SelectContent>{MONTHS.map(m => <SelectItem key={m} value={String(m)}>{format(new Date(2000, m), 'MMMM', { locale: es })}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={String(objetivoMes.getFullYear())} onValueChange={(y) => setObjetivoMes(prev => new Date(parseInt(y), prev.getMonth()))}>
+                            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                            <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -345,7 +373,7 @@ export default function CprControlExplotacionPage() {
                         <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} className="bg-green-100/60" />
                         <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} className="bg-red-100/60"/>
                         <KpiCard title="Resultado Explotación" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
-                        <KpiCard title="% Coste MP" value={formatPercentage(kpis.costeMPPct)} icon={BarChart} />
+                        <KpiCard title="% Consumos MP" value={formatPercentage(kpis.costeMPPct)} icon={BarChart} />
                         <KpiCard title="% Coste Personal" value={formatPercentage(kpis.costePersonalPct)} icon={BarChart} />
                          <KpiCard title="% Otros" value={formatPercentage(kpis.costeOtrosPct)} icon={BarChart} />
                     </div>
@@ -357,32 +385,51 @@ export default function CprControlExplotacionPage() {
                                     <TableHeader>
                                         <TableRow className="bg-muted/50">
                                             <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
-                                            <TableHead colSpan={1} className="p-2 text-center border-l border-r">REAL</TableHead>
-                                            <TableHead colSpan={1} className="p-2 text-center border-l border-r">PPTO.</TableHead>
-                                            <TableHead colSpan={1} className="p-2 text-center border-l border-r">DESV. (€)</TableHead>
-                                            <TableHead colSpan={1} className="p-2 text-center border-l border-r">DESV. (%)</TableHead>
-                                            <TableHead colSpan={1} className="p-2 text-center border-l">% s/ Ventas</TableHead>
+                                            <TableHead colSpan={2} className="p-2 text-center border-l border-r">REAL</TableHead>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                         <TableHead className="p-2 text-center border-l border-r cursor-help">Objetivos</TableHead>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <div className="p-2 space-y-1 text-xs">
+                                                            <p className="font-bold mb-2">Objetivos de Gasto Aplicados ({format(objetivoMes, 'MMMM yyyy', { locale: es })})</p>
+                                                            {Object.entries(objetivo).map(([key, value]) => {
+                                                                if (key.startsWith('presupuesto')) {
+                                                                    const label = key.replace('presupuestoGastos', '').replace('presupuestoVentas', 'Ventas').replace('presupuestoCesionPersonal', 'Cesion Personal');
+                                                                    const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+                                                                    return <div key={key} className="flex justify-between gap-4"><span>{formattedLabel}:</span> <span>{formatPercentage(value / 100)}</span></div>
+                                                                }
+                                                                return null;
+                                                            })}
+                                                        </div>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <TableHead colSpan={2} className="p-2 text-center border-l">DESVIACIÓN (REAL vs OBJ)</TableHead>
                                         </TableRow>
                                     </TableHeader>
-                                    <TableBody>
+                                     <TableBody>
                                         <TableRow className="bg-primary/10 hover:bg-primary/10">
                                             <TableCell className="font-bold py-1 px-2">INGRESOS</TableCell>
                                             <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.ingresos)}</TableCell>
+                                            <TableCell className="py-1 px-2"></TableCell>
                                             <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(facturacionNeta * (((objetivo.presupuestoVentas || 0) + (objetivo.presupuestoCesionPersonal || 0)) / 100))}</TableCell>
-                                            <TableCell colSpan={3}></TableCell>
+                                            <TableCell colSpan={2}></TableCell>
                                         </TableRow>
                                         {tablaExplotacion.filter(r => !r.isGasto).map(renderCostRow)}
 
                                         <TableRow className="bg-destructive/10 hover:bg-destructive/10">
                                             <TableCell className="font-bold py-1 px-2">GASTOS</TableCell>
                                             <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.gastos)}</TableCell>
+                                            <TableCell className="py-1 px-2"></TableCell>
                                             <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(facturacionNeta * (((objetivo.presupuestoGastosMP || 0) + (objetivo.presupuestoGastosPersonalMice || 0) + (objetivo.presupuestoGastosPersonalExterno || 0) + (objetivo.presupuestoOtrosGastos || 0)) / 100))}</TableCell>
-                                            <TableCell colSpan={3}></TableCell>
+                                            <TableCell colSpan={2}></TableCell>
                                         </TableRow>
                                         {tablaExplotacion.filter(r => r.isGasto).map(renderCostRow)}
                                         <TableRow className="bg-primary/20 hover:bg-primary/20 text-base font-bold">
                                             <TableCell className="py-2 px-2">RESULTADO EXPLOTACIÓN</TableCell>
-                                            <TableCell className="text-right py-2 px-2">{formatCurrency(kpis.resultado)}</TableCell>
+                                            <TableCell className={cn("text-right py-2 px-2", kpis.resultado < 0 ? "text-destructive" : "text-green-600")}>{formatCurrency(kpis.resultado)}</TableCell>
                                             <TableCell colSpan={4}></TableCell>
                                         </TableRow>
                                     </TableBody>
