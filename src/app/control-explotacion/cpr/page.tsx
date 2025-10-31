@@ -270,7 +270,7 @@ export default function CprControlExplotacionPage() {
     }
 
     const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costesFijosPeriodo } = dataCalculada;
-
+    
     const tablaExplotacion = [
         { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true, detailType: 'ventaGastronomia' },
         { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0 },
@@ -287,7 +287,7 @@ export default function CprControlExplotacionPage() {
                      <div className="flex flex-wrap items-center gap-2">
                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
-                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left text-lg font-bold", !dateRange && "text-muted-foreground")}>
+                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-bold text-lg", !dateRange && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
                                 </Button>
@@ -344,11 +344,11 @@ export default function CprControlExplotacionPage() {
                                             <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoVentas)}</TableCell>
                                             <TableCell colSpan={3}></TableCell>
                                         </TableRow>
-                                        {tablaExplotacion.filter(r => !r.isGasto).map(row => {
+                                        {tablaExplotacion.filter(r => !r.isGasto).map((row, index) => {
                                             const desviacion = row.real - row.ppto;
                                             const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
                                             return (
-                                            <TableRow key={row.label}>
+                                            <TableRow key={`${row.label}-${index}`}>
                                                 <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
                                                     {row.hasDetail && dateRange?.from && dateRange.to && (
                                                         <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`}>
@@ -371,11 +371,11 @@ export default function CprControlExplotacionPage() {
                                             <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoGastosMP + objetivo.presupuestoGastosPersonal)}</TableCell>
                                             <TableCell colSpan={3}></TableCell>
                                         </TableRow>
-                                        {tablaExplotacion.filter(r => r.isGasto).map(row => {
+                                        {tablaExplotacion.filter(r => r.isGasto).map((row, index) => {
                                             const desviacion = row.real - row.ppto;
                                             const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
                                             return (
-                                            <TableRow key={row.label}>
+                                            <TableRow key={`${row.label}-${index}`}>
                                                 <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
                                                 {row.hasDetail && dateRange?.from && dateRange.to && (
                                                     <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`}>
