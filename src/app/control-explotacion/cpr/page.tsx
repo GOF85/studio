@@ -4,7 +4,7 @@
 import * as React from "react"
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { AreaChart, BarChart as RechartsBarChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart } from 'lucide-react';
+import { AreaChart, BarChart as RechartsBarChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format, startOfMonth, endOfMonth, isWithinInterval, endOfDay, startOfYear, endOfQuarter, subDays, startOfDay, getMonth, getYear } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
-
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 type KpiCardProps = {
     title: string;
@@ -45,6 +45,15 @@ function KpiCard({ title, value, icon: Icon, description }: KpiCardProps) {
     )
 }
 
+type VentaDetalle = {
+    fecha: string;
+    osNumber: string;
+    referencia: string;
+    cantidad: number;
+    pvpTotal: number;
+};
+
+
 export default function CprControlExplotacionPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -67,6 +76,8 @@ export default function CprControlExplotacionPage() {
     const [costePersonalEtt, setCostePersonalEtt] = useState(0);
     const [otrosGastos, setOtrosGastos] = useState(0);
     const [margenCesion, setMargenCesion] = useState(0);
+    
+    const [detalleVentas, setDetalleVentas] = useState<VentaDetalle[]>([]);
 
     const loadData = useCallback(() => {
         setAllServiceOrders(JSON.parse(localStorage.getItem('serviceOrders') || '[]'));
@@ -87,6 +98,8 @@ export default function CprControlExplotacionPage() {
 
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
+        
+        const ventasDetalladas: VentaDetalle[] = [];
 
         const osIdsEnRango = new Set(
             allServiceOrders
@@ -103,11 +116,22 @@ export default function CprControlExplotacionPage() {
         const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
 
         const ingresosVenta = gastroOrdersEnRango.reduce((sum, order) => {
+            const os = allServiceOrders.find(o => o.id === order.osId);
             const orderTotal = (order.items || []).reduce((itemSum, item) => {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
                     if (receta) {
                         const margen = (receta.precioVenta || 0) - (receta.costeMateriaPrima || 0);
+                        const pvpTotalItem = (item.quantity || 0) * (receta.precioVenta || 0);
+
+                        ventasDetalladas.push({
+                            fecha: order.fecha,
+                            osNumber: os?.serviceNumber || 'N/A',
+                            referencia: receta.nombre,
+                            cantidad: item.quantity || 0,
+                            pvpTotal: pvpTotalItem,
+                        });
+                        
                         return itemSum + (margen * (item.quantity || 0));
                     }
                 }
@@ -115,6 +139,8 @@ export default function CprControlExplotacionPage() {
             }, 0);
             return sum + orderTotal;
         }, 0);
+        
+        setDetalleVentas(ventasDetalladas.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
         
         const personalMiceEnRango = allPersonalMiceOrders.filter(o => osIdsEnRango.has(o.osId));
         const ingresosCesionPersonal = personalMiceEnRango
@@ -166,7 +192,7 @@ export default function CprControlExplotacionPage() {
     const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costesFijosPeriodo } = dataCalculada;
 
     const tablaExplotacion = [
-        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas },
+        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true },
         { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0 },
         { label: "Coste de MP según Escandallo", real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true },
         { label: "Personal MICE (CPR)", real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true, setter: setCostePersonalMice },
@@ -238,7 +264,46 @@ export default function CprControlExplotacionPage() {
                                 const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
                                 return (
                                 <TableRow key={row.label}>
-                                    <TableCell className="pl-8">{row.label}</TableCell>
+                                    <TableCell className="pl-8 flex items-center gap-2">
+                                        {row.hasDetail && (
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
+                                                </DialogTrigger>
+                                                <DialogContent className="max-w-4xl">
+                                                    <DialogHeader>
+                                                        <DialogTitle>Desglose de Venta de Gastronomía</DialogTitle>
+                                                        <DialogDescription>Detalle de todas las referencias vendidas en el periodo seleccionado.</DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="max-h-[60vh] overflow-y-auto">
+                                                        <Table>
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead>Fecha</TableHead>
+                                                                    <TableHead>OS</TableHead>
+                                                                    <TableHead>Referencia</TableHead>
+                                                                    <TableHead className="text-right">Cantidad</TableHead>
+                                                                    <TableHead className="text-right">PVP Total</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {detalleVentas.map((venta, i) => (
+                                                                    <TableRow key={i}>
+                                                                        <TableCell>{format(new Date(venta.fecha), 'dd/MM/yy')}</TableCell>
+                                                                        <TableCell>{venta.osNumber}</TableCell>
+                                                                        <TableCell>{venta.referencia}</TableCell>
+                                                                        <TableCell className="text-right">{venta.cantidad}</TableCell>
+                                                                        <TableCell className="text-right">{formatCurrency(venta.pvpTotal)}</TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                        )}
+                                        {row.label}
+                                    </TableCell>
                                     <TableCell className="text-right">{formatCurrency(row.real)}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(row.ppto)}</TableCell>
                                     <TableCell className={cn("text-right", desviacion < 0 && 'text-destructive')}>{formatCurrency(desviacion)}</TableCell>
@@ -312,5 +377,7 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
+
 
 
