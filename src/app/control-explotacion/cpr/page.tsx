@@ -80,7 +80,6 @@ export default function CprControlExplotacionPage() {
     const [costePersonalMice, setCostePersonalMice] = useState(0);
     const [costePersonalEtt, setCostePersonalEtt] = useState(0);
     const [otrosGastos, setOtrosGastos] = useState(0);
-    const [margenCesion, setMargenCesion] = useState(0);
 
     const loadData = useCallback(() => {
         setAllServiceOrders(JSON.parse(localStorage.getItem('serviceOrders') || '[]'));
@@ -171,7 +170,7 @@ export default function CprControlExplotacionPage() {
         const mesObjetivo = format(dateRange.from, 'yyyy-MM');
         const objetivo = allObjetivos.find(o => o.mes === mesObjetivo) || { presupuestoVentas: 0, presupuestoGastosMP: 0, presupuestoGastosPersonal: 0};
         
-        const ingresosTotales = ingresosVenta + (ingresosCesionPersonal * (1 + margenCesion/100));
+        const ingresosTotales = ingresosVenta + ingresosCesionPersonal;
         const gastosTotales = costeEscandallo + costePersonalMice + costePersonalEtt + costesFijosPeriodo + otrosGastos;
         const resultadoExplotacion = ingresosTotales - gastosTotales;
 
@@ -186,7 +185,22 @@ export default function CprControlExplotacionPage() {
         
         return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costesFijosPeriodo };
 
-    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, costePersonalMice, costePersonalEtt, otrosGastos, margenCesion]);
+    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, costePersonalMice, costePersonalEtt, otrosGastos]);
+
+    const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
+        const now = new Date();
+        let fromDate, toDate;
+        switch(preset) {
+            case 'month': fromDate = startOfMonth(now); toDate = endOfMonth(now); break;
+            case 'year': fromDate = startOfYear(now); toDate = endOfYear(now); break;
+            case 'q1': fromDate = startOfQuarter(new Date(now.getFullYear(), 0, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 2, 31)); break;
+            case 'q2': fromDate = startOfQuarter(new Date(now.getFullYear(), 3, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 5, 30)); break;
+            case 'q3': fromDate = startOfQuarter(new Date(now.getFullYear(), 6, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 8, 30)); break;
+            case 'q4': fromDate = startOfQuarter(new Date(now.getFullYear(), 9, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 11, 31)); break;
+        }
+        setDateRange({ from: fromDate, to: toDate });
+        setIsDatePickerOpen(false);
+    };
 
     if (!isMounted || !dataCalculada) {
         return <LoadingSkeleton title="Calculando rentabilidad del CPR..." />;
@@ -207,24 +221,27 @@ export default function CprControlExplotacionPage() {
     return (
         <div className="space-y-4">
             <Card>
-                <CardHeader>
-                    <CardTitle>Control de Explotación del CPR</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-wrap items-center gap-4">
-                     <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                        <PopoverTrigger asChild>
-                            <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
-                        </PopoverContent>
-                    </Popover>
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="margen-cesion">Margen Cesión Personal (%)</Label>
-                        <Input id="margen-cesion" type="number" value={margenCesion} onChange={e => setMargenCesion(parseFloat(e.target.value) || 0)} className="w-24" />
+                <CardContent className="flex flex-col xl:flex-row gap-4 p-4">
+                     <div className="flex flex-wrap items-center gap-2">
+                         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                            <PopoverTrigger asChild>
+                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[260px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+                            </PopoverContent>
+                        </Popover>
+                         <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('month')}>Mes</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -239,90 +256,90 @@ export default function CprControlExplotacionPage() {
             </div>
             
             <Card>
-                <CardHeader><CardTitle>Cuenta de Explotación</CardTitle></CardHeader>
-                <CardContent>
-                    <Table>
-                         <TableHeader>
-                            <TableRow>
-                                <TableHead className="py-2">Concepto</TableHead>
-                                <TableHead className="text-right py-2">REAL</TableHead>
-                                <TableHead className="text-right py-2">PPTO.</TableHead>
-                                <TableHead className="text-right py-2">DESV. (€)</TableHead>
-                                <TableHead className="text-right py-2">DESV. (%)</TableHead>
-                                <TableHead className="text-right py-2">% s/ Ventas</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            <TableRow className="bg-primary/10 hover:bg-primary/10">
-                                <TableCell className="font-bold py-1">INGRESOS</TableCell>
-                                <TableCell className="text-right font-bold py-1">{formatCurrency(kpis.ingresos)}</TableCell>
-                                <TableCell className="text-right font-bold py-1">{formatCurrency(objetivo.presupuestoVentas)}</TableCell>
-                                <TableCell colSpan={3}></TableCell>
-                            </TableRow>
-                            {tablaExplotacion.filter(r => !r.isGasto).map(row => {
-                                const desviacion = row.real - row.ppto;
-                                const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
-                                return (
-                                <TableRow key={row.label}>
-                                    <TableCell className="pl-8 flex items-center gap-2 py-1">
+                <CardHeader className="pt-2 pb-2"><CardTitle>Cuenta de Explotación</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="py-1 px-2">Concepto</TableHead>
+                                    <TableHead className="text-right py-1 px-2">REAL</TableHead>
+                                    <TableHead className="text-right py-1 px-2">PPTO.</TableHead>
+                                    <TableHead className="text-right py-1 px-2">DESV. (€)</TableHead>
+                                    <TableHead className="text-right py-1 px-2">DESV. (%)</TableHead>
+                                    <TableHead className="text-right py-1 px-2">% s/ Ventas</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow className="bg-primary/10 hover:bg-primary/10">
+                                    <TableCell className="font-bold py-1 px-2">INGRESOS</TableCell>
+                                    <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.ingresos)}</TableCell>
+                                    <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoVentas)}</TableCell>
+                                    <TableCell colSpan={3}></TableCell>
+                                </TableRow>
+                                {tablaExplotacion.filter(r => !r.isGasto).map(row => {
+                                    const desviacion = row.real - row.ppto;
+                                    const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
+                                    return (
+                                    <TableRow key={row.label}>
+                                        <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
+                                            {row.hasDetail && (
+                                                <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`}>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
+                                                </Link>
+                                            )}
+                                            {row.label}
+                                        </TableCell>
+                                        <TableCell className="text-right py-1 px-2">{formatCurrency(row.real)}</TableCell>
+                                        <TableCell className="text-right py-1 px-2">{formatCurrency(row.ppto)}</TableCell>
+                                        <TableCell className={cn("text-right py-1 px-2", desviacion < 0 && 'text-destructive')}>{formatCurrency(desviacion)}</TableCell>
+                                        <TableCell className={cn("text-right py-1 px-2", desviacion < 0 && 'text-destructive')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
+                                        <TableCell className="text-right py-1 px-2">{formatPercentage(pctSventas)}</TableCell>
+                                    </TableRow>
+                                )})}
+
+                                <TableRow className="bg-destructive/10 hover:bg-destructive/10">
+                                    <TableCell className="font-bold py-1 px-2">GASTOS</TableCell>
+                                    <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.gastos)}</TableCell>
+                                    <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoGastosMP + objetivo.presupuestoGastosPersonal)}</TableCell>
+                                    <TableCell colSpan={3}></TableCell>
+                                </TableRow>
+                                {tablaExplotacion.filter(r => r.isGasto).map(row => {
+                                    const desviacion = row.real - row.ppto;
+                                    const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
+                                    return (
+                                    <TableRow key={row.label}>
+                                        <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
                                         {row.hasDetail && (
                                             <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`}>
                                                 <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
                                             </Link>
                                         )}
-                                        {row.label}
-                                    </TableCell>
-                                    <TableCell className="text-right py-1">{formatCurrency(row.real)}</TableCell>
-                                    <TableCell className="text-right py-1">{formatCurrency(row.ppto)}</TableCell>
-                                    <TableCell className={cn("text-right py-1", desviacion < 0 && 'text-destructive')}>{formatCurrency(desviacion)}</TableCell>
-                                    <TableCell className={cn("text-right py-1", desviacion < 0 && 'text-destructive')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
-                                    <TableCell className="text-right py-1">{formatPercentage(pctSventas)}</TableCell>
+                                        {row.label}</TableCell>
+                                        <TableCell className="text-right py-1 px-2">
+                                            {row.isManual ? (
+                                                <Input type="number" value={row.real} onChange={e => row.setter?.(parseFloat(e.target.value) || 0)} className="h-7 text-right"/>
+                                            ) : formatCurrency(row.real)}
+                                        </TableCell>
+                                        <TableCell className="text-right py-1 px-2">{formatCurrency(row.ppto)}</TableCell>
+                                        <TableCell className={cn("text-right py-1 px-2", desviacion > 0 && 'text-destructive')}>{formatCurrency(desviacion)}</TableCell>
+                                        <TableCell className={cn("text-right py-1 px-2", desviacion > 0 && 'text-destructive')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
+                                        <TableCell className="text-right py-1 px-2">{formatPercentage(pctSventas)}</TableCell>
+                                    </TableRow>
+                                )})}
+                                <TableRow className="bg-primary/20 hover:bg-primary/20 text-base font-bold">
+                                    <TableCell className="py-2 px-2">RESULTADO EXPLOTACIÓN</TableCell>
+                                    <TableCell className="text-right py-2 px-2">{formatCurrency(kpis.resultado)}</TableCell>
+                                    <TableCell colSpan={4}></TableCell>
                                 </TableRow>
-                            )})}
-
-                             <TableRow className="bg-destructive/10 hover:bg-destructive/10">
-                                <TableCell className="font-bold py-1">GASTOS</TableCell>
-                                <TableCell className="text-right font-bold py-1">{formatCurrency(kpis.gastos)}</TableCell>
-                                <TableCell className="text-right font-bold py-1">{formatCurrency(objetivo.presupuestoGastosMP + objetivo.presupuestoGastosPersonal)}</TableCell>
-                                <TableCell colSpan={3}></TableCell>
-                            </TableRow>
-                             {tablaExplotacion.filter(r => r.isGasto).map(row => {
-                                const desviacion = row.real - row.ppto;
-                                const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
-                                return (
-                                <TableRow key={row.label}>
-                                    <TableCell className="pl-8 flex items-center gap-2 py-1">
-                                    {row.hasDetail && (
-                                        <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`}>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
-                                        </Link>
-                                    )}
-                                    {row.label}</TableCell>
-                                    <TableCell className="text-right py-1">
-                                        {row.isManual ? (
-                                            <Input type="number" value={row.real} onChange={e => row.setter?.(parseFloat(e.target.value) || 0)} className="h-7 text-right"/>
-                                        ) : formatCurrency(row.real)}
-                                    </TableCell>
-                                    <TableCell className="text-right py-1">{formatCurrency(row.ppto)}</TableCell>
-                                    <TableCell className={cn("text-right py-1", desviacion > 0 && 'text-destructive')}>{formatCurrency(desviacion)}</TableCell>
-                                    <TableCell className={cn("text-right py-1", desviacion > 0 && 'text-destructive')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
-                                    <TableCell className="text-right py-1">{formatPercentage(pctSventas)}</TableCell>
-                                </TableRow>
-                            )})}
-                            <TableRow className="bg-primary/20 hover:bg-primary/20 text-lg font-bold">
-                                <TableCell className="py-2">RESULTADO EXPLOTACIÓN</TableCell>
-                                <TableCell className="text-right py-2">{formatCurrency(kpis.resultado)}</TableCell>
-                                <TableCell colSpan={4}></TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
             
             <Card>
-                <CardHeader>
-                    <CardTitle>Análisis de Eficiencia y Desviaciones</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle>Análisis de Eficiencia y Desviaciones</CardTitle></CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-4">
                         <h3 className="font-semibold">Análisis de Merma Teórica</h3>
@@ -351,4 +368,5 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
 
