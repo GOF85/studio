@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AreaChart, Calendar as CalendarIcon, Info } from 'lucide-react';
-import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachDayOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ServiceOrder, GastronomyOrder, Receta } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
