@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from "react"
@@ -195,7 +196,7 @@ export default function CprControlExplotacionPage() {
             costeOtrosPct: ingresosTotales > 0 ? otrosGastos / ingresosTotales : 0,
         };
         
-        return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo };
+        return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos };
 
     }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, costePersonalEtt]);
 
@@ -277,7 +278,7 @@ export default function CprControlExplotacionPage() {
         return <LoadingSkeleton title="Calculando rentabilidad del CPR..." />;
     }
 
-    const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo } = dataCalculada;
+    const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos } = dataCalculada;
     
     const tablaExplotacion = [
         { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true, detailType: 'ventaGastronomia' },
@@ -285,27 +286,33 @@ export default function CprControlExplotacionPage() {
         { label: GASTO_LABELS.gastronomia, real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, hasDetail: true, detailType: 'costeMP' },
         { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true },
         { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: 0, isGasto: true, isManual: true, setter: setCostePersonalEtt },
+        { label: "Otros Gastos", real: otrosGastos, ppto: 0, isGasto: true, isManual: true },
     ];
     
     const renderCostRow = (row: any, index: number) => {
         const desviacion = row.real - row.ppto;
         const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
         return (
-            <TableRow key={`${row.label}-${index}`}>
-                <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
-                    {row.hasDetail && dateRange?.from && dateRange.to && (
-                        <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`}>
-                            <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
-                        </Link>
-                    )}
-                    {row.label}
-                </TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono">{formatCurrency(row.real)}</TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono">{formatCurrency(row.ppto)}</TableCell>
-                <TableCell className={cn("py-1 px-2 text-right font-mono", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{formatCurrency(desviacion)}</TableCell>
-                <TableCell className={cn("py-1 px-2 text-right font-mono", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono">{formatPercentage(pctSventas)}</TableCell>
-            </TableRow>
+             <TooltipProvider key={`${row.label}-${index}`}>
+                <TableRow className="hover:bg-muted/50">
+                    <TableCell className={cn("p-0 font-medium sticky left-0 bg-background z-10")}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-2 h-full w-full px-2 py-1">
+                                    <Info className="h-3 w-3 text-muted-foreground" />
+                                    {row.label}
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent><p>{row.label}</p></TooltipContent>
+                        </Tooltip>
+                    </TableCell>
+                    <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.real)}</TableCell>
+                    <TableCell className="py-1 px-2 text-right font-mono border-l">{formatCurrency(row.ppto)}</TableCell>
+                    <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{formatCurrency(desviacion)}</TableCell>
+                    <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
+                    <TableCell className={cn("py-1 px-2 text-right font-mono border-l", pctSventas > (objetivo.presupuestoGastosMP / objetivo.presupuestoVentas) && row.isGasto && "text-destructive font-bold")}>{formatPercentage(pctSventas)}</TableCell>
+                </TableRow>
+             </TooltipProvider>
         )
     };
 
@@ -345,12 +352,12 @@ export default function CprControlExplotacionPage() {
                 </TabsList>
                 <TabsContent value="control-explotacion" className="space-y-4 mt-4">
                     <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                        <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} />
-                        <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} />
-                        <KpiCard title="Resultado Explotación" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} />
-                        <KpiCard title="% Coste MP" value={formatPercentage(kpis.costeMPPct)} icon={BarChart} />
-                        <KpiCard title="% Coste Personal" value={formatPercentage(kpis.costePersonalPct)} icon={BarChart} />
-                         <KpiCard title="% Otros" value={formatPercentage(kpis.costeOtrosPct)} icon={BarChart} />
+                        <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} className="bg-green-100/60" />
+                        <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} className="bg-red-100/60"/>
+                        <KpiCard title="Resultado Explotación" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
+                        <KpiCard title="% Coste MP" value={formatPercentage(kpis.costeMPPct)} icon={AreaChart} />
+                        <KpiCard title="% Coste Personal" value={formatPercentage(kpis.costePersonalPct)} icon={AreaChart} />
+                        <KpiCard title="% Otros" value={formatPercentage(kpis.costeOtrosPct)} icon={AreaChart} />
                     </div>
                     
                     <Card>
@@ -359,12 +366,12 @@ export default function CprControlExplotacionPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow className="bg-muted/50">
-                                            <TableHead className="py-1 px-2">Concepto</TableHead>
-                                            <TableHead className="text-right py-1 px-2">REAL</TableHead>
-                                            <TableHead className="text-right py-1 px-2">PPTO.</TableHead>
-                                            <TableHead className="text-right py-1 px-2">DESV. (€)</TableHead>
-                                            <TableHead className="text-right py-1 px-2">DESV. (%)</TableHead>
-                                            <TableHead className="text-right py-1 px-2">% s/ Ventas</TableHead>
+                                            <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
+                                            <TableHead colSpan={1} className="p-2 text-center border-l border-r">REAL</TableHead>
+                                            <TableHead colSpan={1} className="p-2 text-center border-l border-r">PPTO.</TableHead>
+                                            <TableHead colSpan={1} className="p-2 text-center border-l border-r">DESV. (€)</TableHead>
+                                            <TableHead colSpan={1} className="p-2 text-center border-l border-r">DESV. (%)</TableHead>
+                                            <TableHead colSpan={1} className="p-2 text-center border-l">% s/ Ventas</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
