@@ -345,7 +345,7 @@ export default function CprControlExplotacionPage() {
     return (
         <div className="space-y-4">
             <Card>
-                <CardContent className="flex flex-col xl:flex-row gap-4 p-4 justify-between">
+                 <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
                      <div className="flex flex-wrap items-center gap-2">
                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
@@ -504,5 +504,6 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
 
 
