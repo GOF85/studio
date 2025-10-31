@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AreaChart, BarChart as RechartsBarChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, endOfDay, startOfYear, endOfQuarter, subDays, startOfDay, getMonth, getYear, parseISO } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subDays, startOfMonth, getMonth, getYear, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import Link from "next/link";
@@ -76,7 +76,6 @@ export default function CprControlExplotacionPage() {
     const [allObjetivos, setAllObjetivos] = useState<ObjetivoMensualCPR[]>([]);
     
     // Estados para valores manuales
-    const [comprasReales, setComprasReales] = useState(0);
     const [costePersonalMice, setCostePersonalMice] = useState(0);
     const [costePersonalEtt, setCostePersonalEtt] = useState(0);
     const [otrosGastos, setOtrosGastos] = useState(0);
@@ -283,8 +282,8 @@ export default function CprControlExplotacionPage() {
                                     return (
                                     <TableRow key={row.label}>
                                         <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
-                                            {row.hasDetail && (
-                                                <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`}>
+                                            {row.hasDetail && dateRange?.from && dateRange.to && (
+                                                <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`}>
                                                     <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
                                                 </Link>
                                             )}
@@ -310,8 +309,8 @@ export default function CprControlExplotacionPage() {
                                     return (
                                     <TableRow key={row.label}>
                                         <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
-                                        {row.hasDetail && (
-                                            <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`}>
+                                        {row.hasDetail && dateRange?.from && dateRange.to && (
+                                            <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`}>
                                                 <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
                                             </Link>
                                         )}
@@ -337,36 +336,9 @@ export default function CprControlExplotacionPage() {
                     </div>
                 </CardContent>
             </Card>
-            
-            <Card>
-                <CardHeader><CardTitle>Análisis de Eficiencia y Desviaciones</CardTitle></CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                        <h3 className="font-semibold">Análisis de Merma Teórica</h3>
-                        <div className="space-y-2">
-                            <Label htmlFor="compras-reales">Compras Reales de Materia Prima (del ERP)</Label>
-                            <Input type="number" id="compras-reales" placeholder="Introduce el total de compras..." value={comprasReales || ''} onChange={e => setComprasReales(parseFloat(e.target.value) || 0)} />
-                        </div>
-                        <div className="p-4 border rounded-lg space-y-2">
-                             <div className="flex justify-between text-sm"><span>Coste MP según Escandallo:</span><span className="font-medium">{formatCurrency(costeEscandallo)}</span></div>
-                             <div className="flex justify-between text-sm"><span>Compras Reales Introducidas:</span><span className="font-medium">{formatCurrency(comprasReales)}</span></div>
-                             <Separator className="my-2"/>
-                             <div className="flex justify-between font-bold text-base pt-1">
-                                 <span>Diferencia (Merma Teórica):</span>
-                                 <span className={cn(comprasReales - costeEscandallo > 0 ? 'text-destructive' : 'text-green-600')}>{formatCurrency(comprasReales - costeEscandallo)}</span>
-                             </div>
-                        </div>
-                    </div>
-                     <div>
-                        <h3 className="font-semibold mb-2">Evolución Mensual (Próximamente)</h3>
-                        <div className="h-64 flex items-center justify-center bg-muted/50 rounded-lg">
-                            <RechartsBarChart className="h-16 w-16 text-muted-foreground/50"/>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     );
 }
+
 
 
