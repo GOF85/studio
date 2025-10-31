@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
 import { GASTO_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 
@@ -87,6 +87,7 @@ export default function CprControlExplotacionPage() {
     
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [objetivoMes, setObjetivoMes] = useState<Date>(new Date());
+    const [availableObjetivoMonths, setAvailableObjetivoMonths] = useState<{label: string, value: string}[]>([]);
 
 
     // Estados para datos maestros
@@ -106,7 +107,17 @@ export default function CprControlExplotacionPage() {
         setAllRecetas(JSON.parse(localStorage.getItem('recetas') || '[]'));
         setAllPersonalMiceOrders(JSON.parse(localStorage.getItem('personalMiceOrders') || '[]'));
         setAllCostesFijos(JSON.parse(localStorage.getItem('costesFijosCPR') || '[]'));
-        setAllObjetivos(JSON.parse(localStorage.getItem('objetivosCPR') || '[]'));
+        const objetivosData = JSON.parse(localStorage.getItem('objetivosCPR') || '[]') as ObjetivoMensualCPR[];
+        setAllObjetivos(objetivosData);
+        
+        const months = objetivosData
+            .map(o => o.mes)
+            .sort((a,b) => b.localeCompare(a));
+        setAvailableObjetivoMonths(months.map(m => ({
+            value: m,
+            label: format(parseISO(`${m}-02`), 'MMMM yyyy', { locale: es })
+        })));
+
         setIsMounted(true);
     }, []);
 
@@ -297,7 +308,7 @@ export default function CprControlExplotacionPage() {
     
     const tablaExplotacion = [
         { label: "Venta Gastronomía", real: ingresosVenta, ppto: facturacionNeta * ((objetivo.presupuestoVentas || 0) / 100), isGasto: false, detailType: 'ventaGastronomia' },
-        { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), isGasto: false },
+        { label: "Cesión de Personal", real: ingresosCesionPersonal, ppto: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), isGasto: false },
         { label: "Consumos MP", real: costeEscandallo, ppto: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), isGasto: true, detailType: 'costeMP' },
         { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: facturacionNeta * ((objetivo.presupuestoGastosPersonalMice || 0) / 100), isGasto: true },
         { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), isGasto: true, setter: setCostePersonalEtt },
@@ -357,14 +368,12 @@ export default function CprControlExplotacionPage() {
                         </div>
                     </div>
                      <div className="flex items-center gap-2">
-                        <Label className="font-semibold whitespace-nowrap">Mes de Objetivos:</Label>
-                        <Select value={String(objetivoMes.getMonth())} onValueChange={(m) => setObjetivoMes(prev => new Date(prev.getFullYear(), parseInt(m)))}>
-                            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                            <SelectContent>{MONTHS.map(m => <SelectItem key={m} value={String(m)}>{format(new Date(2000, m), 'MMMM', { locale: es })}</SelectItem>)}</SelectContent>
-                        </Select>
-                        <Select value={String(objetivoMes.getFullYear())} onValueChange={(y) => setObjetivoMes(prev => new Date(parseInt(y), prev.getMonth()))}>
-                            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-                            <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                        <Label className="font-semibold whitespace-nowrap">Objetivos:</Label>
+                         <Select onValueChange={(value) => setObjetivoMes(parseISO(`${value}-02`))} value={format(objetivoMes, 'yyyy-MM')}>
+                            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {availableObjetivoMonths.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                            </SelectContent>
                         </Select>
                     </div>
                 </CardContent>
@@ -390,28 +399,26 @@ export default function CprControlExplotacionPage() {
                                         <TableRow className="bg-muted/50">
                                             <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
                                             <TableHead colSpan={2} className="p-2 text-center border-l border-r">REAL</TableHead>
-                                            <TableHead className="p-2 text-center border-l border-r">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <span className="cursor-help">Objetivos</span>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <div className="p-2 space-y-1 text-xs">
-                                                                <p className="font-bold mb-2">Objetivos de Gasto Aplicados ({format(objetivoMes, 'MMMM yyyy', { locale: es })})</p>
-                                                                {Object.entries(objetivo).map(([key, value]) => {
-                                                                    if (key.startsWith('presupuesto')) {
-                                                                        const label = key.replace('presupuestoGastos', '').replace('presupuestoVentas', 'Ventas').replace('presupuestoCesionPersonal', 'Cesion Personal');
-                                                                        const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
-                                                                        return <div key={key} className="flex justify-between gap-4"><span>{formattedLabel}:</span> <span>{formatPercentage(value / 100)}</span></div>
-                                                                    }
-                                                                    return null;
-                                                                })}
-                                                            </div>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </TableHead>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                         <TableHead className="p-2 text-center border-l border-r cursor-help">Objetivos</TableHead>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <div className="p-2 space-y-1 text-xs">
+                                                            <p className="font-bold mb-2">Objetivos de Gasto Aplicados ({format(objetivoMes, 'MMMM yyyy', { locale: es })})</p>
+                                                            {Object.entries(objetivo).map(([key, value]) => {
+                                                                if (key.startsWith('presupuesto')) {
+                                                                    const label = key.replace('presupuestoGastos', '').replace('presupuestoVentas', 'Ventas').replace('presupuestoCesionPersonal', 'Cesion Personal');
+                                                                    const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+                                                                    return <div key={key} className="flex justify-between gap-4"><span>{formattedLabel}:</span> <span>{formatPercentage(value / 100)}</span></div>
+                                                                }
+                                                                return null;
+                                                            })}
+                                                        </div>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                             <TableHead colSpan={2} className="p-2 text-center border-l">DESVIACIÓN (REAL vs. OBJ)</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -497,4 +504,5 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
 
