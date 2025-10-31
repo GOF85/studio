@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from "react"
@@ -6,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AreaChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info, MessageSquare, Save } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
-import { format, isWithinInterval, startOfDay, endOfDay, startOfYear, endOfYear, endOfMonth, startOfQuarter, endOfQuarter, subDays, startOfMonth, getYear, parseISO, eachMonthOfInterval } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachMonthOfInterval, startOfYear, endOfYear, endOfMonth, startOfQuarter, endOfQuarter, subDays, startOfMonth, getYear } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, XAxis, YAxis, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import Link from "next/link";
@@ -332,12 +333,12 @@ export default function CprControlExplotacionPage() {
                         ): row.label}
                     </div>
                 </TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono">{formatCurrency(row.real)}</TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r">{formatPercentage(pctSFactReal)}</TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono border-l">{formatCurrency(row.ppto)}</TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground">{formatPercentage(pptoPct)}</TableCell>
-                <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatCurrency(desviacion)}</TableCell>
-                <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatPercentage(desviacionPct)}</TableCell>
+                <TableCell className="py-1 pr-2 pl-1 text-right font-mono">{formatCurrency(row.real)}</TableCell>
+                <TableCell className="py-1 pl-2 pr-1 text-left font-mono text-muted-foreground border-r">{formatPercentage(pctSFactReal)}</TableCell>
+                <TableCell className="py-1 pr-2 pl-1 text-right font-mono border-l">{formatCurrency(row.ppto)}</TableCell>
+                <TableCell className="py-1 pl-2 pr-1 text-left font-mono text-muted-foreground">{formatPercentage(pptoPct)}</TableCell>
+                <TableCell className={cn("py-1 pr-2 pl-1 text-right font-mono border-l", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatCurrency(desviacion)}</TableCell>
+                <TableCell className={cn("py-1 pl-2 pr-1 text-left font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatPercentage(desviacionPct)}</TableCell>
             </TableRow>
         )
     };
@@ -349,7 +350,7 @@ export default function CprControlExplotacionPage() {
                 <TableCell className={cn("text-right font-bold py-2 px-2", isSubtotal && "text-black")}>{formatCurrency(value)}</TableCell>
                 <TableCell className="border-r py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
-                <TableCell className="border-r py-2 px-2"></TableCell>
+                <TableCell className="py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
                 <TableCell className="border-r py-2 px-2"></TableCell>
             </TableRow>
@@ -363,7 +364,7 @@ export default function CprControlExplotacionPage() {
                 <TableCell className={cn("text-right font-bold py-2 px-2 text-base", value < 0 ? 'text-destructive' : 'text-green-600')}>{formatCurrency(value)}</TableCell>
                 <TableCell className="border-r py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
-                <TableCell className="border-r py-2 px-2"></TableCell>
+                <TableCell className="py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
                 <TableCell className="border-r py-2 px-2"></TableCell>
             </TableRow>
@@ -427,14 +428,9 @@ export default function CprControlExplotacionPage() {
                                     <TableHeader>
                                         <TableRow className="bg-muted/50">
                                             <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
-                                            <TableHead className="py-2 px-1 text-right w-28">Real (€)</TableHead>
-                                            <TableHead className="py-2 px-1 text-right border-r w-24">Real (%)</TableHead>
-                                            
-                                            <TableHead className="py-2 px-1 text-right border-l w-28">Presupuesto (€)</TableHead>
-                                            <TableHead className="py-2 px-1 text-right w-24">Presupuesto (%)</TableHead>
-                                            
-                                            <TableHead className="py-2 px-1 text-right border-l w-28">Desviación (€)</TableHead>
-                                            <TableHead className="py-2 px-1 text-right border-r w-24">Desviación (%)</TableHead>
+                                            <TableHead colSpan={2} className="p-2 text-center border-l border-r">Real</TableHead>
+                                            <TableHead colSpan={2} className="p-2 text-center border-l border-r">Presupuesto</TableHead>
+                                            <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Real vs. Obj.)</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                      <TableBody>
@@ -502,3 +498,4 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
