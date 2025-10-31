@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TrendingDown, ArrowLeft } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
@@ -86,7 +86,11 @@ export default function CosteMPPage() {
     
     const dateRangeDisplay = useMemo(() => {
         if (!from || !to) return "Rango de fechas no especificado";
-        return `${format(new Date(from), 'dd/MM/yyyy', { locale: es })} - ${format(new Date(to), 'dd/MM/yyyy', { locale: es })}`;
+        try {
+            return `${format(new Date(from), 'dd/MM/yyyy', { locale: es })} - ${format(new Date(to), 'dd/MM/yyyy', { locale: es })}`;
+        } catch (e) {
+            return "Fechas inválidas";
+        }
     }, [from, to]);
 
 

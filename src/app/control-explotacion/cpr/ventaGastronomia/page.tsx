@@ -66,7 +66,8 @@ export default function VentaGastronomiaPage() {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
                     if (receta) {
-                        const pvpTotalItem = (item.quantity || 0) * (receta.precioVenta || 0);
+                        const margen = (receta.precioVenta || 0) - (receta.costeMateriaPrima || 0);
+                        const pvpTotalItem = margen * (item.quantity || 0);
                         ventasDetalladas.push({
                             fecha: order.fecha,
                             osId: os?.id || 'N/A',
@@ -83,11 +84,16 @@ export default function VentaGastronomiaPage() {
         setDetalleVentas(ventasDetalladas.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
         setIsMounted(true);
     }, [from, to]);
-
+    
     const dateRangeDisplay = useMemo(() => {
         if (!from || !to) return "Rango de fechas no especificado";
-        return `${format(new Date(from), 'dd/MM/yyyy', { locale: es })} - ${format(new Date(to), 'dd/MM/yyyy', { locale: es })}`;
+        try {
+            return `${format(new Date(from), 'dd/MM/yyyy', { locale: es })} - ${format(new Date(to), 'dd/MM/yyyy', { locale: es })}`;
+        } catch (e) {
+            return "Fechas inválidas";
+        }
     }, [from, to]);
+
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando detalle de ventas..." />;
@@ -107,7 +113,7 @@ export default function VentaGastronomiaPage() {
                                 <TableHead>OS</TableHead>
                                 <TableHead>Referencia</TableHead>
                                 <TableHead className="text-right">Cantidad</TableHead>
-                                <TableHead className="text-right">PVP Total</TableHead>
+                                <TableHead className="text-right">Margen Bruto Total</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
