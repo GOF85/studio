@@ -53,6 +53,14 @@ type VentaDetalle = {
     pvpTotal: number;
 };
 
+type CosteMPDetalle = {
+    fecha: string;
+    osNumber: string;
+    referencia: string;
+    cantidad: number;
+    costeMPTotal: number;
+};
+
 
 export default function CprControlExplotacionPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -78,6 +86,7 @@ export default function CprControlExplotacionPage() {
     const [margenCesion, setMargenCesion] = useState(0);
     
     const [detalleVentas, setDetalleVentas] = useState<VentaDetalle[]>([]);
+    const [detalleCostesMP, setDetalleCostesMP] = useState<CosteMPDetalle[]>([]);
 
     const loadData = useCallback(() => {
         setAllServiceOrders(JSON.parse(localStorage.getItem('serviceOrders') || '[]'));
@@ -100,6 +109,7 @@ export default function CprControlExplotacionPage() {
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
         
         const ventasDetalladas: VentaDetalle[] = [];
+        const costesMPDetallados: CosteMPDetalle[] = [];
 
         const osIdsEnRango = new Set(
             allServiceOrders
@@ -140,7 +150,30 @@ export default function CprControlExplotacionPage() {
             return sum + orderTotal;
         }, 0);
         
+        const costeEscandallo = gastroOrdersEnRango.reduce((sum, order) => {
+            const os = allServiceOrders.find(o => o.id === order.osId);
+             const orderTotal = (order.items || []).reduce((itemSum, item) => {
+                if (item.type === 'item') {
+                    const receta = recetasMap.get(item.id);
+                    if (receta) {
+                        const costeTotalItem = (receta.costeMateriaPrima || 0) * (item.quantity || 0);
+                        costesMPDetallados.push({
+                             fecha: order.fecha,
+                            osNumber: os?.serviceNumber || 'N/A',
+                            referencia: receta.nombre,
+                            cantidad: item.quantity || 0,
+                            costeMPTotal: costeTotalItem,
+                        });
+                        return itemSum + costeTotalItem;
+                    }
+                }
+                return itemSum;
+            }, 0);
+            return sum + orderTotal;
+        }, 0);
+        
         setDetalleVentas(ventasDetalladas.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
+        setDetalleCostesMP(costesMPDetallados.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
         
         const personalMiceEnRango = allPersonalMiceOrders.filter(o => osIdsEnRango.has(o.osId));
         const ingresosCesionPersonal = personalMiceEnRango
@@ -149,19 +182,6 @@ export default function CprControlExplotacionPage() {
                 const hours = calculateHours(order.horaEntradaReal || order.horaEntrada, order.horaSalidaReal || order.horaSalida);
                 return sum + (hours * (order.precioHora || 0));
             }, 0);
-
-        const costeEscandallo = gastroOrdersEnRango.reduce((sum, order) => {
-             const orderTotal = (order.items || []).reduce((itemSum, item) => {
-                if (item.type === 'item') {
-                    const receta = recetasMap.get(item.id);
-                    if (receta) {
-                        return itemSum + ((receta.costeMateriaPrima || 0) * (item.quantity || 0));
-                    }
-                }
-                return itemSum;
-            }, 0);
-            return sum + orderTotal;
-        }, 0);
 
         const costesFijosPeriodo = allCostesFijos.reduce((sum, fijo) => sum + (fijo.importeMensual || 0), 0);
 
@@ -192,17 +212,15 @@ export default function CprControlExplotacionPage() {
     const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costesFijosPeriodo } = dataCalculada;
 
     const tablaExplotacion = [
-        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true },
+        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true, detailType: 'ventas' },
         { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0 },
-        { label: "Coste de MP según Escandallo", real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true },
+        { label: "Coste de MP según Escandallo", real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, hasDetail: true, detailType: 'costes' },
         { label: "Personal MICE (CPR)", real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true, setter: setCostePersonalMice },
         { label: "Personal ETT (Producción)", real: costePersonalEtt, ppto: 0, isGasto: true, isManual: true, setter: setCostePersonalEtt },
         ...allCostesFijos.map(fijo => ({ label: fijo.concepto, real: fijo.importeMensual, ppto: 0, isGasto: true })),
         { label: "Otros Gastos", real: otrosGastos, ppto: 0, isGasto: true, isManual: true, setter: setOtrosGastos },
     ];
     
-    const rentabilidadReal = kpis.resultado;
-
     return (
         <div className="space-y-6">
             <Card>
@@ -253,7 +271,7 @@ export default function CprControlExplotacionPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow className="bg-primary/10 hover:bg-primary/10">
+                             <TableRow className="bg-primary/10 hover:bg-primary/10">
                                 <TableCell className="font-bold">INGRESOS</TableCell>
                                 <TableCell className="text-right font-bold">{formatCurrency(kpis.ingresos)}</TableCell>
                                 <TableCell className="text-right font-bold">{formatCurrency(objetivo.presupuestoVentas)}</TableCell>
@@ -323,7 +341,45 @@ export default function CprControlExplotacionPage() {
                                 const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
                                 return (
                                 <TableRow key={row.label}>
-                                    <TableCell className="pl-8">{row.label}</TableCell>
+                                    <TableCell className="pl-8 flex items-center gap-2">
+                                    {row.hasDetail && (
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="max-w-4xl">
+                                                <DialogHeader>
+                                                    <DialogTitle>Desglose de Coste de Materia Prima</DialogTitle>
+                                                    <DialogDescription>Detalle de todos los costes teóricos de escandallo para las referencias vendidas.</DialogDescription>
+                                                </DialogHeader>
+                                                <div className="max-h-[60vh] overflow-y-auto">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Fecha</TableHead>
+                                                                <TableHead>OS</TableHead>
+                                                                <TableHead>Referencia</TableHead>
+                                                                <TableHead className="text-right">Cantidad</TableHead>
+                                                                <TableHead className="text-right">Coste MP Total</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {detalleCostesMP.map((coste, i) => (
+                                                                <TableRow key={i}>
+                                                                    <TableCell>{format(new Date(coste.fecha), 'dd/MM/yy')}</TableCell>
+                                                                    <TableCell>{coste.osNumber}</TableCell>
+                                                                    <TableCell>{coste.referencia}</TableCell>
+                                                                    <TableCell className="text-right">{coste.cantidad}</TableCell>
+                                                                    <TableCell className="text-right">{formatCurrency(coste.costeMPTotal)}</TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
+                                    )}
+                                    {row.label}</TableCell>
                                     <TableCell className="text-right">
                                         {row.isManual ? (
                                             <Input type="number" value={row.real} onChange={e => row.setter?.(parseFloat(e.target.value) || 0)} className="h-8 text-right"/>
@@ -335,7 +391,7 @@ export default function CprControlExplotacionPage() {
                                     <TableCell className="text-right">{formatPercentage(pctSventas)}</TableCell>
                                 </TableRow>
                             )})}
-                             <TableRow className="bg-primary/20 hover:bg-primary/20 text-lg font-bold">
+                            <TableRow className="bg-primary/20 hover:bg-primary/20 text-lg font-bold">
                                 <TableCell>RESULTADO EXPLOTACIÓN</TableCell>
                                 <TableCell className="text-right">{formatCurrency(kpis.resultado)}</TableCell>
                                 <TableCell colSpan={4}></TableCell>
@@ -369,7 +425,7 @@ export default function CprControlExplotacionPage() {
                      <div>
                         <h3 className="font-semibold mb-2">Evolución Mensual (Próximamente)</h3>
                         <div className="h-64 flex items-center justify-center bg-muted/50 rounded-lg">
-                            <BarChart className="h-16 w-16 text-muted-foreground/50"/>
+                            <RechartsBarChart className="h-16 w-16 text-muted-foreground/50"/>
                         </div>
                     </div>
                 </CardContent>
@@ -377,7 +433,3 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
-
-
-
-
