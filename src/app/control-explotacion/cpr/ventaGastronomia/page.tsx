@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -96,7 +97,7 @@ export default function VentaGastronomiaPage() {
     const dateRangeDisplay = useMemo(() => {
         if (!from || !to) return "Rango de fechas no especificado";
         try {
-            return `${format(parseISO(from), 'dd/MM/yyyy', { locale: es })} - ${format(parseISO(to), 'dd/MM/yyyy', { locale: es })}`;
+            return `${format(new Date(from), 'dd/MM/yyyy', { locale: es })} - ${format(new Date(to), 'dd/MM/yyyy', { locale: es })}`;
         } catch (e) {
             return "Fechas inválidas";
         }
@@ -123,7 +124,7 @@ export default function VentaGastronomiaPage() {
                                 <TableHead className="text-right">Cantidad</TableHead>
                                 <TableHead className="text-right">PVP Total</TableHead>
                                 <TableHead className="text-right">Coste MP Total</TableHead>
-                                <TableHead className="text-right">Margen Bruto Total</TableHead>
+                                <TableHead className="text-right text-green-600">Margen Producción CPR</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
