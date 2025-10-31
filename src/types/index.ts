@@ -1043,6 +1043,9 @@ export type CosteFijoCPR = {
 export type ObjetivoMensualCPR = {
     mes: string; // YYYY-MM
     presupuestoVentas: number;
+    presupuestoCesionPersonal?: number;
     presupuestoGastosMP: number;
-    presupuestoGastosPersonal: number;
+    presupuestoGastosPersonalMice?: number;
+    presupuestoGastosPersonalExterno?: number;
+    presupuestoOtrosGastos?: number;
 }
