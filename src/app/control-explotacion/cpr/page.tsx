@@ -8,7 +8,8 @@ import { AreaChart, BarChart as RechartsBarChart, TrendingUp, TrendingDown, Euro
 import { DateRange } from 'react-day-picker';
 import { format, startOfMonth, endOfMonth, isWithinInterval, endOfDay, startOfYear, endOfQuarter, subDays, startOfDay, getMonth, getYear } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
+import { Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
+import Link from "next/link";
 
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, GastronomyOrder, Receta, PersonalMiceOrder, PersonalExterno, PersonalExternoAjuste, CosteFijoCPR, ObjetivoMensualCPR } from '@/types';
@@ -85,9 +86,6 @@ export default function CprControlExplotacionPage() {
     const [otrosGastos, setOtrosGastos] = useState(0);
     const [margenCesion, setMargenCesion] = useState(0);
     
-    const [detalleVentas, setDetalleVentas] = useState<VentaDetalle[]>([]);
-    const [detalleCostesMP, setDetalleCostesMP] = useState<CosteMPDetalle[]>([]);
-
     const loadData = useCallback(() => {
         setAllServiceOrders(JSON.parse(localStorage.getItem('serviceOrders') || '[]'));
         setAllGastroOrders(JSON.parse(localStorage.getItem('gastronomyOrders') || '[]'));
@@ -108,9 +106,6 @@ export default function CprControlExplotacionPage() {
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
         
-        const ventasDetalladas: VentaDetalle[] = [];
-        const costesMPDetallados: CosteMPDetalle[] = [];
-
         const osIdsEnRango = new Set(
             allServiceOrders
                 .filter(os => {
@@ -126,22 +121,11 @@ export default function CprControlExplotacionPage() {
         const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
 
         const ingresosVenta = gastroOrdersEnRango.reduce((sum, order) => {
-            const os = allServiceOrders.find(o => o.id === order.osId);
             const orderTotal = (order.items || []).reduce((itemSum, item) => {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
                     if (receta) {
                         const margen = (receta.precioVenta || 0) - (receta.costeMateriaPrima || 0);
-                        const pvpTotalItem = (item.quantity || 0) * (receta.precioVenta || 0);
-
-                        ventasDetalladas.push({
-                            fecha: order.fecha,
-                            osNumber: os?.serviceNumber || 'N/A',
-                            referencia: receta.nombre,
-                            cantidad: item.quantity || 0,
-                            pvpTotal: pvpTotalItem,
-                        });
-                        
                         return itemSum + (margen * (item.quantity || 0));
                     }
                 }
@@ -151,19 +135,11 @@ export default function CprControlExplotacionPage() {
         }, 0);
         
         const costeEscandallo = gastroOrdersEnRango.reduce((sum, order) => {
-            const os = allServiceOrders.find(o => o.id === order.osId);
              const orderTotal = (order.items || []).reduce((itemSum, item) => {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
                     if (receta) {
                         const costeTotalItem = (receta.costeMateriaPrima || 0) * (item.quantity || 0);
-                        costesMPDetallados.push({
-                             fecha: order.fecha,
-                            osNumber: os?.serviceNumber || 'N/A',
-                            referencia: receta.nombre,
-                            cantidad: item.quantity || 0,
-                            costeMPTotal: costeTotalItem,
-                        });
                         return itemSum + costeTotalItem;
                     }
                 }
@@ -171,9 +147,6 @@ export default function CprControlExplotacionPage() {
             }, 0);
             return sum + orderTotal;
         }, 0);
-        
-        setDetalleVentas(ventasDetalladas.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
-        setDetalleCostesMP(costesMPDetallados.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
         
         const personalMiceEnRango = allPersonalMiceOrders.filter(o => osIdsEnRango.has(o.osId));
         const ingresosCesionPersonal = personalMiceEnRango
@@ -212,9 +185,9 @@ export default function CprControlExplotacionPage() {
     const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costesFijosPeriodo } = dataCalculada;
 
     const tablaExplotacion = [
-        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true, detailType: 'ventas' },
+        { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true, detailType: 'ventaGastronomia' },
         { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0 },
-        { label: "Coste de MP según Escandallo", real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, hasDetail: true, detailType: 'costes' },
+        { label: "Coste de MP según Escandallo", real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, hasDetail: true, detailType: 'costeMP' },
         { label: "Personal MICE (CPR)", real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true, setter: setCostePersonalMice },
         { label: "Personal ETT (Producción)", real: costePersonalEtt, ppto: 0, isGasto: true, isManual: true, setter: setCostePersonalEtt },
         ...allCostesFijos.map(fijo => ({ label: fijo.concepto, real: fijo.importeMensual, ppto: 0, isGasto: true })),
@@ -284,41 +257,9 @@ export default function CprControlExplotacionPage() {
                                 <TableRow key={row.label}>
                                     <TableCell className="pl-8 flex items-center gap-2">
                                         {row.hasDetail && (
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
-                                                </DialogTrigger>
-                                                <DialogContent className="max-w-4xl">
-                                                    <DialogHeader>
-                                                        <DialogTitle>Desglose de Venta de Gastronomía</DialogTitle>
-                                                        <DialogDescription>Detalle de todas las referencias vendidas en el periodo seleccionado.</DialogDescription>
-                                                    </DialogHeader>
-                                                    <div className="max-h-[60vh] overflow-y-auto">
-                                                        <Table>
-                                                            <TableHeader>
-                                                                <TableRow>
-                                                                    <TableHead>Fecha</TableHead>
-                                                                    <TableHead>OS</TableHead>
-                                                                    <TableHead>Referencia</TableHead>
-                                                                    <TableHead className="text-right">Cantidad</TableHead>
-                                                                    <TableHead className="text-right">PVP Total</TableHead>
-                                                                </TableRow>
-                                                            </TableHeader>
-                                                            <TableBody>
-                                                                {detalleVentas.map((venta, i) => (
-                                                                    <TableRow key={i}>
-                                                                        <TableCell>{format(new Date(venta.fecha), 'dd/MM/yy')}</TableCell>
-                                                                        <TableCell>{venta.osNumber}</TableCell>
-                                                                        <TableCell>{venta.referencia}</TableCell>
-                                                                        <TableCell className="text-right">{venta.cantidad}</TableCell>
-                                                                        <TableCell className="text-right">{formatCurrency(venta.pvpTotal)}</TableCell>
-                                                                    </TableRow>
-                                                                ))}
-                                                            </TableBody>
-                                                        </Table>
-                                                    </div>
-                                                </DialogContent>
-                                            </Dialog>
+                                            <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`}>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
+                                            </Link>
                                         )}
                                         {row.label}
                                     </TableCell>
@@ -343,41 +284,9 @@ export default function CprControlExplotacionPage() {
                                 <TableRow key={row.label}>
                                     <TableCell className="pl-8 flex items-center gap-2">
                                     {row.hasDetail && (
-                                        <Dialog>
-                                            <DialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
-                                            </DialogTrigger>
-                                            <DialogContent className="max-w-4xl">
-                                                <DialogHeader>
-                                                    <DialogTitle>Desglose de Coste de Materia Prima</DialogTitle>
-                                                    <DialogDescription>Detalle de todos los costes teóricos de escandallo para las referencias vendidas.</DialogDescription>
-                                                </DialogHeader>
-                                                <div className="max-h-[60vh] overflow-y-auto">
-                                                    <Table>
-                                                        <TableHeader>
-                                                            <TableRow>
-                                                                <TableHead>Fecha</TableHead>
-                                                                <TableHead>OS</TableHead>
-                                                                <TableHead>Referencia</TableHead>
-                                                                <TableHead className="text-right">Cantidad</TableHead>
-                                                                <TableHead className="text-right">Coste MP Total</TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
-                                                        <TableBody>
-                                                            {detalleCostesMP.map((coste, i) => (
-                                                                <TableRow key={i}>
-                                                                    <TableCell>{format(new Date(coste.fecha), 'dd/MM/yy')}</TableCell>
-                                                                    <TableCell>{coste.osNumber}</TableCell>
-                                                                    <TableCell>{coste.referencia}</TableCell>
-                                                                    <TableCell className="text-right">{coste.cantidad}</TableCell>
-                                                                    <TableCell className="text-right">{formatCurrency(coste.costeMPTotal)}</TableCell>
-                                                                </TableRow>
-                                                            ))}
-                                                        </TableBody>
-                                                    </Table>
-                                                </div>
-                                            </DialogContent>
-                                        </Dialog>
+                                        <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`}>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
+                                        </Link>
                                     )}
                                     {row.label}</TableCell>
                                     <TableCell className="text-right">
@@ -418,7 +327,7 @@ export default function CprControlExplotacionPage() {
                              <Separator className="my-2"/>
                              <div className="flex justify-between font-bold text-base pt-1">
                                  <span>Diferencia (Merma Teórica):</span>
-                                 <span className={cn(comprasReales - costeEscandallo < 0 ? 'text-destructive' : 'text-green-600')}>{formatCurrency(comprasReales - costeEscandallo)}</span>
+                                 <span className={cn(comprasReales - costeEscandallo > 0 ? 'text-destructive' : 'text-green-600')}>{formatCurrency(comprasReales - costeEscandallo)}</span>
                              </div>
                         </div>
                     </div>
