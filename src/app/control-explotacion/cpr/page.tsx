@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AreaChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info, MessageSquare, Save } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
-import { format, isWithinInterval, startOfDay, endOfDay, startOfYear, endOfYear, endOfMonth, startOfQuarter, endOfQuarter, subDays, startOfMonth, getMonth, getYear, parseISO } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, startOfYear, endOfYear, endOfMonth, startOfQuarter, endOfQuarter, subDays, startOfMonth, getMonth, getYear, parseISO, eachMonthOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import Link from "next/link";
@@ -27,6 +27,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { TooltipProvider, Tooltip as UITooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { GASTO_LABELS } from '@/lib/constants';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 
 type KpiCardProps = {
     title: string;
@@ -185,9 +187,68 @@ export default function CprControlExplotacionPage() {
             costePersonalPct: ingresosTotales > 0 ? (costePersonalMice + costePersonalEtt) / ingresosTotales : 0,
         };
         
-        return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costesFijosPeriodo };
+        return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costesFijosPeriodo, costePersonalMice, costePersonalEtt, otrosGastos };
 
     }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, costePersonalMice, costePersonalEtt, otrosGastos]);
+
+    const dataAcumulada = useMemo(() => {
+        if (!isMounted) return [];
+        const mesesDelAno = eachMonthOfInterval({ start: startOfYear(new Date()), end: endOfYear(new Date())});
+
+        return mesesDelAno.map(month => {
+            const rangeStart = startOfMonth(month);
+            const rangeEnd = endOfMonth(month);
+
+            const osIdsEnRango = new Set(
+                allServiceOrders.filter(os => {
+                    try {
+                        const osDate = new Date(os.startDate);
+                        return os.status === 'Confirmado' && isWithinInterval(osDate, { start: rangeStart, end: rangeEnd });
+                    } catch (e) { return false; }
+                }).map(os => os.id)
+            );
+
+            const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
+            const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
+
+            const ingresosVenta = gastroOrdersEnRango.reduce((sum, order) => sum + (order.total || 0), 0);
+            const costeEscandallo = gastroOrdersEnRango.reduce((sum, order) => {
+                 return sum + (order.items || []).reduce((itemSum, item) => {
+                    if (item.type === 'item') {
+                        const receta = recetasMap.get(item.id);
+                        return itemSum + ((receta?.costeMateriaPrima || 0) * (item.quantity || 0));
+                    }
+                    return itemSum;
+                }, 0);
+            }, 0);
+            
+            const personalMiceEnRango = allPersonalMiceOrders.filter(o => osIdsEnRango.has(o.osId));
+            const ingresosCesionPersonal = personalMiceEnRango.filter(o => o.centroCoste && !['COCINA', 'CPR'].includes(o.centroCoste)).reduce((sum, order) => sum + (calculateHours(order.horaEntradaReal || order.horaEntrada, order.horaSalidaReal || order.horaSalida) * (order.precioHora || 0)), 0);
+
+            // Nota: Estos costes son simplificaciones para el acumulado.
+            const costePersonalMiceMes = allCostesFijos.find(c => c.concepto === 'Personal MICE CPR')?.importeMensual || 0;
+            const costePersonalEttMes = allCostesFijos.find(c => c.concepto === 'Personal ETT CPR')?.importeMensual || 0;
+            const varios = allCostesFijos.filter(c => c.concepto !== 'Personal MICE CPR' && c.concepto !== 'Personal ETT CPR').reduce((s, c) => s + c.importeMensual, 0);
+
+            const ingresos = ingresosVenta + ingresosCesionPersonal;
+            const totalPersonalCPR = costePersonalMiceMes + costePersonalEttMes;
+            const totalGastos = costeEscandallo + totalPersonalCPR + varios;
+            const resultado = ingresos - totalGastos;
+
+            return {
+                mes: format(month, 'MMMM', { locale: es }),
+                ingresos,
+                consumoMMPP: costeEscandallo,
+                personalMICE: costePersonalMiceMes,
+                personalETTs: costePersonalEttMes,
+                totalPersonalCPR,
+                varios,
+                resultado,
+            }
+        });
+
+    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos]);
+
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
         const now = new Date();
@@ -213,10 +274,10 @@ export default function CprControlExplotacionPage() {
     const tablaExplotacion = [
         { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true, detailType: 'ventaGastronomia' },
         { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0 },
-        { label: "Coste de MP según Escandallo", real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, hasDetail: true, detailType: 'costeMP' },
-        { label: "Personal MICE (CPR)", real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true, setter: setCostePersonalMice },
-        { label: "Personal ETT", real: costePersonalEtt, ppto: 0, isGasto: true, isManual: true, setter: setCostePersonalEtt },
-        { label: "Otros Gastos", real: otrosGastos, ppto: 0, isGasto: true, isManual: true, setter: setOtrosGastos }
+        { label: GASTO_LABELS.gastronomia, real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, hasDetail: true, detailType: 'costeMP' },
+        { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true, setter: setCostePersonalMice },
+        { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: 0, isGasto: true, isManual: true, setter: setCostePersonalEtt },
+        { label: GASTO_LABELS.varios, real: otrosGastos, ppto: 0, isGasto: true, isManual: true, setter: setOtrosGastos }
     ];
     
     return (
@@ -226,7 +287,7 @@ export default function CprControlExplotacionPage() {
                      <div className="flex flex-wrap items-center gap-2">
                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
-                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[260px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left text-lg font-bold", !dateRange && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
                                 </Button>
@@ -247,96 +308,153 @@ export default function CprControlExplotacionPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} />
-                <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} />
-                <KpiCard title="Resultado Explotación" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} />
-                <KpiCard title="Margen s/Ventas" value={formatPercentage(kpis.margen)} icon={AreaChart} />
-                <KpiCard title="% Coste MP" value={formatPercentage(kpis.costeMPPct)} icon={AreaChart} />
-                <KpiCard title="% Coste Personal" value={formatPercentage(kpis.costePersonalPct)} icon={AreaChart} />
-            </div>
-            
-            <Card>
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="py-1 px-2">Concepto</TableHead>
-                                    <TableHead className="text-right py-1 px-2">REAL</TableHead>
-                                    <TableHead className="text-right py-1 px-2">PPTO.</TableHead>
-                                    <TableHead className="text-right py-1 px-2">DESV. (€)</TableHead>
-                                    <TableHead className="text-right py-1 px-2">DESV. (%)</TableHead>
-                                    <TableHead className="text-right py-1 px-2">% s/ Ventas</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                <TableRow className="bg-primary/10 hover:bg-primary/10">
-                                    <TableCell className="font-bold py-1 px-2">INGRESOS</TableCell>
-                                    <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.ingresos)}</TableCell>
-                                    <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoVentas)}</TableCell>
-                                    <TableCell colSpan={3}></TableCell>
-                                </TableRow>
-                                {tablaExplotacion.filter(r => !r.isGasto).map(row => {
-                                    const desviacion = row.real - row.ppto;
-                                    const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
-                                    return (
-                                    <TableRow key={row.label}>
-                                        <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
-                                            {row.hasDetail && dateRange?.from && dateRange.to && (
-                                                <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`}>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
-                                                </Link>
-                                            )}
-                                            {row.label}
-                                        </TableCell>
-                                        <TableCell className="text-right py-1 px-2">{formatCurrency(row.real)}</TableCell>
-                                        <TableCell className="text-right py-1 px-2">{formatCurrency(row.ppto)}</TableCell>
-                                        <TableCell className={cn("text-right py-1 px-2", desviacion < 0 && 'text-destructive')}>{formatCurrency(desviacion)}</TableCell>
-                                        <TableCell className={cn("text-right py-1 px-2", desviacion < 0 && 'text-destructive')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
-                                        <TableCell className="text-right py-1 px-2">{formatPercentage(pctSventas)}</TableCell>
-                                    </TableRow>
-                                )})}
-
-                                <TableRow className="bg-destructive/10 hover:bg-destructive/10">
-                                    <TableCell className="font-bold py-1 px-2">GASTOS</TableCell>
-                                    <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.gastos)}</TableCell>
-                                    <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoGastosMP + objetivo.presupuestoGastosPersonal)}</TableCell>
-                                    <TableCell colSpan={3}></TableCell>
-                                </TableRow>
-                                {tablaExplotacion.filter(r => r.isGasto).map(row => {
-                                    const desviacion = row.real - row.ppto;
-                                    const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
-                                    return (
-                                    <TableRow key={row.label}>
-                                        <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
-                                        {row.hasDetail && dateRange?.from && dateRange.to && (
-                                            <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`}>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
-                                            </Link>
-                                        )}
-                                        {row.label}</TableCell>
-                                        <TableCell className="text-right py-1 px-2">
-                                            {row.isManual ? (
-                                                <Input type="number" value={row.real} onChange={e => row.setter?.(parseFloat(e.target.value) || 0)} className="h-7 text-right"/>
-                                            ) : formatCurrency(row.real)}
-                                        </TableCell>
-                                        <TableCell className="text-right py-1 px-2">{formatCurrency(row.ppto)}</TableCell>
-                                        <TableCell className={cn("text-right py-1 px-2", desviacion > 0 && 'text-destructive')}>{formatCurrency(desviacion)}</TableCell>
-                                        <TableCell className={cn("text-right py-1 px-2", desviacion > 0 && 'text-destructive')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
-                                        <TableCell className="text-right py-1 px-2">{formatPercentage(pctSventas)}</TableCell>
-                                    </TableRow>
-                                )})}
-                                <TableRow className="bg-primary/20 hover:bg-primary/20 text-base font-bold">
-                                    <TableCell className="py-2 px-2">RESULTADO EXPLOTACIÓN</TableCell>
-                                    <TableCell className="text-right py-2 px-2">{formatCurrency(kpis.resultado)}</TableCell>
-                                    <TableCell colSpan={4}></TableCell>
-                                </TableRow>
-                            </TableBody>
-                        </Table>
+            <Tabs defaultValue="control-explotacion">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="control-explotacion">Control de Explotación CPR</TabsTrigger>
+                    <TabsTrigger value="acumulado-mensual">Acumulado Mensual</TabsTrigger>
+                </TabsList>
+                <TabsContent value="control-explotacion" className="space-y-4 mt-4">
+                    <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                        <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} />
+                        <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} />
+                        <KpiCard title="Resultado Explotación" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} />
+                        <KpiCard title="Margen s/Ventas" value={formatPercentage(kpis.margen)} icon={AreaChart} />
+                        <KpiCard title="% Coste MP" value={formatPercentage(kpis.costeMPPct)} icon={AreaChart} />
+                        <KpiCard title="% Coste Personal" value={formatPercentage(kpis.costePersonalPct)} icon={AreaChart} />
                     </div>
-                </CardContent>
-            </Card>
+                    
+                    <Card>
+                        <CardContent className="p-0">
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/50">
+                                            <TableHead className="py-1 px-2">Concepto</TableHead>
+                                            <TableHead className="text-right py-1 px-2">REAL</TableHead>
+                                            <TableHead className="text-right py-1 px-2">PPTO.</TableHead>
+                                            <TableHead className="text-right py-1 px-2">DESV. (€)</TableHead>
+                                            <TableHead className="text-right py-1 px-2">DESV. (%)</TableHead>
+                                            <TableHead className="text-right py-1 px-2">% s/ Ventas</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        <TableRow className="bg-primary/10 hover:bg-primary/10">
+                                            <TableCell className="font-bold py-1 px-2">INGRESOS</TableCell>
+                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.ingresos)}</TableCell>
+                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoVentas)}</TableCell>
+                                            <TableCell colSpan={3}></TableCell>
+                                        </TableRow>
+                                        {tablaExplotacion.filter(r => !r.isGasto).map(row => {
+                                            const desviacion = row.real - row.ppto;
+                                            const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
+                                            return (
+                                            <TableRow key={row.label}>
+                                                <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
+                                                    {row.hasDetail && dateRange?.from && dateRange.to && (
+                                                        <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`}>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
+                                                        </Link>
+                                                    )}
+                                                    {row.label}
+                                                </TableCell>
+                                                <TableCell className="text-right py-1 px-2">{formatCurrency(row.real)}</TableCell>
+                                                <TableCell className="text-right py-1 px-2">{formatCurrency(row.ppto)}</TableCell>
+                                                <TableCell className={cn("text-right py-1 px-2", desviacion < 0 && 'text-destructive')}>{formatCurrency(desviacion)}</TableCell>
+                                                <TableCell className={cn("text-right py-1 px-2", desviacion < 0 && 'text-destructive')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
+                                                <TableCell className="text-right py-1 px-2">{formatPercentage(pctSventas)}</TableCell>
+                                            </TableRow>
+                                        )})}
+
+                                        <TableRow className="bg-destructive/10 hover:bg-destructive/10">
+                                            <TableCell className="font-bold py-1 px-2">GASTOS</TableCell>
+                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.gastos)}</TableCell>
+                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoGastosMP + objetivo.presupuestoGastosPersonal)}</TableCell>
+                                            <TableCell colSpan={3}></TableCell>
+                                        </TableRow>
+                                        {tablaExplotacion.filter(r => r.isGasto).map(row => {
+                                            const desviacion = row.real - row.ppto;
+                                            const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
+                                            return (
+                                            <TableRow key={row.label}>
+                                                <TableCell className="pl-8 flex items-center gap-2 py-1 px-2">
+                                                {row.hasDetail && dateRange?.from && dateRange.to && (
+                                                    <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`}>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6"><Info className="h-4 w-4" /></Button>
+                                                    </Link>
+                                                )}
+                                                {row.label}</TableCell>
+                                                <TableCell className="text-right py-1 px-2">
+                                                    {row.isManual ? (
+                                                        <Input type="number" value={row.real} onChange={e => row.setter?.(parseFloat(e.target.value) || 0)} className="h-7 text-right"/>
+                                                    ) : formatCurrency(row.real)}
+                                                </TableCell>
+                                                <TableCell className="text-right py-1 px-2">{formatCurrency(row.ppto)}</TableCell>
+                                                <TableCell className={cn("text-right py-1 px-2", desviacion > 0 && 'text-destructive')}>{formatCurrency(desviacion)}</TableCell>
+                                                <TableCell className={cn("text-right py-1 px-2", desviacion > 0 && 'text-destructive')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
+                                                <TableCell className="text-right py-1 px-2">{formatPercentage(pctSventas)}</TableCell>
+                                            </TableRow>
+                                        )})}
+                                        <TableRow className="bg-primary/20 hover:bg-primary/20 text-base font-bold">
+                                            <TableCell className="py-2 px-2">RESULTADO EXPLOTACIÓN</TableCell>
+                                            <TableCell className="text-right py-2 px-2">{formatCurrency(kpis.resultado)}</TableCell>
+                                            <TableCell colSpan={4}></TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="acumulado-mensual" className="mt-4">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Acumulado Mensual {getYear(new Date())}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto border rounded-lg">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Concepto</TableHead>
+                                            {dataAcumulada.map(d => <TableHead key={d.mes} className="text-right capitalize">{d.mes}</TableHead>)}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        <TableRow className="font-bold bg-primary/10">
+                                            <TableCell>Ingresos</TableCell>
+                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.ingresos)}</TableCell>)}
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell className="pl-8">Consumo MMPP</TableCell>
+                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.consumoMMPP)}</TableCell>)}
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell className="pl-8">Personal MICE</TableCell>
+                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.personalMICE)}</TableCell>)}
+                                        </TableRow>
+                                         <TableRow>
+                                            <TableCell className="pl-8">Personal ETT's</TableCell>
+                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.personalETTs)}</TableCell>)}
+                                        </TableRow>
+                                         <TableRow className="font-semibold bg-muted/40">
+                                            <TableCell className="pl-8">Total personal CPR</TableCell>
+                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.totalPersonalCPR)}</TableCell>)}
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell className="pl-8">Varios</TableCell>
+                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.varios)}</TableCell>)}
+                                        </TableRow>
+                                        <TableRow className="font-bold bg-primary/20">
+                                            <TableCell>Resultado Mensual CPR</TableCell>
+                                            {dataAcumulada.map(d => <TableCell key={d.mes} className={cn("text-right", d.resultado < 0 ? "text-destructive" : "text-green-600")}>{formatCurrency(d.resultado)}</TableCell>)}
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
