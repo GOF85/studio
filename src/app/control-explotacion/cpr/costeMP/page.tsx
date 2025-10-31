@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 type CosteMPDetalle = {
     fecha: string;
@@ -149,6 +150,12 @@ export default function CosteMPPage() {
                 <TabsContent value="costes">
                      <Card>
                         <CardContent className="pt-6">
+                            <div className="flex justify-between items-center bg-muted/50 p-3 rounded-lg mb-4 text-sm font-semibold">
+                                <span>TOTALES DEL PERIODO</span>
+                                <div className="flex items-center gap-6">
+                                    <span>Coste MP Total: <span className="text-primary">{formatCurrency(totals.costeMPTotal)}</span></span>
+                                </div>
+                            </div>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -172,13 +179,6 @@ export default function CosteMPPage() {
                                         <TableRow><TableCell colSpan={5} className="text-center h-24">No se encontraron datos de costes para este periodo.</TableCell></TableRow>
                                     )}
                                 </TableBody>
-                                <TableFooter>
-                                    <TableRow className="font-bold text-base bg-muted/50">
-                                        <TableCell colSpan={3}>TOTALES</TableCell>
-                                        <TableCell className="text-right">{formatNumber(totals.cantidad, 0)}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(totals.costeMPTotal)}</TableCell>
-                                    </TableRow>
-                                </TableFooter>
                             </Table>
                         </CardContent>
                     </Card>
@@ -235,6 +235,3 @@ export default function CosteMPPage() {
         </main>
     );
 }
-
-
-    

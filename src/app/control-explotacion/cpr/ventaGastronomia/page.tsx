@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -161,6 +162,14 @@ export default function VentaGastronomiaPage() {
                 <TabsContent value="ventas">
                     <Card>
                         <CardContent className="pt-6">
+                             <div className="flex justify-between items-center bg-muted/50 p-3 rounded-lg mb-4 text-sm font-semibold">
+                                <span>TOTALES DEL PERIODO</span>
+                                <div className="flex items-center gap-6">
+                                    <span>PVP Total: <span className="text-primary">{formatCurrency(totals.pvpTotal)}</span></span>
+                                    <span>Coste MP: <span>{formatCurrency(totals.costeMPTotal)}</span></span>
+                                    <span className={cn(totals.margenBruto < 0 ? 'text-destructive' : 'text-green-600')}>Margen CPR: <span>{formatCurrency(totals.margenBruto)} ({formatPercentage(totals.pvpTotal > 0 ? totals.margenBruto/totals.pvpTotal : 0)})</span></span>
+                                </div>
+                            </div>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -192,18 +201,6 @@ export default function VentaGastronomiaPage() {
                                         <TableRow><TableCell colSpan={8} className="text-center h-24">No se encontraron datos de venta para este periodo.</TableCell></TableRow>
                                     )}
                                 </TableBody>
-                                <TableFooter>
-                                    <TableRow className="font-bold text-base bg-muted/50">
-                                        <TableCell colSpan={3}>TOTALES</TableCell>
-                                        <TableCell className="text-right">{formatNumber(totals.cantidad, 0)}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(totals.pvpTotal)}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(totals.costeMPTotal)}</TableCell>
-                                        <TableCell className="text-right text-green-600">{formatCurrency(totals.margenBruto)}</TableCell>
-                                        <TableCell className="text-right text-green-600">
-                                            {totals.pvpTotal > 0 ? formatPercentage(totals.margenBruto / totals.pvpTotal) : 'N/A'}
-                                        </TableCell>
-                                    </TableRow>
-                                </TableFooter>
                             </Table>
                         </CardContent>
                     </Card>
