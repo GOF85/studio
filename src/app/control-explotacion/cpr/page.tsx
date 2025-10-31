@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from "react"
@@ -307,16 +308,16 @@ export default function CprControlExplotacionPage() {
         const desviacion = row.real - row.ppto;
         const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
         return (
-             <TooltipProvider key={`${row.label}-${index}`}>
+            <TooltipProvider key={`${row.label}-${index}`}>
                 <TableRow className="hover:bg-muted/50">
                     <TableCell className="p-0 font-medium sticky left-0 bg-background z-10 w-48">
-                                <div className="flex items-center gap-2 h-full w-full px-2 py-1">
-                                    {row.detailType ? (
-                                        <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
-                                            {row.label} <Info size={14}/>
-                                        </Link>
-                                    ): row.label}
-                                </div>
+                        <div className="flex items-center gap-2 h-full w-full px-2 py-1">
+                            {row.detailType ? (
+                                <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
+                                    {row.label} <Info size={14}/>
+                                </Link>
+                            ): row.label}
+                        </div>
                     </TableCell>
                     <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.real)}</TableCell>
                     <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSventas)}</TableCell>
@@ -389,26 +390,28 @@ export default function CprControlExplotacionPage() {
                                         <TableRow className="bg-muted/50">
                                             <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
                                             <TableHead colSpan={2} className="p-2 text-center border-l border-r">REAL</TableHead>
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                         <TableHead className="p-2 text-center border-l border-r cursor-help">Objetivos</TableHead>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <div className="p-2 space-y-1 text-xs">
-                                                            <p className="font-bold mb-2">Objetivos de Gasto Aplicados ({format(objetivoMes, 'MMMM yyyy', { locale: es })})</p>
-                                                            {Object.entries(objetivo).map(([key, value]) => {
-                                                                if (key.startsWith('presupuesto')) {
-                                                                    const label = key.replace('presupuestoGastos', '').replace('presupuestoVentas', 'Ventas').replace('presupuestoCesionPersonal', 'Cesion Personal');
-                                                                    const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
-                                                                    return <div key={key} className="flex justify-between gap-4"><span>{formattedLabel}:</span> <span>{formatPercentage(value / 100)}</span></div>
-                                                                }
-                                                                return null;
-                                                            })}
-                                                        </div>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
+                                            <TableHead className="p-2 text-center border-l border-r">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span className="cursor-help">Objetivos</span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <div className="p-2 space-y-1 text-xs">
+                                                                <p className="font-bold mb-2">Objetivos de Gasto Aplicados ({format(objetivoMes, 'MMMM yyyy', { locale: es })})</p>
+                                                                {Object.entries(objetivo).map(([key, value]) => {
+                                                                    if (key.startsWith('presupuesto')) {
+                                                                        const label = key.replace('presupuestoGastos', '').replace('presupuestoVentas', 'Ventas').replace('presupuestoCesionPersonal', 'Cesion Personal');
+                                                                        const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+                                                                        return <div key={key} className="flex justify-between gap-4"><span>{formattedLabel}:</span> <span>{formatPercentage(value / 100)}</span></div>
+                                                                    }
+                                                                    return null;
+                                                                })}
+                                                            </div>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </TableHead>
                                             <TableHead colSpan={2} className="p-2 text-center border-l">DESVIACIÓN (REAL vs. OBJ)</TableHead>
                                         </TableRow>
                                     </TableHeader>
