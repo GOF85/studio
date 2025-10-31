@@ -51,6 +51,16 @@ function KpiCard({ title, value, icon: Icon, description, className }: KpiCardPr
     )
 }
 
+type CostRow = {
+  label: string;
+  presupuesto: number;
+  cierre: number;
+  real: number;
+  objetivo: number;
+  objetivo_pct: number;
+  comentario?: string;
+};
+
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 const MONTHS = Array.from({ length: 12 }, (_, i) => i);
@@ -297,28 +307,28 @@ export default function CprControlExplotacionPage() {
         const desviacion = row.real - row.ppto;
         const pctSventas = kpis.ingresos > 0 ? row.real / kpis.ingresos : 0;
         return (
-            <TooltipProvider key={`${row.label}-${index}`}>
-            <TableRow className="hover:bg-muted/50">
-                 <TableCell className={cn("p-0 font-medium sticky left-0 bg-background z-10 w-48")}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="flex items-center gap-2 h-full w-full px-2 py-1">
-                                {row.detailType ? (
-                                    <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
-                                        {row.label} <Info size={14}/>
-                                    </Link>
-                                ): row.label}
-                            </div>
-                        </TooltipTrigger>
-                    </Tooltip>
-                </TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.real)}</TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSventas)}</TableCell>
-                
-                <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.ppto)}</TableCell>
-                <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{formatCurrency(desviacion)}</TableCell>
-                <TableCell className={cn("py-1 px-2 text-right font-mono border-r", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
-            </TableRow>
+             <TooltipProvider key={`${row.label}-${index}`}>
+                <TableRow className="hover:bg-muted/50">
+                    <TableCell className="p-0 font-medium sticky left-0 bg-background z-10 w-48">
+                         <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-2 h-full w-full px-2 py-1">
+                                    {row.detailType ? (
+                                        <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
+                                            {row.label} <Info size={14}/>
+                                        </Link>
+                                    ): row.label}
+                                </div>
+                            </TooltipTrigger>
+                        </Tooltip>
+                    </TableCell>
+                    <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.real)}</TableCell>
+                    <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSventas)}</TableCell>
+                    
+                    <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.ppto)}</TableCell>
+                    <TableCell className={cn("py-1 px-2 text-right font-mono border-l", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{formatCurrency(desviacion)}</TableCell>
+                    <TableCell className={cn("py-1 px-2 text-right font-mono border-r", (row.isGasto && desviacion > 0) || (!row.isGasto && desviacion < 0) ? 'text-destructive' : 'text-green-600')}>{row.ppto > 0 ? formatPercentage(desviacion / row.ppto) : '-'}</TableCell>
+                </TableRow>
             </TooltipProvider>
         )
     };
@@ -383,7 +393,7 @@ export default function CprControlExplotacionPage() {
                                         <TableRow className="bg-muted/50">
                                             <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
                                             <TableHead colSpan={2} className="p-2 text-center border-l border-r">REAL</TableHead>
-                                             <TooltipProvider>
+                                            <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                          <TableHead className="p-2 text-center border-l border-r cursor-help">Objetivos</TableHead>
