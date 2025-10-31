@@ -63,10 +63,10 @@ export default function CprControlExplotacionPage() {
     
     // Estados para valores manuales
     const [comprasReales, setComprasReales] = useState(0);
-    const [costePersonalMice, setCostePersonalMice = useState(0);
-    const [costePersonalEtt, setCostePersonalEtt = useState(0);
-    const [otrosGastos, setOtrosGastos = useState(0);
-    const [margenCesion, setMargenCesion = useState(0);
+    const [costePersonalMice, setCostePersonalMice] = useState(0);
+    const [costePersonalEtt, setCostePersonalEtt] = useState(0);
+    const [otrosGastos, setOtrosGastos] = useState(0);
+    const [margenCesion, setMargenCesion] = useState(0);
 
     useEffect(() => {
         // Carga de datos inicial
@@ -165,7 +165,7 @@ export default function CprControlExplotacionPage() {
 
     const tablaExplotacion = [
         { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas },
-        { label: "Cesión de Personal a otros Dptos.", real: ingresosVenta, ppto: 0 },
+        { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0 },
         { label: "Coste de MP según Escandallo", real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true },
         { label: "Personal MICE (CPR)", real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true, setter: setCostePersonalMice },
         { label: "Personal ETT (Producción)", real: costePersonalEtt, ppto: 0, isGasto: true, isManual: true, setter: setCostePersonalEtt },
@@ -290,7 +290,7 @@ export default function CprControlExplotacionPage() {
                         <div className="p-4 border rounded-lg space-y-2">
                              <div className="flex justify-between text-sm"><span>Coste MP según Escandallo:</span><span className="font-medium">{formatCurrency(costeEscandallo)}</span></div>
                              <div className="flex justify-between text-sm"><span>Compras Reales Introducidas:</span><span className="font-medium">{formatCurrency(comprasReales)}</span></div>
-                             <Separator />
+                             <Separator className="my-2"/>
                              <div className="flex justify-between font-bold text-base pt-1">
                                  <span>Diferencia (Merma Teórica):</span>
                                  <span className={cn(comprasReales - costeEscandallo < 0 ? 'text-destructive' : 'text-green-600')}>{formatCurrency(comprasReales - costeEscandallo)}</span>
@@ -309,4 +309,3 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
-
