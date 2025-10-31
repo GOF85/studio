@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TrendingDown, ArrowLeft } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { es } from 'date-fns/locale';
 import type { ServiceOrder, GastronomyOrder, Receta } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -82,22 +83,21 @@ export default function CosteMPPage() {
         setDetalleCostes(costesMPDetallados.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
         setIsMounted(true);
     }, [from, to]);
+    
+    const dateRangeDisplay = useMemo(() => {
+        if (!from || !to) return "Rango de fechas no especificado";
+        return `${format(new Date(from), 'dd/MM/yyyy', { locale: es })} - ${format(new Date(to), 'dd/MM/yyyy', { locale: es })}`;
+    }, [from, to]);
+
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando detalle de costes..." />;
     }
 
     return (
-        <main className="container mx-auto px-4 py-8">
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <Button variant="ghost" size="sm" onClick={() => router.push('/control-explotacion/cpr')} className="mb-2">
-                        <ArrowLeft className="mr-2" />
-                        Volver al Informe
-                    </Button>
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><TrendingDown />Detalle de Coste de Materia Prima</h1>
-                    <p className="text-muted-foreground">Desglose del coste teórico de materia prima según escandallo para el periodo seleccionado.</p>
-                </div>
+        <main>
+            <div className="mb-4 text-sm text-muted-foreground">
+                Mostrando datos para el periodo: <strong>{dateRangeDisplay}</strong>
             </div>
             <Card>
                 <CardContent className="pt-6">
