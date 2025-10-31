@@ -8,7 +8,7 @@ import { AreaChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, Ba
 import { DateRange } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, endOfDay, startOfYear, endOfYear, endOfMonth, startOfQuarter, endOfQuarter, subDays, startOfMonth, getYear, parseISO, eachMonthOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
+import { Bar, XAxis, YAxis, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import Link from "next/link";
 
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -24,7 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
 import { GASTO_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 
@@ -310,8 +310,6 @@ export default function CprControlExplotacionPage() {
              <TooltipProvider key={`${row.label}-${index}`}>
                 <TableRow className="hover:bg-muted/50">
                     <TableCell className="p-0 font-medium sticky left-0 bg-background z-10 w-48">
-                         <Tooltip>
-                            <TooltipTrigger asChild>
                                 <div className="flex items-center gap-2 h-full w-full px-2 py-1">
                                     {row.detailType ? (
                                         <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
@@ -319,8 +317,6 @@ export default function CprControlExplotacionPage() {
                                         </Link>
                                     ): row.label}
                                 </div>
-                            </TooltipTrigger>
-                        </Tooltip>
                     </TableCell>
                     <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.real)}</TableCell>
                     <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSventas)}</TableCell>
@@ -498,3 +494,4 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
