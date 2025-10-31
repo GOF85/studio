@@ -2,15 +2,20 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { AreaChart, ChevronRight, Factory } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
 export default function ControlExplotacionLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
     const isCprPage = pathname.startsWith('/control-explotacion/cpr');
     const isDetailPage = pathname.includes('/ventaGastronomia') || pathname.includes('/costeMP');
+    
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    const cprHref = `/control-explotacion/cpr${from && to ? `?from=${from}&to=${to}` : ''}`;
 
     return (
         <>
@@ -24,7 +29,7 @@ export default function ControlExplotacionLayout({ children }: { children: React
                         {isCprPage && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <Link href="/control-explotacion/cpr" className={cn("flex items-center gap-2", isDetailPage ? "text-muted-foreground hover:text-primary" : "text-primary font-bold")}>
+                                <Link href={cprHref} className={cn("flex items-center gap-2", isDetailPage ? "text-muted-foreground hover:text-primary" : "text-primary font-bold")}>
                                     <Factory className="h-5 w-5"/>
                                     <span>CPR</span>
                                 </Link>
