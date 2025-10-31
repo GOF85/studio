@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from "react"
@@ -23,10 +22,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { TooltipProvider, Tooltip as UITooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Textarea } from '@/components/ui/textarea';
 import { GASTO_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -179,7 +174,7 @@ export default function CprControlExplotacionPage() {
         const costesFijosPeriodo = allCostesFijos.reduce((sum, fijo) => sum + (fijo.importeMensual || 0), 0);
 
         const mesObjetivo = format(dateRange.from, 'yyyy-MM');
-        const objetivo = allObjetivos.find(o => o.mes === mesObjetivo) || { presupuestoVentas: 0, presupuestoGastosMP: 0, presupuestoGastosPersonal: 0};
+        const objetivo = allObjetivos.find(o => o.mes === mesObjetivo) || { presupuestoVentas: 0, presupuestoCesionPersonal: 0, presupuestoGastosMP: 0, presupuestoGastosPersonalMice: 0, presupuestoGastosPersonalExterno: 0, presupuestoOtrosGastos: 0 };
         
         const ingresosTotales = ingresosVenta + ingresosCesionPersonal;
         const otrosGastos = costesFijosPeriodo;
@@ -282,11 +277,11 @@ export default function CprControlExplotacionPage() {
     
     const tablaExplotacion = [
         { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, isGasto: false, detailType: 'ventaGastronomia' },
-        { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0, isGasto: false },
+        { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: objetivo.presupuestoCesionPersonal, isGasto: false },
         { label: GASTO_LABELS.gastronomia, real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, detailType: 'costeMP' },
-        { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true },
-        { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: 0, isGasto: true, isManual: true, setter: setCostePersonalEtt },
-        { label: "Otros Gastos", real: otrosGastos, ppto: 0, isGasto: true, isManual: true },
+        { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonalMice, isGasto: true, isManual: true },
+        { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: objetivo.presupuestoGastosPersonalExterno, isGasto: true, isManual: true, setter: setCostePersonalEtt },
+        { label: "Otros Gastos", real: otrosGastos, ppto: objetivo.presupuestoOtrosGastos, isGasto: true, isManual: true },
     ];
     
     const renderCostRow = (row: any, index: number) => {
@@ -366,7 +361,7 @@ export default function CprControlExplotacionPage() {
                                         <TableRow className="bg-primary/10 hover:bg-primary/10">
                                             <TableCell className="font-bold py-1 px-2">INGRESOS</TableCell>
                                             <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.ingresos)}</TableCell>
-                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoVentas)}</TableCell>
+                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoVentas + objetivo.presupuestoCesionPersonal)}</TableCell>
                                             <TableCell colSpan={3}></TableCell>
                                         </TableRow>
                                         {tablaExplotacion.filter(r => !r.isGasto).map(renderCostRow)}
@@ -374,7 +369,7 @@ export default function CprControlExplotacionPage() {
                                         <TableRow className="bg-destructive/10 hover:bg-destructive/10">
                                             <TableCell className="font-bold py-1 px-2">GASTOS</TableCell>
                                             <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(kpis.gastos)}</TableCell>
-                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoGastosMP + objetivo.presupuestoGastosPersonal)}</TableCell>
+                                            <TableCell className="text-right font-bold py-1 px-2">{formatCurrency(objetivo.presupuestoGastosMP + objetivo.presupuestoGastosPersonalMice + objetivo.presupuestoGastosPersonalExterno + objetivo.presupuestoOtrosGastos)}</TableCell>
                                             <TableCell colSpan={3}></TableCell>
                                         </TableRow>
                                         {tablaExplotacion.filter(r => r.isGasto).map(renderCostRow)}
