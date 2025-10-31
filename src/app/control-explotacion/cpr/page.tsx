@@ -3,10 +3,10 @@
 
 import * as React from "react"
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AreaChart, BarChart as RechartsBarChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, endOfDay, startOfYear, endOfQuarter, subDays, startOfDay, getMonth, getYear } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, endOfDay, startOfYear, endOfQuarter, subDays, startOfDay, getMonth, getYear, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import Link from "next/link";
@@ -46,29 +46,20 @@ function KpiCard({ title, value, icon: Icon, description }: KpiCardProps) {
     )
 }
 
-type VentaDetalle = {
-    fecha: string;
-    osNumber: string;
-    referencia: string;
-    cantidad: number;
-    pvpTotal: number;
-};
-
-type CosteMPDetalle = {
-    fecha: string;
-    osNumber: string;
-    referencia: string;
-    cantidad: number;
-    costeMPTotal: number;
-};
-
-
 export default function CprControlExplotacionPage() {
     const [isMounted, setIsMounted] = useState(false);
-    const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: startOfMonth(new Date()),
-        to: endOfMonth(new Date()),
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+        const from = searchParams.get('from');
+        const to = searchParams.get('to');
+        if (from && to) {
+            return { from: parseISO(from), to: parseISO(to) };
+        }
+        return { from: startOfMonth(new Date()), to: endOfMonth(new Date()) };
     });
+    
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
     // Estados para datos maestros
@@ -85,7 +76,7 @@ export default function CprControlExplotacionPage() {
     const [costePersonalEtt, setCostePersonalEtt] = useState(0);
     const [otrosGastos, setOtrosGastos] = useState(0);
     const [margenCesion, setMargenCesion] = useState(0);
-    
+
     const loadData = useCallback(() => {
         setAllServiceOrders(JSON.parse(localStorage.getItem('serviceOrders') || '[]'));
         setAllGastroOrders(JSON.parse(localStorage.getItem('gastronomyOrders') || '[]'));
@@ -99,6 +90,21 @@ export default function CprControlExplotacionPage() {
     useEffect(() => {
         loadData();
     }, [loadData]);
+    
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (dateRange?.from) {
+            params.set('from', dateRange.from.toISOString());
+        } else {
+            params.delete('from');
+        }
+        if (dateRange?.to) {
+            params.set('to', dateRange.to.toISOString());
+        } else {
+            params.delete('to');
+        }
+        router.replace(`${window.location.pathname}?${params.toString()}`);
+    }, [dateRange, router]);
 
     const dataCalculada = useMemo(() => {
         if (!isMounted || !dateRange?.from) return null;
@@ -244,7 +250,7 @@ export default function CprControlExplotacionPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                             <TableRow className="bg-primary/10 hover:bg-primary/10">
+                            <TableRow className="bg-primary/10 hover:bg-primary/10">
                                 <TableCell className="font-bold">INGRESOS</TableCell>
                                 <TableCell className="text-right font-bold">{formatCurrency(kpis.ingresos)}</TableCell>
                                 <TableCell className="text-right font-bold">{formatCurrency(objetivo.presupuestoVentas)}</TableCell>
@@ -318,8 +324,8 @@ export default function CprControlExplotacionPage() {
                     <div className="space-y-4">
                         <h3 className="font-semibold">Análisis de Merma Teórica</h3>
                         <div className="space-y-2">
-                            <Label>Compras Reales de Materia Prima (del ERP)</Label>
-                            <Input type="number" placeholder="Introduce el total de compras..." value={comprasReales || ''} onChange={e => setComprasReales(parseFloat(e.target.value) || 0)} />
+                            <Label htmlFor="compras-reales">Compras Reales de Materia Prima (del ERP)</Label>
+                            <Input type="number" id="compras-reales" placeholder="Introduce el total de compras..." value={comprasReales || ''} onChange={e => setComprasReales(parseFloat(e.target.value) || 0)} />
                         </div>
                         <div className="p-4 border rounded-lg space-y-2">
                              <div className="flex justify-between text-sm"><span>Coste MP según Escandallo:</span><span className="font-medium">{formatCurrency(costeEscandallo)}</span></div>
