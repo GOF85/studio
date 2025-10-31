@@ -24,7 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
 import { GASTO_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Tooltip as ShadTooltip, TooltipContent as ShadTooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 
@@ -375,7 +375,7 @@ export default function CprControlExplotacionPage() {
                         <KpiCard title="Resultado Explotación" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
                         <KpiCard title="% Consumos MP" value={formatPercentage(kpis.costeMPPct)} icon={BarChart} />
                         <KpiCard title="% Coste Personal" value={formatPercentage(kpis.costePersonalPct)} icon={BarChart} />
-                         <KpiCard title="% Otros" value={formatPercentage(kpis.costeOtrosPct)} icon={BarChart} />
+                         <KpiCard title="% Otros Gastos" value={formatPercentage(kpis.costeOtrosPct)} icon={BarChart} />
                     </div>
                     
                     <Card>
@@ -406,7 +406,7 @@ export default function CprControlExplotacionPage() {
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
-                                            <TableHead colSpan={2} className="p-2 text-center border-l">DESVIACIÓN (REAL vs OBJ)</TableHead>
+                                            <TableHead colSpan={2} className="p-2 text-center border-l">DESVIACIÓN (REAL vs. OBJ)</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                      <TableBody>
@@ -491,3 +491,4 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
