@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Award, Zap, ShieldCheck, Scale, GitBranch, Share2, BarChart3 } from "lucide-react";
+import { Award, Zap, ShieldCheck, Scale, GitBranch, Share2, BarChart3, AreaChart } from "lucide-react";
 
 export default function FeaturesPage() {
     return (
@@ -86,6 +86,20 @@ export default function FeaturesPage() {
                     <li><strong>Logística Digitalizada:</strong> Asigna entregas a transportistas que gestionan todo desde un portal móvil, incluyendo la recogida de la **firma digital** del cliente en el albarán.</li>
                 </ul>
                 <p><strong>Valor:</strong> Escalabilidad y diversificación. Abre nuevas vías de ingresos con un modelo operativo ágil, eficiente y perfectamente integrado con tu producción central.</p>
+            </section>
+            
+             <section id="c7">
+                <h2 className="flex items-center gap-3"><AreaChart />Control de Explotación por Unidad de Negocio</h2>
+                 <h3>El Problema a Resolver</h3>
+                <p>Visión financiera global sin entender la rentabilidad individual de cada centro de coste, como el Centro de Producción (CPR).</p>
+                 <h3>Nuestra Solución: Módulo de Control de Explotación</h3>
+                <ul>
+                    <li><strong>El CPR como Unidad de Negocio:</strong> Trata el centro de producción como una entidad con su propia cuenta de resultados.</li>
+                    <li><strong>Cálculo de Ingresos del CPR:</strong> Mide los ingresos generados por el margen de las recetas "vendidas" a los eventos y por la cesión de personal a otros departamentos.</li>
+                    <li><strong>Imputación de Costes:</strong> Asigna los costes directos (materia prima, personal) e indirectos (alquiler, suministros) al CPR.</li>
+                    <li><strong>Análisis de Rentabilidad del CPR:</strong> Obtén el beneficio o pérdida neta del centro de producción, permitiendo evaluar su eficiencia y contribución real al negocio global.</li>
+                </ul>
+                <p><strong>Valor:</strong> Transparencia financiera y gestión por objetivos. Permite tomar decisiones informadas sobre la estructura de costes, la eficiencia de la producción y la estrategia de precios interna.</p>
             </section>
 
         </>

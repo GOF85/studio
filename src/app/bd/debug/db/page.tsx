@@ -35,7 +35,7 @@ const ALL_DATABASE_KEYS = [
     'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 'familiasERP',
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones', 'personalExternoDB', 'historicoPreciosERP',
-    'incidenciasRetorno', 'costesFijosCPR', 'objetivosCPR'
+    'incidenciasRetorno'
 ];
 
 
@@ -91,9 +91,7 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
     pickingEntregasState: 'Estado del picking para la vertical de Entregas.',
     stockElaboraciones: 'Inventario en tiempo real de las elaboraciones producidas y validadas por calidad.',
     historicoPreciosERP: 'Registro histórico de los precios de la materia prima.',
-    incidenciasRetorno: 'Registro de incidencias detectadas durante la devolución de material.',
-    costesFijosCPR: 'Configuración de los gastos estructurales mensuales del CPR.',
-    objetivosCPR: 'Presupuestos mensuales para la Cta. de Explotación del CPR.'
+    incidenciasRetorno: 'Registro de incidencias detectadas durante la devolución de material.'
 };
 
 

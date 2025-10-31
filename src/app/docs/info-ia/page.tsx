@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Info, Palette, Database, GitBranch, Workflow, Package, Factory, ShieldCheck, BarChart3, Users, Code, BookOpen, Warehouse } from "lucide-react";
+import { Info, Palette, Database, GitBranch, Workflow, Package, Factory, ShieldCheck, BarChart3, Users, Code, BookOpen, Warehouse, AreaChart } from "lucide-react";
 
 export default function InfoIAPage() {
     return (
@@ -17,6 +17,7 @@ export default function InfoIAPage() {
             <section id="c1">
                 <h2 className="flex items-center gap-3"><Workflow />Arquitectura y Flujos de Trabajo</h2>
                 <p>La plataforma se divide en dos verticales de negocio principales, cada una con su propio flujo operativo, pero compartiendo bases de datos y módulos de producción.</p>
+                
                 <h3>1.1. Vertical: Catering de Eventos</h3>
                 <p>Diseñada para eventos complejos que requieren servicio in situ.</p>
                 <ol>
@@ -28,6 +29,7 @@ export default function InfoIAPage() {
                     <li><strong>Servicio:</strong> Ejecución del evento.</li>
                     <li><strong>Cierre:</strong> Gestión de retornos de material y análisis de rentabilidad en la Cuenta de Explotación.</li>
                 </ol>
+
                 <h3>1.2. Vertical: Entregas MICE</h3>
                 <p>Optimizada para pedidos de entrega directa sin servicio complejo (ej. coffee breaks, desayunos a oficinas).</p>
                 <ol>
@@ -38,6 +40,12 @@ export default function InfoIAPage() {
                     <li>**Entrega y Firma Digital:** El transportista completa la entrega y recoge la firma del cliente en su dispositivo móvil.</li>
                     <li>**Análisis:** Rentabilidad analizada en una Cta. de Explotación específica para la entrega.</li>
                 </ol>
+
+                <h3>1.3. Módulo de Control de Explotación</h3>
+                <p>Una nueva sección de alto nivel para analizar la rentabilidad de las unidades de negocio de forma aislada.</p>
+                <ul>
+                    <li><strong>Control de Explotación CPR:</strong> Trata al Centro de Producción como una unidad de negocio independiente, calculando sus ingresos (márgenes sobre recetas vendidas, cesión de personal) y sus gastos (materia prima, personal propio, costes fijos) para determinar su beneficio neto.</li>
+                </ul>
             </section>
 
             <section id="c2">
@@ -170,11 +178,12 @@ export default function InfoIAPage() {
                     <li><code>alergenosPresentes</code>, <code>alergenosTrazas</code>: Listados de alérgenos.</li>
                 </ul>
 
-                <h4>IngredienteERP</h4>
+                <h4>ArticuloERP</h4>
                 <p>Representa la materia prima tal como se compra al proveedor.</p>
                 <ul>
                     <li><code>id</code>, <code>nombreProductoERP</code>, <code>idProveedor</code>: Identificación del producto y su proveedor.</li>
                     <li><code>precioCompra</code>, <code>unidad</code>: Coste de adquisición y unidad de medida (KILO, LITRO, etc.).</li>
+                    <li><code>unidadConversion</code>: Factor de conversión para calcular el precio por unidad base (ej: un saco de 25kg tiene una `unidadConversion` de 25).</li>
                 </ul>
 
                 <h3 className="!mt-8">Entidades de Producción y Logística (CPR y Almacén)</h3>
@@ -245,7 +254,7 @@ export default function InfoIAPage() {
                 <ul>
                     <li><code>osId</code>: La OS a la que pertenece.</li>
                     <li><code>turnos</code>: Array de `PersonalExternoTurno` que define las necesidades (ej. 10 camareros de 18:00 a 02:00).</li>
-                    <li><code>status</code>: Estado de la solicitud ('Pendiente', 'Solicitado', 'Asignado', 'Cerrado').</li>
+                    <li><code>status</code>: Estado de la solicitud ('Pendiente', 'Solicitado', 'Asignado', 'Cerrado'). 'Solicitado' es la señal para el partner.</li>
                 </ul>
                 
                 <h4>PersonalExternoTurno</h4>
@@ -261,10 +270,23 @@ export default function InfoIAPage() {
                 <p>Un pedido de transporte para una o varias entregas.</p>
                 <ul>
                     <li><code>osId</code>: El pedido al que sirve.</li>
-                    <li><code>proveedorId</code>: Transportista asignado.</li>
-                    <li><code>lugarRecogida</code>, <code>lugarEntrega</code>, etc.: Detalles de la ruta.</li>
-                    <li><code>status</code>: Estado del servicio ('Pendiente', 'En Ruta', 'Entregado').</li>
+                    <li><code>hitosIds</code>: Array de FKs a `EntregaHito.id` si agrupa varias entregas.</li>
                     <li><code>firmaUrl</code>, <code>firmadoPor</code>: Datos de la firma digital del albarán.</li>
+                </ul>
+
+                <h3 className="!mt-8">Nuevas Entidades para Control de Explotación CPR</h3>
+                
+                <h4>CosteFijoCPR</h4>
+                <p>Define un gasto estructural recurrente del Centro de Producción.</p>
+                <ul>
+                    <li><code>id</code>, <code>concepto</code>, <code>importeMensual</code>: Campos para registrar gastos como "Alquiler Nave CPR", "Suministros", etc.</li>
+                </ul>
+
+                <h4>ObjetivoMensualCPR</h4>
+                <p>Define los presupuestos (objetivos) para un mes específico para el CPR.</p>
+                <ul>
+                    <li><code>mes</code>: En formato "YYYY-MM".</li>
+                    <li><code>presupuestoVentas</code>, <code>presupuestoGastosMP</code>, <code>presupuestoGastosPersonal</code>: Campos numéricos para la comparativa Real vs. Presupuesto.</li>
                 </ul>
             </section>
         </>

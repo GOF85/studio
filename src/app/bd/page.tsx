@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, AlertTriangle, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, AlertTriangle, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
@@ -48,10 +48,16 @@ const providerDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
     { id: '27', name: 'Catálogo de Transporte', description: 'Vehículos y precios de las empresas de transporte.', path: '/bd/tipos-transporte', icon: Truck },
 ];
 
+const cprDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
+    { id: '30', name: 'Costes Fijos CPR', description: 'Define los gastos estructurales mensuales del CPR.', path: '/bd/costes-fijos-cpr', icon: Banknote },
+    { id: '31', name: 'Objetivos Mensuales CPR', description: 'Establece los presupuestos para la Cta. de Explotación del CPR.', path: '/bd/objetivos-cpr', icon: CreditCard },
+];
+
 
 export default function BdPage() {
   const [generalDatabases, setGeneralDatabases] = useState<DatabaseEntry[]>([]);
   const [providerDatabases, setProviderDatabases] = useState<DatabaseEntry[]>([]);
+  const [cprDatabases, setCprDatabases] = useState<DatabaseEntry[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -85,12 +91,15 @@ export default function BdPage() {
             if (db.path === '/bd/tipos-transporte') count = countItems('tiposTransporte');
             if (db.path === '/bd/objetivos-gasto') count = countItems('objetivosGastoPlantillas');
             if (db.path === '/bd/categorias-recetas') count = countItems('categoriasRecetas');
+            if (db.path === '/bd/costes-fijos-cpr') count = countItems('costesFijosCPR');
+            if (db.path === '/bd/objetivos-cpr') count = countItems('objetivosCPR');
             return { ...db, itemCount: count };
         });
     }
 
     setGeneralDatabases(updateCounts(generalDatabasesList));
     setProviderDatabases(updateCounts(providerDatabasesList));
+    setCprDatabases(updateCounts(cprDatabasesList));
   }, []);
 
   if (!isMounted) return null;
@@ -150,9 +159,12 @@ export default function BdPage() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid lg:grid-cols-2 gap-8">
             {renderTable(generalDatabases, 'Bases de Datos Generales y de Catering', <Database/>)}
-            {renderTable(providerDatabases, 'Bases de Datos de Proveedores', <Users/>, 'Gestión centralizada de todos los proveedores y sus catálogos de servicios.')}
+            <div className="space-y-8">
+              {renderTable(providerDatabases, 'Bases de Datos de Proveedores', <Users/>, 'Gestión centralizada de todos los proveedores y sus catálogos de servicios.')}
+              {renderTable(cprDatabases, 'Configuración del CPR', <Factory/>, 'Parámetros para la cuenta de explotación del Centro de Producción.')}
+            </div>
         </div>
 
         <div className="mt-12">

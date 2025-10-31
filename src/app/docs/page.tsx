@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { LifeBuoy, Users, Code, Package, Award, GitBranch, Bot, Info, Palette } from "lucide-react";
+import { LifeBuoy, Users, Code, Package, Award, GitBranch, Bot, Info, Palette, AreaChart } from "lucide-react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 

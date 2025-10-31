@@ -1033,3 +1033,16 @@ export type HistoricoPreciosERP = {
     precioCalculado: number;
     proveedorId?: string;
 }
+
+export type CosteFijoCPR = {
+    id: string;
+    concepto: string;
+    importeMensual: number;
+}
+
+export type ObjetivoMensualCPR = {
+    mes: string; // YYYY-MM
+    presupuestoVentas: number;
+    presupuestoGastosMP: number;
+    presupuestoGastosPersonal: number;
+}

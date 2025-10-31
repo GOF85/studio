@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar } from 'lucide-react';
+import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type MenuItem = {
@@ -55,7 +55,12 @@ const reportingItems: MenuItem[] = [
         title: 'Analítica',
         href: '/analitica',
         icon: BarChart3,
-    }
+    },
+     { 
+        title: 'Control de Explotación', 
+        href: '/control-explotacion', 
+        icon: AreaChart, 
+    },
 ];
 
 const adminItems: MenuItem[] = [
