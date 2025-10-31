@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from "react"
@@ -55,7 +56,11 @@ export default function CprControlExplotacionPage() {
         const from = searchParams.get('from');
         const to = searchParams.get('to');
         if (from && to) {
-            return { from: parseISO(from), to: parseISO(to) };
+            try {
+                return { from: parseISO(from), to: parseISO(to) };
+            } catch (e) {
+                console.error("Invalid date format in URL", e);
+            }
         }
         return { from: startOfMonth(new Date()), to: endOfMonth(new Date()) };
     });
@@ -94,12 +99,12 @@ export default function CprControlExplotacionPage() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (dateRange?.from) {
-            params.set('from', dateRange.from.toISOString());
+            params.set('from', dateRange.from.toISOString().split('T')[0]);
         } else {
             params.delete('from');
         }
         if (dateRange?.to) {
-            params.set('to', dateRange.to.toISOString());
+            params.set('to', dateRange.to.toISOString().split('T')[0]);
         } else {
             params.delete('to');
         }
@@ -204,7 +209,6 @@ export default function CprControlExplotacionPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Control de Explotación del CPR</CardTitle>
-                    <CardDescription>Análisis de rentabilidad del Centro de Producción.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-wrap items-center gap-4">
                      <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
