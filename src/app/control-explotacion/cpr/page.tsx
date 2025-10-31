@@ -214,7 +214,9 @@ export default function CprControlExplotacionPage() {
         { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true, detailType: 'ventaGastronomia' },
         { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0 },
         { label: "Coste de MP según Escandallo", real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, hasDetail: true, detailType: 'costeMP' },
-        { label: "Personal MICE (CPR)", real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true, setter: setCostePersonalMice }
+        { label: "Personal MICE (CPR)", real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true, setter: setCostePersonalMice },
+        { label: "Personal ETT", real: costePersonalEtt, ppto: 0, isGasto: true, isManual: true, setter: setCostePersonalEtt },
+        { label: "Otros Gastos", real: otrosGastos, ppto: 0, isGasto: true, isManual: true, setter: setOtrosGastos }
     ];
     
     return (
