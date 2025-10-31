@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import * as React from "react"
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AreaChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info } from 'lucide-react';
+import { AreaChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info, MessageSquare, Save } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, endOfDay, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subDays, startOfMonth, getMonth, getYear, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -24,6 +23,10 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { TooltipProvider, Tooltip as UITooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Textarea } from '@/components/ui/textarea';
+import { GASTO_LABELS } from '@/lib/constants';
 
 type KpiCardProps = {
     title: string;
@@ -211,10 +214,7 @@ export default function CprControlExplotacionPage() {
         { label: "Venta Gastronomía a Eventos", real: ingresosVenta, ppto: objetivo.presupuestoVentas, hasDetail: true, detailType: 'ventaGastronomia' },
         { label: "Cesión de Personal a otros Dptos.", real: ingresosCesionPersonal, ppto: 0 },
         { label: "Coste de MP según Escandallo", real: costeEscandallo, ppto: objetivo.presupuestoGastosMP, isGasto: true, hasDetail: true, detailType: 'costeMP' },
-        { label: "Personal MICE (CPR)", real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true, setter: setCostePersonalMice },
-        { label: "Personal ETT (Producción)", real: costePersonalEtt, ppto: 0, isGasto: true, isManual: true, setter: setCostePersonalEtt },
-        ...allCostesFijos.map(fijo => ({ label: fijo.concepto, real: fijo.importeMensual, ppto: 0, isGasto: true })),
-        { label: "Otros Gastos", real: otrosGastos, ppto: 0, isGasto: true, isManual: true, setter: setOtrosGastos },
+        { label: "Personal MICE (CPR)", real: costePersonalMice, ppto: objetivo.presupuestoGastosPersonal, isGasto: true, isManual: true, setter: setCostePersonalMice }
     ];
     
     return (
@@ -238,7 +238,7 @@ export default function CprControlExplotacionPage() {
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
-                            <Button size="sm" variant="outline" onClick={()={() => setDatePreset('q3')}>Q3</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
                         </div>
                     </div>
@@ -255,7 +255,6 @@ export default function CprControlExplotacionPage() {
             </div>
             
             <Card>
-                <CardHeader className="pt-2 pb-2"><CardTitle>Cuenta de Explotación</CardTitle></CardHeader>
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
                         <Table>
@@ -339,9 +338,3 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
-
-
-
-
-
-    
