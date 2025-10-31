@@ -21,11 +21,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { cn, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
 import { GASTO_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 
@@ -86,7 +86,7 @@ export default function CprControlExplotacionPage() {
     });
     
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-    const [objetivoMes, setObjetivoMes] = useState<Date>(new Date());
+    const [objetivoMes, setObjetivoMes] = useState<Date>(startOfMonth(new Date()));
     const [availableObjetivoMonths, setAvailableObjetivoMonths] = useState<{label: string, value: string}[]>([]);
 
 
@@ -321,27 +321,21 @@ export default function CprControlExplotacionPage() {
         
         let desviacion, desviacionPct;
 
-        if (row.label === "Venta Gastronomía" || row.label === "Cesión de Personal" || row.label === GASTO_LABELS.gastronomia || row.label === GASTO_LABELS.personalMice || row.label === GASTO_LABELS.personalExterno || row.label === "Otros Gastos") {
-            if (row.isGasto) {
-                desviacion = row.ppto - row.real;
-            } else {
-                desviacion = row.real - row.ppto;
-            }
-            desviacionPct = row.ppto > 0 ? desviacion / row.ppto : (row.real > 0 ? 1 : 0);
+        if (row.isGasto) {
+            desviacion = row.ppto - row.real;
+            if(row.ppto > 0) desviacionPct = desviacion / row.ppto;
+        } else {
+            desviacion = row.real - row.ppto;
+             if(row.ppto > 0) desviacionPct = desviacion / row.ppto;
         }
 
         return (
              <TableRow key={`${row.label}-${index}`}>
                 <TableCell className="p-0 font-medium sticky left-0 bg-background z-10 w-48">
                     <div className={cn("flex items-center gap-2 h-full w-full px-2 py-1", row.comentario && 'bg-amber-100')}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {}}>
-                                    <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-amber-600 font-bold")} />
-                                </Button>
-                            </TooltipTrigger>
-                            {row.comentario && <TooltipContent><p>{row.comentario}</p></TooltipContent>}
-                        </Tooltip>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {}}>
+                            <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-amber-600 font-bold")} />
+                        </Button>
                         {row.detailType ? (
                             <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
                                 {row.label} <Info size={14}/>
@@ -353,6 +347,8 @@ export default function CprControlExplotacionPage() {
                 <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r">{formatPercentage(pctSFactReal)}</TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono border-l">{formatCurrency(row.ppto)}</TableCell>
                 <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground">{formatPercentage(pptoPct)}</TableCell>
+                <TableCell className="py-1 px-2 text-right font-mono border-l">{formatCurrency(row.objetivo)}</TableCell>
+                <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
                 <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion !== undefined && desviacion < 0 && "text-destructive font-bold", desviacion !== undefined && desviacion > 0 && "text-green-600 font-bold")}>
                     {desviacion !== undefined ? formatCurrency(desviacion) : ''}
                 </TableCell>
@@ -373,6 +369,8 @@ export default function CprControlExplotacionPage() {
                 <TableCell className="py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
                 <TableCell className="border-r py-2 px-2"></TableCell>
+                <TableCell className="border-l py-2 px-2"></TableCell>
+                <TableCell className="border-r py-2 px-2"></TableCell>
             </TableRow>
         )
     };
@@ -385,6 +383,8 @@ export default function CprControlExplotacionPage() {
                 <TableCell className="border-r py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
                 <TableCell className="py-2 px-2"></TableCell>
+                <TableCell className="border-l py-2 px-2"></TableCell>
+                <TableCell className="border-r py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
                 <TableCell className="border-r py-2 px-2"></TableCell>
             </TableRow>
@@ -429,140 +429,138 @@ export default function CprControlExplotacionPage() {
                 </CardContent>
             </Card>
 
-            <Tabs defaultValue="control-explotacion">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="control-explotacion">Control de Explotación CPR</TabsTrigger>
-                    <TabsTrigger value="acumulado-mensual">Acumulado Mensual</TabsTrigger>
-                </TabsList>
-                <TabsContent value="control-explotacion" className="mt-4">
-                    <div className="grid gap-2 grid-cols-3">
-                        <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} className="bg-green-100/60" />
-                        <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} className="bg-red-100/60"/>
-                        <KpiCard title="Resultado" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
-                    </div>
-                    
-                    <Card className="mt-4">
-                        <CardContent className="p-0">
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow className="bg-muted/50">
-                                            <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
-                                            <TableHead colSpan={2} className="p-2 text-center border-l border-r">Real</TableHead>
-                                            <TableHead colSpan={2} className="p-2 text-center border-l border-r">Presupuesto</TableHead>
-                                            <TableHead colSpan={2} className="p-2 text-center border-l border-r">Objetivos</TableHead>
-                                            <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Real vs. Obj.)</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                     <TableBody>
-                                        {renderSummaryRow('INGRESOS', kpis.ingresos, true)}
-                                        {tablaExplotacion.filter(r => !r.isGasto).map(renderCostRow)}
-                                        {renderSummaryRow('GASTOS', kpis.gastos, true)}
-                                        {tablaExplotacion.filter(r => r.isGasto).map(renderCostRow)}
-                                        {renderFinalRow('RESULTADO', kpis.resultado)}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-                <TabsContent value="acumulado-mensual" className="mt-4 space-y-4">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Acumulado Mensual {getYear(new Date())} (€)</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="overflow-x-auto border rounded-lg">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Concepto</TableHead>
-                                            {dataAcumulada.map(d => <TableHead key={d.mes} className="text-right capitalize">{d.mes}</TableHead>)}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        <TableRow className="font-bold bg-primary/10">
-                                            <TableCell>Ingresos</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.ingresos)}</TableCell>)}
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell className="pl-8">Consumos MP</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.consumoMMPP)}</TableCell>)}
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell className="pl-8">Personal MICE</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.personalMICE)}</TableCell>)}
-                                        </TableRow>
-                                         <TableRow>
-                                            <TableCell className="pl-8">Personal ETT's</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.personalETTs)}</TableCell>)}
-                                        </TableRow>
-                                         <TableRow className="font-semibold bg-muted/40">
-                                            <TableCell className="pl-8">Total personal CPR</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.totalPersonalCPR)}</TableCell>)}
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell className="pl-8">Varios</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.varios)}</TableCell>)}
-                                        </TableRow>
-                                        <TableRow className="font-bold bg-primary/20">
-                                            <TableCell>RESULTADO</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className={cn("text-right", d.resultado < 0 ? "text-destructive" : "text-green-600")}>{formatCurrency(d.resultado)}</TableCell>)}
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Acumulado Mensual {getYear(new Date())} (%)</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="overflow-x-auto border rounded-lg">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Concepto</TableHead>
-                                            {dataAcumulada.map(d => <TableHead key={d.mes} className="text-right capitalize">{d.mes}</TableHead>)}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        <TableRow className="font-bold bg-primary/10">
-                                            <TableCell>Ingresos</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(1)}</TableCell>)}
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell className="pl-8">Consumos MP</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.consumoMMPP / d.ingresos : 0)}</TableCell>)}
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell className="pl-8">Personal MICE</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.personalMICE / d.ingresos : 0)}</TableCell>)}
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell className="pl-8">Personal ETT's</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.personalETTs / d.ingresos : 0)}</TableCell>)}
-                                        </TableRow>
-                                        <TableRow className="font-semibold bg-muted/40">
-                                            <TableCell className="pl-8">Total personal CPR</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.totalPersonalCPR / d.ingresos : 0)}</TableCell>)}
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell className="pl-8">Varios</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.varios / d.ingresos : 0)}</TableCell>)}
-                                        </TableRow>
-                                        <TableRow className="font-bold bg-primary/20">
-                                            <TableCell>RESULTADO</TableCell>
-                                            {dataAcumulada.map(d => <TableCell key={d.mes} className={cn("text-right", d.resultado < 0 ? "text-destructive" : "text-green-600")}>{formatPercentage(d.ingresos > 0 ? d.resultado / d.ingresos : 0)}</TableCell>)}
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
+            <TooltipProvider>
+                <Tabs defaultValue="control-explotacion">
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                        <TabsTrigger value="control-explotacion">Control de Explotación CPR</TabsTrigger>
+                        <TabsTrigger value="acumulado-mensual">Acumulado Mensual</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="control-explotacion" className="mt-4">
+                        <div className="grid gap-2 grid-cols-3">
+                            <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} className="bg-green-100/60" />
+                            <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} className="bg-red-100/60"/>
+                            <KpiCard title="RESULTADO" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
+                        </div>
+                        
+                        <Card className="mt-4">
+                            <CardContent className="p-0">
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-muted/50">
+                                                <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
+                                                <TableHead colSpan={2} className="p-2 text-center border-l border-r">Real</TableHead>
+                                                <TableHead colSpan={2} className="p-2 text-center border-l border-r">Presupuesto</TableHead>
+                                                <TableHead colSpan={2} className="p-2 text-center border-l border-r">Objetivo</TableHead>
+                                                <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Obj. vs. Real)</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {renderSummaryRow('INGRESOS', kpis.ingresos, true)}
+                                            {tablaExplotacion.filter(r => !r.isGasto).map(renderCostRow)}
+                                            {renderSummaryRow('GASTOS', kpis.gastos, true)}
+                                            {tablaExplotacion.filter(r => r.isGasto).map(renderCostRow)}
+                                            {renderFinalRow('RESULTADO', kpis.resultado)}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="acumulado-mensual" className="mt-4 space-y-4">
+                        <Card>
+                            <CardHeader><CardTitle>Acumulado Mensual {getYear(new Date())} (€)</CardTitle></CardHeader>
+                            <CardContent>
+                                <div className="overflow-x-auto border rounded-lg">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Concepto</TableHead>
+                                                {dataAcumulada.map(d => <TableHead key={d.mes} className="text-right capitalize">{d.mes}</TableHead>)}
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            <TableRow className="font-bold bg-primary/10">
+                                                <TableCell>Ingresos</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.ingresos)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell className="pl-8">Consumos MP</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.consumoMMPP)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell className="pl-8">Personal MICE</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.personalMICE)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell className="pl-8">Personal ETT's</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.personalETTs)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow className="font-semibold bg-muted/40">
+                                                <TableCell className="pl-8">Total personal CPR</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.totalPersonalCPR)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell className="pl-8">Varios</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.varios)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow className="font-bold bg-primary/20">
+                                                <TableCell>RESULTADO</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className={cn("text-right", d.resultado < 0 ? "text-destructive" : "text-green-600")}>{formatCurrency(d.resultado)}</TableCell>)}
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader><CardTitle>Acumulado Mensual {getYear(new Date())} (%)</CardTitle></CardHeader>
+                            <CardContent>
+                                <div className="overflow-x-auto border rounded-lg">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>% sobre Ingresos</TableHead>
+                                                {dataAcumulada.map(d => <TableHead key={d.mes} className="text-right capitalize">{d.mes}</TableHead>)}
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            <TableRow className="font-bold bg-primary/10">
+                                                <TableCell>Ingresos</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(1)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell className="pl-8">Consumos MP</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.consumoMMPP / d.ingresos : 0)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell className="pl-8">Personal MICE</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.personalMICE / d.ingresos : 0)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell className="pl-8">Personal ETT's</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.personalETTs / d.ingresos : 0)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow className="font-semibold bg-muted/40">
+                                                <TableCell className="pl-8">Total personal CPR</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.totalPersonalCPR / d.ingresos : 0)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell className="pl-8">Varios</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.varios / d.ingresos : 0)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow className="font-bold bg-primary/20">
+                                                <TableCell>RESULTADO</TableCell>
+                                                {dataAcumulada.map(d => <TableCell key={d.mes} className={cn("text-right", d.resultado < 0 ? "text-destructive" : "text-green-600")}>{formatPercentage(d.ingresos > 0 ? d.resultado / d.ingresos : 0)}</TableCell>)}
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            </TooltipProvider>
         </div>
     );
 }
