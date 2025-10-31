@@ -131,8 +131,7 @@ export default function CprControlExplotacionPage() {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
                     if (receta) {
-                        const margen = (receta.precioVenta || 0) - (receta.costeMateriaPrima || 0);
-                        return itemSum + (margen * (item.quantity || 0));
+                        return itemSum + ((receta.precioVenta || 0) * (item.quantity || 0));
                     }
                 }
                 return itemSum;

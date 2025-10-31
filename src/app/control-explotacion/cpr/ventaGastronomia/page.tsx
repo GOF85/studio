@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AreaChart, ArrowLeft } from 'lucide-react';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ServiceOrder, GastronomyOrder, Receta } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -21,6 +21,8 @@ type VentaDetalle = {
     referencia: string;
     cantidad: number;
     pvpTotal: number;
+    costeMPTotal: number;
+    margenBruto: number;
 };
 
 export default function VentaGastronomiaPage() {
@@ -38,57 +40,63 @@ export default function VentaGastronomiaPage() {
             return;
         }
 
-        const rangeStart = new Date(from);
-        const rangeEnd = new Date(to);
-        
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
+        try {
+            const rangeStart = new Date(from);
+            const rangeEnd = new Date(to);
+            
+            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+            const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+            const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+            const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
 
-        const osIdsEnRango = new Set(
-            allServiceOrders
-                .filter(os => {
-                    try {
-                        const osDate = new Date(os.startDate);
-                        return os.status === 'Confirmado' && isWithinInterval(osDate, { start: rangeStart, end: rangeEnd });
-                    } catch (e) { return false; }
-                })
-                .map(os => os.id)
-        );
+            const osIdsEnRango = new Set(
+                allServiceOrders
+                    .filter(os => {
+                        try {
+                            const osDate = new Date(os.startDate);
+                            return os.status === 'Confirmado' && isWithinInterval(osDate, { start: rangeStart, end: rangeEnd });
+                        } catch (e) { return false; }
+                    })
+                    .map(os => os.id)
+            );
 
-        const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
-        
-        const ventasDetalladas: VentaDetalle[] = [];
-        gastroOrdersEnRango.forEach(order => {
-            const os = allServiceOrders.find(o => o.id === order.osId);
-            (order.items || []).forEach(item => {
-                if (item.type === 'item') {
-                    const receta = recetasMap.get(item.id);
-                    if (receta) {
-                        const margen = (receta.precioVenta || 0) - (receta.costeMateriaPrima || 0);
-                        const pvpTotalItem = margen * (item.quantity || 0);
-                        ventasDetalladas.push({
-                            fecha: order.fecha,
-                            osId: os?.id || 'N/A',
-                            osNumber: os?.serviceNumber || 'N/A',
-                            referencia: receta.nombre,
-                            cantidad: item.quantity || 0,
-                            pvpTotal: pvpTotalItem,
-                        });
+            const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
+            
+            const ventasDetalladas: VentaDetalle[] = [];
+            gastroOrdersEnRango.forEach(order => {
+                const os = allServiceOrders.find(o => o.id === order.osId);
+                (order.items || []).forEach(item => {
+                    if (item.type === 'item') {
+                        const receta = recetasMap.get(item.id);
+                        if (receta) {
+                            const pvpTotalItem = (receta.precioVenta || 0) * (item.quantity || 0);
+                            const costeMPTotalItem = (receta.costeMateriaPrima || 0) * (item.quantity || 0);
+                            ventasDetalladas.push({
+                                fecha: order.fecha,
+                                osId: os?.id || 'N/A',
+                                osNumber: os?.serviceNumber || 'N/A',
+                                referencia: receta.nombre,
+                                cantidad: item.quantity || 0,
+                                pvpTotal: pvpTotalItem,
+                                costeMPTotal: costeMPTotalItem,
+                                margenBruto: pvpTotalItem - costeMPTotalItem,
+                            });
+                        }
                     }
-                }
+                });
             });
-        });
-        
-        setDetalleVentas(ventasDetalladas.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
+            
+            setDetalleVentas(ventasDetalladas.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
+        } catch (error) {
+            console.error("Error loading data:", error);
+        }
         setIsMounted(true);
     }, [from, to]);
     
     const dateRangeDisplay = useMemo(() => {
         if (!from || !to) return "Rango de fechas no especificado";
         try {
-            return `${format(new Date(from), 'dd/MM/yyyy', { locale: es })} - ${format(new Date(to), 'dd/MM/yyyy', { locale: es })}`;
+            return `${format(parseISO(from), 'dd/MM/yyyy', { locale: es })} - ${format(parseISO(to), 'dd/MM/yyyy', { locale: es })}`;
         } catch (e) {
             return "Fechas inválidas";
         }
@@ -113,6 +121,8 @@ export default function VentaGastronomiaPage() {
                                 <TableHead>OS</TableHead>
                                 <TableHead>Referencia</TableHead>
                                 <TableHead className="text-right">Cantidad</TableHead>
+                                <TableHead className="text-right">PVP Total</TableHead>
+                                <TableHead className="text-right">Coste MP Total</TableHead>
                                 <TableHead className="text-right">Margen Bruto Total</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -124,9 +134,11 @@ export default function VentaGastronomiaPage() {
                                     <TableCell>{venta.referencia}</TableCell>
                                     <TableCell className="text-right">{venta.cantidad}</TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency(venta.pvpTotal)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(venta.costeMPTotal)}</TableCell>
+                                    <TableCell className="text-right font-bold">{formatCurrency(venta.margenBruto)}</TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={5} className="text-center h-24">No se encontraron datos de venta para este periodo.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={7} className="text-center h-24">No se encontraron datos de venta para este periodo.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
