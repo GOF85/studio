@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from "react"
@@ -68,8 +69,7 @@ export default function CprControlExplotacionPage() {
     const [otrosGastos, setOtrosGastos] = useState(0);
     const [margenCesion, setMargenCesion] = useState(0);
 
-    useEffect(() => {
-        // Carga de datos inicial
+    const loadData = useCallback(() => {
         setAllServiceOrders(JSON.parse(localStorage.getItem('serviceOrders') || '[]'));
         setAllGastroOrders(JSON.parse(localStorage.getItem('gastronomyOrders') || '[]'));
         setAllRecetas(JSON.parse(localStorage.getItem('recetas') || '[]'));
@@ -78,6 +78,10 @@ export default function CprControlExplotacionPage() {
         setAllObjetivos(JSON.parse(localStorage.getItem('objetivosCPR') || '[]'));
         setIsMounted(true);
     }, []);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     const dataCalculada = useMemo(() => {
         if (!isMounted || !dateRange?.from) return null;
@@ -136,7 +140,6 @@ export default function CprControlExplotacionPage() {
 
         const costesFijosPeriodo = allCostesFijos.reduce((sum, fijo) => sum + (fijo.importeMensual || 0), 0);
 
-        // Placeholder para datos de objetivos
         const mesObjetivo = format(dateRange.from, 'yyyy-MM');
         const objetivo = allObjetivos.find(o => o.mes === mesObjetivo) || { presupuestoVentas: 0, presupuestoGastosMP: 0, presupuestoGastosPersonal: 0};
         
@@ -173,6 +176,8 @@ export default function CprControlExplotacionPage() {
         { label: "Otros Gastos", real: otrosGastos, ppto: 0, isGasto: true, isManual: true, setter: setOtrosGastos },
     ];
     
+    const rentabilidadReal = kpis.resultado;
+
     return (
         <div className="space-y-6">
             <Card>
@@ -305,7 +310,7 @@ export default function CprControlExplotacionPage() {
                     </div>
                 </CardContent>
             </Card>
-
         </div>
     );
 }
+
