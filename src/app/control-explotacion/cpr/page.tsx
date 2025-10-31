@@ -23,7 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
 import { GASTO_LABELS } from '@/lib/constants';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
@@ -368,17 +368,14 @@ export default function CprControlExplotacionPage() {
                     <TabsTrigger value="control-explotacion">Control de Explotación CPR</TabsTrigger>
                     <TabsTrigger value="acumulado-mensual">Acumulado Mensual</TabsTrigger>
                 </TabsList>
-                <TabsContent value="control-explotacion" className="space-y-4 mt-4">
-                     <div className="grid gap-2 grid-cols-6">
+                <TabsContent value="control-explotacion" className="mt-4">
+                    <div className="grid gap-2 grid-cols-3">
                         <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} className="bg-green-100/60" />
                         <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} className="bg-red-100/60"/>
                         <KpiCard title="Resultado Explotación" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
-                        <KpiCard title="% Consumos MP" value={formatPercentage(kpis.costeMPPct)} icon={BarChart} />
-                        <KpiCard title="% Coste Personal" value={formatPercentage(kpis.costePersonalPct)} icon={BarChart} />
-                         <KpiCard title="% Otros Gastos" value={formatPercentage(kpis.costeOtrosPct)} icon={BarChart} />
                     </div>
                     
-                    <Card>
+                    <Card className="mt-4">
                         <CardContent className="p-0">
                             <div className="overflow-x-auto">
                                 <Table>
@@ -386,7 +383,7 @@ export default function CprControlExplotacionPage() {
                                         <TableRow className="bg-muted/50">
                                             <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
                                             <TableHead colSpan={2} className="p-2 text-center border-l border-r">REAL</TableHead>
-                                            <TooltipProvider>
+                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                          <TableHead className="p-2 text-center border-l border-r cursor-help">Objetivos</TableHead>
@@ -491,4 +488,3 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
-
