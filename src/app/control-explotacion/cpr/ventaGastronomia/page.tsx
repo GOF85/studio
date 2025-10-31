@@ -11,8 +11,8 @@ import type { ServiceOrder, GastronomyOrder, Receta } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrency } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { formatCurrency, formatPercentage } from '@/lib/utils';
 import Link from 'next/link';
 
 type VentaDetalle = {
@@ -102,6 +102,16 @@ export default function VentaGastronomiaPage() {
             return "Fechas inválidas";
         }
     }, [from, to]);
+    
+    const totals = useMemo(() => {
+        return detalleVentas.reduce((acc, venta) => {
+            acc.cantidad += venta.cantidad;
+            acc.pvpTotal += venta.pvpTotal;
+            acc.costeMPTotal += venta.costeMPTotal;
+            acc.margenBruto += venta.margenBruto;
+            return acc;
+        }, { cantidad: 0, pvpTotal: 0, costeMPTotal: 0, margenBruto: 0 });
+    }, [detalleVentas]);
 
 
     if (!isMounted) {
@@ -110,7 +120,7 @@ export default function VentaGastronomiaPage() {
 
     return (
         <main>
-            <div className="mb-4 text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground mb-6">
                 Mostrando datos para el periodo: <strong>{dateRangeDisplay}</strong>
             </div>
             <Card>
@@ -124,7 +134,8 @@ export default function VentaGastronomiaPage() {
                                 <TableHead className="text-right">Cantidad</TableHead>
                                 <TableHead className="text-right">PVP Total</TableHead>
                                 <TableHead className="text-right">Coste MP Total</TableHead>
-                                <TableHead className="text-right text-green-600">Margen Producción CPR</TableHead>
+                                <TableHead className="text-right text-green-600">Margen CPR</TableHead>
+                                <TableHead className="text-right text-green-600">Margen CPR (%)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -136,12 +147,27 @@ export default function VentaGastronomiaPage() {
                                     <TableCell className="text-right">{venta.cantidad}</TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency(venta.pvpTotal)}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(venta.costeMPTotal)}</TableCell>
-                                    <TableCell className="text-right font-bold">{formatCurrency(venta.margenBruto)}</TableCell>
+                                    <TableCell className="text-right font-bold text-green-600">{formatCurrency(venta.margenBruto)}</TableCell>
+                                    <TableCell className="text-right font-bold text-green-600">
+                                        {venta.pvpTotal > 0 ? formatPercentage(venta.margenBruto / venta.pvpTotal) : 'N/A'}
+                                    </TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={7} className="text-center h-24">No se encontraron datos de venta para este periodo.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={8} className="text-center h-24">No se encontraron datos de venta para este periodo.</TableCell></TableRow>
                             )}
                         </TableBody>
+                        <TableFooter>
+                            <TableRow className="font-bold text-base bg-muted/50">
+                                <TableCell colSpan={3}>TOTALES</TableCell>
+                                <TableCell className="text-right">{totals.cantidad}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(totals.pvpTotal)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(totals.costeMPTotal)}</TableCell>
+                                <TableCell className="text-right text-green-600">{formatCurrency(totals.margenBruto)}</TableCell>
+                                <TableCell className="text-right text-green-600">
+                                    {totals.pvpTotal > 0 ? formatPercentage(totals.margenBruto / totals.pvpTotal) : 'N/A'}
+                                </TableCell>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </CardContent>
             </Card>
