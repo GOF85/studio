@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -47,13 +46,20 @@ export default function NuevaSolicitudPersonalPage() {
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            fechaServicio: new Date(),
             horaInicio: '08:00',
             horaFin: '16:00',
             partida: 'FRIO',
             cantidad: 1,
         }
     });
+
+    useEffect(() => {
+        // Set the date only on the client-side to avoid hydration mismatch
+        form.reset({
+            ...form.getValues(),
+            fechaServicio: new Date(),
+        });
+    }, [form]);
 
     const onSubmit = (data: FormValues) => {
         if (!impersonatedUser) {
@@ -84,12 +90,12 @@ export default function NuevaSolicitudPersonalPage() {
 
     return (
         <div>
-            <div className="flex items-center justify-end mb-6">
-                <Button onClick={form.handleSubmit(onSubmit)}><Save className="mr-2"/> Enviar Solicitud a RRHH</Button>
-            </div>
-            
             <Form {...form}>
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+                    <div className="flex items-center justify-end mb-6">
+                        <Button type="submit"><Save className="mr-2"/> Enviar Solicitud a RRHH</Button>
+                    </div>
+                    
                     <Card>
                         <CardHeader><CardTitle>Detalles de la Necesidad</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
