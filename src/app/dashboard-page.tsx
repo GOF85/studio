@@ -64,6 +64,11 @@ const reportingItems: MenuItem[] = [
 ];
 
 const adminItems: MenuItem[] = [
+     { 
+        title: 'Recursos Humanos', 
+        href: '/rrhh', 
+        icon: Users, 
+    },
     { 
         title: 'Portales Externos', 
         href: '/portal', 
