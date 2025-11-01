@@ -1,14 +1,14 @@
 
-
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Target, Save, Loader2, Percent } from 'lucide-react';
+import { Target, Save, Loader2, Percent, Menu, FileUp, FileDown } from 'lucide-react';
+import Papa from 'papaparse';
 import type { ObjetivoMensualCPR } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,8 +16,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/utils';
 import { GASTO_LABELS } from '@/lib/constants';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
+
 
 const formSchema = z.object({
     presupuestoVentas: z.coerce.number().default(0),
@@ -30,6 +32,8 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const CSV_HEADERS = ["mes", "presupuestoVentas", "presupuestoCesionPersonal", "presupuestoGastosMP", "presupuestoGastosPersonalMice", "presupuestoGastosPersonalExterno", "presupuestoOtrosGastos"];
+
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 const MONTHS = Array.from({ length: 12 }, (_, i) => i);
@@ -37,7 +41,10 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => i);
 export default function ObjetivosCprPage() {
     const [selectedDate, setSelectedDate] = useState(startOfMonth(new Date()));
     const [isLoading, setIsLoading] = useState(false);
+    const [allObjectives, setAllObjectives] = useState<ObjetivoMensualCPR[]>([]);
+    const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
     const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -51,39 +58,54 @@ export default function ObjetivosCprPage() {
         },
     });
 
-    const loadDataForMonth = useCallback(() => {
+    const loadAllObjectives = useCallback(() => {
+        const storedData = JSON.parse(localStorage.getItem('objetivosCPR') || '[]') as ObjetivoMensualCPR[];
+        setAllObjectives(storedData);
+        return storedData;
+    }, []);
+
+    const loadDataForMonth = useCallback((objectives: ObjetivoMensualCPR[]) => {
         const monthKey = format(selectedDate, 'yyyy-MM');
-        const allObjectives = JSON.parse(localStorage.getItem('objetivosCPR') || '[]') as ObjetivoMensualCPR[];
-        const monthData = allObjectives.find(o => o.mes === monthKey);
-        form.reset(monthData || form.getValues());
+        const monthData = objectives.find(o => o.mes === monthKey);
+        form.reset(monthData || {
+            presupuestoVentas: 0,
+            presupuestoCesionPersonal: 0,
+            presupuestoGastosMP: 0,
+            presupuestoGastosPersonalMice: 0,
+            presupuestoGastosPersonalExterno: 0,
+            presupuestoOtrosGastos: 0,
+        });
     }, [selectedDate, form]);
 
     useEffect(() => {
-        loadDataForMonth();
-    }, [loadDataForMonth]);
+        const objectives = loadAllObjectives();
+        loadDataForMonth(objectives);
+    }, [selectedDate, loadAllObjectives, loadDataForMonth]);
 
     const onSubmit = (data: FormValues) => {
         setIsLoading(true);
         const monthKey = format(selectedDate, 'yyyy-MM');
-        let allObjectives = JSON.parse(localStorage.getItem('objetivosCPR') || '[]') as ObjetivoMensualCPR[];
+        let currentObjectives = [...allObjectives];
         
         const newObjective: ObjetivoMensualCPR = {
             mes: monthKey,
             ...data,
         };
         
-        const index = allObjectives.findIndex(o => o.mes === monthKey);
+        const index = currentObjectives.findIndex(o => o.mes === monthKey);
         if (index > -1) {
-            allObjectives[index] = newObjective;
+            currentObjectives[index] = newObjective;
         } else {
-            allObjectives.push(newObjective);
+            currentObjectives.push(newObjective);
         }
 
-        localStorage.setItem('objetivosCPR', JSON.stringify(allObjectives));
+        localStorage.setItem('objetivosCPR', JSON.stringify(currentObjectives));
+        setAllObjectives(currentObjectives);
         
         setTimeout(() => {
             toast({ title: 'Objetivos guardados', description: `Se han actualizado los objetivos para ${format(selectedDate, 'MMMM yyyy', { locale: es })}.`});
             setIsLoading(false);
+            form.reset(data); // Mark form as not dirty
         }, 500);
     };
 
@@ -97,6 +119,66 @@ export default function ObjetivosCprPage() {
         const newDate = new Date(selectedDate);
         newDate.setFullYear(parseInt(year));
         setSelectedDate(newDate);
+    };
+
+    const handleExportCSV = () => {
+        if (allObjectives.length === 0) {
+            toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay objetivos para exportar.' });
+            return;
+        }
+        const csv = Papa.unparse(allObjectives, { columns: CSV_HEADERS });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'objetivos_cpr.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Exportación completada' });
+    };
+    
+    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            setIsImportAlertOpen(false);
+            return;
+        }
+
+        Papa.parse<any>(file, {
+          header: true,
+          skipEmptyLines: true,
+          delimiter,
+          complete: (results) => {
+            if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
+                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${CSV_HEADERS.join(', ')}` });
+                setIsImportAlertOpen(false);
+                return;
+            }
+            
+            const importedData: ObjetivoMensualCPR[] = results.data.map(item => ({
+                mes: item.mes,
+                presupuestoVentas: parseFloat(item.presupuestoVentas) || 0,
+                presupuestoCesionPersonal: parseFloat(item.presupuestoCesionPersonal) || 0,
+                presupuestoGastosMP: parseFloat(item.presupuestoGastosMP) || 0,
+                presupuestoGastosPersonalMice: parseFloat(item.presupuestoGastosPersonalMice) || 0,
+                presupuestoGastosPersonalExterno: parseFloat(item.presupuestoGastosPersonalExterno) || 0,
+                presupuestoOtrosGastos: parseFloat(item.presupuestoOtrosGastos) || 0,
+            }));
+            
+            localStorage.setItem('objetivosCPR', JSON.stringify(importedData));
+            const reloadedObjectives = loadAllObjectives();
+            loadDataForMonth(reloadedObjectives);
+            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+            setIsImportAlertOpen(false);
+          },
+          error: (error) => {
+            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+            setIsImportAlertOpen(false);
+          }
+        });
+        if(event.target) event.target.value = '';
     };
     
     const renderField = (name: keyof FormValues, label: string) => (
@@ -123,10 +205,25 @@ export default function ObjetivosCprPage() {
                                 <p className="text-muted-foreground">Define los presupuestos como porcentajes sobre la facturación.</p>
                             </div>
                         </div>
-                         <Button type="submit" disabled={isLoading}>
-                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                            <span className="ml-2">Guardar Objetivos</span>
-                        </Button>
+                         <div className="flex items-center gap-2">
+                            <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
+                                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                                <span className="ml-2">Guardar Objetivos</span>
+                            </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="icon"><Menu /></Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
+                                        <FileUp size={16} className="mr-2"/>Importar CSV
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={handleExportCSV}>
+                                        <FileDown size={16} className="mr-2"/>Exportar CSV
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                         </div>
                     </div>
 
                     <Card>
@@ -163,6 +260,21 @@ export default function ObjetivosCprPage() {
                     </Card>
                 </form>
             </Form>
+             <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="!justify-center gap-4">
+                        <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+                        <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+                        <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </main>
     )
 }
