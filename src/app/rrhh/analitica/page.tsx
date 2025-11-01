@@ -4,9 +4,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, Euro, Users, Clock, Calendar as CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay, startOfYear, endOfQuarter } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay, startOfYear, endOfQuarter, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from "recharts";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, PersonalMiceOrder, PersonalExterno, SolicitudPersonalCPR, CategoriaPersonal, Proveedor, Personal } from '@/types';
@@ -313,5 +313,3 @@ export default function AnaliticaRrhhPage() {
         </main>
     );
 }
-
-    
