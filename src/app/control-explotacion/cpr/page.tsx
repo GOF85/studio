@@ -13,7 +13,7 @@ import { Bar, XAxis, YAxis, Legend, CartesianGrid, ResponsiveContainer } from "r
 import Link from "next/link";
 
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import type { ServiceOrder, GastronomyOrder, Receta, PersonalMiceOrder, PersonalExterno, PersonalExternoAjuste, CosteFijoCPR, ObjetivoMensualCPR } from '@/types';
+import type { ServiceOrder, GastronomyOrder, Receta, PersonalMiceOrder, PersonalExterno, PersonalExternoAjuste, CosteFijoCPR, ObjetivoMensualCPR, SolicitudPersonalCPR } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -101,6 +101,7 @@ export default function CprControlExplotacionPage() {
     const [allPersonalMiceOrders, setAllPersonalMiceOrders] = useState<PersonalMiceOrder[]>([]);
     const [allCostesFijos, setAllCostesFijos] = useState<CosteFijoCPR[]>([]);
     const [allObjetivos, setAllObjetivos] = useState<ObjetivoMensualCPR[]>([]);
+    const [allSolicitudesPersonalCPR, setAllSolicitudesPersonalCPR] = useState<SolicitudPersonalCPR[]>([]);
     
     // Estados para valores manuales
     const [costePersonalEtt, setCostePersonalEtt] = useState(0);
@@ -116,6 +117,8 @@ export default function CprControlExplotacionPage() {
         setAllRecetas(JSON.parse(localStorage.getItem('recetas') || '[]'));
         setAllPersonalMiceOrders(JSON.parse(localStorage.getItem('personalMiceOrders') || '[]'));
         setAllCostesFijos(JSON.parse(localStorage.getItem('costesFijosCPR') || '[]'));
+        setAllSolicitudesPersonalCPR(JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]'));
+
         const objetivosData = JSON.parse(localStorage.getItem('objetivosCPR') || '[]') as ObjetivoMensualCPR[];
         setAllObjetivos(objetivosData);
         
@@ -219,13 +222,19 @@ export default function CprControlExplotacionPage() {
             }, 0);
 
         const costesFijosPeriodo = allCostesFijos.reduce((sum, fijo) => sum + (fijo.importeMensual || 0), 0);
+        
+        const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
+            const fechaServicio = new Date(solicitud.fechaServicio);
+            return solicitud.estado === 'Asignada' && isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
+        });
+        const costePersonalSolicitado = solicitudesPersonalEnRango.reduce((sum, s) => sum + (s.costeImputado || 0), 0);
 
         const mesObjetivoKey = format(objetivoMes, 'yyyy-MM');
         const objetivo = allObjetivos.find(o => o.mes === mesObjetivoKey) || { presupuestoVentas: 0, presupuestoCesionPersonal: 0, presupuestoGastosMP: 0, presupuestoGastosPersonalMice: 0, presupuestoGastosPersonalExterno: 0, presupuestoOtrosGastos: 0 };
         
         const ingresosTotales = ingresosVenta + ingresosCesionPersonal;
         const otrosGastos = costesFijosPeriodo;
-        const gastosTotales = costeEscandallo + costePersonalMice + costePersonalEtt + otrosGastos;
+        const gastosTotales = costeEscandallo + costePersonalMice + costePersonalEtt + otrosGastos + costePersonalSolicitado;
         const resultadoExplotacion = ingresosTotales - gastosTotales;
 
         const kpis = {
@@ -234,13 +243,13 @@ export default function CprControlExplotacionPage() {
             resultado: resultadoExplotacion,
             margen: ingresosTotales > 0 ? resultadoExplotacion / ingresosTotales : 0,
             costeMPPct: ingresosTotales > 0 ? costeEscandallo / ingresosTotales : 0,
-            costePersonalPct: ingresosTotales > 0 ? (costePersonalMice + costePersonalEtt) / ingresosTotales : 0,
+            costePersonalPct: ingresosTotales > 0 ? (costePersonalMice + costePersonalEtt + costePersonalSolicitado) / ingresosTotales : 0,
             costeOtrosPct: ingresosTotales > 0 ? otrosGastos / ingresosTotales : 0,
         };
         
-        return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos, facturacionNeta: ingresosTotales };
+        return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos, facturacionNeta: ingresosTotales, costePersonalSolicitado };
 
-    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, costePersonalEtt, objetivoMes]);
+    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, costePersonalEtt, objetivoMes]);
 
     const dataAcumulada = useMemo(() => {
         if (!isMounted) return [];
@@ -275,6 +284,12 @@ export default function CprControlExplotacionPage() {
             
             const personalMiceEnRango = allPersonalMiceOrders.filter(o => osIdsEnRango.has(o.osId));
             const ingresosCesionPersonal = personalMiceEnRango.filter(o => o.centroCoste && !['COCINA', 'CPR'].includes(o.centroCoste)).reduce((sum, order) => sum + (calculateHours(order.horaEntradaReal || order.horaEntrada, order.horaSalidaReal || order.horaSalida) * (order.precioHora || 0)), 0);
+            
+            const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
+                const fechaServicio = new Date(solicitud.fechaServicio);
+                return solicitud.estado === 'Asignada' && isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
+            });
+            const costePersonalSolicitado = solicitudesPersonalEnRango.reduce((sum, s) => sum + (s.costeImputado || 0), 0);
 
             // Nota: Estos costes son simplificaciones para el acumulado.
             const costePersonalMiceMes = allCostesFijos.find(c => c.concepto === 'Personal MICE CPR')?.importeMensual || 0;
@@ -282,7 +297,7 @@ export default function CprControlExplotacionPage() {
             const varios = allCostesFijos.filter(c => c.concepto !== 'Personal MICE CPR' && c.concepto !== 'Personal ETT CPR').reduce((s, c) => s + c.importeMensual, 0);
 
             const ingresos = ingresosVenta + ingresosCesionPersonal;
-            const totalPersonalCPR = costePersonalMiceMes + costePersonalEttMes;
+            const totalPersonalCPR = costePersonalMiceMes + costePersonalEttMes + costePersonalSolicitado;
             const totalGastos = costeEscandallo + totalPersonalCPR + varios;
             const resultado = ingresos - totalGastos;
 
@@ -292,13 +307,14 @@ export default function CprControlExplotacionPage() {
                 consumoMMPP: costeEscandallo,
                 personalMICE: costePersonalMiceMes,
                 personalETTs: costePersonalEttMes,
+                personalSolicitado: costePersonalSolicitado,
                 totalPersonalCPR,
                 varios,
                 resultado,
             }
         });
 
-    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos]);
+    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allSolicitudesPersonalCPR]);
 
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -350,14 +366,14 @@ export default function CprControlExplotacionPage() {
         return <LoadingSkeleton title="Calculando rentabilidad del CPR..." />;
     }
 
-    const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos, facturacionNeta } = dataCalculada;
+    const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos, facturacionNeta, costePersonalSolicitado } = dataCalculada;
     
     const tablaExplotacion: CostRow[] = [
         { label: "Venta Gastronomía", presupuesto: ingresosVenta, cierre: ingresosVenta, real: ingresosVenta, objetivo: facturacionNeta * ((objetivo.presupuestoVentas || 0) / 100), objetivo_pct: (objetivo.presupuestoVentas || 0) / 100, comentario: comentarios['Venta Gastronomía'], detailType: 'ventaGastronomia' },
         { label: "Cesión de Personal", presupuesto: ingresosCesionPersonal, cierre: ingresosCesionPersonal, real: ingresosCesionPersonal, objetivo: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), objetivo_pct: (objetivo.presupuestoCesionPersonal || 0) / 100, comentario: comentarios['Cesión de Personal'] },
         { label: GASTO_LABELS.gastronomia, presupuesto: costeEscandallo, cierre: costeEscandallo, real: realCostInputs[GASTO_LABELS.gastronomia] ?? costeEscandallo, objetivo: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosMP || 0) / 100, comentario: comentarios[GASTO_LABELS.gastronomia], detailType: 'costeMP' },
         { label: GASTO_LABELS.personalMice, presupuesto: costePersonalMice, cierre: costePersonalMice, real: realCostInputs[GASTO_LABELS.personalMice] ?? costePersonalMice, objetivo: facturacionNeta * ((objetivo.presupuestoGastosPersonalMice || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosPersonalMice || 0) / 100, comentario: comentarios[GASTO_LABELS.personalMice] },
-        { label: GASTO_LABELS.personalExterno, presupuesto: costePersonalEtt, cierre: costePersonalEtt, real: realCostInputs[GASTO_LABELS.personalExterno] ?? costePersonalEtt, objetivo: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosPersonalExterno || 0) / 100, comentario: comentarios[GASTO_LABELS.personalExterno] },
+        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitado, cierre: costePersonalSolicitado, real: realCostInputs[GASTO_LABELS.personalSolicitadoCpr] ?? costePersonalSolicitado, objetivo: 0, objetivo_pct: 0, comentario: comentarios[GASTO_LABELS.personalSolicitadoCpr] },
         { label: "Otros Gastos", presupuesto: otrosGastos, cierre: otrosGastos, real: realCostInputs['Otros Gastos'] ?? otrosGastos, objetivo: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), objetivo_pct: (objetivo.presupuestoOtrosGastos || 0) / 100, comentario: comentarios['Otros Gastos'] },
     ];
     const ingresos = tablaExplotacion.filter(r => ["Venta Gastronomía", "Cesión de Personal"].includes(r.label));
@@ -580,6 +596,10 @@ export default function CprControlExplotacionPage() {
                                                 <TableCell className="pl-8">Personal ETT's</TableCell>
                                                 {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatCurrency(m.personalETTs)}</TableCell>)}
                                             </TableRow>
+                                             <TableRow>
+                                                <TableCell className="pl-8">Personal de Apoyo CPR</TableCell>
+                                                {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatCurrency(m.personalSolicitado)}</TableCell>)}
+                                            </TableRow>
                                             <TableRow className="font-semibold bg-muted/40">
                                                 <TableCell className="pl-8">Total personal CPR</TableCell>
                                                 {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatCurrency(m.totalPersonalCPR)}</TableCell>)}
@@ -609,7 +629,7 @@ export default function CprControlExplotacionPage() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            <TableRow>
+                                             <TableRow>
                                                 <TableCell className="pl-8">Consumos MP</TableCell>
                                                 {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatPercentage(m.ingresos > 0 ? m.consumoMMPP / m.ingresos : 0)}</TableCell>)}
                                             </TableRow>
@@ -620,6 +640,10 @@ export default function CprControlExplotacionPage() {
                                             <TableRow>
                                                 <TableCell className="pl-8">Personal ETT's</TableCell>
                                                 {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatPercentage(m.ingresos > 0 ? m.personalETTs / m.ingresos : 0)}</TableCell>)}
+                                            </TableRow>
+                                             <TableRow>
+                                                <TableCell className="pl-8">Personal de Apoyo CPR</TableCell>
+                                                {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatPercentage(m.ingresos > 0 ? m.personalSolicitado / m.ingresos : 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow className="font-semibold bg-muted/40">
                                                 <TableCell className="pl-8">Total personal CPR</TableCell>
@@ -662,3 +686,4 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+

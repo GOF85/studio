@@ -571,6 +571,7 @@ export type CtaExplotacionObjetivos = {
 export type ObjetivosGasto = CtaExplotacionObjetivos & {
     id: string;
     name: string;
+    personalSolicitadoCpr?: number;
 };
 
 export type ComercialAjuste = {
@@ -1048,6 +1049,7 @@ export type ObjetivoMensualCPR = {
     presupuestoGastosPersonalMice?: number;
     presupuestoGastosPersonalExterno?: number;
     presupuestoOtrosGastos?: number;
+    presupuestoPersonalSolicitadoCpr?: number;
 }
 
 export const ESTADO_SOLICITUD_PERSONAL_CPR = ['Pendiente', 'Aprobada', 'Rechazada', 'Asignada'] as const;

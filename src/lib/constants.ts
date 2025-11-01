@@ -1,4 +1,5 @@
 
+
 import type { ObjetivosGasto, Alergeno } from '@/types';
 
 export const GASTO_LABELS: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, string> = {
@@ -14,6 +15,7 @@ export const GASTO_LABELS: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, str
     personalMice: 'Personal MICE',
     personalExterno: 'Personal Externo',
     costePruebaMenu: 'Coste Prueba de Menu',
+    personalSolicitadoCpr: 'Personal de Apoyo CPR',
 };
 
 export const ALERGENOS_INFO: Record<Alergeno, { abbr: string; color: string }> = {
@@ -32,3 +34,4 @@ export const ALERGENOS_INFO: Record<Alergeno, { abbr: string; color: string }> =
     ALTRAMUCES: { abbr: "ALT", color: "#ef4444" }, // red-500
     MOLUSCOS: { abbr: "MOL", color: "#22d3ee" }, // cyan-400
 };
+
