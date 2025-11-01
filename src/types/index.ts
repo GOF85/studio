@@ -723,7 +723,7 @@ export type Receta = {
     equipamientoCritico?: string[];
     dificultadProduccion?: number; // 1-5
     estabilidadBuffet?: number; // 1-5
-    escalabilidad?: 'FACIL' | 'MEDIA' | 'DIFICIL';
+    escalabilidad?: 'FACIL' | 'MEDIA', 'DIFICIL';
     etiquetasTendencia?: string[];
     costeMateriaPrima?: number;
     precioVenta?: number;
@@ -1072,5 +1072,3 @@ export type SolicitudPersonalCPR = {
   costeImputado?: number;
   observacionesRRHH?: string;
 };
-
-    

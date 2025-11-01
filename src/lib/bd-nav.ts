@@ -8,6 +8,7 @@ export const bdNavLinks = [
     { title: 'Personal Interno', path: '/bd/personal', icon: Users },
     { title: 'Personal Externo', path: '/bd/personal-externo-db', icon: Users },
     { title: 'Proveedores', path: '/bd/proveedores', icon: Building },
+    { title: 'Catálogo Personal Externo', path: '/bd/tipos-personal', icon: Users },
     { title: 'Espacios', path: '/bd/espacios', icon: Building },
     { title: 'Artículos MICE', path: '/bd/articulos', icon: Package },
     { title: 'Base de Datos ERP', path: '/bd/erp', icon: Database },

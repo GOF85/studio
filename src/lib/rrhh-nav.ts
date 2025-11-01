@@ -11,5 +11,3 @@ export const rrhhNav = [
     { title: 'Gestión de Personal Externo', href: '/bd/personal-externo-db', icon: Users, description: 'Administra la base de datos de trabajadores de ETTs.' },
     { title: 'Analítica de RRHH', href: '/rrhh/analitica', icon: BarChart3, description: 'Analiza costes, horas y productividad del personal.' },
 ];
-
-    
