@@ -1,12 +1,11 @@
 
-
 'use client';
 
 import { Database, Users, Package, Building, Layers, Box, Percent, Target, Factory, CreditCard, Banknote, Trash2, UserPlus } from 'lucide-react';
 
 export const bdNavLinks = [
     { title: 'Personal Interno', path: '/bd/personal', icon: Users },
-    { title: 'Personal Externo', path: '/bd/personal-externo', icon: UserPlus },
+    { title: 'Personal Externo', path: '/bd/personal-externo-db', icon: UserPlus },
     { title: 'Proveedores', path: '/bd/proveedores', icon: Building },
     { title: 'Catálogo Personal Externo', path: '/bd/tipos-personal', icon: Users },
     { title: 'Espacios', path: '/bd/espacios', icon: Building },
