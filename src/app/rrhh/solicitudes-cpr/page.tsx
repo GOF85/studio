@@ -3,11 +3,11 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, UserCheck, AlertTriangle, CheckCircle, Search, Calendar, UserPlus } from 'lucide-react';
+import { Factory, UserCheck, AlertTriangle, CheckCircle, Search, Calendar, UserPlus, Trash2 } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { SolicitudPersonalCPR, Personal } from '@/types';
+import type { SolicitudPersonalCPR, Personal, Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -34,18 +34,20 @@ const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'sec
   'Pendiente': 'secondary',
   'Aprobada': 'outline',
   'Rechazada': 'destructive',
-  'Asignada': 'default'
+  'Asignada': 'default',
+  'Solicitada Cancelacion': 'destructive'
 };
 
 export default function SolicitudesCprPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
   const [personal, setPersonal] = useState<Personal[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState('all');
   const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
-  const [asignaciones, setAsignaciones] = useState<string[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>('');
   
   const { impersonatedUser } = useImpersonatedUser();
   const { toast } = useToast();
@@ -55,15 +57,14 @@ export default function SolicitudesCprPage() {
     setSolicitudes(storedSolicitudes);
     const storedPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonal(storedPersonal);
+    const storedProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+    setProveedores(storedProveedores.filter(p => p.tipos.includes('Personal')));
     setIsMounted(true);
   }, []);
   
   useEffect(() => {
     if(solicitudToManage) {
-        const initialAsignaciones = solicitudToManage.personalAsignado?.map(p => p.idPersonal) || [];
-        // Ensure the array has the correct length based on 'cantidad'
-        const correctLengthArray = Array.from({ length: solicitudToManage.cantidad }, (_, i) => initialAsignaciones[i] || '');
-        setAsignaciones(correctLengthArray);
+        setSelectedProvider(solicitudToManage.proveedorId || '');
     }
   }, [solicitudToManage]);
 
@@ -96,40 +97,47 @@ export default function SolicitudesCprPage() {
   }
 
   const handleUpdateStatus = (solicitud: SolicitudPersonalCPR, estado: SolicitudPersonalCPR['estado']) => {
-    updateSolicitud(solicitud.id, { estado });
+    let updates: Partial<SolicitudPersonalCPR> = { estado };
+    if (estado === 'Rechazada') {
+        updates.proveedorId = undefined;
+        updates.costeImputado = undefined;
+    }
+    updateSolicitud(solicitud.id, updates);
     toast({ title: 'Estado actualizado', description: `La solicitud ${solicitud.id} se ha marcado como ${estado}.` });
   }
-  
-  const handleGuardarAsignacion = () => {
-    if (!solicitudToManage) return;
 
-    const assignedPersonal = asignaciones
-        .map(id => personal.find(p => p.id === id))
-        .filter((p): p is Personal => !!p)
-        .map(p => ({ idPersonal: p.id, nombre: `${p.nombre} ${p.apellidos}` }));
+  const handleGuardarAsignacion = () => {
+    if (!solicitudToManage || !selectedProvider) return;
     
-    if (assignedPersonal.length !== solicitudToManage.cantidad) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Debes asignar el número exacto de personas solicitadas.'});
+    const tiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as {proveedorId: string, categoria: string, precioHora: number}[];
+    const tarifa = tiposPersonal.find(t => t.proveedorId === selectedProvider && t.categoria === solicitudToManage.categoria);
+
+    if (!tarifa) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró una tarifa para este proveedor y categoría. Por favor, configúrala en la base de datos de "Catálogo de Personal Externo".'});
         return;
     }
-    
-    // Calcular coste
-    const horas = (new Date(`1970-01-01T${solicitudToManage.horaFin}:00`).getTime() - new Date(`1970-01-01T${solicitudToManage.horaInicio}:00`).getTime()) / (1000 * 60 * 60);
-    const costeTotal = assignedPersonal.reduce((sum, p) => {
-        const data = personal.find(pd => pd.id === p.idPersonal);
-        return sum + (horas * (data?.precioHora || 0));
-    }, 0);
 
-    const updated = updateSolicitud(solicitudToManage.id, { personalAsignado: assignedPersonal, estado: 'Asignada', costeImputado: costeTotal });
+    const horas = (new Date(`1970-01-01T${solicitudToManage.horaFin}:00`).getTime() - new Date(`1970-01-01T${solicitudToManage.horaInicio}:00`).getTime()) / (1000 * 60 * 60);
+    const costeTotal = horas * tarifa.precioHora;
+
+    const updated = updateSolicitud(solicitudToManage.id, { proveedorId: selectedProvider, estado: 'Asignada', costeImputado: costeTotal });
     if(updated) {
         setSolicitudToManage(updated);
-        toast({ title: 'Personal Asignado', description: `Se ha asignado el personal y calculado el coste para la solicitud.` });
+        toast({ title: 'Proveedor Asignado', description: `Se ha asignado el proveedor y calculado el coste para la solicitud.` });
     }
     setSolicitudToManage(null);
   }
+  
+  const handleDeleteRequest = (solicitudId: string) => {
+    let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
+    const updatedRequests = allRequests.filter(r => r.id !== solicitudId);
+    localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updatedRequests));
+    setSolicitudes(updatedRequests);
+    toast({ title: 'Solicitud Eliminada' });
+  }
 
   if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Solicitudes..." />;
+    return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
   }
 
   return (
@@ -169,11 +177,12 @@ export default function SolicitudesCprPage() {
                 <SelectItem value="Aprobada">Aprobada</SelectItem>
                 <SelectItem value="Rechazada">Rechazada</SelectItem>
                 <SelectItem value="Asignada">Asignada</SelectItem>
+                <SelectItem value="Solicitada Cancelacion">Solicita Cancelación</SelectItem>
             </SelectContent>
         </Select>
         <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateFilter(undefined); setStatusFilter('all'); }}>Limpiar Filtros</Button>
       </div>
-
+      
       <Card>
         <CardContent className="p-0">
             <Table>
@@ -184,7 +193,7 @@ export default function SolicitudesCprPage() {
                         <TableHead>Partida</TableHead>
                         <TableHead>Motivo</TableHead>
                         <TableHead>Estado</TableHead>
-                        <TableHead>Asignado a</TableHead>
+                        <TableHead>Proveedor Asignado</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -196,9 +205,15 @@ export default function SolicitudesCprPage() {
                             <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
                             <TableCell>{s.motivo}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
-                            <TableCell>{s.personalAsignado?.map(p => p.nombre).join(', ') || '-'}</TableCell>
+                            <TableCell>{proveedores.find(p => p.id === s.proveedorId)?.nombreComercial || '-'}</TableCell>
                             <TableCell className="text-right">
-                                <Button size="sm" onClick={() => setSolicitudToManage(s)}><UserCheck className="mr-2"/>Gestionar</Button>
+                                {s.estado === 'Solicitada Cancelacion' ? (
+                                    <Button size="sm" variant="destructive" onClick={() => handleDeleteRequest(s.id)}>
+                                        <Trash2 className="mr-2"/> Confirmar Cancelación
+                                    </Button>
+                                ) : (
+                                    <Button size="sm" onClick={() => setSolicitudToManage(s)}><UserCheck className="mr-2"/>Gestionar</Button>
+                                )}
                             </TableCell>
                         </TableRow>
                     )) : (
@@ -212,7 +227,7 @@ export default function SolicitudesCprPage() {
       </Card>
       
       <Dialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-xl">
             <DialogHeader>
                 <DialogTitle>Gestionar Solicitud: {solicitudToManage?.id}</DialogTitle>
                 <DialogDescription>
@@ -228,39 +243,27 @@ export default function SolicitudesCprPage() {
                     </div>
                 </div>
                  <div>
-                    <h4 className="font-semibold">Asignar Personal</h4>
+                    <h4 className="font-semibold">Asignar Proveedor</h4>
                     <div className="space-y-2 mt-2">
-                        {Array.from({ length: solicitudToManage?.cantidad || 0 }).map((_, index) => (
-                            <Select 
-                                key={index}
-                                value={asignaciones[index]} 
-                                onValueChange={(value) => {
-                                    const newAsignaciones = [...asignaciones];
-                                    newAsignaciones[index] = value;
-                                    setAsignaciones(newAsignaciones);
-                                }}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder={`Selecciona persona ${index + 1}...`} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {personal.map(p => (
-                                        <SelectItem key={p.id} value={p.id}>{p.nombre} {p.apellidos}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        ))}
+                        <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecciona un proveedor..."/>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {proveedores.map(p => (
+                                    <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="secondary">Cerrar</Button></DialogClose>
-                <Button onClick={handleGuardarAsignacion} disabled={asignaciones.some(a => a === '')}>Guardar Asignación</Button>
+                <Button onClick={handleGuardarAsignacion} disabled={!selectedProvider}>Guardar Asignación</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
-
-    
