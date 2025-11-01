@@ -27,6 +27,7 @@ import { GASTO_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { formatCurrency, formatNumber, formatPercentage, calculateHours } from '@/lib/utils';
 
 
 type KpiCardProps = {
@@ -60,6 +61,7 @@ type CostRow = {
   objetivo: number;
   objetivo_pct: number;
   comentario?: string;
+  detailType?: string;
 };
 
 const currentYear = new Date().getFullYear();
@@ -100,6 +102,9 @@ export default function CprControlExplotacionPage() {
     
     // Estados para valores manuales
     const [costePersonalEtt, setCostePersonalEtt] = useState(0);
+    const [realCostInputs, setRealCostInputs] = useState<Record<string, number | undefined>>({});
+    const [comentarios, setComentarios] = useState<Record<string, string>>({});
+
 
     const loadData = useCallback(() => {
         setAllServiceOrders(JSON.parse(localStorage.getItem('serviceOrders') || '[]'));
@@ -568,4 +573,3 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
-
