@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Users, Search, Calendar as CalendarIcon } from 'lucide-react';
+import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+
+const ITEMS_PER_PAGE = 20;
 
 type PedidoConPersonal = {
   os: ServiceOrder;
@@ -48,7 +52,9 @@ const calculateHours = (start?: string, end?: string): number => {
         if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
         const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
         return diff > 0 ? diff : 0;
-    } catch (e) { return 0; }
+    } catch (e) {
+        return 0;
+    }
 };
 
 export default function SolicitudesPersonalPage() {
@@ -58,6 +64,7 @@ export default function SolicitudesPersonalPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [showPastEvents, setShowPastEvents] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
 
   useEffect(() => {
@@ -74,7 +81,7 @@ export default function SolicitudesPersonalPage() {
         }, 0) || 0;
 
         return { os, totalTurnos, costePersonal, status: personalAsignado?.status || 'Pendiente' };
-    }).filter(p => p.totalTurnos > 0); // Only show OS with staff requests
+    }).filter(p => p.totalTurnos > 0);
 
     setPedidos(pedidosConDatos);
     setIsMounted(true);
@@ -93,7 +100,7 @@ export default function SolicitudesPersonalPage() {
         if (dateRange.to) {
             dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
         } else {
-            dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+            dateMatch = isWithinInterval(osDate, { start: startOfDay(osDate), end: endOfDay(osDate) });
         }
       }
 
@@ -112,12 +119,20 @@ export default function SolicitudesPersonalPage() {
     });
   }, [pedidos, searchTerm, dateRange, showPastEvents, statusFilter]);
 
+    const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredPedidos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredPedidos, currentPage]);
+
+  const totalPages = Math.ceil(filteredPedidos.length / ITEMS_PER_PAGE);
+
+
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
   }
 
   return (
-    <main>
+      <main>
         <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal Externo (Eventos)</h1>
         </div>
@@ -143,7 +158,7 @@ export default function SolicitudesPersonalPage() {
               </Popover>
               <div className="flex items-center space-x-2 pt-2 sm:pt-0">
                     <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
-                    <Label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                         Mostrar pasados
                     </label>
             </div>
@@ -159,44 +174,49 @@ export default function SolicitudesPersonalPage() {
             </div>
        </div>
 
-        <Card>
-            <CardContent className="p-0">
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead>Nº Servicio</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Fecha Evento</TableHead>
-                    <TableHead>Nº de Turnos</TableHead>
-                    <TableHead>Coste Estimado</TableHead>
-                    <TableHead>Estado</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {filteredPedidos.length > 0 ? (
-                    filteredPedidos.map(p => (
-                        <TableRow key={p.os.id} className="cursor-pointer" onClick={() => router.push(`/os/${p.os.id}/personal-externo`)}>
-                            <TableCell className="font-medium">
-                                <Badge variant="outline">{p.os.serviceNumber}</Badge>
-                            </TableCell>
-                            <TableCell>{p.os.client}</TableCell>
-                            <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell>{p.totalTurnos}</TableCell>
-                            <TableCell className="font-semibold">{p.costePersonal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                            <TableCell><Badge variant={statusVariant[p.status]}>{p.status}</Badge></TableCell>
-                        </TableRow>
-                    ))
-                    ) : (
-                    <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
-                        No hay solicitudes de personal que coincidan con los filtros.
+       <div className="flex items-center justify-end gap-2 mb-4">
+            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+
+
+        <div className="border rounded-lg">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead>Nº Servicio</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Fecha Evento</TableHead>
+                <TableHead>Nº de Turnos</TableHead>
+                <TableHead>Coste Estimado</TableHead>
+                <TableHead>Estado</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {paginatedItems.length > 0 ? (
+                paginatedItems.map(p => (
+                    <TableRow key={p.os.id} className="cursor-pointer" onClick={() => router.push(`/os/${p.os.id}/personal-externo`)}>
+                        <TableCell className="font-medium">
+                            <Badge variant="outline">{p.os.serviceNumber}</Badge>
                         </TableCell>
+                        <TableCell>{p.os.client}</TableCell>
+                        <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{p.totalTurnos}</TableCell>
+                        <TableCell className="font-semibold">{p.costePersonal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                        <TableCell><Badge variant={statusVariant[p.status]}>{p.status}</Badge></TableCell>
                     </TableRow>
-                    )}
-                </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-    </main>
+                ))
+                ) : (
+                <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                    No hay solicitudes de personal que coincidan con los filtros.
+                    </TableCell>
+                </TableRow>
+                )}
+            </TableBody>
+            </Table>
+        </div>
+      </main>
   );
 }
