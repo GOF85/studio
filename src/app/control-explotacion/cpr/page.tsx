@@ -106,6 +106,7 @@ export default function CprControlExplotacionPage() {
     const [comentarios, setComentarios] = useState<Record<string, string>>({});
     const [editingComment, setEditingComment] = useState<{label: string, text: string} | null>(null);
 
+    const osId = searchParams.get('osId');
 
     const loadData = useCallback(() => {
         setAllServiceOrders(JSON.parse(localStorage.getItem('serviceOrders') || '[]'));
@@ -124,16 +125,15 @@ export default function CprControlExplotacionPage() {
             label: format(parseISO(`${m}-02`), 'MMMM yyyy', { locale: es })
         })));
         
-        const storedComentarios = JSON.parse(localStorage.getItem('ctaComentarios') || '{}')[osId] || {};
+        const storedComentarios = osId ? (JSON.parse(localStorage.getItem('ctaComentarios') || '{}')[osId] || {}) : {};
         setComentarios(storedComentarios);
         
-        const storedRealCosts = JSON.parse(localStorage.getItem('ctaRealCosts') || '{}')[osId] || {};
+        const storedRealCosts = osId ? (JSON.parse(localStorage.getItem('ctaRealCosts') || '{}')[osId] || {}) : {};
         setRealCostInputs(storedRealCosts);
 
         setIsMounted(true);
     }, [osId]);
 
-    const osId = searchParams.get('osId');
 
     useEffect(() => {
         loadData();
@@ -326,6 +326,23 @@ export default function CprControlExplotacionPage() {
         setEditingComment(null);
         toast({ title: "Comentario guardado" });
     };
+    
+    const handleRealCostInputChange = (label: string, value: string) => {
+        const numericValue = value === '' ? undefined : parseFloat(value) || 0;
+        setRealCostInputs(prev => ({...prev, [label]: numericValue}));
+    }
+
+    const handleSaveRealCost = (label: string, value: string) => {
+        if (!osId) return;
+        const numericValue = value === '' ? undefined : parseFloat(value) || 0;
+        const allCosts = JSON.parse(localStorage.getItem('ctaRealCosts') || '{}');
+        if (!allCosts[osId]) {
+        allCosts[osId] = {};
+        }
+        allCosts[osId][label] = numericValue;
+        localStorage.setItem('ctaRealCosts', JSON.stringify(allCosts));
+        toast({ title: "Coste Real Guardado", description: "El valor se ha guardado localmente."});
+    };
 
     if (!isMounted || !dataCalculada) {
         return <LoadingSkeleton title="Calculando rentabilidad del CPR..." />;
@@ -368,7 +385,7 @@ export default function CprControlExplotacionPage() {
                 <TableCell className="p-0 font-medium sticky left-0 bg-background z-10 w-48">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <div className="flex items-center gap-2 h-full w-full px-2 py-1">
+                            <div className={cn("flex items-center gap-2 h-full w-full px-2 py-1", row.comentario && 'bg-amber-100')}>
                                     <MessageSquare
                                         className={cn("h-4 w-4 text-muted-foreground cursor-pointer hover:text-primary", row.comentario && "text-amber-600 font-bold")}
                                         onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}
@@ -394,8 +411,9 @@ export default function CprControlExplotacionPage() {
                         type="number"
                         step="0.01"
                         placeholder={formatNumber(row.cierre, 2)}
-                        defaultValue={realCostInputs[row.label]}
-                        onBlur={(e) => handleRealCostInputChange(row.label, e.target.value)}
+                        value={realCostInputs[row.label] === undefined ? '' : realCostInputs[row.label]}
+                        onChange={(e) => handleRealCostInputChange(row.label, e.target.value)}
+                        onBlur={(e) => handleSaveRealCost(row.label, e.target.value)}
                         className="h-7 text-right w-28 ml-auto"
                     />
                 </TableCell>
@@ -506,7 +524,7 @@ export default function CprControlExplotacionPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="bg-muted/50">
-                                                <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
+                                                <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Partida</TableHead>
                                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">Presupuesto</TableHead>
                                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">
                                                     Cierre
@@ -577,7 +595,7 @@ export default function CprControlExplotacionPage() {
                                 </div>
                             </CardContent>
                         </Card>
-                         <Card>
+                        <Card>
                             <CardHeader><CardTitle>Acumulado Mensual {getYear(new Date())} (%)</CardTitle></CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto border rounded-lg">
@@ -591,27 +609,27 @@ export default function CprControlExplotacionPage() {
                                         <TableBody>
                                             <TableRow>
                                                 <TableCell className="pl-8">Consumos MP</TableCell>
-                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.consumoMMPP / d.ingresos : 0)}</TableCell>)}
+                                                {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatPercentage(m.ingresos > 0 ? m.consumoMMPP / m.ingresos : 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow>
                                                 <TableCell className="pl-8">Personal MICE</TableCell>
-                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.personalMICE / d.ingresos : 0)}</TableCell>)}
+                                                {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatPercentage(m.ingresos > 0 ? m.personalMICE / m.ingresos : 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow>
                                                 <TableCell className="pl-8">Personal ETT's</TableCell>
-                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.personalETTs / d.ingresos : 0)}</TableCell>)}
+                                                {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatPercentage(m.ingresos > 0 ? m.personalETTs / m.ingresos : 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow className="font-semibold bg-muted/40">
                                                 <TableCell className="pl-8">Total personal CPR</TableCell>
-                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.totalPersonalCPR / d.ingresos : 0)}</TableCell>)}
+                                                {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatPercentage(m.ingresos > 0 ? m.totalPersonalCPR / m.ingresos : 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow>
                                                 <TableCell className="pl-8">Varios</TableCell>
-                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.varios / d.ingresos : 0)}</TableCell>)}
+                                                {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatPercentage(m.ingresos > 0 ? m.varios / m.ingresos : 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow className="font-bold bg-primary/20">
                                                 <TableCell className="text-black">RESULTADO</TableCell>
-                                                {dataAcumulada.map(d => <TableCell key={d.mes} className={cn("text-right", d.resultado < 0 ? "text-destructive" : "text-green-600")}>{formatPercentage(d.ingresos > 0 ? d.resultado / d.ingresos : 0)}</TableCell>)}
+                                                {dataAcumulada.map(m => <TableCell key={m.mes} className={cn("text-right", m.resultado < 0 ? "text-destructive" : "text-green-600")}>{formatPercentage(m.ingresos > 0 ? m.resultado / m.ingresos : 0)}</TableCell>)}
                                             </TableRow>
                                         </TableBody>
                                     </Table>
@@ -628,7 +646,7 @@ export default function CprControlExplotacionPage() {
                         <DialogTitle>Comentario para: {editingComment?.label}</DialogTitle>
                         <DialogDescription>Añade una nota explicativa para esta partida de coste.</DialogDescription>
                     </DialogHeader>
-                    <Textarea
+                    <Textarea 
                         value={editingComment?.text || ''}
                         onChange={(e) => setEditingComment(prev => prev ? {...prev, text: e.target.value} : null)}
                         rows={5}
