@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Search, Calendar as CalendarIcon, User, Trash2 } from 'lucide-react';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2 } from 'lucide-react';
 import { format, isSameDay, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -91,12 +91,12 @@ export default function SolicitudPersonalCprPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Mis Solicitudes de Personal</h1>
-        <Button onClick={() => router.push('/cpr/solicitud-personal/nueva')}>
-          <PlusCircle className="mr-2" /> Nueva Solicitud
-        </Button>
-      </div>
+        <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Mis Solicitudes de Personal</h1>
+            <Button onClick={() => router.push('/cpr/solicitud-personal/nueva')}>
+                <PlusCircle className="mr-2" /> Nueva Solicitud
+            </Button>
+        </div>
 
       <div className="flex gap-4 mb-4">
         <Input 
@@ -152,7 +152,7 @@ export default function SolicitudPersonalCprPage() {
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>{s.motivo}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
-                            <TableCell>{s.personalAsignado?.map(p => p.nombre).join(', ') || '-'}</TableCell>
+                            <TableCell>{s.proveedorId || '-'}</TableCell>
                             <TableCell className="text-right">
                                 {canDelete && <Button variant="destructive" size="sm" onClick={() => handleActionClick(s, 'delete')}><Trash2 className="mr-2 h-4 w-4"/>Borrar</Button>}
                                 {canCancel && <Button variant="destructive" size="sm" onClick={() => handleActionClick(s, 'cancel')}><Trash2 className="mr-2 h-4 w-4"/>Solicitar Cancelación</Button>}
