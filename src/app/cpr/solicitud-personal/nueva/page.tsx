@@ -84,14 +84,7 @@ export default function NuevaSolicitudPersonalPage() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/solicitud-personal')} className="mb-2">
-                        <ArrowLeft className="mr-2" />
-                        Volver al listado
-                    </Button>
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><UserPlus />Nueva Solicitud de Personal</h1>
-                </div>
+            <div className="flex items-center justify-end mb-6">
                 <Button onClick={form.handleSubmit(onSubmit)}><Save className="mr-2"/> Enviar Solicitud a RRHH</Button>
             </div>
             

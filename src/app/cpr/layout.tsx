@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -6,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { cprNav } from '@/lib/cpr-nav';
-import { Factory, Menu, ChevronRight } from 'lucide-react';
+import { Factory, Menu, ChevronRight, UserPlus, FilePenLine } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -53,24 +54,35 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
         setClientPath(pathname);
     }, [pathname]);
 
-    const { currentPage, isDetailPage, detailId } = useMemo(() => {
+    const { currentPage, isDetailPage, detailId, isSubPage } = useMemo(() => {
         if (!clientPath) {
-             return { currentPage: cprNav.find(link => link.href === '/cpr/dashboard'), isDetailPage: false, detailId: null };
+             return { currentPage: cprNav.find(link => link.href === '/cpr/dashboard'), isDetailPage: false, detailId: null, isSubPage: false };
         }
         
-        const pathSegments = clientPath.split('/').filter(Boolean); // e.g., ['cpr', 'of', 'OF-123']
+        const pathSegments = clientPath.split('/').filter(Boolean);
         const isOfDetail = pathSegments.length > 2 && pathSegments[0] === 'cpr' && pathSegments[1] === 'of';
         const isPickingDetail = pathSegments.length > 2 && pathSegments[0] === 'cpr' && pathSegments[1] === 'picking';
-        
+        const isNewSolicitud = pathSegments.length > 2 && pathSegments[1] === 'solicitud-personal' && pathSegments[2] === 'nueva';
+
         if (isOfDetail || isPickingDetail) {
             const page = cprNav.find(link => link.href.includes(pathSegments[1]));
              return {
                 currentPage: page,
                 isDetailPage: true,
-                detailId: pathSegments[2] 
+                detailId: pathSegments[2],
+                isSubPage: false
             };
         }
         
+        if (isNewSolicitud) {
+            return {
+                currentPage: cprNav.find(link => link.href.includes('solicitud-personal')),
+                isDetailPage: false,
+                detailId: null,
+                isSubPage: true,
+            };
+        }
+
         const currentPathSegment = pathSegments.length > 1 ? pathSegments[1] : 'dashboard';
         const currentPageData = cprNav.find(link => link.href.includes(`/cpr/${currentPathSegment}`));
         
@@ -78,6 +90,7 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
             currentPage: currentPageData || cprNav[0], // Default to dashboard
             isDetailPage: false,
             detailId: null,
+            isSubPage: false
         };
     }, [clientPath]);
 
@@ -113,8 +126,17 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
                                 <span className="flex items-center gap-2 text-primary font-bold">
-                                    <Factory className="h-5 w-5"/>
+                                    <FilePenLine className="h-5 w-5"/>
                                     <span>{detailId}</span>
+                                </span>
+                            </>
+                        )}
+                        {isSubPage && (
+                             <>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground"/>
+                                <span className="flex items-center gap-2 font-bold text-primary">
+                                    <UserPlus className="h-5 w-5"/>
+                                    <span>Nueva Solicitud</span>
                                 </span>
                             </>
                         )}
