@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -50,16 +51,14 @@ export default function NuevaSolicitudPersonalPage() {
             horaFin: '16:00',
             partida: 'FRIO',
             cantidad: 1,
+            fechaServicio: undefined,
         }
     });
-
+    
     useEffect(() => {
-        // Set the date only on the client-side to avoid hydration mismatch
-        form.reset({
-            ...form.getValues(),
-            fechaServicio: new Date(),
-        });
+        form.setValue('fechaServicio', new Date());
     }, [form]);
+
 
     const onSubmit = (data: FormValues) => {
         if (!impersonatedUser) {

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -101,6 +102,7 @@ export default function SolicitudesCprPage() {
     if (estado === 'Rechazada') {
         updates.proveedorId = undefined;
         updates.costeImputado = undefined;
+        updates.personalAsignado = undefined; // Also clear assigned personnel
     }
     updateSolicitud(solicitud.id, updates);
     toast({ title: 'Estado actualizado', description: `La solicitud ${solicitud.id} se ha marcado como ${estado}.` });
@@ -189,8 +191,9 @@ export default function SolicitudesCprPage() {
                 <TableHeader>
                     <TableRow>
                         <TableHead>Fecha Servicio</TableHead>
-                        <TableHead>Solicitud</TableHead>
+                        <TableHead>Horario</TableHead>
                         <TableHead>Partida</TableHead>
+                        <TableHead>Categoría</TableHead>
                         <TableHead>Motivo</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Proveedor Asignado</TableHead>
@@ -201,8 +204,9 @@ export default function SolicitudesCprPage() {
                     {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => (
                         <TableRow key={s.id}>
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell className="font-semibold">{s.cantidad} x {s.categoria}</TableCell>
+                            <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
                             <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
+                            <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>{s.motivo}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
                             <TableCell>{proveedores.find(p => p.id === s.proveedorId)?.nombreComercial || '-'}</TableCell>
@@ -218,7 +222,7 @@ export default function SolicitudesCprPage() {
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
+                            <TableCell colSpan={8} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>

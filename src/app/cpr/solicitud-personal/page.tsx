@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Search, Calendar as CalendarIcon, User, Users } from 'lucide-react';
-import { format, isSameDay } from 'date-fns';
+import { PlusCircle, Search, Calendar as CalendarIcon, User, Trash2 } from 'lucide-react';
+import { format, isSameDay, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import type { SolicitudPersonalCPR } from '@/types';
@@ -16,12 +16,15 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   'Pendiente': 'secondary',
   'Aprobada': 'outline',
   'Rechazada': 'destructive',
-  'Asignada': 'default'
+  'Asignada': 'default',
+  'Solicitada Cancelacion': 'destructive'
 };
 
 export default function SolicitudPersonalCprPage() {
@@ -29,7 +32,10 @@ export default function SolicitudPersonalCprPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
+  const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
+  const [managementAction, setManagementAction] = useState<'delete' | 'cancel' | null>(null);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const storedData = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
@@ -50,6 +56,34 @@ export default function SolicitudPersonalCprPage() {
       return searchMatch && dateMatch;
     }).sort((a,b) => new Date(b.fechaSolicitud).getTime() - new Date(a.fechaSolicitud).getTime());
   }, [solicitudes, searchTerm, dateFilter]);
+
+  const handleActionClick = (solicitud: SolicitudPersonalCPR, action: 'delete' | 'cancel') => {
+    setSolicitudToManage(solicitud);
+    setManagementAction(action);
+  };
+  
+  const confirmAction = () => {
+    if (!solicitudToManage || !managementAction) return;
+
+    let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
+
+    if (managementAction === 'delete') {
+        const updatedRequests = allRequests.filter(r => r.id !== solicitudToManage.id);
+        localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updatedRequests));
+        setSolicitudes(updatedRequests);
+        toast({ title: 'Solicitud Eliminada' });
+    } else if (managementAction === 'cancel') {
+        const index = allRequests.findIndex(r => r.id === solicitudToManage.id);
+        if (index > -1) {
+            allRequests[index].estado = 'Solicitada Cancelacion';
+            localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
+            setSolicitudes(allRequests);
+            toast({ title: 'Cancelación Solicitada', description: 'RRHH ha sido notificado para confirmar la cancelación.' });
+        }
+    }
+    setSolicitudToManage(null);
+    setManagementAction(null);
+  };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
@@ -98,34 +132,58 @@ export default function SolicitudPersonalCprPage() {
                         <TableHead>Fecha Servicio</TableHead>
                         <TableHead>Horario</TableHead>
                         <TableHead>Partida</TableHead>
-                        <TableHead>Puesto</TableHead>
+                        <TableHead>Categoría</TableHead>
                         <TableHead>Motivo</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Asignado a</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => (
+                    {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => {
+                        const canCancel = s.estado === 'Asignada' && !isBefore(new Date(s.fechaServicio), startOfToday());
+                        const canDelete = s.estado === 'Pendiente' || s.estado === 'Aprobada';
+                        
+                        return (
                         <TableRow key={s.id}>
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
                             <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
-                            <TableCell className="font-semibold">{s.cantidad} x {s.categoria}</TableCell>
+                            <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>{s.motivo}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
                             <TableCell>{s.personalAsignado?.map(p => p.nombre).join(', ') || '-'}</TableCell>
+                            <TableCell className="text-right">
+                                {canDelete && <Button variant="destructive" size="sm" onClick={() => handleActionClick(s, 'delete')}><Trash2 className="mr-2 h-4 w-4"/>Borrar</Button>}
+                                {canCancel && <Button variant="destructive" size="sm" onClick={() => handleActionClick(s, 'cancel')}><Trash2 className="mr-2 h-4 w-4"/>Solicitar Cancelación</Button>}
+                                {s.estado === 'Solicitada Cancelacion' && <Badge variant="destructive">Pendiente RRHH</Badge>}
+                            </TableCell>
                         </TableRow>
-                    )) : (
+                    )}) : (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">No has realizado ninguna solicitud.</TableCell>
+                            <TableCell colSpan={8} className="h-24 text-center">No has realizado ninguna solicitud.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
             </Table>
         </CardContent>
       </Card>
+      
+      <AlertDialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    {managementAction === 'delete' && 'Esta acción eliminará la solicitud permanentemente.'}
+                    {managementAction === 'cancel' && 'Se enviará una petición a RRHH para cancelar esta asignación. ¿Continuar?'}
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>No</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmAction}>Sí, continuar</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
-
-    
