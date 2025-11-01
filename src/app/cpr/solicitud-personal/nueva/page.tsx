@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -59,21 +60,25 @@ export default function NuevaSolicitudPersonalPage() {
             toast({ variant: 'destructive', title: 'Error', description: 'No se puede crear la solicitud sin un usuario identificado.' });
             return;
         }
-        
-        const newRequest: SolicitudPersonalCPR = {
-            id: `REQ-CPR-${Date.now()}`,
-            fechaSolicitud: new Date().toISOString(),
-            solicitadoPor: impersonatedUser.nombre,
-            ...data,
-            fechaServicio: format(data.fechaServicio, 'yyyy-MM-dd'),
-            estado: 'Pendiente',
-        };
 
         const allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-        allRequests.push(newRequest);
+        
+        for (let i = 0; i < data.cantidad; i++) {
+            const newRequest: SolicitudPersonalCPR = {
+                id: `REQ-CPR-${Date.now()}-${i}`,
+                fechaSolicitud: new Date().toISOString(),
+                solicitadoPor: impersonatedUser.nombre,
+                ...data,
+                cantidad: 1, // Each request is for 1 person
+                fechaServicio: format(data.fechaServicio, 'yyyy-MM-dd'),
+                estado: 'Pendiente',
+            };
+            allRequests.push(newRequest);
+        }
+
         localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
 
-        toast({ title: "Solicitud Enviada", description: "Tu solicitud de personal ha sido enviada a RRHH."});
+        toast({ title: "Solicitud Enviada", description: `${data.cantidad} solicitud(es) de personal han sido enviadas a RRHH.`});
         router.push('/cpr/solicitud-personal');
     };
 
@@ -135,5 +140,3 @@ export default function NuevaSolicitudPersonalPage() {
         </div>
     )
 }
-
-    

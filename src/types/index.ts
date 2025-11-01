@@ -700,8 +700,8 @@ export type Receta = {
     categoria: string;
     partidaProduccion?: string; // Calculated field
     gramajeTotal?: number;
-    estacionalidad: 'INVIERNO' | 'VERANO' | 'MIXTO';
-    tipoDieta: 'VEGETARIANO' | 'VEGANO' | 'AMBOS' | 'NINGUNO';
+    estacionalidad: 'INVIERNO' | 'VERANO', 'MIXTO';
+    tipoDieta: 'VEGETARIANO' | 'VEGANO', 'AMBOS', 'NINGUNO';
     porcentajeCosteProduccion: number;
     elaboraciones: ElaboracionEnReceta[];
     menajeAsociado: { id: string; menajeId: string; descripcion: string; ratio: number }[];
@@ -1052,7 +1052,7 @@ export type ObjetivoMensualCPR = {
     presupuestoPersonalSolicitadoCpr?: number;
 }
 
-export const ESTADO_SOLICITUD_PERSONAL_CPR = ['Pendiente', 'Aprobada', 'Rechazada', 'Asignada'] as const;
+export const ESTADO_SOLICITUD_PERSONAL_CPR = ['Pendiente', 'Aprobada', 'Rechazada', 'Asignada', 'Solicitada Cancelacion'] as const;
 export type EstadoSolicitudPersonalCPR = typeof ESTADO_SOLICITUD_PERSONAL_CPR[number];
 
 export type SolicitudPersonalCPR = {
