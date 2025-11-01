@@ -175,10 +175,7 @@ export default function OfPage() {
     const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
     
     const [selectedNecesidades, setSelectedNecesidades] = useState<Set<string>>(new Set());
-    const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: startOfWeek(new Date(), { weekStartsOn: 1 }),
-        to: endOfWeek(new Date(), { weekStartsOn: 1 }),
-    });
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [reporteData, setReporteData] = useState<ReporteData | null>(null);
 
@@ -192,6 +189,7 @@ export default function OfPage() {
     
     useEffect(() => {
         loadAllData();
+        setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) });
     }, [loadAllData]);
     
     const { ordenes, personalCPR, elaboracionesMap, serviceOrdersMap, necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
@@ -1193,6 +1191,7 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
