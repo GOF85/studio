@@ -46,7 +46,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
@@ -55,6 +55,7 @@ import { Switch } from '@/components/ui/switch';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from '@/components/ui/dialog';
+import { useDataStore } from '@/hooks/use-data-store';
 
 
 type NecesidadDesgloseItem = {
@@ -165,324 +166,148 @@ const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDI
 const statusOptions = Object.keys(statusVariant) as OrdenFabricacion['estado'][];
 
 export default function OfPage() {
-  const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);
-  const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [partidaFilter, setPartidaFilter] = useState('all');
-  const [partidaInformeFilter, setPartidaInformeFilter] = useState<string>('all');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
-  const [serviceOrdersMap, setServiceOrdersMap] = useState<Map<string, ServiceOrder>>(new Map());
-  
-  const [necesidades, setNecesidades] = useState<NecesidadItem[]>([]);
-  const [necesidadesCubiertas, setNecesidadesCubiertas] = useState<NecesidadItem[]>([]);
-  const [selectedNecesidades, setSelectedNecesidades] = useState<Set<string>>(new Set());
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfWeek(new Date(), { weekStartsOn: 1 }),
-    to: endOfWeek(new Date(), { weekStartsOn: 1 }),
-  });
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [reporteData, setReporteData] = useState<ReporteData | null>(null);
-  const [pickingStates, setPickingStates] = useState<Record<string, PickingState>>({});
-
-  const [redondearCompra, setRedondearCompra] = useState(false);
-  const [pedidoParaImprimir, setPedidoParaImprimir] = useState<ProveedorConLista | null>(null);
-  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
-
-
-  const router = useRouter();
-  const { toast } = useToast();
-  
-  const loadData = useCallback(() => {
+    const { data, isLoaded, loadAllData } = useDataStore();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [partidaFilter, setPartidaFilter] = useState('all');
+    const [partidaInformeFilter, setPartidaInformeFilter] = useState<string>('all');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
     
-    // --- STAGE 1: RAW DATA ---
-    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
-    const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
-    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
-    const stockElaboraciones: Record<string, StockElaboracion> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
-    const allPickingStatesData = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
-    setPickingStates(allPickingStatesData);
-    
-    setOrdenes(allOFs);
-    
-    const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-    setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
-    const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
-    setElaboracionesMap(elabMap);
-    const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
-    setServiceOrdersMap(osMap);
-
-    if (!dateRange?.from) {
-      setNecesidades([]);
-      setIsMounted(true);
-      return;
-    }
-    
-    const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
-    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-    const briefingsMap = new Map(allBriefings.map(b => [b.osId, b]));
-
-    const necesidadesAgregadas: Map<string, NecesidadItem> = new Map();
-
-    const rangeStart = startOfDay(dateRange.from);
-    const rangeEnd = endOfDay(dateRange.to || dateRange.from);
-
-    // --- STAGE 2: FILTER BY DATE ---
-    
-    const gastroOrdersInRange = allGastroOrders.filter(order => {
-        try {
-            const hitoDate = startOfDay(new Date(order.fecha));
-            const isInRange = isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd });
-            return isInRange;
-        } catch (e) { 
-            return false;
-        }
+    const [selectedNecesidades, setSelectedNecesidades] = useState<Set<string>>(new Set());
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({
+        from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+        to: endOfWeek(new Date(), { weekStartsOn: 1 }),
     });
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [reporteData, setReporteData] = useState<ReporteData | null>(null);
 
-    // --- STAGE 3: CALCULATE NEEDS ---
-    gastroOrdersInRange.forEach(gastroOrder => {
-      try {
-        const fechaKey = format(new Date(gastroOrder.fecha), 'yyyy-MM-dd');
-        const os = osMap.get(gastroOrder.osId);
-        const briefing = briefingsMap.get(gastroOrder.osId);
-        if(!os || !briefing) return;
+    const [redondearCompra, setRedondearCompra] = useState(false);
+    const [pedidoParaImprimir, setPedidoParaImprimir] = useState<ProveedorConLista | null>(null);
+    const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+
+
+    const router = useRouter();
+    const { toast } = useToast();
+    
+    useEffect(() => {
+        loadAllData();
+    }, [loadAllData]);
+    
+    const { ordenes, personalCPR, elaboracionesMap, serviceOrdersMap, necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
+        if (!isLoaded) return { ordenes: [], personalCPR: [], elaboracionesMap: new Map(), serviceOrdersMap: new Map(), necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
+
+        const allOFs = data.ordenesFabricacion;
+        const allPersonal = data.personal.filter(p => p.departamento === 'CPR');
+        const elabMap = new Map(data.elaboraciones.map(e => [e.id, e]));
+        const osMap = new Map(data.serviceOrders.map(os => [os.id, os]));
+        const allPickingStatesData = data.pickingStates;
         
-        (gastroOrder.items || []).forEach(item => {
-            if (item.type !== 'item') return;
-            
-            const receta = recetasMap.get(item.id);
-            if (!receta || !receta.elaboraciones) return;
+        const necesidadesAgregadas: Map<string, NecesidadItem> = new Map();
 
-            receta.elaboraciones.forEach(elabEnReceta => {
-                const elab = elabMap.get(elabEnReceta.elaboracionId);
-                if (!elab) return;
-                
-                const id = elab.id;
-                let necesidad = necesidadesAgregadas.get(id);
+        const rangeStart = startOfDay(dateRange?.from || new Date());
+        const rangeEnd = endOfDay(dateRange?.to || dateRange?.from || new Date());
 
-                if (!necesidad) {
-                    necesidad = {
-                        id,
-                        nombre: elab.nombre,
-                        cantidadNecesariaTotal: 0,
-                        unidad: elab.unidadProduccion,
-                        osIDs: new Set(),
-                        partida: elab.partidaProduccion,
-                        tipoExpedicion: elab.tipoExpedicion,
-                        stockDisponible: 0,
-                        cantidadPlanificada: 0,
-                        desgloseDiario: [],
-                        cantidadNeta: 0,
-                        recetas: [],
-                        desgloseCompleto: [],
-                    };
-                    necesidadesAgregadas.set(id, necesidad);
-                }
-                
-                const cantidadNecesaria = (item.quantity || 1) * elabEnReceta.cantidad;
-                necesidad.cantidadNecesariaTotal += cantidadNecesaria;
-                necesidad.osIDs.add(gastroOrder.osId);
-                
-                if (!necesidad.recetas.includes(receta.nombre)) {
-                    necesidad.recetas.push(receta.nombre);
-                }
-                
-                const desglose = necesidad.desgloseDiario.find(d => d.fecha === fechaKey);
-                if (desglose) {
-                    desglose.cantidad += cantidadNecesaria;
-                } else {
-                    necesidad.desgloseDiario.push({ fecha: fechaKey, cantidad: cantidadNecesaria });
-                }
-                
-                const hito = briefing.items.find(h => h.id === gastroOrder.id);
-                necesidad.desgloseCompleto.push({
-                    osId: os.id,
-                    osNumber: os.serviceNumber,
-                    osSpace: os.space,
-                    hitoId: hito?.id || '',
-                    hitoDescripcion: hito?.descripcion || '',
-                    fechaHito: hito?.fecha || '',
-                    recetaId: receta.id,
-                    recetaNombre: receta.nombre,
-                    cantidadReceta: item.quantity || 1,
-                    cantidadNecesaria: cantidadNecesaria
+        const gastroOrdersInRange = data.gastronomyOrders.filter(order => {
+            try {
+                const hitoDate = startOfDay(new Date(order.fecha));
+                return isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd });
+            } catch (e) { return false; }
+        });
+
+        gastroOrdersInRange.forEach(gastroOrder => {
+            try {
+                const fechaKey = format(new Date(gastroOrder.fecha), 'yyyy-MM-dd');
+                const os = osMap.get(gastroOrder.osId);
+                const briefing = data.comercialBriefings.find(b => b.osId === gastroOrder.osId);
+                if (!os || !briefing) return;
+
+                (gastroOrder.items || []).forEach(item => {
+                    if (item.type !== 'item') return;
+                    const receta = data.recetas.find(r => r.id === item.id);
+                    if (!receta || !receta.elaboraciones) return;
+
+                    receta.elaboraciones.forEach(elabEnReceta => {
+                        const elab = elabMap.get(elabEnReceta.elaboracionId);
+                        if (!elab) return;
+                        
+                        const id = elab.id;
+                        let necesidad = necesidadesAgregadas.get(id);
+
+                        if (!necesidad) {
+                            necesidad = {
+                                id, nombre: elab.nombre, cantidadNecesariaTotal: 0, unidad: elab.unidadProduccion,
+                                osIDs: new Set(), partida: elab.partidaProduccion, tipoExpedicion: elab.tipoExpedicion,
+                                stockDisponible: 0, cantidadPlanificada: 0, desgloseDiario: [], cantidadNeta: 0,
+                                recetas: [], desgloseCompleto: [],
+                            };
+                            necesidadesAgregadas.set(id, necesidad);
+                        }
+                        
+                        const cantidadNecesaria = (item.quantity || 1) * elabEnReceta.cantidad;
+                        necesidad.cantidadNecesariaTotal += cantidadNecesaria;
+                        necesidad.osIDs.add(gastroOrder.osId);
+                        
+                        if (!necesidad.recetas.includes(receta.nombre)) necesidad.recetas.push(receta.nombre);
+                        
+                        const desglose = necesidad.desgloseDiario.find(d => d.fecha === fechaKey);
+                        if (desglose) desglose.cantidad += cantidadNecesaria;
+                        else necesidad.desgloseDiario.push({ fecha: fechaKey, cantidad: cantidadNecesaria });
+                        
+                        const hito = briefing.items.find(h => h.id === gastroOrder.id);
+                        necesidad.desgloseCompleto.push({
+                            osId: os.id, osNumber: os.serviceNumber, osSpace: os.space, hitoId: hito?.id || '',
+                            hitoDescripcion: hito?.descripcion || '', fechaHito: hito?.fecha || '', recetaId: receta.id,
+                            recetaNombre: receta.nombre, cantidadReceta: item.quantity || 1, cantidadNecesaria: cantidadNecesaria
+                        });
+                    });
                 });
+            } catch (e) {}
+        });
+
+        const stockAsignadoGlobal: Record<string, number> = {};
+        Object.values(allPickingStatesData).forEach(state => {
+            (state.itemStates || []).forEach(assigned => {
+                const of = allOFs.find(o => o.id === assigned.ofId);
+                if (of) stockAsignadoGlobal[of.elaboracionId] = (stockAsignadoGlobal[of.elaboracionId] || 0) + assigned.quantity;
             });
         });
-      } catch (e) {
-      }
-    });
 
+        const necesidadesNetas: NecesidadItem[] = [];
+        const necesidadesCubiertas: NecesidadItem[] = [];
 
-    // --- STAGE 4: CALCULATE NET NEEDS ---
-    const stockAsignadoGlobal: Record<string, number> = {};
-    Object.values(allPickingStatesData).forEach(state => {
-      (state.itemStates || []).forEach(assigned => {
-        const of = allOFs.find(o => o.id === assigned.ofId);
-        if (of) {
-          stockAsignadoGlobal[of.elaboracionId] = (stockAsignadoGlobal[of.elaboracionId] || 0) + assigned.quantity;
-        }
-      });
-    });
+        Array.from(necesidadesAgregadas.values()).forEach(necesidad => {
+            const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => {
+                if (of.elaboracionId !== necesidad.id) return false;
+                try {
+                    const ofDate = startOfDay(new Date(of.fechaProduccionPrevista));
+                    return isWithinInterval(ofDate, { start: rangeStart, end: rangeEnd });
+                } catch(e) { return false; }
+            });
+            
+            const cantidadPlanificada = ofsExistentes.reduce((sum, of) => {
+                const isFinalizado = of.estado === 'Finalizado' || of.estado === 'Validado';
+                return sum + (isFinalizado && of.cantidadReal ? of.cantidadReal : of.cantidadTotal);
+            }, 0);
+            
+            const stockTotalBruto = data.stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
+            const stockAsignado = stockAsignadoGlobal[necesidad.id] || 0;
+            const stockDisponible = Math.max(0, stockTotalBruto - stockAsignado);
+            
+            const stockAUtilizar = Math.min(necesidad.cantidadNecesariaTotal, stockDisponible);
+            const cantidadNeta = necesidad.cantidadNecesariaTotal - stockAUtilizar - cantidadPlanificada;
 
-    const necesidadesNetas: NecesidadItem[] = [];
-    const necesidadesCubiertas: NecesidadItem[] = [];
+            const itemCompleto = {
+                ...necesidad, stockDisponible: stockAUtilizar, cantidadPlanificada, cantidadNeta,
+                desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+            };
 
-    Array.from(necesidadesAgregadas.values()).forEach(necesidad => {
-        const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => {
-            if (of.elaboracionId !== necesidad.id) return false;
-            try {
-                const ofDate = startOfDay(new Date(of.fechaProduccionPrevista));
-                return isWithinInterval(ofDate, { start: rangeStart, end: rangeEnd });
-            } catch(e) { return false; }
+            if (cantidadNeta > 0.001) necesidadesNetas.push(itemCompleto);
+            else necesidadesCubiertas.push(itemCompleto);
         });
-        
-        const cantidadPlanificada = ofsExistentes.reduce((sum, of) => {
-          const isFinalizado = of.estado === 'Finalizado' || of.estado === 'Validado';
-          return sum + (isFinalizado && of.cantidadReal ? of.cantidadReal : of.cantidadTotal)
-        }, 0);
-        
-        const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
-        const stockAsignado = stockAsignadoGlobal[necesidad.id] || 0;
-        const stockDisponible = Math.max(0, stockTotalBruto - stockAsignado);
-        
-        const stockAUtilizar = Math.min(necesidad.cantidadNecesariaTotal, stockDisponible);
-        const cantidadNeta = necesidad.cantidadNecesariaTotal - stockAUtilizar - cantidadPlanificada;
 
-        const itemCompleto = {
-          ...necesidad,
-          stockDisponible: stockAUtilizar,
-          cantidadPlanificada,
-          cantidadNeta,
-          desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
-        };
-
-        if (cantidadNeta > 0.001) {
-            necesidadesNetas.push(itemCompleto);
-        } else {
-            necesidadesCubiertas.push(itemCompleto);
-        }
-    });
-
-    setNecesidades(necesidadesNetas);
-    setNecesidadesCubiertas(necesidadesCubiertas);
-
-    // --- STAGE 5: CALCULATE REPORT DATA ---
-    if (dateRange.from && dateRange.to) {
-      const fechasDelRango = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
-      const recetasInforme: Map<string, ReporteProduccionItem> = new Map();
-      const elaboracionesInforme: Map<string, ReporteProduccionItem> = new Map();
-      
-      const resumenPorPartida: Record<string, ReporteResumenPartida> = {
-          'FRIO': { referencias: 0, unidades: 0, elaboraciones: 0 },
-          'CALIENTE': { referencias: 0, unidades: 0, elaboraciones: 0 },
-          'PASTELERIA': { referencias: 0, unidades: 0, elaboraciones: 0 },
-          'EXPEDICION': { referencias: 0, unidades: 0, elaboraciones: 0 },
-      };
-
-      const osDetailsSet = new Set<string>();
-      const serviciosCount: Record<string, number> = {};
-
-      gastroOrdersInRange.forEach(order => {
-          const os = osMap.get(order.osId);
-          if (!os) return;
-
-          osDetailsSet.add(`${format(new Date(os.startDate), 'dd/MM/yy')} / ${os.serviceNumber} / ${os.space}`);
-          serviciosCount[order.descripcion] = (serviciosCount[order.descripcion] || 0) + 1;
-          const fechaKey = format(new Date(order.fecha), 'yyyy-MM-dd');
-
-          (order.items || []).forEach(item => {
-              if (item.type !== 'item') return;
-              
-              const receta = recetasMap.get(item.id);
-              if (!receta) return;
-
-              let recetaItem = recetasInforme.get(receta.id);
-              if (!recetaItem) {
-                  const componentes = receta.elaboraciones.map(e => {
-                      const elabInfo = elabMap.get(e.elaboracionId);
-                      return { nombre: elabInfo?.nombre || '?', cantidad: e.cantidad, unidad: elabInfo?.unidadProduccion || '?', cantidadTotal: 0 };
-                  })
-                  recetaItem = { id: receta.id, nombre: receta.nombre, partida: receta.partidaProduccion || 'N/A', udTotales: 0, unidad: 'Uds', necesidadesPorDia: {}, componentes };
-                  recetasInforme.set(receta.id, recetaItem);
-                  if(receta.partidaProduccion && resumenPorPartida[receta.partidaProduccion]){
-                      resumenPorPartida[receta.partidaProduccion].referencias++;
-                  }
-              }
-              const cantidadReceta = item.quantity || 0;
-              recetaItem.udTotales += cantidadReceta;
-               if(receta.partidaProduccion && resumenPorPartida[receta.partidaProduccion]){
-                  resumenPorPartida[receta.partidaProduccion].unidades += cantidadReceta;
-              }
-
-              recetaItem.componentes?.forEach(c => {
-                  const elabReceta = receta.elaboraciones.find(e => elabMap.get(e.elaboracionId)?.nombre === c.nombre);
-                  if(elabReceta) {
-                      c.cantidadTotal += cantidadReceta * elabReceta.cantidad;
-                  }
-              });
-
-               if(!recetaItem.necesidadesPorDia[fechaKey]) recetaItem.necesidadesPorDia[fechaKey] = 0;
-              recetaItem.necesidadesPorDia[fechaKey] += cantidadReceta;
-
-              (receta.elaboraciones || []).forEach(elabEnReceta => {
-                  const elab = elabMap.get(elabEnReceta.elaboracionId);
-                  if (!elab) return;
-
-                  let elabItem = elaboracionesInforme.get(elab.id);
-                  if (!elabItem) {
-                      elabItem = { id: elab.id, nombre: elab.nombre, partida: elab.partidaProduccion, udTotales: 0, unidad: elab.unidadProduccion, necesidadesPorDia: {}, usadoEn: [] };
-                      elaboracionesInforme.set(elab.id, elabItem);
-                      if(elab.partidaProduccion && resumenPorPartida[elab.partidaProduccion]){
-                          resumenPorPartida[elab.partidaProduccion].elaboraciones++;
-                      }
-                  }
-                  const elabInReceta = elabItem.usadoEn?.find(r => r.nombre === receta.nombre);
-                  if(!elabInReceta) {
-                       elabItem.usadoEn?.push({ nombre: receta.nombre, cantidad: elabEnReceta.cantidad, unidad: elab.unidadProduccion });
-                  }
-                  const cantidadElab = cantidadReceta * elabEnReceta.cantidad;
-                  elabItem.udTotales += cantidadElab;
-                   if(!elabItem.necesidadesPorDia[fechaKey]) elabItem.necesidadesPorDia[fechaKey] = 0;
-                  elabItem.necesidadesPorDia[fechaKey] += cantidadElab;
-              });
-          });
-      });
-      
-      const finalResumen = {
-          contratos: osDetailsSet.size,
-          contratosDetalle: Array.from(osDetailsSet),
-          servicios: Object.values(serviciosCount).reduce((sum, count) => sum + count, 0),
-          serviciosDetalle: Object.entries(serviciosCount).map(([tipo, count]) => `${count} x ${tipo}`),
-          comensales: allServiceOrders
-                        .filter(os => isWithinInterval(new Date(os.startDate), { start: rangeStart, end: rangeEnd }))
-                        .reduce((sum, os) => sum + (os.asistentes || 0), 0),
-          referencias: recetasInforme.size,
-          unidades: Array.from(recetasInforme.values()).reduce((sum, item) => sum + item.udTotales, 0),
-          elaboraciones: elaboracionesInforme.size,
-          resumenPorPartida,
-      };
-
-      setReporteData({
-          fechas: fechasDelRango,
-          resumen: finalResumen,
-          referencias: Array.from(recetasInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
-          elaboraciones: Array.from(elaboracionesInforme.values()).sort((a,b) => a.nombre.localeCompare(b.nombre)),
-      });
-    }
-
-
-    setIsMounted(true);
-  }, [dateRange]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+        return { ordenes: allOFs, personalCPR: allPersonal, elaboracionesMap: elabMap, serviceOrdersMap: osMap, necesidades: necesidadesNetas, necesidadesCubiertas, pickingStates: allPickingStatesData };
+  }, [isLoaded, data, dateRange]);
 
 
   const filteredAndSortedItems = useMemo(() => {
@@ -528,7 +353,7 @@ export default function OfPage() {
     if (!orderToDelete) return;
     const updatedOFs = ordenes.filter(of => of.id !== orderToDelete);
     localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
-    setOrdenes(updatedOFs);
+    loadData();
     toast({ title: 'Orden de Fabricación Eliminada' });
     setOrderToDelete(null);
   };
@@ -577,7 +402,6 @@ export default function OfPage() {
 
     const updatedOFs = [...allOFs, ...nuevasOFs];
     localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
-    setOrdenes(updatedOFs);
     
     toast({ title: 'Órdenes de Fabricación Creadas', description: `${nuevasOFs.length} OFs se han añadido a la lista.` });
     
@@ -593,7 +417,7 @@ export default function OfPage() {
         allOFs[index].estado = 'Asignada';
         allOFs[index].fechaAsignacion = new Date().toISOString();
         localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-        setOrdenes(allOFs);
+        loadData();
         toast({ title: 'Responsable Asignado', description: `Se ha asignado a ${responsable}.`});
     }
   }
@@ -621,17 +445,10 @@ export default function OfPage() {
   const listaDeLaCompra = useMemo(() => {
     if (!necesidades || necesidades.length === 0) return [];
     
-    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
-
-    const allIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-    const ingMap = new Map(allIngredientes.map(i => [i.id, i]));
-    
-    const allArticulosERP = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-    const erpMap = new Map(allArticulosERP.map(a => [a.idreferenciaerp, a]));
-
-    const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-    const proveedoresMap = new Map(allProveedores.map(p => [p.IdERP, p]));
+    const elabMap = new Map(data.elaboraciones.map(e => [e.id, e]));
+    const ingMap = new Map(data.ingredientesInternos.map(i => [i.id, i]));
+    const erpMap = new Map(data.ingredientesERP.map(a => [a.idreferenciaerp, a]));
+    const proveedoresMap = new Map(data.proveedores.map(p => [p.IdERP, p]));
 
     const ingredientesNecesarios = new Map<string, { cantidad: number, desgloseUso: { receta: string, elaboracion: string, cantidad: number }[] }>();
 
@@ -705,7 +522,7 @@ export default function OfPage() {
 
     return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
 
-  }, [necesidades]);
+  }, [necesidades, data]);
 
   const flatCompraList = useMemo(() => {
     return listaDeLaCompra.flatMap(proveedor => 
@@ -754,7 +571,7 @@ export default function OfPage() {
     doc.save(`Informe_Compra_${dateTitle}.pdf`);
   };
 
-  if (!isMounted) {
+  if (!isLoaded) {
     return <LoadingSkeleton title="Cargando Órdenes de Fabricación..." />;
   }
 
@@ -1376,4 +1193,6 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
+
 
