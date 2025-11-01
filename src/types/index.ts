@@ -716,9 +716,9 @@ export type Receta = {
     perfilTextura?: string[];
     tipoCocina?: string[];
     recetaOrigen?: string;
-    temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE' | 'FRIO' | 'HELADO';
+    temperaturaServicio?: 'CALIENTE' | 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO';
     tecnicaCoccionPrincipal?: TecnicaCoccion;
-    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL' | 'AL_MOMENTO';
+    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL', 'AL_MOMENTO';
     formatoServicioIdeal?: string[];
     equipamientoCritico?: string[];
     dificultadProduccion?: number; // 1-5
@@ -1049,3 +1049,28 @@ export type ObjetivoMensualCPR = {
     presupuestoGastosPersonalExterno?: number;
     presupuestoOtrosGastos?: number;
 }
+
+export const ESTADO_SOLICITUD_PERSONAL_CPR = ['Pendiente', 'Aprobada', 'Rechazada', 'Asignada'] as const;
+export type EstadoSolicitudPersonalCPR = typeof ESTADO_SOLICITUD_PERSONAL_CPR[number];
+
+export type SolicitudPersonalCPR = {
+  id: string;
+  fechaSolicitud: string; // ISO Date
+  solicitadoPor: string;
+  fechaServicio: string; // ISO Date
+  horaInicio: string;
+  horaFin: string;
+  partida: PartidaProduccion;
+  categoria: string;
+  cantidad: number;
+  motivo: string;
+  estado: EstadoSolicitudPersonalCPR;
+  personalAsignado?: {
+      idPersonal: string;
+      nombre: string;
+  }[];
+  costeImputado?: number;
+  observacionesRRHH?: string;
+};
+
+    
