@@ -1067,10 +1067,7 @@ export type SolicitudPersonalCPR = {
   cantidad: number;
   motivo: string;
   estado: EstadoSolicitudPersonalCPR;
-  personalAsignado?: {
-      idPersonal: string;
-      nombre: string;
-  }[];
+  proveedorId?: string; // ID del proveedor (ETT) asignado
   costeImputado?: number;
   observacionesRRHH?: string;
 };
