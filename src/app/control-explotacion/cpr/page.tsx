@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { cn, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { GASTO_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -306,49 +306,55 @@ export default function CprControlExplotacionPage() {
 
     const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMice, costesFijosPeriodo, otrosGastos, facturacionNeta } = dataCalculada;
     
-    const tablaExplotacion = [
-        { label: "Venta Gastronomía", real: ingresosVenta, ppto: facturacionNeta * ((objetivo.presupuestoVentas || 0) / 100), isGasto: false, detailType: 'ventaGastronomia' },
-        { label: "Cesión de Personal", real: ingresosCesionPersonal, ppto: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), isGasto: false },
-        { label: GASTO_LABELS.gastronomia, real: costeEscandallo, ppto: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), isGasto: true, detailType: 'costeMP' },
-        { label: GASTO_LABELS.personalMice, real: costePersonalMice, ppto: facturacionNeta * ((objetivo.presupuestoGastosPersonalMice || 0) / 100), isGasto: true },
-        { label: GASTO_LABELS.personalExterno, real: costePersonalEtt, ppto: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), isGasto: true, setter: setCostePersonalEtt },
-        { label: "Otros Gastos", real: otrosGastos, ppto: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), isGasto: true },
+    const tablaExplotacion: CostRow[] = [
+        { label: "Venta Gastronomía", presupuesto: ingresosVenta, cierre: ingresosVenta, real: ingresosVenta, objetivo: facturacionNeta * ((objetivo.presupuestoVentas || 0) / 100), objetivo_pct: (objetivo.presupuestoVentas || 0) / 100, comentario: comentarios['Venta Gastronomía'], detailType: 'ventaGastronomia' },
+        { label: "Cesión de Personal", presupuesto: ingresosCesionPersonal, cierre: ingresosCesionPersonal, real: ingresosCesionPersonal, objetivo: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), objetivo_pct: (objetivo.presupuestoCesionPersonal || 0) / 100, comentario: comentarios['Cesión de Personal'] },
+        { label: GASTO_LABELS.gastronomia, presupuesto: costeEscandallo, cierre: costeEscandallo, real: realCostInputs[GASTO_LABELS.gastronomia] ?? costeEscandallo, objetivo: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosMP || 0) / 100, comentario: comentarios[GASTO_LABELS.gastronomia], detailType: 'costeMP' },
+        { label: GASTO_LABELS.personalMice, presupuesto: costePersonalMice, cierre: costePersonalMice, real: realCostInputs[GASTO_LABELS.personalMice] ?? costePersonalMice, objetivo: facturacionNeta * ((objetivo.presupuestoGastosPersonalMice || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosPersonalMice || 0) / 100, comentario: comentarios[GASTO_LABELS.personalMice] },
+        { label: GASTO_LABELS.personalExterno, presupuesto: costePersonalEtt, cierre: costePersonalEtt, real: realCostInputs[GASTO_LABELS.personalExterno] ?? costePersonalEtt, objetivo: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosPersonalExterno || 0) / 100, comentario: comentarios[GASTO_LABELS.personalExterno] },
+        { label: "Otros Gastos", presupuesto: otrosGastos, cierre: otrosGastos, real: realCostInputs['Otros Gastos'] ?? otrosGastos, objetivo: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), objetivo_pct: (objetivo.presupuestoOtrosGastos || 0) / 100, comentario: comentarios['Otros Gastos'] },
     ];
+
+    const ingresos = tablaExplotacion.filter(r => ["Venta Gastronomía", "Cesión de Personal"].includes(r.label));
+    const gastos = tablaExplotacion.filter(r => !["Venta Gastronomía", "Cesión de Personal"].includes(r.label));
+
+    const totalIngresos = ingresos.reduce((sum, r) => sum + r.real, 0);
+    const totalGastos = gastos.reduce((sum, r) => sum + r.real, 0);
+
     
-    const renderCostRow = (row: any, index: number) => {
+    const renderCostRow = (row: CostRow, index: number) => {
         const pctSFactReal = facturacionNeta > 0 ? row.real / facturacionNeta : 0;
-        const pptoPct = facturacionNeta > 0 ? row.ppto / facturacionNeta : 0;
+        const pptoPct = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
         
         let desviacion, desviacionPct;
 
-        if (row.isGasto) {
-            desviacion = row.ppto - row.real;
-            if(row.ppto > 0) desviacionPct = desviacion / row.ppto;
+        const isGasto = !["Venta Gastronomía", "Cesión de Personal"].includes(row.label);
+        
+        if (isGasto) {
+            desviacion = row.objetivo - row.real;
+            if(row.objetivo !== 0) desviacionPct = desviacion / row.objetivo;
         } else {
-            desviacion = row.real - row.ppto;
-             if(row.ppto > 0) desviacionPct = desviacion / row.ppto;
+            desviacion = row.real - row.objetivo;
+             if(row.objetivo !== 0) desviacionPct = desviacion / row.objetivo;
         }
 
         return (
              <TableRow key={`${row.label}-${index}`}>
                 <TableCell className="p-0 font-medium sticky left-0 bg-background z-10 w-48">
                     <div className={cn("flex items-center gap-2 h-full w-full px-2 py-1", row.comentario && 'bg-amber-100')}>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {}}>
-                            <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-amber-600 font-bold")} />
-                        </Button>
-                        {row.detailType ? (
-                            <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
-                                {row.label} <Info size={14}/>
-                            </Link>
-                        ): row.label}
+                            {row.detailType ? (
+                                <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
+                                    {row.label} <Info size={14}/>
+                                </Link>
+                            ): row.label}
                     </div>
                 </TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono">{formatCurrency(row.real)}</TableCell>
-                <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r">{formatPercentage(pctSFactReal)}</TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono border-l">{formatCurrency(row.ppto)}</TableCell>
-                <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground">{formatPercentage(pptoPct)}</TableCell>
+                <TableCell className={cn("py-1 px-2 text-left font-mono text-muted-foreground border-r")}>{formatPercentage(pctSFactReal)}</TableCell>
+                
                 <TableCell className="py-1 px-2 text-right font-mono border-l">{formatCurrency(row.objetivo)}</TableCell>
-                <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
+                <TableCell className={cn("py-1 px-2 text-left font-mono text-muted-foreground border-r")}>{formatPercentage(row.objetivo_pct)}</TableCell>
+                
                 <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion !== undefined && desviacion < 0 && "text-destructive font-bold", desviacion !== undefined && desviacion > 0 && "text-green-600 font-bold")}>
                     {desviacion !== undefined ? formatCurrency(desviacion) : ''}
                 </TableCell>
@@ -361,12 +367,10 @@ export default function CprControlExplotacionPage() {
     
     const renderSummaryRow = (label: string, value: number, isSubtotal: boolean = false) => {
         return (
-            <TableRow className={cn("bg-primary/10 hover:bg-primary/10", isSubtotal && "bg-muted")}>
-                <TableCell className={cn("font-bold py-2 px-2", !isSubtotal && "text-black")}>{label}</TableCell>
-                <TableCell className={cn("text-right font-bold py-2 px-2", !isSubtotal && "text-black")}>{formatCurrency(value)}</TableCell>
+            <TableRow className={cn(isSubtotal ? "bg-muted hover:bg-muted" : "bg-primary/10 hover:bg-primary/10")}>
+                <TableCell className="font-bold py-2 px-2 text-black sticky left-0 bg-inherit z-10">{label}</TableCell>
+                <TableCell className="text-right font-bold py-2 px-2 text-black">{formatCurrency(value)}</TableCell>
                 <TableCell className="border-r py-2 px-2"></TableCell>
-                <TableCell className="border-l py-2 px-2"></TableCell>
-                <TableCell className="py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
                 <TableCell className="border-r py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
@@ -378,11 +382,9 @@ export default function CprControlExplotacionPage() {
     const renderFinalRow = (label: string, value: number) => {
         return (
             <TableRow className="bg-primary/20 hover:bg-primary/20">
-                <TableCell className="font-bold py-2 px-2 text-base">{label}</TableCell>
+                <TableCell className="font-bold py-2 px-2 text-base text-black sticky left-0 bg-inherit z-10">{label}</TableCell>
                 <TableCell className={cn("text-right font-bold py-2 px-2 text-base", value < 0 ? 'text-destructive' : 'text-green-600')}>{formatCurrency(value)}</TableCell>
                 <TableCell className="border-r py-2 px-2"></TableCell>
-                <TableCell className="border-l py-2 px-2"></TableCell>
-                <TableCell className="py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
                 <TableCell className="border-r py-2 px-2"></TableCell>
                 <TableCell className="border-l py-2 px-2"></TableCell>
@@ -449,17 +451,19 @@ export default function CprControlExplotacionPage() {
                                         <TableHeader>
                                             <TableRow className="bg-muted/50">
                                                 <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Concepto</TableHead>
-                                                <TableHead colSpan={2} className="p-2 text-center border-l border-r">Real</TableHead>
-                                                <TableHead colSpan={2} className="p-2 text-center border-l border-r">Presupuesto</TableHead>
-                                                <TableHead colSpan={2} className="p-2 text-center border-l border-r">Objetivo</TableHead>
-                                                <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Obj. vs. Real)</TableHead>
+                                                <TableHead className="py-2 px-2 text-right">Real (€)</TableHead>
+                                                <TableHead className="py-2 px-2 text-left border-r w-24">Real (%)</TableHead>
+                                                <TableHead className="py-2 px-2 text-right border-l">Objetivo (€)</TableHead>
+                                                <TableHead className="py-2 px-2 text-left border-r w-24">Objetivo (%)</TableHead>
+                                                <TableHead className="py-2 px-2 text-right border-l">Desv. (€)</TableHead>
+                                                <TableHead className="py-2 px-2 text-left border-r w-24">Desv. (%)</TableHead>
                                             </TableRow>
                                         </TableHeader>
-                                        <TableBody>
-                                            {renderSummaryRow('INGRESOS', kpis.ingresos, true)}
-                                            {tablaExplotacion.filter(r => !r.isGasto).map(renderCostRow)}
-                                            {renderSummaryRow('GASTOS', kpis.gastos, true)}
-                                            {tablaExplotacion.filter(r => r.isGasto).map(renderCostRow)}
+                                         <TableBody>
+                                            {renderSummaryRow('INGRESOS', totalIngresos, true)}
+                                            {ingresos.map(renderCostRow)}
+                                            {renderSummaryRow('GASTOS', totalGastos, true)}
+                                            {gastos.map(renderCostRow)}
                                             {renderFinalRow('RESULTADO', kpis.resultado)}
                                         </TableBody>
                                     </Table>
@@ -481,7 +485,7 @@ export default function CprControlExplotacionPage() {
                                         </TableHeader>
                                         <TableBody>
                                             <TableRow className="font-bold bg-primary/10">
-                                                <TableCell>Ingresos</TableCell>
+                                                <TableCell className="text-black">Ingresos</TableCell>
                                                 {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.ingresos)}</TableCell>)}
                                             </TableRow>
                                             <TableRow>
@@ -505,7 +509,7 @@ export default function CprControlExplotacionPage() {
                                                 {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatCurrency(d.varios)}</TableCell>)}
                                             </TableRow>
                                             <TableRow className="font-bold bg-primary/20">
-                                                <TableCell>RESULTADO</TableCell>
+                                                <TableCell className="text-black">RESULTADO</TableCell>
                                                 {dataAcumulada.map(d => <TableCell key={d.mes} className={cn("text-right", d.resultado < 0 ? "text-destructive" : "text-green-600")}>{formatCurrency(d.resultado)}</TableCell>)}
                                             </TableRow>
                                         </TableBody>
@@ -526,8 +530,8 @@ export default function CprControlExplotacionPage() {
                                         </TableHeader>
                                         <TableBody>
                                             <TableRow className="font-bold bg-primary/10">
-                                                <TableCell>Ingresos</TableCell>
-                                                {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(1)}</TableCell>)}
+                                                <TableCell className="text-black">Ingresos</TableCell>
+                                                {dataAcumulada.map((d, i) => <TableCell key={d.mes+i} className="text-right">{formatPercentage(1)}</TableCell>)}
                                             </TableRow>
                                             <TableRow>
                                                 <TableCell className="pl-8">Consumos MP</TableCell>
@@ -550,7 +554,7 @@ export default function CprControlExplotacionPage() {
                                                 {dataAcumulada.map(d => <TableCell key={d.mes} className="text-right">{formatPercentage(d.ingresos > 0 ? d.varios / d.ingresos : 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow className="font-bold bg-primary/20">
-                                                <TableCell>RESULTADO</TableCell>
+                                                <TableCell className="text-black">RESULTADO</TableCell>
                                                 {dataAcumulada.map(d => <TableCell key={d.mes} className={cn("text-right", d.resultado < 0 ? "text-destructive" : "text-green-600")}>{formatPercentage(d.ingresos > 0 ? d.resultado / d.ingresos : 0)}</TableCell>)}
                                             </TableRow>
                                         </TableBody>
