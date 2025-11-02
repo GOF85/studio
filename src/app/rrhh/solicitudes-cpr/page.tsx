@@ -9,7 +9,7 @@ import { es } from 'date-fns/locale';
 
 import type { SolicitudPersonalCPR, Personal, Proveedor, CategoriaPersonal } from '@/types';
 import { Button } from '@/components/ui/button';
-import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -52,6 +52,7 @@ export default function SolicitudesCprPage() {
   const [selectedCategoria, setSelectedCategoria] = useState<string>('');
 
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     const storedSolicitudes = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
@@ -228,10 +229,8 @@ export default function SolicitudesCprPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => {
-                        const canManage = s.estado !== 'Solicitada Cancelacion';
-                        return (
-                        <TableRow key={s.id} onClick={() => canManage && setSolicitudToManage(s)} className={canManage ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}>
+                    {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => (
+                        <TableRow key={s.id} onClick={() => setSolicitudToManage(s)} className="cursor-pointer">
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
                             <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
@@ -247,7 +246,7 @@ export default function SolicitudesCprPage() {
                                 ) : '-'}
                             </TableCell>
                         </TableRow>
-                    )}) : (
+                    )) : (
                         <TableRow>
                             <TableCell colSpan={6} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
                         </TableRow>
