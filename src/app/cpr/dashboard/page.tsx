@@ -1,105 +1,104 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Factory, CheckCircle, AlertTriangle, PackagePlus, LayoutDashboard } from 'lucide-react';
-import type { OrdenFabricacion } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { useState, useEffect } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { cprNav } from '@/lib/cpr-nav';
-import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
+import { Factory } from 'lucide-react';
 
-
-type StatusCounts = {
-    Pendiente: number;
-    Asignada: number;
-    'En Proceso': number;
-    Finalizado: number;
-    Incidencia: number;
-    Validado: number;
-    [key: string]: number;
+const workflowSections = {
+  planificar: {
+    title: '1. Planificar',
+    description: '¿Qué tenemos que producir?',
+    modules: ['Planificación y OFs', 'Solicitudes de Personal']
+  },
+  ejecutar: {
+    title: '2. Ejecutar',
+    description: 'Manos a la obra.',
+    modules: ['Taller de Producción', 'Picking y Logística', 'Control de Calidad']
+  },
+  analizar: {
+    title: '3. Analizar y Supervisar',
+    description: '¿Cómo vamos y qué ha pasado?',
+    modules: ['Stock Elaboraciones', 'Productividad', 'Informe de Picking', 'Trazabilidad', 'Incidencias']
+  }
 };
 
+function WorkflowSection({ title, description, modules }: { title: string, description: string, modules: typeof cprNav }) {
+    if (modules.length === 0) return null;
+    return (
+        <div className="space-y-4">
+             <div>
+                <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
+                <p className="text-sm text-muted-foreground">{description}</p>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {modules.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                        <Link href={item.href} key={item.href}>
+                            <Card className="hover:bg-accent transition-colors h-full">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-3 text-base">
+                                        <Icon className="h-5 w-5" />
+                                        {item.title}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-xs text-muted-foreground">{item.description}</p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
 export default function CprDashboardPage() {
-    const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        let storedData = localStorage.getItem('ordenesFabricacion');
-        if (storedData) {
-            setOrdenes(JSON.parse(storedData));
-        }
         setIsMounted(true);
     }, []);
-
-    const statusCounts = useMemo(() => {
-        const counts: StatusCounts = {
-            'Pendiente': 0,
-            'Asignada': 0,
-            'En Proceso': 0,
-            'Finalizado': 0,
-            'Incidencia': 0,
-            'Validado': 0,
-        };
-        ordenes.forEach(of => {
-            counts[of.estado]++;
-        });
-        return counts;
-    }, [ordenes]);
-    
-    const lotesPendientesCalidad = useMemo(() => {
-        return ordenes.filter(of => of.estado === 'Finalizado' && !of.okCalidad && !of.incidencia).length;
-    }, [ordenes]);
-
-    const statsCards = [
-        { title: 'OF Pendientes', value: statusCounts.Pendiente, icon: Factory, color: 'text-gray-500', href: '/cpr/of' },
-        { title: 'OF En Proceso', value: statusCounts['En Proceso'], icon: Factory, color: 'text-blue-500', href: '/cpr/of' },
-        { title: 'Pendiente Calidad', value: lotesPendientesCalidad, icon: CheckCircle, color: 'text-yellow-500', href: '/cpr/calidad' },
-        { title: 'Incidencias', value: statusCounts.Incidencia, icon: AlertTriangle, color: 'text-red-500', href: '/cpr/incidencias' },
-    ];
-
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Panel de control de Producción..." />;
     }
 
     return (
-        <div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-                {statsCards.map(card => (
-                    <Link href={card.href} key={card.title}>
-                        <Card className="hover:bg-accent transition-colors">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-                            <card.icon className={cn("h-4 w-4", card.color)} />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{card.value}</div>
-                        </CardContent>
-                        </Card>
-                    </Link>
-                ))}
+        <main>
+             <div className="flex items-center gap-4 mb-8">
+                <Factory className="w-10 h-10 text-primary" />
+                <div>
+                    <h1 className="text-4xl font-headline font-bold tracking-tight">Panel de Producción</h1>
+                    <p className="text-lg text-muted-foreground mt-1">Visión general del flujo de trabajo en el Centro de Producción.</p>
+                </div>
             </div>
-
-             <Card>
-                <CardHeader>
-                    <CardTitle>Módulos de Producción</CardTitle>
-                    <CardDescription>Accesos directos a las principales funcionalidades del CPR.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                     {cprNav.filter(item => item.href !== '/cpr/dashboard').map((item) => (
-                        <Link href={item.href} key={item.href}>
-                            <div className="p-4 border rounded-lg hover:bg-accent transition-colors h-full">
-                                <item.icon className="h-6 w-6 mb-2 text-primary" />
-                                <h3 className="font-semibold">{item.title}</h3>
-                                <p className="text-sm text-muted-foreground">{item.description}</p>
-                            </div>
-                        </Link>
-                    ))}
-                </CardContent>
-            </Card>
-
-        </div>
+            <div className="space-y-8">
+                <WorkflowSection 
+                    title={workflowSections.planificar.title}
+                    description={workflowSections.planificar.description}
+                    modules={cprNav.filter(item => workflowSections.planificar.modules.includes(item.title))}
+                />
+                <Separator />
+                 <WorkflowSection 
+                    title={workflowSections.ejecutar.title}
+                    description={workflowSections.ejecutar.description}
+                    modules={cprNav.filter(item => workflowSections.ejecutar.modules.includes(item.title))}
+                />
+                <Separator />
+                <WorkflowSection 
+                    title={workflowSections.analizar.title}
+                    description={workflowSections.analizar.description}
+                    modules={cprNav.filter(item => workflowSections.analizar.modules.includes(item.title))}
+                />
+            </div>
+        </main>
     );
 }
