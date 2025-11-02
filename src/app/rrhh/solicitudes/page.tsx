@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Trash2 } from 'lucide-react';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,10 +22,10 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -75,7 +75,7 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
                         Gestionar Solicitud
                         <Badge variant={statusVariant[solicitud.estado]}>{solicitud.estado}</Badge>
                     </DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription asChild>
                         <div className="text-sm space-y-1 pt-2">
                             <div><strong>Origen:</strong> <Badge variant="secondary">{solicitud.osNumber}</Badge></div>
                             <p><strong>Fecha:</strong> {format(new Date(solicitud.fechaServicio), 'PPP', {locale: es})}</p>
@@ -362,4 +362,3 @@ export default function SolicitudesUnificadasPage() {
     </>
   );
 }
-```
