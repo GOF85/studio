@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
@@ -167,7 +166,7 @@ function PersonalExternoPageContent() {
             </SelectContent>
         </Select>
           <div className="flex-grow flex justify-end gap-2">
-            <Button onClick={() => router.push('/bd/personal-externo/nuevo')}>
+            <Button onClick={() => router.push('/bd/personal-externo-db/nuevo')}>
                 <PlusCircle className="mr-2" />
                 Nuevo
             </Button>
@@ -201,7 +200,7 @@ function PersonalExternoPageContent() {
           <TableBody>
             {filteredItems.length > 0 ? (
               filteredItems.map(item => (
-                <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/personal-externo/${item.id}`)}>
+                <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/personal-externo-db/${item.id}`)}>
                   <TableCell className="font-medium">{item.nombreCompleto}</TableCell>
                   <TableCell>{item.id}</TableCell>
                   <TableCell>{proveedoresMap.get(item.proveedorId) || 'Desconocido'}</TableCell>
@@ -215,7 +214,7 @@ function PersonalExternoPageContent() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/bd/personal-externo/${item.id}`)}>
+                        <DropdownMenuItem onClick={() => router.push(`/bd/personal-externo-db/${item.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id)}}>
