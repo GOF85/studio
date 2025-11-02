@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -55,6 +54,9 @@ export default function SolicitudesCprPage() {
 
   const { toast } = useToast();
   const router = useRouter();
+  
+  const proveedoresMap = useMemo(() => new Map(proveedores.map(p => [p.id, p.nombreComercial])), [proveedores]);
+
 
   useEffect(() => {
     const storedSolicitudes = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
@@ -67,8 +69,6 @@ export default function SolicitudesCprPage() {
     setTiposPersonal(storedTiposPersonal);
     setIsMounted(true);
   }, []);
-  
-  const proveedoresMap = useMemo(() => new Map(proveedores.map(p => [p.id, p.nombreComercial])), [proveedores]);
 
   useEffect(() => {
     if (solicitudToManage) {
@@ -221,7 +221,7 @@ export default function SolicitudesCprPage() {
   return (
     <div>
         <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Factory />Solicitudes de Personal (CPR)</h1>
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Solicitudes de Personal (CPR)</h1>
             <Button onClick={() => router.push('/cpr/solicitud-personal/nueva')}>
                 <PlusCircle className="mr-2" /> Nueva Solicitud
             </Button>
@@ -301,7 +301,7 @@ export default function SolicitudesCprPage() {
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>{s.motivo}</TableCell>
-                             <TableCell>{proveedoresMap.get(s.proveedorId || '') || '-'}</TableCell>
+                            <TableCell>{proveedoresMap.get(s.proveedorId || '') || '-'}</TableCell>
                             <TableCell className="text-right font-mono">{formatCurrency(s.costeImputado || 0)}</TableCell>
                             <TableCell className="text-right"><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
                         </TableRow>
@@ -329,7 +329,7 @@ export default function SolicitudesCprPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-x-4">
                                 <div><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</div>
-                                <div className="flex items-center gap-2"><strong>Partida:</strong><Badge variant="outline">{solicitudToManage.partida}</Badge></div>
+                                <div><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></div>
                             </div>
                             <div className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</div>
                         </div>
