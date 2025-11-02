@@ -478,7 +478,7 @@ export default function PartnerPersonalPortalPage() {
                                                                                         {turno.asignaciones[0].nombre}
                                                                                     </Button>
                                                                                 ) : (
-                                                                                    <Button variant="default" size="sm">
+                                                                                    <Button variant="default" size="sm" disabled={isReadOnly}>
                                                                                         Gestionar
                                                                                     </Button>
                                                                                 )}
@@ -578,114 +578,22 @@ export default function PartnerPersonalPortalPage() {
 }
 
 ```
-- src/hooks/use-auth-guard.ts:
-```ts
+- src/app/rrhh/solicitudes-cpr/[id]/page.tsx:
+```tsx
+
 'use client';
-import { useEffect } from 'react';
+
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
-export function useAuthGuard(allowedRoles: string[]) {
-  const router = useRouter();
-
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Auth guard is disabled in development mode.");
-      return;
-    }
-
-    const storedUser = localStorage.getItem('impersonatedUser');
-    if (!storedUser) {
-      router.push('/login');
-      return;
-    }
-
-    try {
-      const user = JSON.parse(storedUser);
-      const userRoles = user?.roles || [];
-      const hasAccess = userRoles.some((role: string) => allowedRoles.includes(role));
-
-      if (!hasAccess) {
-        router.push('/unauthorized');
-      }
-    } catch (error) {
-      router.push('/login');
-    }
-  }, [router, allowedRoles]);
+// This page just redirects to the unified requests page.
+export default function SolicitudCprIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/rrhh/solicitudes');
+    }, [router, params.id]);
+    return null;
 }
-
-```
-- src/hooks/use-local-storage.ts:
-```ts
-
-'use client';
-
-import { useState, useEffect, useCallback } from 'react';
-
-export function useLocalStorage<T>(key: string, initialValue: T) {
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    if (typeof window === 'undefined') {
-      return initialValue;
-    }
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.error(error);
-      return initialValue;
-    }
-  });
-
-  const setValue = useCallback((value: T | ((val: T) => T)) => {
-    try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore));
-        window.dispatchEvent(new StorageEvent('storage', { key }));
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  }, [key, storedValue]);
-
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-        if (e.key === key) {
-            try {
-                const item = window.localStorage.getItem(key);
-                setStoredValue(item ? JSON.parse(item) : initialValue);
-            } catch (error) {
-                console.error(error);
-            }
-        }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [key, initialValue]);
-
-
-  return [storedValue, setValue] as const;
-}
-
-```
-- src/lib/fonts.ts:
-```ts
-
-import { Open_Sans, Roboto } from 'next/font/google';
-
-export const openSans = Open_Sans({
-  subsets: ['latin'],
-  variable: '--font-headline',
-});
-
-export const roboto = Roboto({
-  weight: ['400', '500', '700'],
-  style: ['normal', 'italic'],
-  subsets: ['latin'],
-  variable: '--font-body',
-});
 
 ```
 ```
