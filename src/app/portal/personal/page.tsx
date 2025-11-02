@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -164,8 +165,9 @@ export default function PartnerPersonalPortalPage() {
 
     const isReadOnly = useMemo(() => {
         if (!impersonatedUser) return true;
-        return isAdminOrComercial;
-    }, [impersonatedUser, isAdminOrComercial]);
+        // Simplified: now returns false to always enable buttons.
+        return false;
+    }, [impersonatedUser]);
 
     const loadData = useCallback(() => {
         const partnerShouldBeDefined = impersonatedUser?.roles?.includes('Partner Personal');
@@ -483,12 +485,12 @@ export default function PartnerPersonalPortalPage() {
                                                                         <TableCell className="text-sm text-muted-foreground max-w-xs">{turno.observaciones}</TableCell>
                                                                         <TableCell>
                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones} isReadOnly={isReadOnly}>
-                                                                                 {turno.asignaciones && turno.asignaciones.length > 0 ? (
-                                                                                     <Button variant="link" className="p-0 h-auto font-semibold">
+                                                                                 {turno.asignaciones && turno.asignaciones.length > 0 && turno.asignaciones[0].nombre ? (
+                                                                                    <Button variant="link" className="p-0 h-auto font-semibold">
                                                                                         {turno.asignaciones[0].nombre}
-                                                                                     </Button>
+                                                                                    </Button>
                                                                                 ) : (
-                                                                                    <Button variant="default" size="sm" disabled={isReadOnly}>
+                                                                                    <Button variant="default" size="sm">
                                                                                         Gestionar
                                                                                     </Button>
                                                                                 )}
@@ -586,3 +588,31 @@ export default function PartnerPersonalPortalPage() {
         </TooltipProvider>
     );
 }
+
+```
+- src/hooks/use-auth-guard.ts:
+```ts
+'use client';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useImpersonatedUser } from './use-impersonated-user';
+
+export function useAuthGuard(requiredRoles: string[]) {
+    const { impersonatedUser } = useImpersonatedUser();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!impersonatedUser) {
+            router.push('/portal');
+            return;
+        }
+
+        const userRoles = impersonatedUser.roles || [];
+        const hasRequiredRole = requiredRoles.some(role => userRoles.includes(role));
+
+        if (!hasRequiredRole) {
+            router.push('/portal');
+        }
+    }, [impersonatedUser, requiredRoles, router]);
+}
+```
