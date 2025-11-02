@@ -554,7 +554,7 @@ export default function PortalPersonalPage() {
                     </div>
                 </TabsContent>
             </Tabs>
-        </main>
+         </main>
 
         <Dialog open={!!dayDetails} onOpenChange={(open) => !open && setDayDetails(null)}>
             <DialogContent className="max-w-lg">
@@ -579,4 +579,3 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
-```
