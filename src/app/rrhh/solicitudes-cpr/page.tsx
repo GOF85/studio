@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -206,6 +206,11 @@ export default function SolicitudesCprPage() {
         setIsDatePickerOpen(false);
     };
 
+  const uniqueProveedores = useMemo(() => {
+    const ettIds = new Set(solicitudes.map(p => p.proveedorId).filter(Boolean));
+    return proveedores.filter(p => ettIds.has(p.id));
+  }, [solicitudes, proveedores]);
+
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
@@ -229,7 +234,7 @@ export default function SolicitudesCprPage() {
         />
         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
-                <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
                 </Button>
@@ -259,13 +264,13 @@ export default function SolicitudesCprPage() {
             <SelectTrigger className="w-[240px]"><SelectValue placeholder="Filtrar por ETT"/></SelectTrigger>
             <SelectContent>
                 <SelectItem value="all">Todos los Proveedores</SelectItem>
-                {proveedores.map(p => (
+                {uniqueProveedores.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
                 ))}
             </SelectContent>
         </Select>
       </div>
-      <div className="flex items-center justify-between mb-4">
+       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
             <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
             <Label htmlFor="show-past" className="text-sm font-medium">Mostrar pasados</Label>
@@ -328,9 +333,7 @@ export default function SolicitudesCprPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-x-4">
                                 <div><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</div>
-                                <div>
-                                  <div className="flex items-center gap-2"><strong>Partida:</strong><Badge variant="outline">{solicitudToManage.partida}</Badge></div>
-                                </div>
+                                <div className="flex items-center gap-2"><strong>Partida:</strong><Badge variant="outline">{solicitudToManage.partida}</Badge></div>
                             </div>
                             <div className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</div>
                         </div>
@@ -419,3 +422,5 @@ export default function SolicitudesCprPage() {
     </div>
   )
 }
+
+    
