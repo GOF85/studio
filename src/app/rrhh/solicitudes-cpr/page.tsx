@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { formatCurrency } from '@/lib/utils';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   'Pendiente': 'secondary',
@@ -263,20 +264,22 @@ export default function SolicitudesCprPage() {
         <DialogContent className="max-w-xl">
             <DialogHeader>
                 <DialogTitle>Gestionar Solicitud</DialogTitle>
+                 {solicitudToManage && (
+                    <DialogDescription asChild>
+                        <div className="text-sm space-y-1 border-b pb-4 pt-2">
+                            <div className="grid grid-cols-2 gap-x-4">
+                                <p><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</p>
+                                <p><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4">
+                                <p><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</p>
+                                <p><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></p>
+                            </div>
+                            <p className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</p>
+                        </div>
+                    </DialogDescription>
+                 )}
             </DialogHeader>
-            {solicitudToManage && (
-                 <div className="text-sm space-y-2 border-b pb-4">
-                    <div className="grid grid-cols-2 gap-x-4">
-                        <p><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</p>
-                        <p><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</p>
-                    </div>
-                     <div className="grid grid-cols-2 gap-x-4">
-                        <p><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</p>
-                        <p><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></p>
-                     </div>
-                    <p className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</p>
-                </div>
-            )}
             <div className="py-4 space-y-4">
                 {solicitudToManage?.estado === 'Solicitada Cancelacion' ? (
                     <div className="text-center">
