@@ -10,6 +10,7 @@ import { cprNav } from '@/lib/cpr-nav';
 import { Separator } from '@/components/ui/separator';
 import { Factory, AlertTriangle, List, Clock, CheckCircle } from 'lucide-react';
 import { isToday, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const workflowSections = {
   planificar: {
