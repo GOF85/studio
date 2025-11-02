@@ -9,7 +9,7 @@ import { es } from 'date-fns/locale';
 
 import type { SolicitudPersonalCPR, Personal, Proveedor, CategoriaPersonal } from '@/types';
 import { Button } from '@/components/ui/button';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -113,8 +113,21 @@ export default function SolicitudesCprPage() {
   }
 
   const handleGuardarAsignacion = () => {
-    if (!solicitudToManage || !selectedProvider || !selectedCategoria) return;
-    
+    if (!solicitudToManage) return;
+
+    if (!selectedProvider || !selectedCategoria) {
+        const updated = updateSolicitud(solicitudToManage.id, { 
+            proveedorId: undefined, 
+            costeImputado: undefined,
+            estado: 'Aprobada'
+        });
+        if(updated) {
+            setSolicitudToManage(updated);
+            toast({ title: 'Asignación eliminada', description: `Se ha quitado el proveedor de la solicitud.` });
+        }
+        return;
+    }
+
     const tarifa = tiposPersonal.find(t => t.id === selectedCategoria);
 
     if (!tarifa) {
@@ -136,12 +149,12 @@ export default function SolicitudesCprPage() {
         setSolicitudToManage(updated);
         toast({ title: 'Proveedor Asignado', description: `Se ha asignado el proveedor y calculado el coste para la solicitud.` });
     }
-    setSolicitudToManage(null);
   }
   
-  const handleDeleteRequest = (solicitudId: string) => {
+  const handleDeleteRequest = () => {
+    if (!solicitudToManage) return;
     let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-    const updatedRequests = allRequests.filter(r => r.id !== solicitudId);
+    const updatedRequests = allRequests.filter(r => r.id !== solicitudToManage.id);
     localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updatedRequests));
     setSolicitudes(updatedRequests);
     toast({ title: 'Solicitud Eliminada' });
@@ -160,9 +173,9 @@ export default function SolicitudesCprPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Factory />Solicitudes de Personal (CPR)</h1>
-      </div>
+        <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Factory />Solicitudes de Personal (CPR)</h1>
+        </div>
 
        <div className="flex gap-4 mb-4">
         <Input 
@@ -211,32 +224,32 @@ export default function SolicitudesCprPage() {
                         <TableHead>Partida</TableHead>
                         <TableHead>Categoría Solicitada</TableHead>
                         <TableHead>Estado</TableHead>
-                        <TableHead>Proveedor Asignado</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
+                        <TableHead>Proveedor - Categoría Asignada</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => (
-                        <TableRow key={s.id}>
+                    {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => {
+                        const canManage = s.estado !== 'Solicitada Cancelacion';
+                        return (
+                        <TableRow key={s.id} onClick={() => canManage && setSolicitudToManage(s)} className={canManage ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}>
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
                             <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
-                            <TableCell>{proveedores.find(p => p.id === s.proveedorId)?.nombreComercial || '-'}</TableCell>
-                            <TableCell className="text-right">
-                                {s.estado === 'Solicitada Cancelacion' ? (
-                                    <Button size="sm" variant="destructive" onClick={() => handleDeleteRequest(s.id)}>
-                                        <Trash2 className="mr-2"/> Confirmar Cancelación
-                                    </Button>
-                                ) : (
-                                    <Button size="sm" onClick={() => setSolicitudToManage(s)}><Users className="mr-2"/>Gestionar</Button>
-                                )}
+                            <TableCell>
+                                {s.estado === 'Asignada' ? (
+                                    <span>
+                                        {proveedores.find(p => p.id === s.proveedorId)?.nombreComercial || 'Desconocido'} - <strong>{s.categoria}</strong>
+                                    </span>
+                                ) : s.estado === 'Solicitada Cancelacion' ? (
+                                    <Button size="sm" variant="destructive" onClick={(e) => { e.stopPropagation(); setSolicitudToManage(s); }}><Trash2 className="mr-2"/>Confirmar Cancelación</Button>
+                                ) : '-'}
                             </TableCell>
                         </TableRow>
-                    )) : (
+                    )}) : (
                         <TableRow>
-                            <TableCell colSpan={8} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
+                            <TableCell colSpan={6} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -253,53 +266,64 @@ export default function SolicitudesCprPage() {
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
-                <div>
-                    <h4 className="font-semibold">Estado</h4>
-                     <div className="flex gap-2 mt-2">
-                        <Button variant={solicitudToManage?.estado === 'Aprobada' ? 'default' : 'outline'} size="sm" onClick={() => handleUpdateStatus(solicitudToManage!, 'Aprobada')}>Aprobar</Button>
-                        <Button variant={solicitudToManage?.estado === 'Rechazada' ? 'destructive' : 'outline'} size="sm" onClick={() => handleUpdateStatus(solicitudToManage!, 'Rechazada')}>Rechazar</Button>
+                {solicitudToManage?.estado === 'Solicitada Cancelacion' ? (
+                    <div className="text-center">
+                        <p className="mb-4">El solicitante ha pedido cancelar esta asignación. ¿Confirmas la cancelación?</p>
+                        <Button variant="destructive" onClick={handleDeleteRequest}>Sí, Cancelar Asignación</Button>
                     </div>
-                </div>
-                 <div className="space-y-4">
-                    <h4 className="font-semibold">Asignar Proveedor</h4>
-                     <div className="space-y-2">
-                        <Label>Proveedor (ETT)</Label>
-                        <Select value={selectedProvider} onValueChange={setSelectedProvider}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecciona un proveedor..."/>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {proveedores.map(p => (
-                                    <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                ) : (
+                <>
+                    <div>
+                        <h4 className="font-semibold">Estado</h4>
+                         <div className="flex gap-2 mt-2">
+                            <Button variant={solicitudToManage?.estado === 'Aprobada' ? 'default' : 'outline'} size="sm" onClick={() => handleUpdateStatus(solicitudToManage!, 'Aprobada')}>Aprobar</Button>
+                            <Button variant={solicitudToManage?.estado === 'Rechazada' ? 'destructive' : 'outline'} size="sm" onClick={() => handleUpdateStatus(solicitudToManage!, 'Rechazada')}>Rechazar</Button>
+                        </div>
                     </div>
-                    {selectedProvider && (
-                        <div className="space-y-2">
-                            <Label>Categoría Profesional del Proveedor</Label>
-                            <Select value={selectedCategoria} onValueChange={setSelectedCategoria}>
+                     <div className="space-y-4">
+                        <h4 className="font-semibold">Asignar Proveedor</h4>
+                         <div className="space-y-2">
+                            <Label>Proveedor (ETT)</Label>
+                            <Select value={selectedProvider} onValueChange={setSelectedProvider}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona una categoría..."/>
+                                    <SelectValue placeholder="Selecciona un proveedor..."/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {categoriasDelProveedor.length > 0 ? (
-                                        categoriasDelProveedor.map(c => (
-                                        <SelectItem key={c.id} value={c.id}>{c.categoria}</SelectItem>
-                                    ))
-                                    ) : (
-                                        <div className="text-center text-sm text-muted-foreground p-4">No hay categorías para este proveedor.</div>
-                                    )}
+                                    {proveedores.map(p => (
+                                        <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
-                    )}
-                </div>
+                        {selectedProvider && (
+                            <div className="space-y-2">
+                                <Label>Categoría Profesional del Proveedor</Label>
+                                <Select value={selectedCategoria} onValueChange={setSelectedCategoria}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona una categoría..."/>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categoriasDelProveedor.length > 0 ? (
+                                            categoriasDelProveedor.map(c => (
+                                            <SelectItem key={c.id} value={c.id}>{c.categoria}</SelectItem>
+                                        ))
+                                        ) : (
+                                            <div className="text-center text-sm text-muted-foreground p-4">No hay categorías para este proveedor.</div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </div>
+                </>
+                )}
             </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="secondary">Cerrar</Button></DialogClose>
-                <Button onClick={handleGuardarAsignacion} disabled={!selectedProvider || !selectedCategoria}>Guardar Asignación</Button>
-            </DialogFooter>
+            {solicitudToManage?.estado !== 'Solicitada Cancelacion' && (
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="secondary">Cerrar</Button></DialogClose>
+                    <Button onClick={handleGuardarAsignacion} disabled={!selectedProvider || !selectedCategoria}>Guardar Asignación</Button>
+                </DialogFooter>
+            )}
         </DialogContent>
       </Dialog>
     </div>
