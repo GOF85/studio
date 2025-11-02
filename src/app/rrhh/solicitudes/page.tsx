@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, Send, Briefcase, Factory, MapPin, Clock } from 'lucide-react';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, Send, Briefcase, Factory, MapPin, Clock, Phone } from 'lucide-react';
 import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -58,8 +59,12 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
     if (!solicitud) return null;
 
     const isCpr = solicitud.isCprRequest;
-    const canManageCpr = isCpr && solicitud.estado === 'Pendiente';
-    const canDelete = isCpr && ['Pendiente', 'Rechazada'].includes(solicitud.estado);
+    
+    // Corrected Logic: If it's a CPR request, approved, and has a provider, it's 'Asignada'.
+    const displayStatus = (isCpr && solicitud.estado === 'Aprobada' && solicitud.proveedorId) ? 'Asignada' : solicitud.estado;
+    
+    const canManageCpr = isCpr && displayStatus === 'Pendiente';
+    const canDelete = isCpr && ['Pendiente', 'Rechazada'].includes(displayStatus);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -68,14 +73,16 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
                     <DialogTitle className="flex justify-between items-center">
                         Gestionar Solicitud
                     </DialogTitle>
-                    <div className="flex items-center gap-2 pt-2">
-                        <strong className="text-sm">Origen:</strong>
-                        <Badge variant={isCpr ? "default" : "secondary"} className={cn(isCpr && "bg-slate-700")}>
+                     <DialogDescription asChild>
+                        <div className="flex items-center gap-2 pt-2">
+                          <strong>Origen:</strong>
+                          <Badge variant={isCpr ? "default" : "secondary"} className={cn(isCpr && "bg-slate-700")}>
                             {isCpr ? <Factory className="mr-2 h-4 w-4"/> : <Briefcase className="mr-2 h-4 w-4"/>}
                             {solicitud.osNumber}
-                        </Badge>
-                        <Badge variant={statusVariant[solicitud.estado]}>{solicitud.estado}</Badge>
-                    </div>
+                          </Badge>
+                          <Badge variant={statusVariant[displayStatus]}>{displayStatus}</Badge>
+                        </div>
+                    </DialogDescription>
                 </DialogHeader>
 
                  <div className="py-4 space-y-3">
@@ -121,14 +128,14 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
 }
 
 export default function SolicitudesUnificadasPage() {
-  const [requests, setRequests] = useState<UnifiedRequest[]>([]);
+  const [solicitudes, setSolicitudes] = useState<UnifiedRequest[]>([]);
+  const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [showPastEvents, setShowPastEvents] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [solicitudToManage, setSolicitudToManage] = useState<UnifiedRequest | null>(null);
 
   const router = useRouter();
@@ -179,7 +186,7 @@ export default function SolicitudesUnificadasPage() {
         isCprRequest: true,
     }));
     
-    setRequests([...cateringRequests, ...cprRequests]);
+    setSolicitudes([...cateringRequests, ...cprRequests]);
     setIsMounted(true);
   }, []);
 
@@ -190,7 +197,7 @@ export default function SolicitudesUnificadasPage() {
 
   const filteredRequests = useMemo(() => {
     const today = startOfToday();
-    return requests.filter(p => {
+    return solicitudes.filter(p => {
       const searchMatch = 
         p.osNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -219,7 +226,7 @@ export default function SolicitudesUnificadasPage() {
 
       return searchMatch && dateMatch && pastEventMatch && statusMatch;
     }).sort((a, b) => new Date(b.fechaServicio).getTime() - new Date(a.fechaServicio).getTime());
-  }, [requests, searchTerm, dateRange, showPastEvents, statusFilter]);
+  }, [solicitudes, searchTerm, dateRange, showPastEvents, statusFilter]);
   
   const paginatedItems = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -325,10 +332,12 @@ export default function SolicitudesUnificadasPage() {
             </TableHeader>
             <TableBody>
                 {paginatedItems.length > 0 ? (
-                paginatedItems.map(p => (
+                paginatedItems.map(p => {
+                    const displayStatus = (p.isCprRequest && p.estado === 'Aprobada' && p.proveedorId) ? 'Asignada' : p.estado;
+                    return (
                     <TableRow key={p.id} className="cursor-pointer" onClick={() => setSolicitudToManage(p)}>
                         <TableCell className="font-medium">
-                            <Badge variant={p.isCprRequest ? "default" : "outline"}>{p.osNumber}</Badge>
+                            <Badge variant={p.isCprRequest ? "default" : "outline"} className={cn(p.isCprRequest && "bg-slate-700")}>{p.osNumber}</Badge>
                         </TableCell>
                         <TableCell>{p.cliente}</TableCell>
                         <TableCell>{format(new Date(p.fechaServicio), 'dd/MM/yyyy')}</TableCell>
@@ -336,9 +345,9 @@ export default function SolicitudesUnificadasPage() {
                         <TableCell>{p.categoria}</TableCell>
                         <TableCell>{proveedoresMap.get(p.proveedorId || '') || '-'}</TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(p.costeEstimado)}</TableCell>
-                        <TableCell className="text-right"><Badge variant={statusVariant[p.estado]}>{p.estado}</Badge></TableCell>
+                        <TableCell className="text-right"><Badge variant={statusVariant[displayStatus]}>{displayStatus}</Badge></TableCell>
                     </TableRow>
-                ))
+                )})
                 ) : (
                 <TableRow>
                     <TableCell colSpan={8} className="h-24 text-center">
@@ -361,3 +370,4 @@ export default function SolicitudesUnificadasPage() {
     </>
   );
 }
+
