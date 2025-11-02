@@ -60,6 +60,61 @@ const statusVariant: { [key in UnifiedRequest['estado']]: 'success' | 'warning' 
   'Solicitada Cancelacion': 'destructive'
 };
 
+function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, onDeleteRequest, proveedoresMap }: { solicitud: UnifiedRequest | null, isOpen: boolean, onClose: () => void, onUpdateStatus: (isCpr: boolean, id: string, status: UnifiedRequest['estado']) => void, onDeleteRequest: (req: UnifiedRequest) => void, proveedoresMap: Map<string, string> }) {
+    if (!solicitud) return null;
+
+    const isCpr = solicitud.isCprRequest;
+    const canManageCpr = isCpr && solicitud.estado === 'Pendiente';
+    const canDelete = isCpr && ['Pendiente', 'Rechazada'].includes(solicitud.estado);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-lg">
+                <DialogHeader>
+                    <DialogTitle className="flex justify-between items-center">
+                        Gestionar Solicitud
+                        <Badge variant={statusVariant[solicitud.estado]}>{solicitud.estado}</Badge>
+                    </DialogTitle>
+                    <DialogDescription>
+                        <div className="text-sm space-y-1 pt-2">
+                            <div><strong>Origen:</strong> <Badge variant="secondary">{solicitud.osNumber}</Badge></div>
+                            <p><strong>Fecha:</strong> {format(new Date(solicitud.fechaServicio), 'PPP', {locale: es})}</p>
+                            <p><strong>Horario:</strong> {solicitud.horario} ({solicitud.horas.toFixed(2)}h)</p>
+                            <p><strong>Categoría:</strong> {solicitud.categoria}</p>
+                            <p><strong>Coste Estimado:</strong> {formatCurrency(solicitud.costeEstimado)}</p>
+                            <p className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitud.motivo}</p>
+                             {solicitud.proveedorId && <p><strong>Proveedor Asignado:</strong> {proveedoresMap.get(solicitud.proveedorId) || 'N/A'}</p>}
+                        </div>
+                    </DialogDescription>
+                </DialogHeader>
+
+                {canManageCpr && (
+                    <div className="py-4 space-y-4">
+                        <h4 className="font-semibold">Acciones de RRHH (CPR)</h4>
+                        <div className="flex gap-2 mt-2">
+                            <Button variant={'default'} size="sm" onClick={() => onUpdateStatus(true, solicitud.id, 'Aprobada')}>Aprobar</Button>
+                            <Button variant={'destructive'} size="sm" onClick={() => onUpdateStatus(true, solicitud.id, 'Rechazada')}>Rechazar</Button>
+                        </div>
+                    </div>
+                )}
+                
+                {!solicitud.isCprRequest && (
+                    <div className="py-4">
+                        <Button className="w-full" onClick={() => router.push(`/os/${solicitud.osId}/personal-externo`)}>Ir a la gestión del evento</Button>
+                    </div>
+                )}
+
+                {canDelete && (
+                    <div className="pt-4 border-t">
+                        <Button variant="destructive" size="sm" onClick={() => onDeleteRequest(solicitud)}>Eliminar Solicitud</Button>
+                    </div>
+                )}
+
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function SolicitudesUnificadasPage() {
   const [requests, setRequests] = useState<UnifiedRequest[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -70,13 +125,11 @@ export default function SolicitudesUnificadasPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [solicitudToManage, setSolicitudToManage] = useState<UnifiedRequest | null>(null);
-  const [managementAction, setManagementAction] = useState<'delete' | 'cancel' | null>(null);
-  const [confirmationAction, setConfirmationAction] = useState<'Aprobada' | 'Rechazada' | null>(null);
 
   const router = useRouter();
   const { toast } = useToast();
-
-  useEffect(() => {
+  
+  const loadData = useCallback(() => {
     const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas');
     const allPersonalExterno = (JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[]);
     const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]);
@@ -125,6 +178,11 @@ export default function SolicitudesUnificadasPage() {
     setIsMounted(true);
   }, []);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+
   const filteredRequests = useMemo(() => {
     const today = startOfToday();
     return requests.filter(p => {
@@ -165,45 +223,35 @@ export default function SolicitudesUnificadasPage() {
 
   const totalPages = Math.ceil(filteredRequests.length / ITEMS_PER_PAGE);
 
-  const handleRowClick = (req: UnifiedRequest) => {
-    setSolicitudToManage(req);
-  };
-  
-  const handleUpdateCprStatus = (estado: SolicitudPersonalCPR['estado']) => {
-    if (!solicitudToManage) return;
+  const handleUpdateCprStatus = (isCpr: boolean, id: string, status: UnifiedRequest['estado']) => {
+    if (!isCpr) {
+      toast({ variant: 'destructive', title: 'Acción no permitida', description: 'El estado de solicitudes de eventos se gestiona desde la propia OS.' });
+      return;
+    }
     let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-    const index = allRequests.findIndex(r => r.id === solicitudToManage.id);
+    const index = allRequests.findIndex(r => r.id === id);
     if(index > -1) {
-        allRequests[index].estado = estado;
+        allRequests[index].estado = status as EstadoSolicitudPersonalCPR;
         localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
         
-        const updatedRequests = requests.map(r => r.id === solicitudToManage.id ? {...r, estado} : r);
-        setRequests(updatedRequests);
-        setSolicitudToManage(null);
-        setConfirmationAction(null);
+        loadData(); // Recargar todos los datos para reflejar el cambio
+        setSolicitudToManage(null); // Cerrar el modal
         toast({ title: 'Estado actualizado' });
     }
   }
 
-  const handleDeleteRequest = () => {
-    if (!solicitudToManage) return;
-    let allRequests: (SolicitudPersonalCPR | PersonalExterno)[] = [];
-    let storageKey = '';
-    
-    if (solicitudToManage.isCprRequest) {
-        allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-        storageKey = 'solicitudesPersonalCPR';
-    } else {
-        allRequests = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        storageKey = 'personalExterno';
+  const handleDeleteRequest = (req: UnifiedRequest) => {
+    if (!req.isCprRequest) {
+      toast({ variant: 'destructive', title: 'Acción no permitida', description: 'El borrado de turnos de eventos se debe hacer desde la OS.' });
+      return;
     }
-
-    const updated = allRequests.filter((r: any) => r.id !== solicitudToManage.id);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-    setRequests(requests.filter(r => r.id !== solicitudToManage.id));
     
+    let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
+    const updated = allRequests.filter(r => r.id !== req.id);
+    localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updated));
+    
+    loadData();
     setSolicitudToManage(null);
-    setManagementAction(null);
     toast({ title: 'Solicitud eliminada' });
   };
   
@@ -278,7 +326,7 @@ export default function SolicitudesUnificadasPage() {
             <TableBody>
                 {paginatedItems.length > 0 ? (
                 paginatedItems.map(p => (
-                    <TableRow key={p.id} className="cursor-pointer" onClick={() => handleRowClick(p)}>
+                    <TableRow key={p.id} className="cursor-pointer" onClick={() => setSolicitudToManage(p)}>
                         <TableCell className="font-medium">
                             <Badge variant="outline">{p.osNumber}</Badge>
                         </TableCell>
@@ -303,70 +351,15 @@ export default function SolicitudesUnificadasPage() {
         </div>
       </main>
 
-      <Dialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
-        <DialogContent className="max-w-lg">
-            <DialogHeader>
-                <DialogTitle className="flex justify-between items-center">
-                    Gestionar Solicitud
-                    {solicitudToManage && <Badge variant={statusVariant[solicitudToManage.estado]}>{solicitudToManage.estado}</Badge>}
-                </DialogTitle>
-                 {solicitudToManage && (
-                    <DialogDescription asChild>
-                       <div className="text-sm space-y-1 pt-2">
-                            <p><strong>Origen:</strong> <Badge variant="secondary">{solicitudToManage.osNumber}</Badge></p>
-                            <p><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</p>
-                            <p><strong>Horario:</strong> {solicitudToManage.horario}</p>
-                            <p><strong>Categoría:</strong> {solicitudToManage.categoria}</p>
-                            <p className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</p>
-                        </div>
-                    </DialogDescription>
-                 )}
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-                {solicitudToManage?.isCprRequest && solicitudToManage.estado === 'Pendiente' && (
-                    <>
-                        <h4 className="font-semibold">Acciones</h4>
-                        <div className="flex gap-2 mt-2">
-                            <Button variant={'default'} size="sm" onClick={() => setConfirmationAction('Aprobada')}>Aprobar</Button>
-                            <Button variant={'destructive'} size="sm" onClick={() => setConfirmationAction('Rechazada')}>Rechazar</Button>
-                        </div>
-                    </>
-                )}
-                {solicitudToManage && !solicitudToManage.isCprRequest && (
-                    <Button className="w-full" onClick={() => router.push(`/os/${solicitudToManage?.osId}/personal-externo`)}>Ir a la gestión del evento</Button>
-                 )}
-                 {solicitudToManage && ['Asignado', 'Aprobada'].includes(solicitudToManage.estado) && (
-                     <p className="text-sm text-green-600 font-semibold p-4 bg-green-50 rounded-md">Esta solicitud ya está gestionada. Para más detalles, visita el módulo del evento o del CPR.</p>
-                 )}
-            </div>
-            <DialogFooter>
-                 {solicitudToManage?.isCprRequest && <Button variant="destructive" className="mr-auto" onClick={() => setManagementAction('delete')}>Eliminar Solicitud</Button>}
-                <DialogClose asChild><Button variant="secondary">Cerrar</Button></DialogClose>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <AlertDialog open={!!managementAction || !!confirmationAction} onOpenChange={() => { setManagementAction(null); setConfirmationAction(null); }}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    {managementAction === 'delete' && 'Esta acción eliminará la solicitud permanentemente.'}
-                    {managementAction === 'cancel' && 'Se enviará una petición para cancelar esta asignación. ¿Continuar?'}
-                    {confirmationAction && `¿Quieres cambiar el estado de la solicitud a "${confirmationAction}"?`}
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel>No</AlertDialogCancel>
-                <AlertDialogAction onClick={() => {
-                    if (managementAction) handleDeleteRequest();
-                    if (confirmationAction) handleUpdateCprStatus(confirmationAction);
-                }}>Sí, continuar</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <GestionSolicitudDialog
+        solicitud={solicitudToManage}
+        isOpen={!!solicitudToManage}
+        onClose={() => setSolicitudToManage(null)}
+        onUpdateStatus={handleUpdateCprStatus}
+        onDeleteRequest={handleDeleteRequest}
+        proveedoresMap={proveedoresMap}
+      />
     </>
   );
 }
-
 ```
