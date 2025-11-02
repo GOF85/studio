@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, Factory } from 'lucide-react';
-import { format, isSameDay, isBefore, startOfToday, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from 'date-fns';
+import { format, isSameDay, isBefore, startOfToday, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import type { SolicitudPersonalCPR, Personal, Proveedor, CategoriaPersonal } from '@/types';
@@ -21,7 +21,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { formatCurrency, calculateHours } from '@/lib/utils';
+import { formatCurrency, calculateHours, formatNumber } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
@@ -194,16 +194,12 @@ export default function SolicitudesCprPage() {
     return tiposPersonal.filter(t => t.proveedorId === selectedProvider);
   }, [selectedProvider, tiposPersonal]);
   
-  const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
+  const setDatePreset = (preset: 'month' | 'year') => {
         const now = new Date();
         let fromDate, toDate;
         switch(preset) {
             case 'month': fromDate = startOfMonth(now); toDate = endOfMonth(now); break;
             case 'year': fromDate = startOfYear(now); toDate = endOfYear(now); break;
-            case 'q1': fromDate = startOfQuarter(new Date(now.getFullYear(), 0, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 2, 31)); break;
-            case 'q2': fromDate = startOfQuarter(new Date(now.getFullYear(), 3, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 5, 30)); break;
-            case 'q3': fromDate = startOfQuarter(new Date(now.getFullYear(), 6, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 8, 30)); break;
-            case 'q4': fromDate = startOfQuarter(new Date(now.getFullYear(), 9, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 11, 31)); break;
         }
         setDateRange({ from: fromDate, to: toDate });
         setIsDatePickerOpen(false);
@@ -288,6 +284,8 @@ export default function SolicitudesCprPage() {
                     <TableRow>
                         <TableHead>Fecha Servicio</TableHead>
                         <TableHead>Horario</TableHead>
+                        <TableHead>Horas</TableHead>
+                        <TableHead>Partida</TableHead>
                         <TableHead>Categoría</TableHead>
                         <TableHead>Motivo</TableHead>
                         <TableHead>Asignado a</TableHead>
@@ -300,6 +298,8 @@ export default function SolicitudesCprPage() {
                         <TableRow key={s.id} onClick={() => setSolicitudToManage(s)} className="cursor-pointer">
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
+                            <TableCell className="font-semibold">{formatNumber(calculateHours(s.horaInicio, s.horaFin), 2)}h</TableCell>
+                            <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>{s.motivo}</TableCell>
                             <TableCell>{proveedoresMap.get(s.proveedorId || '') || '-'}</TableCell>
@@ -308,7 +308,7 @@ export default function SolicitudesCprPage() {
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
+                            <TableCell colSpan={9} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -340,7 +340,7 @@ export default function SolicitudesCprPage() {
                 {solicitudToManage?.estado === 'Solicitada Cancelacion' ? (
                     <div className="text-center">
                         <p className="mb-4">El solicitante ha pedido cancelar esta asignación. ¿Confirmas la cancelación?</p>
-                        <Button variant="destructive" onClick={handleDeleteRequest}>Sí, Cancelar Asignación</Button>
+                        <Button variant="destructive" onClick={() => {if(solicitudToManage) handleDeleteRequest()}}>Sí, Cancelar Asignación</Button>
                     </div>
                 ) : (
                 <>
@@ -418,5 +418,3 @@ export default function SolicitudesCprPage() {
     </div>
   )
 }
-
-    
