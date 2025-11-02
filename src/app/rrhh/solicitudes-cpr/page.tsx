@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -296,7 +295,7 @@ export default function SolicitudesCprPage() {
                                     <SelectValue placeholder="Selecciona un proveedor..."/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">-- Sin asignar --</SelectItem>
+                                    <SelectItem value="none">-- Sin asignar --</SelectItem>
                                     {proveedores.map(p => (
                                         <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
                                     ))}
