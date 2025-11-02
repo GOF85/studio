@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Briefcase, Building2, Calendar as CalendarIcon, CheckCircle, Clock, Factory, User, Users, ArrowLeft, ChevronLeft, ChevronRight, Edit, MessageSquare, Pencil, PlusCircle, RefreshCw, Send, Trash2, AlertTriangle, Printer, FileText, Upload } from 'lucide-react';
-import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay, add, sub, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
+import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay, add, sub, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -191,6 +191,7 @@ export default function PortalPersonalPage() {
     const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [showCompleted, setShowCompleted] = useState(false);
     const [proveedorNombre, setProveedorNombre] = useState('');
 
@@ -353,7 +354,7 @@ export default function PortalPersonalPage() {
     }, [filteredPedidos, serviceOrders, briefings]);
 
     const eventsByDay = useMemo(() => {
-        const grouped: { [dayKey: string]: UnifiedRequest[] } = {};
+        const grouped: { [dayKey: string]: UnifiedTurno[] } = {};
         pedidos.forEach(p => {
             const turnosSource = 'turnos' in p ? p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO' as const })) : [{ ...p, type: 'CPR' as const }];
             turnosSource.forEach(turno => {
@@ -421,7 +422,7 @@ export default function PortalPersonalPage() {
                 </TabsList>
                 <TabsContent value="lista" className="mt-6">
                      <div className="flex items-center space-x-4 mb-4">
-                        <Popover>
+                        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
                                 <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -429,7 +430,7 @@ export default function PortalPersonalPage() {
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es}/>
                             </PopoverContent>
                         </Popover>
                         <div className="flex items-center space-x-2">
@@ -578,3 +579,4 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
+```
