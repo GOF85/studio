@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Briefcase, Building2, Calendar as CalendarIcon, CheckCircle, Clock, Factory, User, UserCog, Users } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import type { PersonalExterno, PersonalExternoTurno, AsignacionPersonal, ServiceOrder, ComercialBriefing, PersonalExternoDB, PortalUser, Proveedor } from '@/types';
@@ -14,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -226,6 +227,7 @@ export default function PortalPersonalPage() {
             .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
             .map(([date, osData]) => ({ date, osEntries: Object.values(osData) }));
     }, [pedidos, serviceOrders, briefings]);
+
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Portal de Personal..." />;
