@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -271,12 +270,21 @@ export default function PersonalExternoPage() {
 
     const isSolicitudDesactualizada = useMemo(() => {
         if (personalExterno?.status !== 'Solicitado') return false;
-        const currentTurnoIds = new Set(watchedFields?.map(f => f.id));
-        const savedTurnoIds = new Set(personalExterno.turnos.map(t => t.id));
-        if(currentTurnoIds.size !== savedTurnoIds.size) return true;
-        
-        return Array.from(currentTurnoIds).some(id => !savedTurnoIds.has(id));
-    }, [watchedFields, personalExterno]);
+        if (!formState.isDirty) return false;
+
+        const savedTurnos = new Map(personalExterno.turnos.map(t => [t.id, t]));
+        const currentTurnos = getValues('turnos');
+
+        if (savedTurnos.size !== currentTurnos.length) return true;
+
+        return currentTurnos.some(current => {
+            const saved = savedTurnos.get(current.id);
+            if (!saved) return true; // new turn
+            const { asignaciones, requiereActualizacion, ...savedRest } = saved;
+            const { asignaciones: currentAsignaciones, requiereActualizacion: currentReq, ...currentRest } = current;
+            return JSON.stringify(savedRest) !== JSON.stringify(currentRest);
+        });
+    }, [formState.isDirty, personalExterno, getValues]);
     
     const ActionButton = () => {
         if(!personalExterno) return null;
@@ -286,7 +294,7 @@ export default function PersonalExternoPage() {
                 return <Button onClick={() => handleGlobalStatusAction('Solicitado')}><Send className="mr-2"/>Solicitar a ETT</Button>
             case 'Solicitado':
                 if (isSolicitudDesactualizada) {
-                    return <Button onClick={() => handleGlobalStatusAction('Solicitado')}><RefreshCw className="mr-2"/>Notificar Cambios a ETT</Button>
+                    return <Button onClick={handleSubmit(onSubmit)}><RefreshCw className="mr-2"/>Notificar Cambios a ETT</Button>
                 }
                 return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Solicitado</Button>
             case 'Asignado':
@@ -589,7 +597,7 @@ export default function PersonalExternoPage() {
                                                     <FormField control={control} name={`turnos.${index}.tipoServicio`} render={({ field: selectField }) => (
                                                         <FormItem>
                                                             <Select onValueChange={selectField.onChange} value={selectField.value}>
-                                                                <FormControl><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger></FormControl>
+                                                                <FormControl><SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger></FormControl>
                                                                 <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                                                             </Select>
                                                         </FormItem>
@@ -785,7 +793,7 @@ export default function PersonalExternoPage() {
                                                 />
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
-                                            <Input type="number" step="0.01" placeholder="Importe" value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
+                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
                                         )} />
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
@@ -827,4 +835,3 @@ export default function PersonalExternoPage() {
     </>
   );
 }
-
