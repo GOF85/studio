@@ -181,7 +181,6 @@ export default function PartnerPersonalPortalPage() {
             setProveedorNombre(proveedor?.nombreComercial || '');
         }
 
-
         const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
         const allPersonalExterno = (JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[]);
         const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]);
@@ -236,7 +235,6 @@ export default function PartnerPersonalPortalPage() {
                  });
              }
         });
-
         
         setTurnos(partnerTurnos);
         setIsMounted(true);
@@ -460,10 +458,9 @@ export default function PartnerPersonalPortalPage() {
                                                                         <TableCell>{turno.horaEntrada} - {turno.horaSalida}</TableCell>
                                                                         <TableCell className="text-sm text-muted-foreground max-w-xs">{turno.observaciones}</TableCell>
                                                                         <TableCell>
-                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones} isReadOnly={isReadOnly}>
-                                                                                <Button variant="outline" size="sm" disabled={isReadOnly}>
-                                                                                    <Edit className="mr-2 h-3 w-3"/>
-                                                                                    Gestionar
+                                                                            <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones} isReadOnly={isReadOnly}>
+                                                                                <Button variant="outline" size="sm">
+                                                                                    {turno.statusPartner === 'Gestionado' ? 'Ver / Editar' : 'Asignar'}
                                                                                 </Button>
                                                                             </AsignacionDialog>
                                                                         </TableCell>
@@ -559,3 +556,60 @@ export default function PartnerPersonalPortalPage() {
         </TooltipProvider>
     );
 }
+
+```
+- src/hooks/use-auth-guard.ts:
+```ts
+
+'use client';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useImpersonatedUser } from './use-impersonated-user';
+
+export function useAuthGuard(requiredRoles: string[]) {
+    const { impersonatedUser } = useImpersonatedUser();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!impersonatedUser) {
+            // Or redirect to a login page
+            // For now, redirecting to a generic 'unauthorized' page might be an option
+            // Or simply block content without redirection
+            console.log("No user impersonated. Access denied.");
+            return; 
+        }
+
+        const hasRequiredRole = requiredRoles.some(role => impersonatedUser.roles.includes(role as any));
+
+        if (!hasRequiredRole) {
+            // Redirect to an unauthorized page or back to home
+            // router.push('/unauthorized'); 
+            console.log(`User does not have one of the required roles: ${requiredRoles.join(', ')}`);
+        }
+    }, [impersonatedUser, requiredRoles, router]);
+
+    const canAccess = impersonatedUser && requiredRoles.some(role => impersonatedUser.roles.includes(role as any));
+
+    return { canAccess, isLoading: !impersonatedUser };
+}
+
+```
+- src/lib/fonts.ts:
+```ts
+import { Open_Sans, Roboto } from 'next/font/google';
+
+export const openSans = Open_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-headline',
+});
+
+export const roboto = Roboto({
+  weight: ['400', '500'],
+  style: ['normal', 'italic'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-body',
+});
+```
+```
