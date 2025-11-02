@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Building2, User, Clock, MapPin, Phone } from 'lucide-react';
 import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -67,7 +67,7 @@ export default function SolicitudesUnificadasPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
-  const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
+  const [solicitudToManage, setSolicitudToManage] = useState<UnifiedRequest | null>(null);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -162,16 +162,10 @@ export default function SolicitudesUnificadasPage() {
   const totalPages = Math.ceil(filteredRequests.length / ITEMS_PER_PAGE);
 
   const handleRowClick = (req: UnifiedRequest) => {
-    if (req.isCprRequest) {
-      const allSolicitudesCPR = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-      const solicitud = allSolicitudesCPR.find(s => s.id === req.id);
-      if (solicitud) setSolicitudToManage(solicitud);
-    } else {
-      router.push(`/os/${req.osId}/personal-externo`);
-    }
+    setSolicitudToManage(req);
   };
 
-  const handleUpdateCprStatus = (solicitud: SolicitudPersonalCPR, estado: SolicitudPersonalCPR['estado']) => {
+  const handleUpdateCprStatus = (solicitud: UnifiedRequest, estado: SolicitudPersonalCPR['estado']) => {
     let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
     const index = allRequests.findIndex(r => r.id === solicitud.id);
     if(index > -1) {
@@ -294,41 +288,35 @@ export default function SolicitudesUnificadasPage() {
       <Dialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
         <DialogContent className="max-w-lg">
             <DialogHeader>
-                <DialogTitle>Gestionar Solicitud de CPR</DialogTitle>
+                <DialogTitle>Gestionar Solicitud</DialogTitle>
                  {solicitudToManage && (
                     <DialogDescription asChild>
                        <div className="text-sm space-y-1 pt-2">
-                            <div><strong>Solicitado por:</strong> {solicitudToManage.solicitadoPor} ({format(new Date(solicitudToManage.fechaSolicitud), 'dd/MM/yy HH:mm')})</div>
-                            <div className="grid grid-cols-2 gap-x-4">
-                                <div><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</div>
-                                <div><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</div>
-                            </div>
-                            <div><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</div>
+                            <p><strong>Origen:</strong> <Badge variant="secondary">{solicitudToManage.osNumber}</Badge></p>
+                            <div><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</div>
+                            <div><strong>Horario:</strong> {solicitudToManage.horario}</div>
+                            <div><strong>Categoría:</strong> {solicitudToManage.categoria}</div>
                             <div className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</div>
                         </div>
                     </DialogDescription>
                  )}
             </DialogHeader>
             <div className="py-4 space-y-4">
-                {solicitudToManage?.estado === 'Solicitada Cancelacion' ? (
-                    <div className="text-center">
-                        <p className="mb-4">El solicitante ha pedido cancelar esta asignación. ¿Confirmas la cancelación?</p>
-                        <Button variant="destructive" onClick={() => {if(solicitudToManage) { /* Logic to fully cancel */ }}}>Sí, Cancelar Asignación</Button>
-                    </div>
-                ) : (
+                {solicitudToManage?.isCprRequest && (
                 <>
-                    <div>
-                        <h4 className="font-semibold">Actualizar Estado</h4>
-                         <div className="flex gap-2 mt-2">
-                            <Button variant={solicitudToManage?.estado === 'Aprobada' || solicitudToManage?.estado === 'Asignada' ? 'default' : 'outline'} size="sm" onClick={() => handleUpdateCprStatus(solicitudToManage!, 'Aprobada')}>Aprobar</Button>
-                            <Button variant={solicitudToManage?.estado === 'Rechazada' ? 'destructive' : 'outline'} size="sm" onClick={() => handleUpdateCprStatus(solicitudToManage!, 'Rechazada')}>Rechazar</Button>
-                        </div>
+                    <h4 className="font-semibold">Gestión de Estado (CPR)</h4>
+                     <div className="flex gap-2 mt-2">
+                        <Button variant={solicitudToManage?.estado === 'Aprobada' || solicitudToManage?.estado === 'Asignada' ? 'default' : 'outline'} size="sm" onClick={() => handleUpdateCprStatus(solicitudToManage, 'Aprobada')}>Aprobar</Button>
+                        <Button variant={solicitudToManage?.estado === 'Rechazada' ? 'destructive' : 'outline'} size="sm" onClick={() => handleUpdateCprStatus(solicitudToManage, 'Rechazada')}>Rechazar</Button>
                     </div>
                 </>
                 )}
+                 {solicitudToManage && !solicitudToManage.isCprRequest && (
+                    <Button className="w-full" onClick={() => router.push(`/os/${solicitudToManage?.osId}/personal-externo`)}>Ir a la gestión del evento</Button>
+                 )}
             </div>
             <DialogFooter>
-                 <Button variant="destructive" className="mr-auto" onClick={handleDeleteRequest}>Eliminar Solicitud</Button>
+                 {solicitudToManage?.isCprRequest && <Button variant="destructive" className="mr-auto" onClick={handleDeleteRequest}>Eliminar Solicitud</Button>}
                 <DialogClose asChild><Button variant="secondary">Cerrar</Button></DialogClose>
             </DialogFooter>
         </DialogContent>
