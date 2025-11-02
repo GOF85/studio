@@ -100,12 +100,14 @@ function AsignacionDialog({ turno, onSave, isCprRequest }: { turno: PersonalExte
             const initialAsignaciones = 'asignaciones' in turno ? (turno.asignaciones || []) : ('personalAsignado' in turno ? turno.personalAsignado?.map(p => ({ id: p.idPersonal, nombre: p.nombre})) || [] : []);
             setAsignaciones(initialAsignaciones);
             
-            const allPersonalExterno = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as {id: string, nombreCompleto: string}[];
+            const allPersonalExterno = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as {id: string, proveedorId: string, nombreCompleto: string}[];
             const allPersonalInterno = JSON.parse(localStorage.getItem('personal') || '[]') as {id: string, nombre: string, apellidos: string}[];
 
             const combined = isCprRequest
               ? allPersonalInterno.map(p => ({ label: `${p.nombre} ${p.apellidos}`, value: p.nombre, id: p.id }))
-              : allPersonalExterno.map(p => ({ label: p.nombreCompleto, value: p.nombreCompleto, id: p.id }));
+              : allPersonalExterno
+                  .filter(p => p.proveedorId === (turno as PersonalExternoTurno).proveedorId)
+                  .map(p => ({ label: p.nombreCompleto, value: p.nombreCompleto, id: p.id }));
               
             setTrabajadoresDB(combined);
         }
@@ -452,7 +454,7 @@ export default function PortalPersonalPage() {
                                             </div>
                                         </AccordionTrigger>
                                         <AccordionContent>
-                                            <div className="px-4 pb-4 space-y-4">
+                                            <div className="border-t px-4 pb-4 space-y-4">
                                                 {osEntries.map(({ os, briefing, turnos }) => (
                                                     <div key={os.id}>
                                                         <h4 className="font-bold mb-2">
@@ -579,3 +581,949 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
+
+```
+- tailwind.config.ts:
+```ts
+/** @type {import('tailwindcss').Config} */
+import {fontFamily} from 'tailwindcss/defaultTheme';
+
+module.exports = {
+  darkMode: ["class"],
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  prefix: "",
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+       fontFamily: {
+        body: ['var(--font-body)', ...fontFamily.sans],
+        headline: ['var(--font-headline)', ...fontFamily.sans],
+        code: ['monospace'],
+      },
+       typography: (theme) => ({
+        DEFAULT: {
+          css: {
+            h1: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            h2: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            h3: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            '--tw-prose-bullets': theme('colors.primary.DEFAULT'),
+          },
+        },
+      }),
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate"), require('@tailwindcss/typography')],
+}
+
+```
+- src/app/os/personal-mice/[id]/page.tsx:
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function PersonalMiceIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/personal-mice`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/app/os/personal-mice/page.tsx:
+```tsx
+
+
+'use client';
+
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
+import type { PersonalMiceOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, Personal } from '@/types';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { differenceInMinutes, parse, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
+import { Separator } from '@/components/ui/separator';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+
+const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+
+const calculateHours = (start?: string, end?: string) => {
+    if (!start || !end) return 0;
+    try {
+        const startTime = parse(start, 'HH:mm', new Date());
+        const endTime = parse(end, 'HH:mm', new Date());
+        const diff = differenceInMinutes(endTime, startTime);
+        return diff > 0 ? diff / 60 : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
+const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
+
+const personalMiceSchema = z.object({
+  id: z.string(),
+  osId: z.string(),
+  solicitadoPor: z.enum(solicitadoPorOptions),
+  nombre: z.string().min(1, 'El nombre es obligatorio'),
+  dni: z.string().optional().default(''),
+  tipoServicio: z.enum(tipoServicioOptions),
+  horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
+  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+});
+
+const formSchema = z.object({
+    personal: z.array(personalMiceSchema)
+})
+
+type PersonalMiceFormValues = z.infer<typeof formSchema>;
+
+export default function PersonalMiceFormPage() {
+  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [spaceAddress, setSpaceAddress] = useState<string>('');
+  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+  const [personalDB, setPersonalDB] = useState<Personal[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+
+  const router = useRouter();
+  const params = useParams();
+  const osId = params.id as string;
+  const { toast } = useToast();
+
+  const form = useForm<PersonalMiceFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { personal: [] },
+  });
+
+  const { control, setValue } = form;
+
+  const { fields, append, remove, move } = useFieldArray({
+    control,
+    name: "personal",
+  });
+  
+ const handlePersonalChange = useCallback((index: number, name: string) => {
+    if (!name) return;
+    const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
+    if (person) {
+      setValue(`personal.${index}.nombre`, person.nombre, { shouldDirty: true });
+      setValue(`personal.${index}.dni`, person.dni || '', { shouldDirty: true });
+      setValue(`personal.${index}.precioHora`, person.precioHora || 0, { shouldDirty: true });
+    } else {
+       setValue(`personal.${index}.nombre`, name, { shouldDirty: true });
+    }
+  }, [personalDB, setValue]);
+  
+  const watchedFields = useWatch({ control, name: 'personal' });
+
+ const { totalPlanned, totalReal } = useMemo(() => {
+    if (!watchedFields) return { totalPlanned: 0, totalReal: 0 };
+    
+    const totals = watchedFields.reduce((acc, order) => {
+        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
+        acc.planned += plannedHours * (order.precioHora || 0);
+        
+        const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
+        acc.real += realHours * (order.precioHora || 0);
+        
+        return acc;
+    }, { planned: 0, real: 0 });
+
+    return { totalPlanned: totals.planned, totalReal: totals.real };
+  }, [watchedFields]);
+
+  const loadData = useCallback(() => {
+     if (!osId) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
+        router.push('/pes');
+        return;
+    }
+    
+    try {
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const currentOS = allServiceOrders.find(os => os.id === osId);
+        setServiceOrder(currentOS || null);
+
+        if (currentOS?.space) {
+            const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
+            const currentSpace = allEspacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
+            setSpaceAddress(currentSpace?.identificacion.calle || '');
+        }
+
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+        const currentBriefing = allBriefings.find(b => b.osId === osId);
+        setBriefingItems(currentBriefing?.items || []);
+
+        const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
+        const relatedOrders = allOrders.filter(order => order.osId === osId);
+        form.reset({ personal: relatedOrders });
+
+        const dbPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+        setPersonalDB(dbPersonal);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
+    } finally {
+        setIsMounted(true);
+    }
+  }, [osId, router, toast, form]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+
+ const onSubmit = (data: PersonalMiceFormValues) => {
+    setIsLoading(true);
+    if (!osId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
+      setIsLoading(false);
+      return;
+    }
+
+    const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
+    const otherOsOrders = allOrders.filter(o => o.osId !== osId);
+    
+    const currentOsOrders: PersonalMiceOrder[] = data.personal.map(p => ({ ...p, osId }));
+
+    const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
+    localStorage.setItem('personalMiceOrders', JSON.stringify(updatedAllOrders));
+
+    setTimeout(() => {
+        toast({ title: 'Personal MICE guardado', description: 'Todos los cambios han sido guardados.' });
+        setIsLoading(false);
+        form.reset(data); // Resets form with new values, marking it as not dirty
+    }, 500);
+  };
+  
+  const addRow = () => {
+    append({
+        id: Date.now().toString(),
+        osId: osId,
+        solicitadoPor: 'Sala',
+        nombre: '',
+        dni: '',
+        tipoServicio: 'Servicio',
+        horaEntrada: '09:00',
+        horaSalida: '17:00',
+        precioHora: 0,
+        horaEntradaReal: '',
+        horaSalidaReal: '',
+    });
+  }
+  
+  const handleDeleteRow = () => {
+    if (rowToDelete !== null) {
+      remove(rowToDelete);
+      setRowToDelete(null);
+      toast({ title: 'Asignación eliminada' });
+    }
+  };
+
+  const personalOptions = useMemo(() => {
+    return personalDB.map(p => ({ label: p.nombre, value: p.nombre.toLowerCase() }));
+  }, [personalDB]);
+
+  if (!isMounted || !serviceOrder) {
+    return <LoadingSkeleton title="Cargando Módulo de Personal MICE..." />;
+  }
+
+  return (
+    <>
+      <main>
+       <FormProvider {...form}>
+        <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="flex items-start justify-between mb-8">
+                <div>
+                    <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}`)} className="mb-2">
+                        <ArrowLeft className="mr-2" />
+                        Volver a la OS
+                    </Button>
+                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Módulo de Personal MICE</h1>
+                    <div className="text-muted-foreground mt-2 space-y-1">
+                    <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+                    {serviceOrder.space && (
+                        <p className="flex items-center gap-2">
+                        <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
+                        </p>
+                    )}
+                    {serviceOrder.respMetre && (
+                        <p className="flex items-center gap-2">
+                            Resp. Metre: {serviceOrder.respMetre} 
+                            {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
+                        </p>
+                    )}
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Guardar Cambios</span>
+                    </Button>
+                </div>
+            </div>
+            
+             <Accordion type="single" collapsible className="w-full mb-8" >
+                <AccordionItem value="item-1">
+                <Card>
+                    <AccordionTrigger className="p-6">
+                        <h3 className="text-xl font-semibold">Servicios del Evento</h3>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                    <CardContent className="pt-0">
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead className="py-2 px-3">Fecha</TableHead>
+                            <TableHead className="py-2 px-3">Descripción</TableHead>
+                            <TableHead className="py-2 px-3">Asistentes</TableHead>
+                            <TableHead className="py-2 px-3">Duración</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {briefingItems.length > 0 ? briefingItems.map(item => (
+                            <TableRow key={item.id}>
+                                <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                                <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
+                                <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                                <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                            </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                        </Table>
+                    </CardContent>
+                    </AccordionContent>
+                </Card>
+                </AccordionItem>
+            </Accordion>
+
+            <Card>
+                <CardHeader className="flex-row items-center justify-between">
+                    <CardTitle>Personal Asignado</CardTitle>
+                    <Button type="button" onClick={addRow}>
+                        <PlusCircle className="mr-2" />
+                        Añadir Personal
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <div className="border rounded-lg overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="px-2 py-2">Centro Coste</TableHead>
+                                    <TableHead className="px-2 py-2">Nombre</TableHead>
+                                    <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
+                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
+                                    <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
+                                    <TableHead className="text-right px-2 py-2">Acción</TableHead>
+                                </TableRow>
+                                <TableRow>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="border-l px-2 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
+                                    <TableHead className="px-2 py-2 bg-muted/30 w-24">H. Salida</TableHead>
+                                    <TableHead className="border-r px-2 py-2 bg-muted/30 w-20">€/Hora</TableHead>
+                                    <TableHead className="w-24">H. Entrada</TableHead>
+                                    <TableHead className="border-r w-24">H. Salida</TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {fields.length > 0 ? (
+                                fields.map((field, index) => (
+                                    <TableRow key={field.id}>
+                                        <TableCell className="px-2 py-1">
+                                            <FormField
+                                                control={control}
+                                                name={`personal.${index}.centroCoste`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                            <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                            <SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                        </Select>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="px-2 py-1 min-w-40">
+                                            <FormField
+                                                control={control}
+                                                name={`personal.${index}.nombre`}
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <Combobox
+                                                        options={personalOptions}
+                                                        value={field.value}
+                                                        onChange={(value) => handlePersonalChange(index, value)}
+                                                        placeholder="Nombre..."
+                                                    />
+                                                </FormItem>
+                                                )}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="px-2 py-1">
+                                            <FormField
+                                                control={control}
+                                                name={`personal.${index}.tipoServicio`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                            <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                            <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                        </Select>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="border-l px-2 py-1 bg-muted/30">
+                                            <FormField
+                                                control={control}
+                                                name={`personal.${index}.horaEntrada`}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="px-2 py-1 bg-muted/30">
+                                            <FormField
+                                                control={control}
+                                                name={`personal.${index}.horaSalida`}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="border-r px-2 py-1 bg-muted/30">
+                                            <FormField
+                                                control={control}
+                                                name={`personal.${index}.precioHora`}
+                                                render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9"/></FormControl></FormItem>}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="px-2 py-1">
+                                            <FormField
+                                                control={control}
+                                                name={`personal.${index}.horaEntradaReal`}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="border-r px-2 py-1">
+                                            <FormField
+                                                control={control}
+                                                name={`personal.${index}.horaSalidaReal`}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="text-right px-2 py-1">
+                                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                <TableCell colSpan={9} className="h-24 text-center">
+                                    No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
+                                </TableCell>
+                                </TableRow>
+                            )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+                {fields.length > 0 && (
+                    <CardFooter>
+                         <Card className="w-full md:w-1/2 ml-auto">
+                            <CardHeader><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Planificado:</span>
+                                    <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Real:</span>
+                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
+                                </div>
+                                <Separator className="my-2" />
+                                 <div className="flex justify-between font-bold text-base">
+                                    <span>Desviación:</span>
+                                    <span className={totalReal - totalPlanned > 0 ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(totalReal - totalPlanned)}
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </CardFooter>
+                )}
+            </Card>
+        </form>
+       </FormProvider>
+
+        <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará la asignación de personal de la tabla.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={handleDeleteRow}
+                >
+                Eliminar
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+      </main>
+    </>
+  );
+}
+```
+- src/app/os/prueba-menu/[id]/page.tsx:
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function PruebaMenuIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/prueba-menu`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/app/os/transporte/[id]/page.tsx:
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function TransporteIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/transporte`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/components/layout/main-nav.tsx:
+```tsx
+
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu"
+import * as React from 'react';
+import { bookNavLinks } from '@/lib/book-nav';
+import { cprNav } from '@/lib/cpr-nav';
+import { rrhhNav } from '@/lib/rrhh-nav';
+import { ClipboardList, Package } from 'lucide-react';
+
+
+const ListItem = React.forwardRef<
+  React.ElementRef<"a">,
+  React.ComponentPropsWithoutRef<"a">
+>(({ className, title, children, ...props }, ref) => {
+  return (
+    <li>
+      <NavigationMenuLink asChild>
+        <a
+          ref={ref}
+          className={cn(
+            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+            className
+          )}
+          {...props}
+        >
+          <div className="text-sm font-medium leading-none">{title}</div>
+          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+            {children}
+          </p>
+        </a>
+      </NavigationMenuLink>
+    </li>
+  )
+})
+ListItem.displayName = "ListItem"
+
+
+export function MainNav() {
+  const pathname = usePathname();
+
+  return (
+    <div className="mr-4 hidden md:flex">
+      <NavigationMenu>
+        <NavigationMenuList>
+             <NavigationMenuItem>
+                <Link href="/pes" legacyBehavior passHref>
+                    <NavigationMenuLink className={cn(navigationMenuTriggerStyle(), pathname.startsWith('/os') || pathname.startsWith('/pes') ? "bg-accent" : "")}>
+                       <ClipboardList className="mr-2"/> Órdenes de Servicio
+                    </NavigationMenuLink>
+                </Link>
+            </NavigationMenuItem>
+             <NavigationMenuItem>
+                <Link href="/entregas" legacyBehavior passHref>
+                    <NavigationMenuLink className={cn(navigationMenuTriggerStyle(), pathname.startsWith('/entregas') ? "bg-accent" : "")}>
+                       <Package className="mr-2"/> Entregas MICE
+                    </NavigationMenuLink>
+                </Link>
+            </NavigationMenuItem>
+            <NavigationMenuItem>
+                <NavigationMenuTrigger className={cn(pathname.startsWith('/book') && "bg-accent")}>Book Gastronómico</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+                    {bookNavLinks.map((component) => (
+                    <ListItem
+                        key={component.title}
+                        title={component.title}
+                        href={component.path}
+                    >
+                       
+                    </ListItem>
+                    ))}
+                </ul>
+                </NavigationMenuContent>
+            </NavigationMenuItem>
+             <NavigationMenuItem>
+                <NavigationMenuTrigger className={cn(pathname.startsWith('/cpr') && "bg-accent")}>Producción (CPR)</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+                    {cprNav.map((component) => (
+                    <ListItem
+                        key={component.title}
+                        title={component.title}
+                        href={component.href}
+                    >
+                       {component.description}
+                    </ListItem>
+                    ))}
+                </ul>
+                </NavigationMenuContent>
+            </NavigationMenuItem>
+             <NavigationMenuItem>
+                <NavigationMenuTrigger className={cn(pathname.startsWith('/rrhh') && "bg-accent")}>RRHH</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+                    {rrhhNav.map((component) => (
+                    <ListItem
+                        key={component.title}
+                        title={component.title}
+                        href={component.href}
+                    >
+                       {component.description}
+                    </ListItem>
+                    ))}
+                </ul>
+                </NavigationMenuContent>
+            </NavigationMenuItem>
+        </NavigationMenuList>
+        </NavigationMenu>
+    </div>
+  );
+}
+
+```
+- src/lib/book-nav.ts:
+```ts
+
+
+'use client';
+
+import { BarChart3, BookHeart, CheckSquare, ChefHat, Component, Sprout, Shield } from 'lucide-react';
+
+export const bookNavLinks = [
+    { title: 'Panel de Control', path: '/book', icon: BookHeart, exact: true },
+    { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
+    { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
+    { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
+    { title: 'Verificación de Ingredientes', path: '/book/verificacionIngredientes', icon: Shield },
+    { title: 'Revisión Gastronómica', path: '/book/revision-ingredientes', icon: CheckSquare },
+    { title: 'Información de Alérgenos', path: '/book/alergenos', icon: Sprout },
+    { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
+];
+
+```
+- src/components/ui/navigation-menu.tsx:
+```tsx
+"use client"
+
+import * as React from "react"
+import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu"
+import { cva } from "class-variance-authority"
+import { ChevronDown } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+const NavigationMenu = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Root>
+>(({ className, children, ...props }, ref) => (
+  <NavigationMenuPrimitive.Root
+    ref={ref}
+    className={cn(
+      "relative z-10 flex max-w-max flex-1 items-center justify-center",
+      className
+    )}
+    {...props}
+  >
+    {children}
+    <NavigationMenuViewport />
+  </NavigationMenuPrimitive.Root>
+))
+NavigationMenu.displayName = NavigationMenuPrimitive.Root.displayName
+
+const NavigationMenuList = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.List>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.List>
+>(({ className, ...props }, ref) => (
+  <NavigationMenuPrimitive.List
+    ref={ref}
+    className={cn(
+      "group flex flex-1 list-none items-center justify-center space-x-1",
+      className
+    )}
+    {...props}
+  />
+))
+NavigationMenuList.displayName = NavigationMenuPrimitive.List.displayName
+
+const NavigationMenuItem = NavigationMenuPrimitive.Item
+
+const navigationMenuTriggerStyle = cva(
+  "group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50"
+)
+
+const NavigationMenuTrigger = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Trigger>
+>(({ className, children, ...props }, ref) => (
+  <NavigationMenuPrimitive.Trigger
+    ref={ref}
+    className={cn(navigationMenuTriggerStyle(), "group", className)}
+    {...props}
+  >
+    {children}{" "}
+    <ChevronDown
+      className="relative top-[1px] ml-1 h-3 w-3 transition duration-200 group-data-[state=open]:rotate-180"
+      aria-hidden="true"
+    />
+  </NavigationMenuPrimitive.Trigger>
+))
+NavigationMenuTrigger.displayName = NavigationMenuPrimitive.Trigger.displayName
+
+const NavigationMenuContent = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Content>
+>(({ className, ...props }, ref) => (
+  <NavigationMenuPrimitive.Content
+    ref={ref}
+    className={cn(
+      "left-0 top-0 w-full data-[motion^=from-]:animate-in data-[motion^=to-]:animate-out data-[motion^=from-]:fade-in data-[motion^=to-]:fade-out data-[motion=from-end]:slide-in-from-right-52 data-[motion=from-start]:slide-in-from-left-52 data-[motion=to-end]:slide-out-to-right-52 data-[motion=to-start]:slide-out-to-left-52 md:absolute md:w-auto ",
+      className
+    )}
+    {...props}
+  />
+))
+NavigationMenuContent.displayName = NavigationMenuPrimitive.Content.displayName
+
+const NavigationMenuLink = NavigationMenuPrimitive.Link
+
+const NavigationMenuViewport = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.Viewport>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Viewport>
+>(({ className, ...props }, ref) => (
+  <div className={cn("absolute left-0 top-full flex justify-center")}>
+    <NavigationMenuPrimitive.Viewport
+      className={cn(
+        "origin-top-center relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-90 md:w-[var(--radix-navigation-menu-viewport-width)]",
+        className
+      )}
+      ref={ref}
+      {...props}
+    />
+  </div>
+))
+NavigationMenuViewport.displayName =
+  NavigationMenuPrimitive.Viewport.displayName
+
+const NavigationMenuIndicator = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.Indicator>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Indicator>
+>(({ className, ...props }, ref) => (
+  <NavigationMenuPrimitive.Indicator
+    ref={ref}
+    className={cn(
+      "top-full z-[1] flex h-1.5 items-end justify-center overflow-hidden data-[state=visible]:animate-in data-[state=hidden]:animate-out data-[state=hidden]:fade-out data-[state=visible]:fade-in",
+      className
+    )}
+    {...props}
+  >
+    <div className="relative top-[60%] h-2 w-2 rotate-45 rounded-tl-sm bg-border shadow-md" />
+  </NavigationMenuPrimitive.Indicator>
+))
+NavigationMenuIndicator.displayName =
+  NavigationMenuPrimitive.Indicator.displayName
+
+export {
+  navigationMenuTriggerStyle,
+  NavigationMenu,
+  NavigationMenuList,
+  NavigationMenuItem,
+  NavigationMenuContent,
+  NavigationMenuTrigger,
+  NavigationMenuLink,
+  NavigationMenuIndicator,
+  NavigationMenuViewport,
+}
+
+```
+- src/app/os/page.tsx:
+```tsx
+'use client';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// This page just redirects to the main service order overview page.
+export default function OsRedirectPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/pes');
+    }, [router]);
+    return null;
+}
+
+```
