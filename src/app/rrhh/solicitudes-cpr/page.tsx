@@ -86,6 +86,7 @@ export default function SolicitudesCprPage() {
       const searchMatch = searchTerm === '' ||
         s.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.motivo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.partida.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.solicitadoPor.toLowerCase().includes(searchTerm.toLowerCase());
 
       let dateMatch = true;
@@ -416,5 +417,5 @@ export default function SolicitudesCprPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
