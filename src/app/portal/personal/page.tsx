@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatUnit } from '@/lib/utils';
-import type { PersonalExternoTurno, AsignacionPersonal, Entrega, PedidoEntrega, Proveedor, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExternoDB, PersonalExterno } from '@/types';
+import type { PersonalExternoTurno, AsignacionPersonal, Entrega, PedidoEntrega, Proveedor, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExternoDB, PersonalExterno, SolicitudPersonalCPR } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -556,33 +556,5 @@ export default function PartnerPersonalPortalPage() {
         </TooltipProvider>
     );
 }
-
-```
-- src/components/ui/textarea.tsx:
-```tsx
-import * as React from "react"
-
-import { cn } from "@/lib/utils"
-
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
-
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, ...props }, ref) => {
-    return (
-      <textarea
-        className={cn(
-          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Textarea.displayName = "Textarea"
-
-export { Textarea }
 
 ```
