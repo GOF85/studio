@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Save, X, Building2, Trash2 } from 'lucide-react';
-import type { Proveedor } from '@/types';
+import type { Proveedor, PortalUserRole } from '@/types';
 import { TIPO_PROVEEDOR_OPCIONES } from '@/types';
 import { proveedorSchema, type ProveedorFormValues } from '../nuevo/page';
 
@@ -42,6 +42,7 @@ export default function EditarProveedorPage() {
             IdERP: item.IdERP || '',
             iban: item.iban || '',
             formaDePagoHabitual: item.formaDePagoHabitual || '',
+            tipos: item.tipos || [],
         });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el proveedor.' });
