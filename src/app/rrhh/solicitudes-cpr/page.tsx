@@ -83,7 +83,6 @@ export default function SolicitudesCprPage() {
       const searchMatch = searchTerm === '' ||
         s.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.motivo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.partida.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.solicitadoPor.toLowerCase().includes(searchTerm.toLowerCase());
 
       let dateMatch = true;
@@ -216,9 +215,12 @@ export default function SolicitudesCprPage() {
     <div>
         <div className="flex items-center justify-between mb-6">
             <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Factory />Solicitudes de Personal (CPR)</h1>
+            <Button onClick={() => router.push('/cpr/solicitud-personal/nueva')}>
+                <PlusCircle className="mr-2" /> Nueva Solicitud
+            </Button>
         </div>
 
-      <div className="flex gap-4 mb-4">
+      <div className="flex flex-col md:flex-row gap-4 mb-4">
         <Input 
           placeholder="Buscar por motivo, categoría..."
           value={searchTerm}
@@ -233,7 +235,7 @@ export default function SolicitudesCprPage() {
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 flex" align="start">
-                 <div className="p-2 border-r">
+                <div className="p-2 border-r">
                     <div className="flex flex-col gap-1">
                         <Button variant="outline" size="sm" onClick={() => setDatePreset('month')}>Este Mes</Button>
                         <Button variant="outline" size="sm" onClick={() => setDatePreset('year')}>Este Año</Button>
@@ -263,7 +265,7 @@ export default function SolicitudesCprPage() {
             </SelectContent>
         </Select>
       </div>
-       <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
             <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
             <Label htmlFor="show-past" className="text-sm font-medium">Mostrar pasados</Label>
@@ -276,10 +278,10 @@ export default function SolicitudesCprPage() {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Fecha Servicio</TableHead>
-                        <TableHead>Horario</TableHead>
                         <TableHead>Categoría Solicitada</TableHead>
                         <TableHead>Proveedor (ETT) - Categoría Asignada</TableHead>
+                        <TableHead>Fecha Servicio</TableHead>
+                        <TableHead>Horario</TableHead>
                         <TableHead className="text-right">Coste Presupuestado</TableHead>
                         <TableHead className="text-right">Estado</TableHead>
                     </TableRow>
@@ -287,10 +289,8 @@ export default function SolicitudesCprPage() {
                 <TableBody>
                     {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => (
                         <TableRow key={s.id} onClick={() => setSolicitudToManage(s)} className="cursor-pointer">
-                            <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
-                            <TableCell>
+                             <TableCell>
                                 {s.estado === 'Asignada' && s.proveedorId ? (
                                     <div>
                                         <p className="font-semibold">{proveedores.find(p => p.id === s.proveedorId)?.nombreComercial || 'Desconocido'}</p>
@@ -300,6 +300,8 @@ export default function SolicitudesCprPage() {
                                     <Badge variant="destructive">Pendiente RRHH</Badge>
                                 ) : '-'}
                             </TableCell>
+                            <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
                             <TableCell className="text-right font-mono">{formatCurrency(s.costeImputado || 0)}</TableCell>
                             <TableCell className="text-right"><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
                         </TableRow>
@@ -319,14 +321,16 @@ export default function SolicitudesCprPage() {
                 <DialogTitle>Gestionar Solicitud</DialogTitle>
                  {solicitudToManage && (
                     <DialogDescription asChild>
-                        <div className="text-sm space-y-1 border-b pb-4 pt-2">
+                       <div className="text-sm space-y-1 border-b pb-4 pt-2">
                             <div className="grid grid-cols-2 gap-x-4">
                                 <div><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</div>
                                 <div><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</div>
                             </div>
-                             <div className="grid grid-cols-2 gap-x-4">
-                                 <div><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></div>
+                            <div className="grid grid-cols-2 gap-x-4">
                                 <div><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</div>
+                                <div>
+                                  <div className="flex items-center gap-2"><strong>Partida:</strong><Badge variant="outline">{solicitudToManage.partida}</Badge></div>
+                                </div>
                             </div>
                             <div className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</div>
                         </div>
@@ -415,4 +419,3 @@ export default function SolicitudesCprPage() {
     </div>
   )
 }
-```
