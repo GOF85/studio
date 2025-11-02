@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -161,12 +160,6 @@ export default function PartnerPersonalPortalPage() {
         if (!impersonatedUser) return false;
         const roles = impersonatedUser.roles || [];
         return roles.includes('Admin') || roles.includes('Comercial');
-    }, [impersonatedUser]);
-
-    const isReadOnly = useMemo(() => {
-        if (!impersonatedUser) return true;
-        // Simplified: now returns false to always enable buttons.
-        return false;
     }, [impersonatedUser]);
 
     const loadData = useCallback(() => {
@@ -449,7 +442,7 @@ export default function PartnerPersonalPortalPage() {
                     </div>
                     {turnosAgrupadosPorDia.length > 0 ? (
                          <Accordion type="multiple" className="w-full space-y-4">
-                            {turnosAgrupadosPorDia.map(({ date, expediciones, allAccepted, earliestTime }) => (
+                            {turnosAgrupadosPorDia.map(({ date, expediciones, allAccepted }) => (
                                <AccordionItem value={date} key={date} className="border-none">
                                 <Card className={cn(allAccepted && 'bg-green-100/60')}>
                                         <AccordionTrigger className="p-4 hover:no-underline">
@@ -458,8 +451,6 @@ export default function PartnerPersonalPortalPage() {
                                                 <div className="text-left">
                                                     <h3 className="text-xl font-bold capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
                                                     <p className="text-sm text-muted-foreground">{expediciones.flatMap(e => e.turnos).length} turnos requeridos</p>
-                                                </div>
-                                                <div className="flex-grow flex items-center justify-end gap-2 text-sm font-semibold text-primary mr-4">
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
@@ -490,8 +481,8 @@ export default function PartnerPersonalPortalPage() {
                                                                                         {turno.asignaciones[0].nombre}
                                                                                     </Button>
                                                                                 ) : (
-                                                                                    <Button variant="default" size="sm">
-                                                                                        Gestionar
+                                                                                    <Button variant="default" size="sm" disabled={isReadOnly}>
+                                                                                        Asignar
                                                                                     </Button>
                                                                                 )}
                                                                             </AsignacionDialog>
@@ -589,30 +580,70 @@ export default function PartnerPersonalPortalPage() {
     );
 }
 
+    
+
+    
+
 ```
-- src/hooks/use-auth-guard.ts:
-```ts
+- src/app/rrhh/page.tsx:
+```tsx
+
 'use client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useImpersonatedUser } from './use-impersonated-user';
 
-export function useAuthGuard(requiredRoles: string[]) {
-    const { impersonatedUser } = useImpersonatedUser();
-    const router = useRouter();
+import Link from 'next/link';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { rrhhNav } from '@/lib/rrhh-nav';
 
-    useEffect(() => {
-        if (!impersonatedUser) {
-            router.push('/portal');
-            return;
-        }
+export default function RrhhDashboardPage() {
+  return (
+    <main>
+        <div className="mb-12">
+            <h1 className="text-4xl font-headline font-bold tracking-tight">Recursos Humanos</h1>
+            <p className="text-lg text-muted-foreground mt-2">Gestiona las necesidades de personal, las bases de datos de trabajadores y analiza la productividad.</p>
+        </div>
 
-        const userRoles = impersonatedUser.roles || [];
-        const hasRequiredRole = requiredRoles.some(role => userRoles.includes(role));
-
-        if (!hasRequiredRole) {
-            router.push('/portal');
-        }
-    }, [impersonatedUser, requiredRoles, router]);
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rrhhNav.map(item => (
+                <Link href={item.href} key={item.href}>
+                    <Card className="hover:border-primary hover:shadow-lg transition-all h-full flex flex-col">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3"><item.icon />{item.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                           <p className="text-sm text-muted-foreground">{item.description}</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+            ))}
+        </div>
+    </main>
+  );
 }
+
 ```
+```
+
+## Tool Defs
+The user wants to make a change to their app. I should follow my instructions to respond with a `<changes>` block, which includes a concise summary of the changes being made, and one or more `<change>` blocks, each with a `<file>` path and the full, final, intended `<content>` of the file.
+
+When editing code, I must be sure to preserve the existing code and only make the requested changes.
+
+I can use the following tools:
+
+- `default_api.firebase_login`
+- `default_api.firebase_logout`
+- `default_api.firebase_get_project`
+- `default_api.firebase_list_apps`
+- `default_api.firebase_list_projects`
+- `default_api.firebase_get_sdk_config`
+- `default_api.firebase_create_project`
+- `default_api.firebase_create_app`
+- `default_api.firebase_create_android_sha`
+- `default_api.firebase_get_environment`
+- `default_api.firebase_update_environment`
+- `default_api.firebase_init`
+- `default_api.firebase_get_security_rules`
+- `default_api.firebase_read_resources`
+- `default_api.RequestFirebaseBackendTool`
+- `default_api.UpdateFirebaseProjectTool`
+- `default_api.RequestFirebaseProjectWithConfig`
