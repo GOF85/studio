@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useRef } from 'react';
@@ -19,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Trash2, ShieldAlert, Download, Loader2, Upload, Search } from 'lucide-react';
 import Link from 'next/link';
 
-type DatabaseKey = 'personal' | 'espacios' | 'articulos' | 'tipoServicio' | 'tiposPersonal' | 'tiposTransporte' | 'atipicosDB' | 'decoracionDB' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores';
+type DatabaseKey = 'personal' | 'espacios' | 'articulos' | 'tipoServicio' | 'tiposPersonal' | 'tiposTransporte' | 'atipicosDB' | 'decoracionDB' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores' | 'solicitudesPersonalCPR';
 
 const ALL_DATABASE_KEYS = [
     'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposPersonal', 'tiposTransporte',
@@ -31,7 +32,8 @@ const ALL_DATABASE_KEYS = [
     'pedidosEntrega', 'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 
     'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'ingredientesERP', 
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
-    'comercialAjustes', 'personalExternoAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones'
+    'comercialAjustes', 'personalExternoAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones',
+    'solicitudesPersonalCPR'
 ];
 
 const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
@@ -46,6 +48,7 @@ const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
     { key: 'pedidoPlantillas', name: 'Plantillas de Pedidos', description: 'Contiene las plantillas para agilizar la creación de pedidos.' },
     { key: 'formatosExpedicionDB', name: 'Formatos de Expedición', description: 'Contiene los formatos de empaquetado para producción.' },
     { key: 'proveedores', name: 'Proveedores', description: 'Contiene la información fiscal y de contacto de proveedores.' },
+    { key: 'solicitudesPersonalCPR', name: 'Solicitudes Personal CPR', description: 'Contiene las solicitudes de personal para el CPR.' },
 ];
 
 export default function BorrarBdPage() {

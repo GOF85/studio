@@ -63,6 +63,7 @@ const RELATED_DATA: DataSet[] = [
     { key: 'personalEntrega', name: 'Personal de Entregas', description: 'Turnos de personal para la vertical de entregas.' },
     { key: 'partnerPedidosStatus', name: 'Estado Pedidos de Partner', description: 'Estado de los pedidos del portal de partners.' },
     { key: 'activityLogs', name: 'Registro de Actividad de Portales', description: 'Log de acciones de usuarios externos.' },
+    { key: 'solicitudesPersonalCPR', name: 'Solicitudes de Personal CPR', description: 'Peticiones de personal de apoyo para producción.' },
 ];
 
 type ItemToDelete = {
