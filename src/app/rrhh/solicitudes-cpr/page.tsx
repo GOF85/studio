@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2 } from 'lucide-react';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, Factory } from 'lucide-react';
 import { format, isSameDay, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -144,6 +145,7 @@ export default function SolicitudesCprPage() {
     localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updatedRequests));
     setSolicitudes(updatedRequests);
     toast({ title: 'Solicitud Eliminada' });
+    setSolicitudToManage(null); // Ensure dialog closes
   }
   
   const categoriasDelProveedor = useMemo(() => {
@@ -172,7 +174,7 @@ export default function SolicitudesCprPage() {
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
-              <Calendar className="mr-2 h-4 w-4" />
+              <CalendarIcon className="mr-2 h-4 w-4" />
               {dateFilter ? format(dateFilter, 'PPP', { locale: es }) : <span>Filtrar por fecha</span>}
             </Button>
           </PopoverTrigger>
@@ -228,7 +230,7 @@ export default function SolicitudesCprPage() {
                                         <Trash2 className="mr-2"/> Confirmar Cancelación
                                     </Button>
                                 ) : (
-                                    <Button size="sm" onClick={() => setSolicitudToManage(s)}><UserCheck className="mr-2"/>Gestionar</Button>
+                                    <Button size="sm" onClick={() => setSolicitudToManage(s)}><Users className="mr-2"/>Gestionar</Button>
                                 )}
                             </TableCell>
                         </TableRow>
