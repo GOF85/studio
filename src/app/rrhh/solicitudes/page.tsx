@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, Send, Briefcase, Factory, MapPin, Clock, Phone } from 'lucide-react';
-import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR } from '@/types';
+import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR, CategoriaPersonal } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -55,7 +54,13 @@ const statusVariant: { [key in UnifiedRequest['estado']]: 'success' | 'warning' 
   'Solicitada Cancelacion': 'destructive'
 };
 
-function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, onDeleteRequest, proveedoresMap }: { solicitud: UnifiedRequest | null, isOpen: boolean, onClose: () => void, onUpdateStatus: (isCpr: boolean, id: string, status: UnifiedRequest['estado']) => void, onDeleteRequest: (req: UnifiedRequest) => void, proveedoresMap: Map<string, string> }) {
+function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, onDeleteRequest, proveedoresMap, allTiposPersonal }: { solicitud: UnifiedRequest | null, isOpen: boolean, onClose: () => void, onUpdateStatus: (isCpr: boolean, id: string, status: UnifiedRequest['estado'], proveedorId?: string, coste?: number, categoria?: string) => void, onDeleteRequest: (req: UnifiedRequest) => void, proveedoresMap: Map<string, string>, allTiposPersonal: CategoriaPersonal[] }) {
+    const [selectedTipoPersonal, setSelectedTipoPersonal] = useState<string | undefined>(solicitud?.proveedorId);
+
+    useEffect(() => {
+        setSelectedTipoPersonal(solicitud?.proveedorId);
+    }, [solicitud]);
+
     if (!solicitud) return null;
 
     const isCpr = solicitud.isCprRequest;
@@ -64,7 +69,19 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
     const displayStatus = (isCpr && solicitud.estado === 'Aprobada' && solicitud.proveedorId) ? 'Asignada' : solicitud.estado;
     
     const canManageCpr = isCpr && displayStatus === 'Pendiente';
-    const canDelete = isCpr && ['Pendiente', 'Rechazada'].includes(displayStatus);
+    const canDelete = isCpr && (['Pendiente', 'Rechazada'].includes(displayStatus) || displayStatus === 'Solicitada Cancelacion');
+    const canAssignCpr = isCpr && displayStatus === 'Aprobada';
+
+    const handleAsignar = () => {
+        if (selectedTipoPersonal) {
+            const tipo = allTiposPersonal.find(t => t.id === selectedTipoPersonal);
+            if (tipo) {
+                const coste = solicitud.horas * tipo.precioHora;
+                onUpdateStatus(true, solicitud.id, 'Asignada', tipo.id, coste, tipo.categoria);
+            }
+        }
+    };
+    
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -91,7 +108,7 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
                         <div><strong className="text-muted-foreground block">Horario:</strong> {solicitud.horario} ({solicitud.horas.toFixed(2)}h)</div>
                         <div><strong className="text-muted-foreground block">Categoría:</strong> {solicitud.categoria}</div>
                         <div><strong className="text-muted-foreground block">Coste Estimado:</strong> {formatCurrency(solicitud.costeEstimado)}</div>
-                        <div className="col-span-2"><strong className="text-muted-foreground block">Proveedor Asignado:</strong> {solicitud.proveedorId ? proveedoresMap.get(solicitud.proveedorId) || 'N/A' : 'N/A'}</div>
+                        <div className="col-span-2"><strong className="text-muted-foreground block">Proveedor Asignado:</strong> {solicitud.proveedorId ? proveedoresMap.get(allTiposPersonal.find(t => t.id === solicitud.proveedorId)?.proveedorId || '') || 'N/A' : 'N/A'}</div>
                         <div className="col-span-2 pt-1 "><strong className="text-muted-foreground block">Motivo:</strong> {solicitud.motivo}</div>
                     </div>
                 </div>
@@ -105,6 +122,30 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
                             <Button variant={'default'} className="bg-green-600 hover:bg-green-700" size="sm" onClick={() => onUpdateStatus(true, solicitud.id, 'Aprobada')}>Aprobar</Button>
                             <Button variant={'destructive'} size="sm" onClick={() => onUpdateStatus(true, solicitud.id, 'Rechazada')}>Rechazar</Button>
                         </div>
+                    </div>
+                )}
+                
+                {canAssignCpr && (
+                    <div className="py-4 space-y-4">
+                        <h4 className="font-semibold">Asignar Proveedor (CPR)</h4>
+                         <div className="flex gap-2 items-end">
+                             <div className="flex-grow space-y-1">
+                                <Label>Proveedor / ETT</Label>
+                                <Select value={selectedTipoPersonal} onValueChange={setSelectedTipoPersonal}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seleccionar proveedor y categoría..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {allTiposPersonal.map(tipo => (
+                                            <SelectItem key={tipo.id} value={tipo.id}>
+                                                {proveedoresMap.get(tipo.proveedorId)} - {tipo.categoria} ({formatCurrency(tipo.precioHora)}/h)
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                             </div>
+                            <Button size="sm" onClick={handleAsignar} disabled={!selectedTipoPersonal}>Asignar</Button>
+                         </div>
                     </div>
                 )}
                 
@@ -130,6 +171,7 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
 export default function SolicitudesUnificadasPage() {
   const [solicitudes, setSolicitudes] = useState<UnifiedRequest[]>([]);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
+  const [allTiposPersonal, setAllTiposPersonal] = useState<CategoriaPersonal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -148,6 +190,9 @@ export default function SolicitudesUnificadasPage() {
     const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
     setProveedoresMap(new Map(allProveedores.map(p => [p.id, p.nombreComercial])));
     
+    const tiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
+    setAllTiposPersonal(tiposPersonal);
+
     const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
 
     const cateringRequests: UnifiedRequest[] = allPersonalExterno.flatMap(p => {
@@ -159,8 +204,8 @@ export default function SolicitudesUnificadasPage() {
             osNumber: os.serviceNumber,
             cliente: os.client,
             fechaServicio: turno.fecha,
-            horario: `${turno.horaEntrada} - ${turno.horaSalida}`,
-            horas: calculateHours(turno.horaEntrada, turno.horaSalida),
+            horario: `${turno.horaInicio} - ${turno.horaSalida}`,
+            horas: calculateHours(turno.horaInicio, turno.horaSalida),
             categoria: turno.categoria,
             motivo: `Evento: ${os.serviceNumber}`,
             proveedorId: turno.proveedorId,
@@ -170,7 +215,9 @@ export default function SolicitudesUnificadasPage() {
         }));
     });
 
-    const cprRequests: UnifiedRequest[] = allSolicitudesCPR.map(s => ({
+    const cprRequests: UnifiedRequest[] = allSolicitudesCPR.map(s => {
+        const tipo = tiposPersonal.find(t => t.id === s.proveedorId);
+        return {
         id: s.id,
         osId: 'CPR',
         osNumber: 'CPR',
@@ -181,10 +228,10 @@ export default function SolicitudesUnificadasPage() {
         categoria: s.categoria,
         motivo: s.motivo,
         proveedorId: s.proveedorId,
-        costeEstimado: s.costeImputado || 0,
+        costeEstimado: s.costeImputado || ((calculateHours(s.horaInicio, s.horaFin) * (tipo?.precioHora || 0)) * s.cantidad),
         estado: s.estado,
         isCprRequest: true,
-    }));
+    }});
     
     setSolicitudes([...cateringRequests, ...cprRequests]);
     setIsMounted(true);
@@ -235,7 +282,7 @@ export default function SolicitudesUnificadasPage() {
 
   const totalPages = Math.ceil(filteredRequests.length / ITEMS_PER_PAGE);
 
-  const handleUpdateCprStatus = (isCpr: boolean, id: string, status: UnifiedRequest['estado']) => {
+  const handleUpdateCprStatus = (isCpr: boolean, id: string, status: UnifiedRequest['estado'], proveedorId?: string, coste?: number, categoria?: string) => {
     if (!isCpr) {
       toast({ variant: 'destructive', title: 'Acción no permitida', description: 'El estado de solicitudes de eventos se gestiona desde la propia OS.' });
       return;
@@ -244,6 +291,11 @@ export default function SolicitudesUnificadasPage() {
     const index = allRequests.findIndex(r => r.id === id);
     if(index > -1) {
         allRequests[index].estado = status as EstadoSolicitudPersonalCPR;
+        if (status === 'Asignada' && proveedorId && coste !== undefined && categoria) {
+            allRequests[index].proveedorId = proveedorId;
+            allRequests[index].costeImputado = coste;
+            allRequests[index].categoria = categoria; // Update category if needed
+        }
         localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
         
         loadData(); // Recargar todos los datos para reflejar el cambio
@@ -366,8 +418,8 @@ export default function SolicitudesUnificadasPage() {
         onUpdateStatus={handleUpdateCprStatus}
         onDeleteRequest={handleDeleteRequest}
         proveedoresMap={proveedoresMap}
+        allTiposPersonal={allTiposPersonal}
       />
     </>
   );
 }
-
