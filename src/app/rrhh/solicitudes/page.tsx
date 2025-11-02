@@ -1,11 +1,10 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -100,7 +99,9 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
                 
                 {!solicitud.isCprRequest && (
                     <div className="py-4">
-                        <Button className="w-full" onClick={() => router.push(`/os/${solicitud.osId}/personal-externo`)}>Ir a la gestión del evento</Button>
+                        <Button className="w-full" asChild>
+                           <Link href={`/os/${solicitud.osId}/personal-externo`}>Ir a la gestión del evento</Link>
+                        </Button>
                     </div>
                 )}
 
@@ -262,11 +263,7 @@ export default function SolicitudesUnificadasPage() {
   return (
     <>
       <main>
-        <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión Unificada de Personal</h1>
-        </div>
-
-       <div className="space-y-4 mb-6">
+        <div className="space-y-4 mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
               <Input
                   placeholder="Buscar por OS, cliente, categoría..."
