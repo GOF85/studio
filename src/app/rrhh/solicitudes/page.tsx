@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Building2, User, Clock, MapPin, Phone } from 'lucide-react';
+import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -292,7 +292,7 @@ export default function SolicitudesUnificadasPage() {
                  {solicitudToManage && (
                     <DialogDescription asChild>
                        <div className="text-sm space-y-1 pt-2">
-                            <p><strong>Origen:</strong> <Badge variant="secondary">{solicitudToManage.osNumber}</Badge></p>
+                            <div><strong>Origen:</strong> <Badge variant="secondary">{solicitudToManage.osNumber}</Badge></div>
                             <div><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</div>
                             <div><strong>Horario:</strong> {solicitudToManage.horario}</div>
                             <div><strong>Categoría:</strong> {solicitudToManage.categoria}</div>
