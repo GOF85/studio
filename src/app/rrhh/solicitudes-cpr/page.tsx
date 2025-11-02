@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2 } from 'lucide-react';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, Factory } from 'lucide-react';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -221,7 +222,7 @@ export default function SolicitudesCprPage() {
   return (
     <div>
         <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Solicitudes de Personal (CPR)</h1>
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Factory />Solicitudes de Personal (CPR)</h1>
             <Button onClick={() => router.push('/cpr/solicitud-personal/nueva')}>
                 <PlusCircle className="mr-2" /> Nueva Solicitud
             </Button>
@@ -327,9 +328,8 @@ export default function SolicitudesCprPage() {
                                 <div><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</div>
                                 <div><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</div>
                             </div>
-                            <div className="grid grid-cols-2 gap-x-4">
-                                <div><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</div>
-                                <div><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></div>
+                            <div>
+                                <strong>Categoría solicitada:</strong> {solicitudToManage.categoria}
                             </div>
                             <div className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</div>
                         </div>
@@ -418,3 +418,5 @@ export default function SolicitudesCprPage() {
     </div>
   )
 }
+
+    
