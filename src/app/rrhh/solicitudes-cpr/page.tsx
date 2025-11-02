@@ -1,22 +1,22 @@
-
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, UserCheck, AlertTriangle, CheckCircle, Search, Calendar, UserPlus, Trash2 } from 'lucide-react';
-import { format, isSameDay } from 'date-fns';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2 } from 'lucide-react';
+import { format, isSameDay, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { SolicitudPersonalCPR, Personal, Proveedor } from '@/types';
+import type { SolicitudPersonalCPR, Personal, Proveedor, CategoriaPersonal } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarUI } from '@/components/ui/calendar';
+import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -26,10 +26,8 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { Label } from '@/components/ui/label';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   'Pendiente': 'secondary',
@@ -43,14 +41,15 @@ export default function SolicitudesCprPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
   const [personal, setPersonal] = useState<Personal[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [tiposPersonal, setTiposPersonal] = useState<CategoriaPersonal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState('all');
   const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
-  
-  const { impersonatedUser } = useImpersonatedUser();
+  const [selectedCategoria, setSelectedCategoria] = useState<string>('');
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,14 +59,18 @@ export default function SolicitudesCprPage() {
     setPersonal(storedPersonal);
     const storedProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
     setProveedores(storedProveedores.filter(p => p.tipos.includes('Personal')));
+    const storedTiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
+    setTiposPersonal(storedTiposPersonal);
     setIsMounted(true);
   }, []);
   
   useEffect(() => {
-    if(solicitudToManage) {
+    if (solicitudToManage) {
+        const categoriaDelProveedor = tiposPersonal.find(t => t.proveedorId === solicitudToManage.proveedorId && t.categoria === solicitudToManage.categoria);
         setSelectedProvider(solicitudToManage.proveedorId || '');
+        setSelectedCategoria(categoriaDelProveedor?.id || '');
     }
-  }, [solicitudToManage]);
+  }, [solicitudToManage, tiposPersonal]);
 
 
   const filteredSolicitudes = useMemo(() => {
@@ -102,27 +105,32 @@ export default function SolicitudesCprPage() {
     if (estado === 'Rechazada') {
         updates.proveedorId = undefined;
         updates.costeImputado = undefined;
-        updates.personalAsignado = undefined; // Also clear assigned personnel
+        updates.personalAsignado = undefined;
     }
     updateSolicitud(solicitud.id, updates);
     toast({ title: 'Estado actualizado', description: `La solicitud ${solicitud.id} se ha marcado como ${estado}.` });
   }
 
   const handleGuardarAsignacion = () => {
-    if (!solicitudToManage || !selectedProvider) return;
+    if (!solicitudToManage || !selectedProvider || !selectedCategoria) return;
     
-    const tiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as {proveedorId: string, categoria: string, precioHora: number}[];
-    const tarifa = tiposPersonal.find(t => t.proveedorId === selectedProvider && t.categoria === solicitudToManage.categoria);
+    const tarifa = tiposPersonal.find(t => t.id === selectedCategoria);
 
     if (!tarifa) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró una tarifa para este proveedor y categoría. Por favor, configúrala en la base de datos de "Catálogo de Personal Externo".'});
+        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró una tarifa para esta categoría. Por favor, configúrala en la base de datos de "Catálogo de Personal Externo".'});
         return;
     }
 
     const horas = (new Date(`1970-01-01T${solicitudToManage.horaFin}:00`).getTime() - new Date(`1970-01-01T${solicitudToManage.horaInicio}:00`).getTime()) / (1000 * 60 * 60);
     const costeTotal = horas * tarifa.precioHora;
 
-    const updated = updateSolicitud(solicitudToManage.id, { proveedorId: selectedProvider, estado: 'Asignada', costeImputado: costeTotal });
+    const updated = updateSolicitud(solicitudToManage.id, { 
+        proveedorId: selectedProvider,
+        categoria: tarifa.categoria, // Actualiza la categoría a la del proveedor
+        estado: 'Asignada', 
+        costeImputado: costeTotal 
+    });
+
     if(updated) {
         setSolicitudToManage(updated);
         toast({ title: 'Proveedor Asignado', description: `Se ha asignado el proveedor y calculado el coste para la solicitud.` });
@@ -137,6 +145,12 @@ export default function SolicitudesCprPage() {
     setSolicitudes(updatedRequests);
     toast({ title: 'Solicitud Eliminada' });
   }
+  
+  const categoriasDelProveedor = useMemo(() => {
+    if (!selectedProvider) return [];
+    return tiposPersonal.filter(t => t.proveedorId === selectedProvider);
+  }, [selectedProvider, tiposPersonal]);
+
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
@@ -163,7 +177,7 @@ export default function SolicitudesCprPage() {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
-            <CalendarUI
+            <Calendar
               mode="single"
               selected={dateFilter}
               onSelect={setDateFilter}
@@ -193,8 +207,7 @@ export default function SolicitudesCprPage() {
                         <TableHead>Fecha Servicio</TableHead>
                         <TableHead>Horario</TableHead>
                         <TableHead>Partida</TableHead>
-                        <TableHead>Categoría</TableHead>
-                        <TableHead>Motivo</TableHead>
+                        <TableHead>Categoría Solicitada</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Proveedor Asignado</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
@@ -207,7 +220,6 @@ export default function SolicitudesCprPage() {
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
                             <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
-                            <TableCell>{s.motivo}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
                             <TableCell>{proveedores.find(p => p.id === s.proveedorId)?.nombreComercial || '-'}</TableCell>
                             <TableCell className="text-right">
@@ -246,9 +258,10 @@ export default function SolicitudesCprPage() {
                         <Button variant={solicitudToManage?.estado === 'Rechazada' ? 'destructive' : 'outline'} size="sm" onClick={() => handleUpdateStatus(solicitudToManage!, 'Rechazada')}>Rechazar</Button>
                     </div>
                 </div>
-                 <div>
+                 <div className="space-y-4">
                     <h4 className="font-semibold">Asignar Proveedor</h4>
-                    <div className="space-y-2 mt-2">
+                     <div className="space-y-2">
+                        <Label>Proveedor (ETT)</Label>
                         <Select value={selectedProvider} onValueChange={setSelectedProvider}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Selecciona un proveedor..."/>
@@ -260,11 +273,30 @@ export default function SolicitudesCprPage() {
                             </SelectContent>
                         </Select>
                     </div>
+                    {selectedProvider && (
+                        <div className="space-y-2">
+                            <Label>Categoría Profesional del Proveedor</Label>
+                            <Select value={selectedCategoria} onValueChange={setSelectedCategoria}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona una categoría..."/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categoriasDelProveedor.length > 0 ? (
+                                        categoriasDelProveedor.map(c => (
+                                        <SelectItem key={c.id} value={c.id}>{c.categoria}</SelectItem>
+                                    ))
+                                    ) : (
+                                        <div className="text-center text-sm text-muted-foreground p-4">No hay categorías para este proveedor.</div>
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                 </div>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="secondary">Cerrar</Button></DialogClose>
-                <Button onClick={handleGuardarAsignacion} disabled={!selectedProvider}>Guardar Asignación</Button>
+                <Button onClick={handleGuardarAsignacion} disabled={!selectedProvider || !selectedCategoria}>Guardar Asignación</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
