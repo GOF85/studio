@@ -52,6 +52,7 @@ type DayDetails = {
     events: UnifiedTurno[];
 } | null;
 
+
 function AsignacionDialog({ turno, onSave, isCprRequest }: { turno: PersonalExternoTurno | SolicitudPersonalCPR, onSave: (turnoId: string, asignaciones: AsignacionPersonal[], isCpr: boolean) => void, isCprRequest: boolean }) {
     const [isOpen, setIsOpen] = useState(false);
     const [asignaciones, setAsignaciones] = useState<Partial<AsignacionPersonal>[]>([]);
@@ -535,7 +536,7 @@ export default function PortalPersonalPage() {
                             <p className="font-bold text-primary">{os?.serviceNumber} - {os?.client}</p>
                             <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
                                 <span><span className="font-semibold">Categoría:</span> {event.categoria}</span>
-                                <span><span className="font-semibold">Horario:</span> {event.horaInicio} - {event.horaFin}</span>
+                                <span><span className="font-semibold">Horario:</span> {event.horaInicio} - {event.horaSalida}</span>
                             </div>
                         </div>
                     )})}
@@ -545,5 +546,3 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
-
-```
