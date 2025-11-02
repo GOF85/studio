@@ -23,7 +23,7 @@ export const tipoPersonalSchema = z.object({
   proveedorId: z.string().min(1, 'Debe seleccionar un proveedor.'),
   nombreProveedor: z.string(),
   categoria: z.string().min(1, 'El nombre de la categoría es obligatorio.'),
-  precioHora: z.coerce.number().min(0, 'El precio debe ser un número positivo.'),
+  precioHora: z.coerce.number().min(0, 'El precio debe ser un número positivo').default(0),
 });
 
 export type TipoPersonalFormValues = z.infer<typeof tipoPersonalSchema>;
