@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, Send, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, Send, Briefcase, Factory, MapPin, Clock } from 'lucide-react';
 import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +32,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
+import { Separator } from '@/components/ui/separator';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -75,39 +76,43 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
                     <DialogTitle className="flex justify-between items-center">
                         Gestionar Solicitud
                     </DialogTitle>
+                    <DialogDescription>
+                         <div className="flex items-center gap-2 pt-2">
+                             <strong>Origen:</strong>
+                             <Badge variant={isCpr ? "default" : "secondary"}>
+                                {isCpr ? <Factory className="mr-2 h-4 w-4"/> : <Briefcase className="mr-2 h-4 w-4"/>}
+                                {solicitud.osNumber}
+                             </Badge>
+                             <Badge variant={statusVariant[solicitud.estado]}>{solicitud.estado}</Badge>
+                        </div>
+                    </DialogDescription>
                 </DialogHeader>
 
                  <div className="py-4 space-y-3">
-                    <div className="flex justify-between items-baseline">
-                        <div className="flex items-center gap-2">
-                             <h3 className="text-sm font-semibold text-muted-foreground">Origen:</h3>
-                             <Badge variant="secondary">{solicitud.osNumber}</Badge>
-                        </div>
-                        <Badge variant={statusVariant[solicitud.estado]}>{solicitud.estado}</Badge>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm border-t pt-3">
-                        <div><strong>Fecha:</strong> {format(new Date(solicitud.fechaServicio), 'PPP', {locale: es})}</div>
-                        <div><strong>Horario:</strong> {solicitud.horario} ({solicitud.horas.toFixed(2)}h)</div>
-                        <div><strong>Categoría:</strong> {solicitud.categoria}</div>
-                        <div><strong>Coste Estimado:</strong> {formatCurrency(solicitud.costeEstimado)}</div>
-                        <div className="col-span-2"><strong>Proveedor Asignado:</strong> {solicitud.proveedorId ? proveedoresMap.get(solicitud.proveedorId) || 'N/A' : 'N/A'}</div>
-                        <div className="col-span-2 pt-1 text-muted-foreground"><strong>Motivo:</strong> {solicitud.motivo}</div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <div><strong className="text-muted-foreground block">Fecha Servicio:</strong> {format(new Date(solicitud.fechaServicio), 'PPP', {locale: es})}</div>
+                        <div><strong className="text-muted-foreground block">Horario:</strong> {solicitud.horario} ({solicitud.horas.toFixed(2)}h)</div>
+                        <div><strong className="text-muted-foreground block">Categoría:</strong> {solicitud.categoria}</div>
+                        <div><strong className="text-muted-foreground block">Coste Estimado:</strong> {formatCurrency(solicitud.costeEstimado)}</div>
+                        <div className="col-span-2"><strong className="text-muted-foreground block">Proveedor Asignado:</strong> {solicitud.proveedorId ? proveedoresMap.get(solicitud.proveedorId) || 'N/A' : 'N/A'}</div>
+                        <div className="col-span-2 pt-1 "><strong className="text-muted-foreground block">Motivo:</strong> {solicitud.motivo}</div>
                     </div>
                 </div>
+                 
+                <Separator />
 
                 {canManageCpr && (
-                    <div className="py-4 space-y-4 border-t">
+                    <div className="py-4 space-y-4">
                         <h4 className="font-semibold">Acciones de RRHH (CPR)</h4>
                         <div className="flex gap-2 mt-2">
-                            <Button variant={'default'} size="sm" onClick={() => onUpdateStatus(true, solicitud.id, 'Aprobada')}>Aprobar</Button>
+                            <Button variant={'default'} className="bg-green-600 hover:bg-green-700" size="sm" onClick={() => onUpdateStatus(true, solicitud.id, 'Aprobada')}>Aprobar</Button>
                             <Button variant={'destructive'} size="sm" onClick={() => onUpdateStatus(true, solicitud.id, 'Rechazada')}>Rechazar</Button>
                         </div>
                     </div>
                 )}
                 
                 {!solicitud.isCprRequest && (
-                    <div className="py-4 border-t">
+                    <div className="py-4">
                         <Button className="w-full" asChild>
                            <Link href={`/os/${solicitud.osId}/personal-externo`}>Ir a la gestión del evento</Link>
                         </Button>
@@ -333,7 +338,7 @@ export default function SolicitudesUnificadasPage() {
                 paginatedItems.map(p => (
                     <TableRow key={p.id} className="cursor-pointer" onClick={() => setSolicitudToManage(p)}>
                         <TableCell className="font-medium">
-                            <Badge variant="outline">{p.osNumber}</Badge>
+                            <Badge variant={p.isCprRequest ? "default" : "outline"}>{p.osNumber}</Badge>
                         </TableCell>
                         <TableCell>{p.cliente}</TableCell>
                         <TableCell>{format(new Date(p.fechaServicio), 'dd/MM/yyyy')}</TableCell>
@@ -366,5 +371,3 @@ export default function SolicitudesUnificadasPage() {
     </>
   );
 }
-
-```
