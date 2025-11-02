@@ -62,7 +62,7 @@ type DayDetails = {
 } | null;
 
 
-function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: TurnoConDetalles; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode, isReadOnly: boolean }) {
+function AsignacionDialog({ turno, onSave, children }: { turno: TurnoConDetalles; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
     const [personalExternoDB, setPersonalExternoDB] = useState<PersonalExternoDB[]>([]);
     const { impersonatedUser } = useImpersonatedUser();
@@ -123,19 +123,18 @@ function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: Turn
                             value={asignacion.dni || ''}
                             onChange={(value) => handleSelectPersonal(value)}
                             placeholder="Buscar por nombre o DNI..."
-                            disabled={isReadOnly}
                         />
                     </div>
                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1"><Label htmlFor={`nombre-${asignacion.id}`}>Nombre y Apellidos</Label><Input id={`nombre-${asignacion.id}`} placeholder="Nombre completo" value={asignacion.nombre} onChange={e => updateAsignacion('nombre', e.target.value)} disabled={isReadOnly} /></div>
-                        <div className="space-y-1"><Label htmlFor={`dni-${asignacion.id}`}>DNI</Label><Input id={`dni-${asignacion.id}`} placeholder="DNI" value={asignacion.dni} onChange={e => updateAsignacion('dni', e.target.value)} disabled={isReadOnly} /></div>
-                        <div className="space-y-1"><Label htmlFor={`tel-${asignacion.id}`}>Teléfono</Label><Input id={`tel-${asignacion.id}`} placeholder="Teléfono de contacto" value={asignacion.telefono} onChange={e => updateAsignacion('telefono', e.target.value)} disabled={isReadOnly} /></div>
-                        <div className="space-y-1"><Label htmlFor={`com-${asignacion.id}`}>Comentarios</Label><Input id={`com-${asignacion.id}`} placeholder="Notas (opcional)" value={asignacion.comentarios} onChange={e => updateAsignacion('comentarios', e.target.value)} disabled={isReadOnly} /></div>
+                        <div className="space-y-1"><Label htmlFor={`nombre-${asignacion.id}`}>Nombre y Apellidos</Label><Input id={`nombre-${asignacion.id}`} placeholder="Nombre completo" value={asignacion.nombre} onChange={e => updateAsignacion('nombre', e.target.value)} /></div>
+                        <div className="space-y-1"><Label htmlFor={`dni-${asignacion.id}`}>DNI</Label><Input id={`dni-${asignacion.id}`} placeholder="DNI" value={asignacion.dni} onChange={e => updateAsignacion('dni', e.target.value)} /></div>
+                        <div className="space-y-1"><Label htmlFor={`tel-${asignacion.id}`}>Teléfono</Label><Input id={`tel-${asignacion.id}`} placeholder="Teléfono de contacto" value={asignacion.telefono} onChange={e => updateAsignacion('telefono', e.target.value)} /></div>
+                        <div className="space-y-1"><Label htmlFor={`com-${asignacion.id}`}>Comentarios</Label><Input id={`com-${asignacion.id}`} placeholder="Notas (opcional)" value={asignacion.comentarios} onChange={e => updateAsignacion('comentarios', e.target.value)} /></div>
                     </div>
                 </div>
                 <DialogFooter>
                     <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleSave} disabled={isReadOnly}>Guardar Asignación</Button>
+                    <Button onClick={handleSave}>Guardar Asignación</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -186,7 +185,6 @@ export default function PartnerPersonalPortalPage() {
         
         const partnerTurnos: TurnoConDetalles[] = [];
 
-        // Add from PersonalExterno (eventos)
         allPersonalExterno.forEach(pedido => {
             if(pedido.status !== 'Solicitado') return;
             const os = osMap.get(pedido.osId);
@@ -203,7 +201,6 @@ export default function PartnerPersonalPortalPage() {
             });
         });
         
-        // Add from SolicitudesCPR
         allSolicitudesCPR.forEach(solicitud => {
              if (solicitud.estado !== 'Aprobada') return;
              if (isAdminOrComercial || solicitud.proveedorId === impersonatedUser?.proveedorId) {
@@ -475,13 +472,13 @@ export default function PartnerPersonalPortalPage() {
                                                                         <TableCell>{turno.horaEntrada} - {turno.horaSalida}</TableCell>
                                                                         <TableCell className="text-sm text-muted-foreground max-w-xs">{turno.observaciones}</TableCell>
                                                                         <TableCell>
-                                                                            <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones} isReadOnly={isReadOnly}>
-                                                                                 {turno.asignaciones && turno.asignaciones.length > 0 && turno.asignaciones[0].nombre ? (
+                                                                            <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones}>
+                                                                                {turno.asignaciones && turno.asignaciones.length > 0 && turno.asignaciones[0].nombre ? (
                                                                                     <Button variant="link" className="p-0 h-auto font-semibold">
                                                                                         {turno.asignaciones[0].nombre}
                                                                                     </Button>
                                                                                 ) : (
-                                                                                    <Button variant="default" size="sm" disabled={isReadOnly}>
+                                                                                    <Button variant="default" size="sm">
                                                                                         Asignar
                                                                                     </Button>
                                                                                 )}
@@ -580,70 +577,231 @@ export default function PartnerPersonalPortalPage() {
     );
 }
 
-    
-
-    
-
 ```
-- src/app/rrhh/page.tsx:
+- src/hooks/use-impersonated-user.tsx:
 ```tsx
 
 'use client';
 
-import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { rrhhNav } from '@/lib/rrhh-nav';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import type { PortalUser, Personal } from '@/types';
 
-export default function RrhhDashboardPage() {
+type ImpersonatedUserContextType = {
+  impersonatedUser: PortalUser | null;
+  setImpersonatedUser: (user: PortalUser | null) => void;
+};
+
+const ImpersonatedUserContext = createContext<ImpersonatedUserContextType | undefined>(undefined);
+
+export function ImpersonatedUserProvider({ children }: { children: ReactNode }) {
+  const [impersonatedUser, setImpersonatedUserState] = useState<PortalUser | null>(null);
+
+  useEffect(() => {
+    // On initial load, try to get the user from localStorage
+    const storedUser = localStorage.getItem('impersonatedUser');
+    if (storedUser) {
+      setImpersonatedUserState(JSON.parse(storedUser));
+    }
+  }, []);
+
+  const setImpersonatedUser = (user: PortalUser | null) => {
+    setImpersonatedUserState(user);
+    if (user) {
+      localStorage.setItem('impersonatedUser', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('impersonatedUser');
+    }
+    // We add a slight delay and then reload to ensure all components that depend
+    // on this hook have a chance to re-render correctly with the new user context.
+    setTimeout(() => window.location.reload(), 100);
+  };
+
   return (
-    <main>
-        <div className="mb-12">
-            <h1 className="text-4xl font-headline font-bold tracking-tight">Recursos Humanos</h1>
-            <p className="text-lg text-muted-foreground mt-2">Gestiona las necesidades de personal, las bases de datos de trabajadores y analiza la productividad.</p>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rrhhNav.map(item => (
-                <Link href={item.href} key={item.href}>
-                    <Card className="hover:border-primary hover:shadow-lg transition-all h-full flex flex-col">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-3"><item.icon />{item.title}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex-grow">
-                           <p className="text-sm text-muted-foreground">{item.description}</p>
-                        </CardContent>
-                    </Card>
-                </Link>
-            ))}
-        </div>
-    </main>
+    <ImpersonatedUserContext.Provider value={{ impersonatedUser, setImpersonatedUser }}>
+      {children}
+    </ImpersonatedUserContext.Provider>
   );
 }
 
+export function useImpersonatedUser() {
+  const context = useContext(ImpersonatedUserContext);
+  if (context === undefined) {
+    throw new Error('useImpersonatedUser must be used within a ImpersonatedUserProvider');
+  }
+  return context;
+}
+
+```
+- src/lib/fonts.ts:
+```ts
+
+import { Open_Sans as FontHeadline, Roboto as FontBody } from 'next/font/google';
+
+export const fontHeadline = FontHeadline({
+  subsets: ['latin'],
+  variable: '--font-headline',
+});
+
+export const fontBody = FontBody({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  variable: '--font-body',
+});
+
+
+```
+- src/app/layout.tsx:
+```tsx
+import type { Metadata } from 'next';
+import './globals.css';
+import { Toaster } from '@/components/ui/toaster';
+import { cn } from '@/lib/utils';
+import { NProgressProvider } from '@/components/providers/nprogress-provider';
+import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
+import { Header } from '@/components/layout/header';
+import { fontBody, fontHeadline } from '@/lib/fonts';
+
+export const metadata: Metadata = {
+  title: 'MICE Catering',
+  description: 'Soluciones de alquiler para tus eventos',
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="es" suppressHydrationWarning>
+      <body
+        className={cn(
+          'min-h-screen bg-background font-body antialiased',
+          fontHeadline.variable,
+          fontBody.variable
+        )}
+      >
+        <ImpersonatedUserProvider>
+          <NProgressProvider>
+            <div className="relative flex min-h-screen flex-col">
+              <Header />
+              {children}
+            </div>
+          </NProgressProvider>
+        </ImpersonatedUserProvider>
+        <Toaster />
+      </body>
+    </html>
+  );
+}
 ```
 ```
+- tailwind.config.ts:
+```tsx
+/** @type {import('tailwindcss').Config} */
+import {fontFamily as defaultFontFamily} from 'tailwindcss/defaultTheme';
 
-## Tool Defs
-The user wants to make a change to their app. I should follow my instructions to respond with a `<changes>` block, which includes a concise summary of the changes being made, and one or more `<change>` blocks, each with a `<file>` path and the full, final, intended `<content>` of the file.
+module.exports = {
+  darkMode: ["class"],
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  prefix: "",
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+       fontFamily: {
+        body: ['var(--font-body)', ...defaultFontFamily.sans],
+        headline: ['var(--font-headline)', ...defaultFontFamily.sans],
+        sans: ['var(--font-body)', ...defaultFontFamily.sans],
+      },
+       typography: (theme) => ({
+        DEFAULT: {
+          css: {
+            h1: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            h2: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            h3: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            '--tw-prose-bullets': theme('colors.primary.DEFAULT'),
+          },
+        },
+      }),
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate"), require('@tailwindcss/typography')],
+}
 
-When editing code, I must be sure to preserve the existing code and only make the requested changes.
-
-I can use the following tools:
-
-- `default_api.firebase_login`
-- `default_api.firebase_logout`
-- `default_api.firebase_get_project`
-- `default_api.firebase_list_apps`
-- `default_api.firebase_list_projects`
-- `default_api.firebase_get_sdk_config`
-- `default_api.firebase_create_project`
-- `default_api.firebase_create_app`
-- `default_api.firebase_create_android_sha`
-- `default_api.firebase_get_environment`
-- `default_api.firebase_update_environment`
-- `default_api.firebase_init`
-- `default_api.firebase_get_security_rules`
-- `default_api.firebase_read_resources`
-- `default_api.RequestFirebaseBackendTool`
-- `default_api.UpdateFirebaseProjectTool`
-- `default_api.RequestFirebaseProjectWithConfig`
+```
