@@ -272,8 +272,8 @@ export default function SolicitudesCprPage() {
                                 <p><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</p>
                             </div>
                             <div className="grid grid-cols-2 gap-x-4">
+                                <div><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></div>
                                 <p><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</p>
-                                <p><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></p>
                             </div>
                             <p className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</p>
                         </div>
@@ -299,12 +299,12 @@ export default function SolicitudesCprPage() {
                         <h4 className="font-semibold">Asignar Proveedor</h4>
                          <div className="space-y-2">
                             <Label>Proveedor (ETT)</Label>
-                            <Select value={selectedProvider || 'none'} onValueChange={(value) => setSelectedProvider(value === 'none' ? null : value)}>
+                            <Select value={selectedProvider || ''} onValueChange={(value) => setSelectedProvider(value === '' ? null : value)}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecciona un proveedor..."/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">-- Sin asignar --</SelectItem>
+                                    <SelectItem value="">-- Sin asignar --</SelectItem>
                                     {proveedores.map(p => (
                                         <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
                                     ))}
