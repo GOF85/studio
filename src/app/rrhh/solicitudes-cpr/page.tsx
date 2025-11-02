@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -29,7 +28,9 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, calculateHours } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
+
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   'Pendiente': 'secondary',
@@ -51,6 +52,8 @@ export default function SolicitudesCprPage() {
   const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedCategoria, setSelectedCategoria] = useState<string>('');
+  const [proveedorFilter, setProveedorFilter] = useState('all');
+  const [showPastEvents, setShowPastEvents] = useState(false);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -77,6 +80,7 @@ export default function SolicitudesCprPage() {
 
 
   const filteredSolicitudes = useMemo(() => {
+    const today = startOfToday();
     return solicitudes.filter(s => {
       const searchMatch = searchTerm === '' ||
         s.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -86,11 +90,21 @@ export default function SolicitudesCprPage() {
 
       const dateMatch = !dateFilter || isSameDay(new Date(s.fechaServicio), dateFilter);
       const statusMatch = statusFilter === 'all' || s.estado === statusFilter;
+      const proveedorMatch = proveedorFilter === 'all' || s.proveedorId === proveedorFilter;
+      
+      let pastEventMatch = true;
+      if (!showPastEvents) {
+          try {
+              pastEventMatch = !isBefore(new Date(s.fechaServicio), today);
+          } catch (e) {
+              pastEventMatch = true;
+          }
+      }
 
-      return searchMatch && dateMatch && statusMatch;
+      return searchMatch && dateMatch && statusMatch && proveedorMatch && pastEventMatch;
     }).sort((a,b) => new Date(b.fechaSolicitud).getTime() - new Date(a.fechaSolicitud).getTime());
-  }, [solicitudes, searchTerm, dateFilter, statusFilter]);
-  
+  }, [solicitudes, searchTerm, dateFilter, statusFilter, proveedorFilter, showPastEvents]);
+
   const updateSolicitud = (solicitudId: string, updates: Partial<SolicitudPersonalCPR>) => {
     let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
     const index = allRequests.findIndex(r => r.id === solicitudId);
@@ -140,7 +154,7 @@ export default function SolicitudesCprPage() {
         return;
     }
 
-    const horas = (new Date(`1970-01-01T${solicitudToManage.horaFin}:00`).getTime() - new Date(`1970-01-01T${solicitudToManage.horaInicio}:00`).getTime()) / (1000 * 60 * 60);
+    const horas = calculateHours(solicitudToManage.horaInicio, solicitudToManage.horaFin);
     const costeTotal = horas * tarifa.precioHora;
 
     const updated = updateSolicitud(solicitudToManage.id, { 
@@ -206,7 +220,7 @@ export default function SolicitudesCprPage() {
           </PopoverContent>
         </Popover>
          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos los estados"/></SelectTrigger>
             <SelectContent>
                 <SelectItem value="all">Todos los Estados</SelectItem>
                 <SelectItem value="Pendiente">Pendiente</SelectItem>
@@ -216,7 +230,22 @@ export default function SolicitudesCprPage() {
                 <SelectItem value="Solicitada Cancelacion">Solicita Cancelación</SelectItem>
             </SelectContent>
         </Select>
-        <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateFilter(undefined); setStatusFilter('all'); }}>Limpiar Filtros</Button>
+        <Select value={proveedorFilter} onValueChange={setProveedorFilter}>
+            <SelectTrigger className="w-[240px]"><SelectValue placeholder="Filtrar por ETT"/></SelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">Todos los Proveedores</SelectItem>
+                {proveedores.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-2">
+            <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
+            <Label htmlFor="show-past" className="text-sm font-medium">Mostrar pasados</Label>
+        </div>
+        <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateFilter(undefined); setStatusFilter('all'); setProveedorFilter('all'); setShowPastEvents(false); }}>Limpiar Filtros</Button>
       </div>
       
       <Card>
@@ -226,10 +255,10 @@ export default function SolicitudesCprPage() {
                     <TableRow>
                         <TableHead>Fecha Servicio</TableHead>
                         <TableHead>Horario</TableHead>
-                        <TableHead>Partida</TableHead>
                         <TableHead>Categoría</TableHead>
-                        <TableHead>Estado</TableHead>
                         <TableHead>Proveedor (ETT) - Categoría Asignada</TableHead>
+                        <TableHead className="text-right">Coste Presupuestado</TableHead>
+                        <TableHead className="text-right">Estado</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -237,18 +266,18 @@ export default function SolicitudesCprPage() {
                         <TableRow key={s.id} onClick={() => setSolicitudToManage(s)} className="cursor-pointer">
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
-                            <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
-                            <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
                             <TableCell>
-                                {s.estado === 'Asignada' ? (
+                                {s.estado === 'Asignada' && s.proveedorId ? (
                                     <span>
                                         {proveedores.find(p => p.id === s.proveedorId)?.nombreComercial || 'Desconocido'} - <strong>{s.categoria}</strong>
                                     </span>
                                 ) : s.estado === 'Solicitada Cancelacion' ? (
-                                    <Button size="sm" variant="destructive" onClick={(e) => { e.stopPropagation(); setSolicitudToManage(s); }}><Trash2 className="mr-2"/>Confirmar Cancelación</Button>
+                                    <Badge variant="destructive">Pendiente RRHH</Badge>
                                 ) : '-'}
                             </TableCell>
+                            <TableCell className="text-right font-mono">{formatCurrency(s.costeImputado || 0)}</TableCell>
+                            <TableCell className="text-right"><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
                         </TableRow>
                     )) : (
                         <TableRow>
@@ -271,8 +300,8 @@ export default function SolicitudesCprPage() {
                                 <div><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</div>
                                 <div><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</div>
                             </div>
-                            <div className="grid grid-cols-2 gap-x-4">
-                                <div><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></div>
+                             <div className="grid grid-cols-2 gap-x-4">
+                                 <div><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></div>
                                 <div><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</div>
                             </div>
                             <div className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</div>
@@ -299,7 +328,7 @@ export default function SolicitudesCprPage() {
                         <h4 className="font-semibold">Asignar Proveedor</h4>
                          <div className="space-y-2">
                             <Label>Proveedor (ETT)</Label>
-                            <Select value={selectedProvider || ''} onValueChange={(value) => setSelectedProvider(value === 'none' ? null : value)}>
+                            <Select value={selectedProvider || 'none'} onValueChange={(value) => setSelectedProvider(value === 'none' ? null : value)}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecciona un proveedor..."/>
                                 </SelectTrigger>
