@@ -51,7 +51,7 @@ const statusVariant: { [key in PersonalExternoTurno['statusPartner']]: 'success'
 };
 
 const statusRowClass: { [key in PersonalExternoTurno['statusPartner']]?: string } = {
-  'Gestionado': 'bg-green-50 hover:bg-green-100/80',
+  'Gestionado': 'bg-green-100/60 hover:bg-green-100/80',
 };
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -145,15 +145,16 @@ export default function PartnerPersonalPortalPage() {
     const [turnos, setTurnos] = useState<TurnoConDetalles[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
-    const [showCompleted, setShowCompleted] = useState(false);
-    const [dateRange, setDateRange] = useState<DateRange | undefined>();
-    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const { impersonatedUser } = useImpersonatedUser();
     const [proveedorNombre, setProveedorNombre] = useState('');
     const router = useRouter();
     
     const [currentDate, setCurrentDate] = useState(new Date());
     const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
+
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [showCompleted, setShowCompleted] = useState(false);
 
     const isAdminOrComercial = useMemo(() => {
         if (!impersonatedUser) return false;
@@ -575,24 +576,6 @@ export default function PartnerPersonalPortalPage() {
         </Dialog>
         </TooltipProvider>
     );
-}
-
-```
-- src/app/rrhh/solicitudes-cpr/[id]/page.tsx:
-```tsx
-
-'use client';
-
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-// This page just redirects to the unified requests page.
-export default function SolicitudCprIdRedirectPage({ params }: { params: { id: string } }) {
-    const router = useRouter();
-    useEffect(() => {
-        router.replace('/rrhh/solicitudes');
-    }, [router, params.id]);
-    return null;
 }
 
 ```
