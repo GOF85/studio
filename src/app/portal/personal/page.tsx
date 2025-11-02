@@ -1,174 +1,97 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Briefcase, Building2, Calendar as CalendarIcon, CheckCircle, Clock, Factory, User, Users, ArrowLeft, ChevronLeft, ChevronRight, Edit, MessageSquare, Pencil, PlusCircle, RefreshCw, Send, Trash2, AlertTriangle, Printer, FileText, Upload } from 'lucide-react';
-import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay, add, sub, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay, add, sub, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-
-import type { PersonalExterno, PersonalExternoTurno, AsignacionPersonal, ServiceOrder, ComercialBriefing, PersonalExternoDB, PortalUser, Proveedor, SolicitudPersonalCPR, EstadoPersonalExterno, EstadoSolicitudPersonalCPR, ComercialBriefingItem } from '@/types';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { formatUnit, calculateHours } from '@/lib/utils';
+import type { PedidoPartner, PedidoEntrega, ProductoVenta, Entrega, Proveedor, PersonalExterno, SolicitudPersonalCPR, AsignacionPersonal, EstadoPersonalExterno, EstadoSolicitudPersonalCPR, ComercialBriefingItem } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Combobox } from '@/components/ui/combobox';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { logActivity } from '../activity-log/utils';
-import { cn } from '@/lib/utils';
-import { DateRange } from 'react-day-picker';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from '@/components/ui/calendar';
+import Link from 'next/link';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DateRange } from 'react-day-picker';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import Link from 'next/link';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Input } from '@/components/ui/input';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { logActivity } from '../activity-log/utils';
+import { Combobox } from '@/components/ui/combobox';
+import type { ServiceOrder } from '@/types';
 
-// --- Helper Components ---
 
-function AsignacionDialog({ turno, onSave, isCprRequest }: { turno: PersonalExternoTurno | SolicitudPersonalCPR; onSave: (turnoId: string, asignaciones: AsignacionPersonal[], isCpr: boolean) => void; isCprRequest: boolean }) {
+type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
+
+type PedidoPartnerConEstado = PedidoPartner & {
+    expedicionNumero: string;
+    status: SimplifiedPedidoPartnerStatus;
+    comentarios?: string;
+}
+
+const statusVariant: { [key in SimplifiedPedidoPartnerStatus]: 'success' | 'secondary' } = {
+  'Pendiente': 'secondary',
+  'Aceptado': 'success',
+};
+
+const statusRowClass: { [key in SimplifiedPedidoPartnerStatus]?: string } = {
+  'Aceptado': 'bg-green-100/60 hover:bg-green-100/80',
+};
+
+const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+type DayDetails = {
+    day: Date;
+    events: PedidoPartnerConEstado[];
+} | null;
+
+
+function CommentDialog({ pedido, onSave, isReadOnly }: { pedido: PedidoPartnerConEstado; onSave: (id: string, comment: string) => void; isReadOnly: boolean; }) {
+    const [comment, setComment] = useState(pedido.comentarios || '');
     const [isOpen, setIsOpen] = useState(false);
-    const [asignaciones, setAsignaciones] = useState<Partial<AsignacionPersonal>[]>([]);
-    const [personalOptions, setPersonalOptions] = useState<{ label: string, value: string }[]>([]);
 
-    const { impersonatedUser } = useImpersonatedUser();
-    
-    const turnoProveedorId = isCprRequest ? (turno as SolicitudPersonalCPR).proveedorId : (turno as PersonalExternoTurno).proveedorId;
-
-    useEffect(() => {
-        if (isOpen) {
-            const allPersonalDB = (JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[])
-                .filter(p => p.proveedorId === turnoProveedorId);
-
-            setPersonalOptions(allPersonalDB.map(p => ({ label: p.nombreCompleto, value: p.id })));
-            
-            const existingAsignaciones = 'asignaciones' in turno ? turno.asignaciones : ('personalAsignado' in turno ? turno.personalAsignado : []);
-            const cantidad = (turno as any).cantidad || 1;
-
-            const initialAsignaciones = Array.from({ length: cantidad }).map((_, i) => {
-                const existing = existingAsignaciones?.[i];
-                if (existing) {
-                    if ('idPersonal' in existing) { // CPR request structure
-                        const personalInfo = allPersonalDB.find(p => p.id === existing.idPersonal);
-                        return { id: existing.idPersonal, nombre: existing.nombre, dni: personalInfo?.id, telefono: personalInfo?.telefono, email: personalInfo?.email };
-                    }
-                    return { ...existing }; // Event request structure
-                }
-                return { id: `${turno.id}-${i}-${Date.now()}` };
-            });
-            setAsignaciones(initialAsignaciones);
-        }
-    }, [isOpen, turno, turnoProveedorId]);
-
-    const handleSelectPersonal = (index: number, personalId: string) => {
-        const allPersonalDB = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
-        const personal = allPersonalDB.find(p => p.id === personalId);
-        if (personal) {
-            const newAsignaciones = [...asignaciones];
-            newAsignaciones[index] = {
-                ...newAsignaciones[index],
-                id: personal.id,
-                idPersonal: personal.id, // For CPR compatibility
-                nombre: personal.nombreCompleto,
-                dni: personal.id,
-                telefono: personal.telefono || '',
-                email: personal.email || ''
-            };
-            setAsignaciones(newAsignaciones);
-        }
-    };
-    
     const handleSave = () => {
-        const fullAsignaciones = asignaciones.filter(a => a.id && a.nombre) as AsignacionPersonal[];
-        onSave(turno.id, fullAsignaciones, isCprRequest);
+        onSave(pedido.id, comment);
         setIsOpen(false);
-    };
-
-    const numRequired = (turno as any).cantidad || 1;
-
+    }
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button size="sm">
-                    {('statusPartner' in turno && turno.statusPartner === 'Gestionado') || ('estado' in turno && (turno as SolicitudPersonalCPR).estado === 'Asignada') ? 'Ver/Editar' : 'Asignar Personal'}
+                <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isReadOnly}>
+                   <Edit className="h-4 w-4"/>
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl">
+            <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Asignar Personal para Turno</DialogTitle>
-                    <DialogDescription>
-                        {turno.categoria} - {format(new Date('fecha' in turno ? turno.fecha : turno.fechaServicio), 'PPP', { locale: es })} de {turno.horaInicio} a {turno.horaFin}
-                    </DialogDescription>
+                    <DialogTitle>Comentarios para: {pedido.elaboracionNombre}</DialogTitle>
                 </DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto p-1">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nº</TableHead>
-                                <TableHead className="w-1/3">Trabajador</TableHead>
-                                <TableHead>DNI</TableHead>
-                                <TableHead>Teléfono</TableHead>
-                                <TableHead>Comentarios</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {Array.from({ length: numRequired }).map((_, index) => {
-                                const asignacion = asignaciones[index] || {};
-                                return (
-                                <TableRow key={index}>
-                                    <TableCell>{index + 1}</TableCell>
-                                    <TableCell>
-                                        <Combobox
-                                            options={personalOptions}
-                                            value={asignacion.id || ''}
-                                            onChange={(value) => handleSelectPersonal(index, value)}
-                                            placeholder="Buscar trabajador..."
-                                        />
-                                    </TableCell>
-                                    <TableCell>{asignacion.dni || '-'}</TableCell>
-                                    <TableCell>{asignacion.telefono || '-'}</TableCell>
-                                    <TableCell>
-                                        <Textarea
-                                            value={asignacion.comentarios || ''}
-                                            onChange={(e) => {
-                                                const newAsignaciones = [...asignaciones];
-                                                if (!newAsignaciones[index]) newAsignaciones[index] = {};
-                                                newAsignaciones[index].comentarios = e.target.value;
-                                                setAsignaciones(newAsignaciones);
-                                            }}
-                                            rows={1}
-                                            className="text-xs"
-                                        />
-                                    </TableCell>
-                                </TableRow>
-                            )})}
-                        </TableBody>
-                    </Table>
-                </div>
+                <Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={5} placeholder="Añade aquí cualquier nota relevante sobre la producción o entrega de este artículo..."/>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleSave}>Guardar Asignaciones</Button>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSave}>Guardar Comentario</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
 }
 
-// --- Main Page Component ---
-type UnifiedRequest = (PersonalExternoTurno & { osId: string; type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
-type DayDetails = { day: Date; events: (UnifiedRequest & { os?: ServiceOrder | { id: string; serviceNumber: string; client: string; space: string; } })[] } | null;
-
 export default function PortalPersonalPage() {
     const [pedidos, setPedidos] = useState<(PersonalExterno | SolicitudPersonalCPR)[]>([]);
     const [serviceOrders, setServiceOrders] = useState<Map<string, ServiceOrder>>(new Map());
-    const [briefings, setBriefings] = useState<Map<string, ComercialBriefing>>(new Map());
+    const [briefings, setBriefings] = useState<Map<string, { items: ComercialBriefingItem[] }>>(new Map());
     const [isMounted, setIsMounted] = useState(false);
     const { impersonatedUser } = useImpersonatedUser();
     const router = useRouter();
@@ -227,7 +150,7 @@ export default function PortalPersonalPage() {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         setServiceOrders(new Map(allServiceOrders.map(os => [os.id, os])));
 
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as { osId: string; items: ComercialBriefingItem[] }[];
         setBriefings(new Map(allBriefings.map(b => [b.osId, b])));
 
         setIsMounted(true);
@@ -282,7 +205,7 @@ export default function PortalPersonalPage() {
     const filteredPedidos = useMemo(() => {
         const today = startOfToday();
         return pedidos.filter(p => {
-             const fechaServicio = new Date('turnos' in p ? p.turnos[0]?.fecha : p.fechaServicio);
+            const fechaServicio = new Date('turnos' in p ? p.turnos[0]?.fecha : p.fechaServicio);
              const isPast = isBefore(fechaServicio, today);
              if (!showCompleted && isPast) {
                  return false;
@@ -346,7 +269,9 @@ export default function PortalPersonalPage() {
     const calEndDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
     const calendarDays = eachDayOfInterval({ start: calStartDate, end: calEndDate });
 
-     const eventsByDay = useMemo(() => {
+    type UnifiedRequest = (PersonalExternoTurno & { osId: string; type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
+
+    const eventsByDay = useMemo(() => {
         const grouped: { [dayKey: string]: UnifiedRequest[] } = {};
         pedidos.forEach(p => {
             const turnosSource = 'turnos' in p ? p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO' as const })) : [{ ...p, type: 'CPR' as const }];
@@ -358,7 +283,7 @@ export default function PortalPersonalPage() {
         });
         return grouped;
     }, [pedidos]);
-
+    
     const nextMonth = () => setCurrentDate(add(currentDate, { months: 1 }));
     const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
 
@@ -367,7 +292,7 @@ export default function PortalPersonalPage() {
         return <LoadingSkeleton title="Cargando Portal de Personal..." />;
     }
     
-     if (impersonatedUser?.roles.includes('Partner Personal') && !proveedorId) {
+    if(impersonatedUser?.roles.includes('Partner Personal') && !proveedorId) {
         return (
              <main className="container mx-auto px-4 py-16">
                 <Card className="max-w-xl mx-auto">
@@ -375,7 +300,7 @@ export default function PortalPersonalPage() {
                     <CardContent><p>Este usuario no está asociado a ningún proveedor de personal. Por favor, contacta con el administrador.</p></CardContent>
                 </Card>
             </main>
-        );
+        )
     }
 
     return (
@@ -464,7 +389,7 @@ export default function PortalPersonalPage() {
                                                                     return (
                                                                     <TableRow key={turno.id} className={cn(status === 'Gestionado' && 'bg-green-50/50', status === 'Asignada' && 'bg-green-50/50')}>
                                                                         <TableCell className="font-semibold">{('cantidad' in turno ? turno.cantidad : 1)} x {turno.categoria}</TableCell>
-                                                                        <TableCell>{turno.horaInicio} - {turno.horaFin}</TableCell>
+                                                                        <TableCell>{turno.horaInicio} - {turno.horaSalida}</TableCell>
                                                                         <TableCell className="text-xs text-muted-foreground">{'observaciones' in turno ? turno.observaciones : turno.motivo}</TableCell>
                                                                         <TableCell className="text-center">
                                                                             <Badge variant={status === 'Gestionado' || status === 'Asignada' ? 'success' : 'secondary'}>{status}</Badge>
@@ -524,7 +449,7 @@ export default function PortalPersonalPage() {
                                             'last:border-r-0',
                                             dayEvents.length > 0 && 'cursor-pointer hover:bg-secondary'
                                         )}
-                                        onClick={() => dayEvents.length > 0 && setDayDetails({ day, events: dayEvents })}
+                                        onClick={() => dayEvents.length > 0 && setDayDetails({ day, events: dayEvents as any })}
                                     >
                                         <span className={cn('font-semibold text-xs', isToday && 'text-primary font-bold flex items-center justify-center h-5 w-5 rounded-full bg-primary/20')}>
                                             {format(day, 'd')}
@@ -565,3 +490,5 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
+
+```
