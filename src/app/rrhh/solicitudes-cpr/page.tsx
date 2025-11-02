@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -223,7 +224,7 @@ export default function SolicitudesCprPage() {
                         <TableHead>Fecha Servicio</TableHead>
                         <TableHead>Horario</TableHead>
                         <TableHead>Partida</TableHead>
-                        <TableHead>Categoría Solicitada</TableHead>
+                        <TableHead>Categoría</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Proveedor - Categoría Asignada</TableHead>
                     </TableRow>
@@ -259,11 +260,18 @@ export default function SolicitudesCprPage() {
       <Dialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
         <DialogContent className="max-w-xl">
             <DialogHeader>
-                <DialogTitle>Gestionar Solicitud: {solicitudToManage?.id}</DialogTitle>
-                <DialogDescription>
-                    {solicitudToManage?.motivo}
-                </DialogDescription>
+                <DialogTitle>Gestionar Solicitud</DialogTitle>
             </DialogHeader>
+            {solicitudToManage && (
+                 <div className="text-sm space-y-2 border-b pb-4">
+                    <div className="grid grid-cols-2 gap-x-4">
+                        <p><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</p>
+                        <p><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</p>
+                    </div>
+                     <p><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</p>
+                    <p className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</p>
+                </div>
+            )}
             <div className="py-4 space-y-4">
                 {solicitudToManage?.estado === 'Solicitada Cancelacion' ? (
                     <div className="text-center">
@@ -288,6 +296,7 @@ export default function SolicitudesCprPage() {
                                     <SelectValue placeholder="Selecciona un proveedor..."/>
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="">-- Sin asignar --</SelectItem>
                                     {proveedores.map(p => (
                                         <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
                                     ))}
@@ -320,7 +329,7 @@ export default function SolicitudesCprPage() {
             {solicitudToManage?.estado !== 'Solicitada Cancelacion' && (
                 <DialogFooter>
                     <DialogClose asChild><Button variant="secondary">Cerrar</Button></DialogClose>
-                    <Button onClick={handleGuardarAsignacion} disabled={!selectedProvider || !selectedCategoria}>Guardar Asignación</Button>
+                    <Button onClick={handleGuardarAsignacion}>Guardar Asignación</Button>
                 </DialogFooter>
             )}
         </DialogContent>
