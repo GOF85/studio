@@ -2,39 +2,52 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { useState, useEffect } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import type { LucideIcon, OrdenFabricacion } from 'lucide-react';
 import { cprNav } from '@/lib/cpr-nav';
 import { Separator } from '@/components/ui/separator';
-import { Factory } from 'lucide-react';
+import { Factory, AlertTriangle, List, Clock, CheckCircle } from 'lucide-react';
+import { isToday, parseISO } from 'date-fns';
 
 const workflowSections = {
   planificar: {
     title: '1. Planificar',
-    description: '¿Qué tenemos que producir?',
     modules: ['Planificación y OFs', 'Solicitudes de Personal']
   },
   ejecutar: {
     title: '2. Ejecutar',
-    description: 'Manos a la obra.',
     modules: ['Taller de Producción', 'Picking y Logística', 'Control de Calidad']
   },
   analizar: {
     title: '3. Analizar y Supervisar',
-    description: '¿Cómo vamos y qué ha pasado?',
     modules: ['Stock Elaboraciones', 'Productividad', 'Informe de Picking', 'Trazabilidad', 'Incidencias']
   }
 };
 
-function WorkflowSection({ title, description, modules }: { title: string, description: string, modules: typeof cprNav }) {
+function KpiCard({ title, value, icon: Icon, href, className }: { title: string, value: number, icon: LucideIcon, href: string, className?: string }) {
+    return (
+        <Link href={href}>
+            <Card className={cn("hover:shadow-md transition-all", className)}>
+                <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{value}</div>
+                </CardContent>
+            </Card>
+        </Link>
+    )
+}
+
+function WorkflowSection({ title, modules }: { title: string, modules: typeof cprNav }) {
     if (modules.length === 0) return null;
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
              <div>
                 <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
-                <p className="text-sm text-muted-foreground">{description}</p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {modules.map((item) => {
@@ -62,8 +75,23 @@ function WorkflowSection({ title, description, modules }: { title: string, descr
 
 export default function CprDashboardPage() {
     const [isMounted, setIsMounted] = useState(false);
+    const [kpiData, setKpiData] = useState({
+        pendientes: 0,
+        enProceso: 0,
+        finalizadasHoy: 0,
+        incidencias: 0,
+    });
 
     useEffect(() => {
+        const storedOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        const today = new Date();
+        
+        const pendientes = storedOFs.filter(of => of.estado === 'Pendiente' || of.estado === 'Asignada').length;
+        const enProceso = storedOFs.filter(of => of.estado === 'En Proceso').length;
+        const finalizadasHoy = storedOFs.filter(of => of.fechaFinalizacion && isToday(parseISO(of.fechaFinalizacion))).length;
+        const incidencias = storedOFs.filter(of => of.estado === 'Incidencia').length;
+
+        setKpiData({ pendientes, enProceso, finalizadasHoy, incidencias });
         setIsMounted(true);
     }, []);
 
@@ -73,29 +101,26 @@ export default function CprDashboardPage() {
 
     return (
         <main>
-             <div className="flex items-center gap-4 mb-8">
-                <Factory className="w-10 h-10 text-primary" />
-                <div>
-                    <h1 className="text-4xl font-headline font-bold tracking-tight">Panel de Producción</h1>
-                    <p className="text-lg text-muted-foreground mt-1">Visión general del flujo de trabajo en el Centro de Producción.</p>
-                </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+                <KpiCard title="OFs Pendientes" value={kpiData.pendientes} icon={List} href="/cpr/of?status=Pendiente" />
+                <KpiCard title="OFs en Proceso" value={kpiData.enProceso} icon={Clock} href="/cpr/of?status=En+Proceso" />
+                <KpiCard title="Finalizadas Hoy" value={kpiData.finalizadasHoy} icon={CheckCircle} href="/cpr/of" />
+                <KpiCard title="Incidencias Activas" value={kpiData.incidencias} icon={AlertTriangle} href="/cpr/incidencias" className={kpiData.incidencias > 0 ? "border-destructive bg-destructive/10" : ""} />
             </div>
-            <div className="space-y-8">
+
+            <div className="space-y-6">
                 <WorkflowSection 
                     title={workflowSections.planificar.title}
-                    description={workflowSections.planificar.description}
                     modules={cprNav.filter(item => workflowSections.planificar.modules.includes(item.title))}
                 />
                 <Separator />
                  <WorkflowSection 
                     title={workflowSections.ejecutar.title}
-                    description={workflowSections.ejecutar.description}
                     modules={cprNav.filter(item => workflowSections.ejecutar.modules.includes(item.title))}
                 />
                 <Separator />
                 <WorkflowSection 
                     title={workflowSections.analizar.title}
-                    description={workflowSections.analizar.description}
                     modules={cprNav.filter(item => workflowSections.analizar.modules.includes(item.title))}
                 />
             </div>
