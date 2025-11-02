@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Users, ClipboardList, BarChart3, Factory, UserPlus } from 'lucide-react';
