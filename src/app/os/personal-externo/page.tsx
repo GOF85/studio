@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -40,7 +39,6 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
-
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -100,7 +98,7 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
         setValue(fieldName, comment, { shouldDirty: true });
         setIsOpen(false);
     };
-    
+   
     useEffect(() => {
         if(isOpen) {
             setComment(getValues(fieldName) || '');
@@ -163,40 +161,37 @@ export default function PersonalExternoPage() {
     control,
     name: "turnos",
   });
-  
+ 
   const { fields: ajusteFields, append: appendAjuste, remove: removeAjuste } = useFieldArray({
     control,
     name: "ajustes",
   });
-  
+ 
   const loadData = useCallback(() => {
     if (!osId || !impersonatedUser) return;
     try {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const currentOS = allServiceOrders.find(os => os.id === osId);
         setServiceOrder(currentOS || null);
-
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const currentBriefing = allBriefings.find(b => b.osId === osId);
         setBriefingItems(currentBriefing?.items || []);
-
         const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
         setProveedoresDB(dbProveedores);
-        
+       
         const allProveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
         setAllProveedores(allProveedoresData);
-
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const currentPersonalExterno = allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' };
         setPersonalExterno(currentPersonalExterno);
-        
+       
         const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
-        
+       
         form.reset({ 
             turnos: currentPersonalExterno.turnos.map(t => ({...t, fecha: new Date(t.fecha)})),
             ajustes: storedAjustes[osId] || []
         });
-        
+       
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de personal externo.' });
     } finally {
@@ -207,7 +202,7 @@ export default function PersonalExternoPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-  
+ 
   const handleProviderChange = useCallback((index: number, proveedorId: string) => {
     if (!proveedorId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
@@ -217,7 +212,7 @@ export default function PersonalExternoPage() {
         setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
         trigger(`turnos.${index}`);
     }
-}, [proveedoresDB, setValue, trigger]);
+  }, [proveedoresDB, setValue, trigger]);
 
   const watchedFields = watch('turnos');
   const watchedAjustes = watch('ajustes');
@@ -236,30 +231,28 @@ export default function PersonalExternoPage() {
             return sumAsignacion + hoursToUse * (order.precioHora || 0);
         }, 0);
     }, 0) || 0;
-    
+   
     const aj = watchedAjustes?.reduce((sum, ajuste) => sum + ajuste.importe, 0) || 0;
-
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, costeFinalPlanificado: planned + aj, finalTotalReal: real + aj };
   }, [watchedFields, watchedAjustes]);
 
     const handleGlobalStatusAction = (newStatus: EstadoPersonalExterno) => {
         if (!personalExterno) return;
-        
+     
         let requiresUpdate = false;
         if(newStatus === 'Solicitado') {
             requiresUpdate = personalExterno.turnos.some(t => t.statusPartner !== 'Gestionado');
         }
-
         const updatedTurnos = personalExterno.turnos.map(t => ({
             ...t,
             requiereActualizacion: newStatus === 'Solicitado' ? true : t.requiereActualizacion,
         }));
-        
+     
         const updatedPersonalExterno = { ...personalExterno, status: newStatus, turnos: updatedTurnos };
-        
+     
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const index = allPersonalExterno.findIndex(p => p.osId === osId);
-        
+     
         if (index > -1) {
             allPersonalExterno[index] = updatedPersonalExterno;
         } else {
@@ -273,24 +266,20 @@ export default function PersonalExternoPage() {
     const isSolicitudDesactualizada = useMemo(() => {
         if (personalExterno?.status !== 'Solicitado') return false;
         if (!formState.isDirty) return false;
-
         const savedTurnos = new Map(personalExterno.turnos.map(t => [t.id, t]));
         const currentTurnos = getValues('turnos');
-
         if (savedTurnos.size !== currentTurnos.length) return true;
-
         return currentTurnos.some(current => {
             const saved = savedTurnos.get(current.id);
-            if (!saved) return true; // new turn
+            if (!saved) return true;
             const { asignaciones, requiereActualizacion, ...savedRest } = saved;
             const { asignaciones: currentAsignaciones, requiereActualizacion: currentReq, ...currentRest } = current;
             return JSON.stringify(savedRest) !== JSON.stringify(currentRest);
         });
     }, [formState.isDirty, personalExterno, getValues]);
-    
+ 
     const ActionButton = () => {
         if(!personalExterno) return null;
-
         switch(personalExterno.status) {
             case 'Pendiente':
                 return <Button onClick={() => handleGlobalStatusAction('Solicitado')}><Send className="mr-2"/>Solicitar a ETT</Button>
@@ -307,61 +296,60 @@ export default function PersonalExternoPage() {
                 return null;
         }
     }
-  
-    const onSubmit = (data: FormValues) => {
-        setIsLoading(true);
-        if (!osId) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
-            setIsLoading(false);
-            return;
-        }
-    
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const index = allPersonalExterno.findIndex(p => p.osId === osId);
-        
-        const currentStatus = personalExterno?.status || 'Pendiente';
-        
-        const newPersonalData: PersonalExterno = {
-            osId,
-            turnos: data.turnos.map(t => {
-                const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
-                return {
-                    ...t, 
-                    fecha: format(t.fecha, 'yyyy-MM-dd'),
-                    statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-                    requiereActualizacion: true,
-                    asignaciones: (t.asignaciones || []).map(a => ({
-                        ...a,
-                        horaEntradaReal: a.horaEntradaReal || '',
-                        horaSalidaReal: a.horaSalidaReal || '',
-                    })),
-                }
-            }),
-            status: currentStatus,
-            observacionesGenerales: form.getValues('observacionesGenerales'),
-        };
-        
-        if (index > -1) {
-            allPersonalExterno[index] = newPersonalData;
-        } else {
-            allPersonalExterno.push(newPersonalData);
-        }
-    
-        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-        
-        const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-        allAjustes[osId] = data.ajustes || [];
-        localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
 
-        window.dispatchEvent(new Event('storage'));
-    
-        setTimeout(() => {
-            toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
-            setIsLoading(false);
-            form.reset(data);
-        }, 500);
+  const onSubmit = (data: FormValues) => {
+      setIsLoading(true);
+      if (!osId) {
+          toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
+          setIsLoading(false);
+          return;
+      }
+ 
+      const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+      const index = allPersonalExterno.findIndex(p => p.osId === osId);
+     
+      const currentStatus = personalExterno?.status || 'Pendiente';
+     
+      const newPersonalData: PersonalExterno = {
+          osId,
+          turnos: data.turnos.map(t => {
+              const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
+              return {
+                  ...t,
+                  fecha: format(t.fecha, 'yyyy-MM-dd'),
+                  statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
+                  requiereActualizacion: true,
+                  asignaciones: (t.asignaciones || []).map(a => ({
+                      ...a,
+                      horaEntradaReal: a.horaEntradaReal || '',
+                      horaSalidaReal: a.horaSalidaReal || '',
+                  })),
+              }
+          }),
+          status: currentStatus,
+          observacionesGenerales: form.getValues('observacionesGenerales'),
       };
-  
+     
+      if (index > -1) {
+          allPersonalExterno[index] = newPersonalData;
+      } else {
+          allPersonalExterno.push(newPersonalData);
+      }
+ 
+      localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+     
+      const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
+      allAjustes[osId] = data.ajustes || [];
+      localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+      window.dispatchEvent(new Event('storage'));
+ 
+      setTimeout(() => {
+          toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
+          setIsLoading(false);
+          form.reset(data);
+      }, 500);
+    };
+
   const addRow = () => {
     append({
         id: Date.now().toString(),
@@ -379,13 +367,12 @@ export default function PersonalExternoPage() {
         requiereActualizacion: true,
     });
   }
-  
+
   const handleDeleteRow = () => {
     if (rowToDelete !== null) {
       remove(rowToDelete);
       setRowToDelete(null);
       toast({ title: 'Turno eliminado' });
-      handleSubmit(onSubmit)(); // Auto-save after delete
     }
   };
 
@@ -395,7 +382,7 @@ export default function PersonalExternoPage() {
     toast({ title: 'Planificación vaciada' });
     handleSubmit(onSubmit)();
   };
-  
+
   const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
       if (!osId) return;
       const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
@@ -403,7 +390,7 @@ export default function PersonalExternoPage() {
       localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
   }
 
-  const providerOptions = useMemo(() => 
+  const providerOptions = useMemo(() =>
     allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
         value: p.id,
         label: p.nombreComercial
@@ -426,9 +413,8 @@ export default function PersonalExternoPage() {
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
-  
+ 
   const statusBadgeVariant = personalExterno?.status === 'Asignado' || personalExterno?.status === 'Cerrado' ? 'success' : personalExterno?.status === 'Solicitado' ? 'outline' : 'warning';
-
 
   return (
     <>
@@ -447,7 +433,7 @@ export default function PersonalExternoPage() {
                         </Button>
                     </div>
                 </div>
-                
+               
                 <Accordion type="single" collapsible className="w-full mb-4" >
                     <AccordionItem value="item-1">
                     <Card>
@@ -699,31 +685,6 @@ export default function PersonalExternoPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="documentacion">
-                        <Card>
-                            <CardHeader className="py-3 flex-row items-center justify-between">
-                                <CardTitle className="text-lg">Documentación</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <Card>
-                                    <CardHeader><CardTitle className="text-base">Hoja de Firmas Adjunta</CardTitle></CardHeader>
-                                    <CardContent>
-                                        {personalExterno?.hojaFirmadaUrl ? (
-                                             <div className="relative">
-                                                <img src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" className="rounded-md w-full h-auto object-contain max-h-96 border"/>
-                                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={removeHojaFirmada}><Trash2/></Button>
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <Label htmlFor="upload-photo">Subir hoja de firmas escaneada</Label>
-                                                <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} />
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
                 </Tabs>
                 
                  <div className="mt-8">
@@ -815,21 +776,14 @@ export default function PersonalExternoPage() {
         </AlertDialog>
         <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
             <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Vaciar toda la planificación?</AlertDialogTitle>
-                <AlertDialogDescription>
-                Esta acción eliminará todos los turnos de personal de este evento. Es irreversible.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                className="bg-destructive hover:bg-destructive/90"
-                onClick={handleClearAll}
-                >
-                Sí, vaciar planificación
-                </AlertDialogAction>
-            </AlertDialogFooter>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Vaciar toda la planificación?</AlertDialogTitle>
+                    <AlertDialogDescription>Esta acción es irreversible y eliminará todos los turnos de personal de este evento.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction className="bg-destructive hover:bg-destructive/80" onClick={handleClearAll}>Sí, vaciar todo</AlertDialogAction>
+                </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
 
