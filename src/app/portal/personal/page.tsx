@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { formatUnit, formatNumber, calculateHours } from '@/lib/utils';
+import { formatUnit, formatNumber } from '@/lib/utils';
 import type { PedidoPartner, PedidoEntrega, ProductoVenta, Entrega, Proveedor, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExternoDB, PersonalExterno, SolicitudPersonalCPR, PersonalExternoTurno, AsignacionPersonal } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -31,7 +31,7 @@ import { Input } from '@/components/ui/input';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
 import { Combobox } from '@/components/ui/combobox';
-
+import { calculateHours } from '@/lib/utils';
 
 type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
 
@@ -61,6 +61,35 @@ type DayDetails = {
     events: TurnoConDetalles[];
 } | null;
 
+
+function CommentDialog({ turno, onSave }: { turno: TurnoConDetalles; onSave: (id: string, comment: string) => void; }) {
+    const [comment, setComment] = useState(turno.observaciones || '');
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleSave = () => {
+        onSave(turno.id, comment);
+        setIsOpen(false);
+    }
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                   <Edit className="h-4 w-4"/>
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Comentarios para: {turno.categoria}</DialogTitle>
+                </DialogHeader>
+                <Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={5} placeholder="Añade aquí cualquier nota relevante para la ETT..."/>
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSave}>Guardar Comentario</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 function AsignacionDialog({ turno, onSave, children }: { turno: TurnoConDetalles; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -440,7 +469,7 @@ export default function PartnerPersonalPortalPage() {
                     </div>
                     {turnosAgrupadosPorDia.length > 0 ? (
                          <Accordion type="multiple" className="w-full space-y-4">
-                            {turnosAgrupadosPorDia.map(({ date, expediciones, allAccepted, earliestTime }) => (
+                            {turnosAgrupadosPorDia.map(({ date, expediciones, allAccepted }) => (
                                <AccordionItem value={date} key={date} className="border-none">
                                 <Card className={cn(allAccepted && 'bg-green-100/60')}>
                                         <AccordionTrigger className="p-4 hover:no-underline">
@@ -578,5 +607,4 @@ export default function PartnerPersonalPortalPage() {
     );
 }
 
-```
 ```
