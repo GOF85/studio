@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -43,6 +42,7 @@ export default function NuevaSolicitudPersonalPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -51,14 +51,9 @@ export default function NuevaSolicitudPersonalPage() {
             horaFin: '16:00',
             partida: 'FRIO',
             cantidad: 1,
-            fechaServicio: undefined,
+            fechaServicio: new Date(),
         }
     });
-    
-    useEffect(() => {
-        form.setValue('fechaServicio', new Date());
-    }, [form]);
-
 
     const onSubmit = (data: FormValues) => {
         if (!impersonatedUser) {
@@ -101,7 +96,7 @@ export default function NuevaSolicitudPersonalPage() {
                             <div className="grid md:grid-cols-3 gap-6">
                                 <FormField control={form.control} name="fechaServicio" render={({ field }) => (
                                     <FormItem className="flex flex-col"><FormLabel>Fecha del Servicio</FormLabel>
-                                        <Popover>
+                                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                             <PopoverTrigger asChild>
                                                 <FormControl>
                                                     <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
@@ -110,7 +105,17 @@ export default function NuevaSolicitudPersonalPage() {
                                                     </Button>
                                                 </FormControl>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                                            <PopoverContent className="w-auto p-0">
+                                                <Calendar 
+                                                    mode="single" 
+                                                    selected={field.value} 
+                                                    onSelect={(date) => {
+                                                        field.onChange(date);
+                                                        setIsCalendarOpen(false);
+                                                    }} 
+                                                    initialFocus 
+                                                />
+                                            </PopoverContent>
                                         </Popover>
                                     <FormMessage /></FormItem>
                                 )} />
