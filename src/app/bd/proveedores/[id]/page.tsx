@@ -20,6 +20,24 @@ import { useLoadingStore } from '@/hooks/use-loading-store';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { MultiSelect } from '@/components/ui/multi-select';
 
+const defaultFormValues: ProveedorFormValues = {
+    id: '',
+    cif: '',
+    IdERP: '',
+    nombreEmpresa: '',
+    nombreComercial: '',
+    direccionFacturacion: '',
+    codigoPostal: '',
+    ciudad: '',
+    provincia: '',
+    pais: 'España',
+    emailContacto: '',
+    telefonoContacto: '',
+    iban: '',
+    formaDePagoHabitual: '',
+    tipos: [],
+};
+
 export default function EditarProveedorPage() {
   const router = useRouter();
   const params = useParams();
@@ -31,18 +49,17 @@ export default function EditarProveedorPage() {
 
   const form = useForm<ProveedorFormValues>({
     resolver: zodResolver(proveedorSchema),
+    defaultValues: defaultFormValues,
   });
   
   useEffect(() => {
     const allItems = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
     const item = allItems.find(p => p.id === id);
     if (item) {
+        // Merge the loaded item with defaults to ensure all fields are controlled
         form.reset({
+            ...defaultFormValues,
             ...item,
-            IdERP: item.IdERP || '',
-            iban: item.iban || '',
-            formaDePagoHabitual: item.formaDePagoHabitual || '',
-            tipos: item.tipos || [],
         });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el proveedor.' });
@@ -57,7 +74,12 @@ export default function EditarProveedorPage() {
     const index = allItems.findIndex(p => p.id === id);
 
     if (index !== -1) {
-      allItems[index] = data;
+      // Reconstruct the full object before saving
+      const fullItem: Proveedor = {
+          ...allItems[index], // Keep old fields
+          ...data, // Overwrite with new form data
+      };
+      allItems[index] = fullItem;
       localStorage.setItem('proveedores', JSON.stringify(allItems));
       toast({ description: 'Proveedor actualizado correctamente.' });
     }
