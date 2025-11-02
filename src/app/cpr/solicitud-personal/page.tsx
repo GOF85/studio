@@ -7,7 +7,7 @@ import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2 } from 'luc
 import { format, isSameDay, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { SolicitudPersonalCPR } from '@/types';
+import type { SolicitudPersonalCPR, Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,6 +18,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { calculateHours, formatNumber } from '@/lib/utils';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   'Pendiente': 'secondary',
@@ -29,6 +30,7 @@ const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'sec
 
 export default function SolicitudPersonalCprPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
+  const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
@@ -40,6 +42,10 @@ export default function SolicitudPersonalCprPage() {
   useEffect(() => {
     const storedData = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
     setSolicitudes(storedData);
+    
+    const storedProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+    setProveedoresMap(new Map(storedProveedores.map(p => [p.id, p.nombreComercial])));
+
     setIsMounted(true);
   }, []);
 
@@ -131,6 +137,7 @@ export default function SolicitudPersonalCprPage() {
                     <TableRow>
                         <TableHead>Fecha Servicio</TableHead>
                         <TableHead>Horario</TableHead>
+                        <TableHead>Horas</TableHead>
                         <TableHead>Partida</TableHead>
                         <TableHead>Categoría</TableHead>
                         <TableHead>Motivo</TableHead>
@@ -148,11 +155,12 @@ export default function SolicitudPersonalCprPage() {
                         <TableRow key={s.id}>
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
+                            <TableCell className="font-semibold">{formatNumber(calculateHours(s.horaInicio, s.horaFin), 2)}h</TableCell>
                             <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>{s.motivo}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
-                            <TableCell>{s.proveedorId || '-'}</TableCell>
+                            <TableCell>{proveedoresMap.get(s.proveedorId || '') || '-'}</TableCell>
                             <TableCell className="text-right">
                                 {canDelete && <Button variant="destructive" size="sm" onClick={() => handleActionClick(s, 'delete')}><Trash2 className="mr-2 h-4 w-4"/>Borrar</Button>}
                                 {canCancel && <Button variant="destructive" size="sm" onClick={() => handleActionClick(s, 'cancel')}><Trash2 className="mr-2 h-4 w-4"/>Solicitar Cancelación</Button>}
@@ -161,7 +169,7 @@ export default function SolicitudPersonalCprPage() {
                         </TableRow>
                     )}) : (
                         <TableRow>
-                            <TableCell colSpan={8} className="h-24 text-center">No has realizado ninguna solicitud.</TableCell>
+                            <TableCell colSpan={9} className="h-24 text-center">No has realizado ninguna solicitud.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
