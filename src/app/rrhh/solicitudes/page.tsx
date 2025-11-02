@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, isWithinInterval, startOfDay, endOfDay, isBefore } from 'date-fns';
+import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
-import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, CategoriaPersonal } from '@/types';
+import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -28,8 +28,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { calculateHours, formatCurrency } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -186,6 +185,16 @@ export default function SolicitudesUnificadasPage() {
     }
   }
 
+  const handleDeleteRequest = () => {
+    if (!solicitudToManage) return;
+    let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
+    const updated = allRequests.filter(r => r.id !== solicitudToManage.id);
+    localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updated));
+    setRequests(requests.filter(r => r.id !== solicitudToManage.id));
+    setSolicitudToManage(null);
+    toast({ title: 'Solicitud eliminada' });
+  };
+
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
   }
@@ -194,7 +203,7 @@ export default function SolicitudesUnificadasPage() {
     <>
       <main>
         <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal Externo</h1>
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión Unificada de Personal Externo</h1>
         </div>
 
        <div className="space-y-4 mb-6">
@@ -282,7 +291,7 @@ export default function SolicitudesUnificadasPage() {
         </div>
       </main>
 
-       <Dialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
+      <Dialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
         <DialogContent className="max-w-lg">
             <DialogHeader>
                 <DialogTitle>Gestionar Solicitud de CPR</DialogTitle>
@@ -327,4 +336,3 @@ export default function SolicitudesUnificadasPage() {
     </>
   );
 }
-
