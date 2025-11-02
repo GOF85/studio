@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, Factory } from 'lucide-react';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2 } from 'lucide-react';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -68,6 +68,8 @@ export default function SolicitudesCprPage() {
     setIsMounted(true);
   }, []);
   
+  const proveedoresMap = useMemo(() => new Map(proveedores.map(p => [p.id, p.nombreComercial])), [proveedores]);
+
   useEffect(() => {
     if (solicitudToManage) {
         const categoriaDelProveedor = tiposPersonal.find(t => t.proveedorId === solicitudToManage.proveedorId && t.categoria === solicitudToManage.categoria);
@@ -283,36 +285,29 @@ export default function SolicitudesCprPage() {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Categoría Solicitada</TableHead>
-                        <TableHead>Proveedor (ETT) - Categoría Asignada</TableHead>
                         <TableHead>Fecha Servicio</TableHead>
                         <TableHead>Horario</TableHead>
-                        <TableHead className="text-right">Coste Presupuestado</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        <TableHead>Motivo</TableHead>
+                        <TableHead>Asignado a</TableHead>
+                        <TableHead className="text-right">Coste Presup.</TableHead>
                         <TableHead className="text-right">Estado</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => (
                         <TableRow key={s.id} onClick={() => setSolicitudToManage(s)} className="cursor-pointer">
-                            <TableCell className="font-semibold">{s.categoria}</TableCell>
-                             <TableCell>
-                                {s.estado === 'Asignada' && s.proveedorId ? (
-                                    <div>
-                                        <p className="font-semibold">{proveedores.find(p => p.id === s.proveedorId)?.nombreComercial || 'Desconocido'}</p>
-                                        <p className="text-xs text-muted-foreground">{s.categoria}</p>
-                                    </div>
-                                ) : s.estado === 'Solicitada Cancelacion' ? (
-                                    <Badge variant="destructive">Pendiente RRHH</Badge>
-                                ) : '-'}
-                            </TableCell>
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
+                            <TableCell className="font-semibold">{s.categoria}</TableCell>
+                            <TableCell>{s.motivo}</TableCell>
+                             <TableCell>{proveedoresMap.get(s.proveedorId || '') || '-'}</TableCell>
                             <TableCell className="text-right font-mono">{formatCurrency(s.costeImputado || 0)}</TableCell>
                             <TableCell className="text-right"><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
+                            <TableCell colSpan={7} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -326,7 +321,8 @@ export default function SolicitudesCprPage() {
                 <DialogTitle>Gestionar Solicitud</DialogTitle>
                  {solicitudToManage && (
                     <DialogDescription asChild>
-                       <div className="text-sm space-y-1 border-b pb-4 pt-2">
+                       <div className="text-sm space-y-1 pt-2">
+                            <div><strong>Solicitado por:</strong> {solicitudToManage.solicitadoPor} ({format(new Date(solicitudToManage.fechaSolicitud), 'dd/MM/yy HH:mm')})</div>
                             <div className="grid grid-cols-2 gap-x-4">
                                 <div><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</div>
                                 <div><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</div>
@@ -422,5 +418,3 @@ export default function SolicitudesCprPage() {
     </div>
   )
 }
-
-    
