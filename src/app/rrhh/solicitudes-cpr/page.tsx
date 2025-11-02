@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, Factory } from 'lucide-react';
-import { format, isSameDay, isBefore, startOfToday } from 'date-fns';
+import { format, isSameDay, isBefore, startOfToday, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import type { SolicitudPersonalCPR, Personal, Proveedor, CategoriaPersonal } from '@/types';
@@ -17,20 +18,13 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { formatCurrency, calculateHours } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
-
+import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   'Pendiente': 'secondary',
@@ -47,7 +41,11 @@ export default function SolicitudesCprPage() {
   const [tiposPersonal, setTiposPersonal] = useState<CategoriaPersonal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
@@ -88,7 +86,16 @@ export default function SolicitudesCprPage() {
         s.partida.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.solicitadoPor.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const dateMatch = !dateFilter || isSameDay(new Date(s.fechaServicio), dateFilter);
+      let dateMatch = true;
+      if (dateRange?.from) {
+          const serviceDate = new Date(s.fechaServicio);
+          if (dateRange.to) {
+              dateMatch = isWithinInterval(serviceDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+          } else {
+              dateMatch = isSameDay(serviceDate, dateRange.from);
+          }
+      }
+
       const statusMatch = statusFilter === 'all' || s.estado === statusFilter;
       const proveedorMatch = proveedorFilter === 'all' || s.proveedorId === proveedorFilter;
       
@@ -103,7 +110,7 @@ export default function SolicitudesCprPage() {
 
       return searchMatch && dateMatch && statusMatch && proveedorMatch && pastEventMatch;
     }).sort((a,b) => new Date(b.fechaSolicitud).getTime() - new Date(a.fechaSolicitud).getTime());
-  }, [solicitudes, searchTerm, dateFilter, statusFilter, proveedorFilter, showPastEvents]);
+  }, [solicitudes, searchTerm, dateRange, statusFilter, proveedorFilter, showPastEvents]);
 
   const updateSolicitud = (solicitudId: string, updates: Partial<SolicitudPersonalCPR>) => {
     let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
@@ -184,6 +191,21 @@ export default function SolicitudesCprPage() {
     if (!selectedProvider) return [];
     return tiposPersonal.filter(t => t.proveedorId === selectedProvider);
   }, [selectedProvider, tiposPersonal]);
+  
+  const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
+        const now = new Date();
+        let fromDate, toDate;
+        switch(preset) {
+            case 'month': fromDate = startOfMonth(now); toDate = endOfMonth(now); break;
+            case 'year': fromDate = startOfYear(now); toDate = endOfYear(now); break;
+            case 'q1': fromDate = startOfQuarter(new Date(now.getFullYear(), 0, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 2, 31)); break;
+            case 'q2': fromDate = startOfQuarter(new Date(now.getFullYear(), 3, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 5, 30)); break;
+            case 'q3': fromDate = startOfQuarter(new Date(now.getFullYear(), 6, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 8, 30)); break;
+            case 'q4': fromDate = startOfQuarter(new Date(now.getFullYear(), 9, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 11, 31)); break;
+        }
+        setDateRange({ from: fromDate, to: toDate });
+        setIsDatePickerOpen(false);
+    };
 
 
   if (!isMounted) {
@@ -196,28 +218,29 @@ export default function SolicitudesCprPage() {
             <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Factory />Solicitudes de Personal (CPR)</h1>
         </div>
 
-       <div className="flex gap-4 mb-4">
+      <div className="flex gap-4 mb-4">
         <Input 
           placeholder="Buscar por motivo, categoría..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateFilter ? format(dateFilter, 'PPP', { locale: es }) : <span>Filtrar por fecha</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={dateFilter}
-              onSelect={setDateFilter}
-              initialFocus
-            />
-          </PopoverContent>
+        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+            <PopoverTrigger asChild>
+                <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 flex" align="start">
+                 <div className="p-2 border-r">
+                    <div className="flex flex-col gap-1">
+                        <Button variant="outline" size="sm" onClick={() => setDatePreset('month')}>Este Mes</Button>
+                        <Button variant="outline" size="sm" onClick={() => setDatePreset('year')}>Este Año</Button>
+                    </div>
+                </div>
+                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+            </PopoverContent>
         </Popover>
          <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos los estados"/></SelectTrigger>
@@ -240,12 +263,12 @@ export default function SolicitudesCprPage() {
             </SelectContent>
         </Select>
       </div>
-      <div className="flex items-center justify-between mb-4">
+       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
             <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
             <Label htmlFor="show-past" className="text-sm font-medium">Mostrar pasados</Label>
         </div>
-        <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateFilter(undefined); setStatusFilter('all'); setProveedorFilter('all'); setShowPastEvents(false); }}>Limpiar Filtros</Button>
+        <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateRange(undefined); setStatusFilter('all'); setProveedorFilter('all'); setShowPastEvents(false); }}>Limpiar Filtros</Button>
       </div>
       
       <Card>
@@ -255,7 +278,7 @@ export default function SolicitudesCprPage() {
                     <TableRow>
                         <TableHead>Fecha Servicio</TableHead>
                         <TableHead>Horario</TableHead>
-                        <TableHead>Categoría</TableHead>
+                        <TableHead>Categoría Solicitada</TableHead>
                         <TableHead>Proveedor (ETT) - Categoría Asignada</TableHead>
                         <TableHead className="text-right">Coste Presupuestado</TableHead>
                         <TableHead className="text-right">Estado</TableHead>
@@ -269,9 +292,10 @@ export default function SolicitudesCprPage() {
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>
                                 {s.estado === 'Asignada' && s.proveedorId ? (
-                                    <span>
-                                        {proveedores.find(p => p.id === s.proveedorId)?.nombreComercial || 'Desconocido'} - <strong>{s.categoria}</strong>
-                                    </span>
+                                    <div>
+                                        <p className="font-semibold">{proveedores.find(p => p.id === s.proveedorId)?.nombreComercial || 'Desconocido'}</p>
+                                        <p className="text-xs text-muted-foreground">{s.categoria}</p>
+                                    </div>
                                 ) : s.estado === 'Solicitada Cancelacion' ? (
                                     <Badge variant="destructive">Pendiente RRHH</Badge>
                                 ) : '-'}
@@ -365,6 +389,23 @@ export default function SolicitudesCprPage() {
             </div>
             {solicitudToManage?.estado !== 'Solicitada Cancelacion' && (
                 <DialogFooter>
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" className="mr-auto">Eliminar Solicitud</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                Esta acción eliminará permanentemente la solicitud. No se puede deshacer.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteRequest}>Sí, eliminar</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                     <DialogClose asChild><Button variant="secondary">Cerrar</Button></DialogClose>
                     <Button onClick={handleGuardarAsignacion}>Guardar Asignación</Button>
                 </DialogFooter>
@@ -374,3 +415,4 @@ export default function SolicitudesCprPage() {
     </div>
   )
 }
+```
