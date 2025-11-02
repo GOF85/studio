@@ -5,8 +5,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
-import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor } from '@/types';
+import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Trash2 } from 'lucide-react';
+import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -22,13 +22,15 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { calculateHours, formatCurrency } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -44,7 +46,7 @@ type UnifiedRequest = {
     motivo: string;
     proveedorId?: string;
     costeEstimado: number;
-    estado: EstadoPersonalExterno | SolicitudPersonalCPR['estado'];
+    estado: EstadoPersonalExterno | EstadoSolicitudPersonalCPR;
     isCprRequest: boolean;
 };
 
@@ -68,6 +70,8 @@ export default function SolicitudesUnificadasPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [solicitudToManage, setSolicitudToManage] = useState<UnifiedRequest | null>(null);
+  const [managementAction, setManagementAction] = useState<'delete' | 'cancel' | null>(null);
+  const [confirmationAction, setConfirmationAction] = useState<'Aprobada' | 'Rechazada' | null>(null);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -153,7 +157,7 @@ export default function SolicitudesUnificadasPage() {
       return searchMatch && dateMatch && pastEventMatch && statusMatch;
     });
   }, [requests, searchTerm, dateRange, showPastEvents, statusFilter]);
-
+  
   const paginatedItems = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredRequests.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -164,31 +168,45 @@ export default function SolicitudesUnificadasPage() {
   const handleRowClick = (req: UnifiedRequest) => {
     setSolicitudToManage(req);
   };
-
-  const handleUpdateCprStatus = (solicitud: UnifiedRequest, estado: SolicitudPersonalCPR['estado']) => {
+  
+  const handleUpdateCprStatus = (estado: SolicitudPersonalCPR['estado']) => {
+    if (!solicitudToManage) return;
     let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-    const index = allRequests.findIndex(r => r.id === solicitud.id);
+    const index = allRequests.findIndex(r => r.id === solicitudToManage.id);
     if(index > -1) {
         allRequests[index].estado = estado;
         localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
         
-        const updatedRequests = requests.map(r => r.id === solicitud.id ? {...r, estado} : r);
+        const updatedRequests = requests.map(r => r.id === solicitudToManage.id ? {...r, estado} : r);
         setRequests(updatedRequests);
-        setSolicitudToManage({...solicitud, estado});
+        setSolicitudToManage(null);
+        setConfirmationAction(null);
         toast({ title: 'Estado actualizado' });
     }
   }
 
   const handleDeleteRequest = () => {
     if (!solicitudToManage) return;
-    let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-    const updated = allRequests.filter(r => r.id !== solicitudToManage.id);
-    localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updated));
+    let allRequests: (SolicitudPersonalCPR | PersonalExterno)[] = [];
+    let storageKey = '';
+    
+    if (solicitudToManage.isCprRequest) {
+        allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
+        storageKey = 'solicitudesPersonalCPR';
+    } else {
+        allRequests = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        storageKey = 'personalExterno';
+    }
+
+    const updated = allRequests.filter((r: any) => r.id !== solicitudToManage.id);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
     setRequests(requests.filter(r => r.id !== solicitudToManage.id));
+    
     setSolicitudToManage(null);
+    setManagementAction(null);
     toast({ title: 'Solicitud eliminada' });
   };
-
+  
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
   }
@@ -197,7 +215,7 @@ export default function SolicitudesUnificadasPage() {
     <>
       <main>
         <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión Unificada de Personal Externo</h1>
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión Unificada de Personal</h1>
         </div>
 
        <div className="space-y-4 mb-6">
@@ -288,39 +306,67 @@ export default function SolicitudesUnificadasPage() {
       <Dialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
         <DialogContent className="max-w-lg">
             <DialogHeader>
-                <DialogTitle>Gestionar Solicitud</DialogTitle>
+                <DialogTitle className="flex justify-between items-center">
+                    Gestionar Solicitud
+                    {solicitudToManage && <Badge variant={statusVariant[solicitudToManage.estado]}>{solicitudToManage.estado}</Badge>}
+                </DialogTitle>
                  {solicitudToManage && (
                     <DialogDescription asChild>
                        <div className="text-sm space-y-1 pt-2">
-                            <div><strong>Origen:</strong> <Badge variant="secondary">{solicitudToManage.osNumber}</Badge></div>
-                            <div><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</div>
-                            <div><strong>Horario:</strong> {solicitudToManage.horario}</div>
-                            <div><strong>Categoría:</strong> {solicitudToManage.categoria}</div>
-                            <div className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</div>
+                            <p><strong>Origen:</strong> <Badge variant="secondary">{solicitudToManage.osNumber}</Badge></p>
+                            <p><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</p>
+                            <p><strong>Horario:</strong> {solicitudToManage.horario}</p>
+                            <p><strong>Categoría:</strong> {solicitudToManage.categoria}</p>
+                            <p className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</p>
                         </div>
                     </DialogDescription>
                  )}
             </DialogHeader>
             <div className="py-4 space-y-4">
-                {solicitudToManage?.isCprRequest && (
-                <>
-                    <h4 className="font-semibold">Gestión de Estado (CPR)</h4>
-                     <div className="flex gap-2 mt-2">
-                        <Button variant={solicitudToManage?.estado === 'Aprobada' || solicitudToManage?.estado === 'Asignada' ? 'default' : 'outline'} size="sm" onClick={() => handleUpdateCprStatus(solicitudToManage, 'Aprobada')}>Aprobar</Button>
-                        <Button variant={solicitudToManage?.estado === 'Rechazada' ? 'destructive' : 'outline'} size="sm" onClick={() => handleUpdateCprStatus(solicitudToManage, 'Rechazada')}>Rechazar</Button>
-                    </div>
-                </>
+                {solicitudToManage?.isCprRequest && solicitudToManage.estado === 'Pendiente' && (
+                    <>
+                        <h4 className="font-semibold">Acciones</h4>
+                        <div className="flex gap-2 mt-2">
+                            <Button variant={'default'} size="sm" onClick={() => setConfirmationAction('Aprobada')}>Aprobar</Button>
+                            <Button variant={'destructive'} size="sm" onClick={() => setConfirmationAction('Rechazada')}>Rechazar</Button>
+                        </div>
+                    </>
                 )}
-                 {solicitudToManage && !solicitudToManage.isCprRequest && (
+                {solicitudToManage && !solicitudToManage.isCprRequest && (
                     <Button className="w-full" onClick={() => router.push(`/os/${solicitudToManage?.osId}/personal-externo`)}>Ir a la gestión del evento</Button>
+                 )}
+                 {solicitudToManage && ['Asignado', 'Aprobada'].includes(solicitudToManage.estado) && (
+                     <p className="text-sm text-green-600 font-semibold p-4 bg-green-50 rounded-md">Esta solicitud ya está gestionada. Para más detalles, visita el módulo del evento o del CPR.</p>
                  )}
             </div>
             <DialogFooter>
-                 {solicitudToManage?.isCprRequest && <Button variant="destructive" className="mr-auto" onClick={handleDeleteRequest}>Eliminar Solicitud</Button>}
+                 {solicitudToManage?.isCprRequest && <Button variant="destructive" className="mr-auto" onClick={() => setManagementAction('delete')}>Eliminar Solicitud</Button>}
                 <DialogClose asChild><Button variant="secondary">Cerrar</Button></DialogClose>
             </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={!!managementAction || !!confirmationAction} onOpenChange={() => { setManagementAction(null); setConfirmationAction(null); }}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    {managementAction === 'delete' && 'Esta acción eliminará la solicitud permanentemente.'}
+                    {managementAction === 'cancel' && 'Se enviará una petición para cancelar esta asignación. ¿Continuar?'}
+                    {confirmationAction && `¿Quieres cambiar el estado de la solicitud a "${confirmationAction}"?`}
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>No</AlertDialogCancel>
+                <AlertDialogAction onClick={() => {
+                    if (managementAction) handleDeleteRequest();
+                    if (confirmationAction) handleUpdateCprStatus(confirmationAction);
+                }}>Sí, continuar</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
+
+```
