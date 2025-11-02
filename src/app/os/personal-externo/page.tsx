@@ -143,6 +143,7 @@ export default function PersonalExternoPage() {
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   
   const router = useRouter();
   const params = useParams();
@@ -384,9 +385,24 @@ export default function PersonalExternoPage() {
       remove(rowToDelete);
       setRowToDelete(null);
       toast({ title: 'Turno eliminado' });
+      handleSubmit(onSubmit)(); // Auto-save after delete
     }
   };
+
+  const handleClearAll = () => {
+    remove();
+    setShowClearConfirm(false);
+    toast({ title: 'Planificación vaciada' });
+    handleSubmit(onSubmit)();
+  };
   
+  const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
+      if (!osId) return;
+      const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
+      allAjustes[osId] = newAjustes;
+      localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+  }
+
   const providerOptions = useMemo(() => 
     allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
         value: p.id,
@@ -477,10 +493,17 @@ export default function PersonalExternoPage() {
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Planificación de Turnos</CardTitle>
-                                <Button type="button" onClick={addRow} size="sm">
-                                    <PlusCircle className="mr-2" />
-                                    Añadir Turno
-                                </Button>
+                                <div className="flex gap-2">
+                                    {fields.length > 0 && (
+                                         <Button type="button" variant="destructive" size="sm" onClick={() => setShowClearConfirm(true)}>
+                                            <Trash2 className="mr-2"/>Vaciar Planificación
+                                        </Button>
+                                    )}
+                                    <Button type="button" onClick={addRow} size="sm">
+                                        <PlusCircle className="mr-2" />
+                                        Añadir Turno
+                                    </Button>
+                                </div>
                             </CardHeader>
                             <CardContent className="p-2">
                                 <div className="border rounded-lg overflow-x-auto">
@@ -776,7 +799,7 @@ export default function PersonalExternoPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                Esta acción no se puede deshacer. Se eliminará la asignación de personal de la tabla.
+                Esta acción no se puede deshacer. Se eliminará el turno de la tabla.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -790,87 +813,28 @@ export default function PersonalExternoPage() {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+        <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Vaciar toda la planificación?</AlertDialogTitle>
+                <AlertDialogDescription>
+                Esta acción eliminará todos los turnos de personal de este evento. Es irreversible.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={handleClearAll}
+                >
+                Sí, vaciar planificación
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
       </main>
     </>
-  );
-}
-
-```
-- src/app/os/transporte/[id]/page.tsx:
-```tsx
-'use client';
-
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-export default function TransporteIdRedirectPage({ params }: { params: { id: string } }) {
-    const router = useRouter();
-    useEffect(() => {
-        router.replace(`/os/${params.id}/transporte`);
-    }, [router, params.id]);
-    return null;
-}
-
-```
-- src/lib/rrhh-nav.ts:
-```ts
-
-
-'use client';
-
-import { Users, ClipboardList, BarChart3, Factory, UserPlus } from 'lucide-react';
-
-export const rrhhNav = [
-    { title: 'Solicitudes Eventos', href: '/rrhh/solicitudes', icon: ClipboardList, description: 'Gestiona las necesidades de personal para los eventos de Catering.' },
-    { title: 'Solicitudes CPR', href: '/rrhh/solicitudes-cpr', icon: Factory, description: 'Gestiona las peticiones de personal de apoyo del CPR.' },
-    { title: 'Personal Interno', href: '/bd/personal', icon: Users, description: 'Administra la base de datos de empleados de MICE.' },
-    { title: 'Personal Externo', href: '/bd/personal-externo', icon: UserPlus, description: 'Administra la base de datos de trabajadores de ETTs.' },
-    { title: 'Analítica de RRHH', href: '/rrhh/analitica', icon: BarChart3, description: 'Analiza costes, horas y productividad del personal.' },
-];
-
-```
-- src/app/layout.tsx:
-```tsx
-import type { Metadata } from 'next';
-import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
-import { cn } from '@/lib/utils';
-import { NProgressProvider } from '@/components/providers/nprogress-provider';
-import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
-import { Header } from '@/components/layout/header';
-import { openSans, roboto } from '@/lib/fonts';
-
-export const metadata: Metadata = {
-  title: 'MICE Catering',
-  description: 'Soluciones de alquiler para tus eventos',
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="es" suppressHydrationWarning>
-      <body
-        className={cn(
-          'min-h-screen bg-background font-body antialiased',
-          openSans.variable,
-          roboto.variable
-        )}
-      >
-        <ImpersonatedUserProvider>
-          <NProgressProvider>
-            <div className="relative flex min-h-screen flex-col">
-              <Header />
-              {children}
-            </div>
-          </NProgressProvider>
-        </ImpersonatedUserProvider>
-        <Toaster />
-      </body>
-    </html>
   );
 }
 ```
