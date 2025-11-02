@@ -48,7 +48,7 @@ export default function SolicitudesCprPage() {
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState('all');
   const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<string>('');
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedCategoria, setSelectedCategoria] = useState<string>('');
 
   const { toast } = useToast();
@@ -69,7 +69,7 @@ export default function SolicitudesCprPage() {
   useEffect(() => {
     if (solicitudToManage) {
         const categoriaDelProveedor = tiposPersonal.find(t => t.proveedorId === solicitudToManage.proveedorId && t.categoria === solicitudToManage.categoria);
-        setSelectedProvider(solicitudToManage.proveedorId || '');
+        setSelectedProvider(solicitudToManage.proveedorId || null);
         setSelectedCategoria(categoriaDelProveedor?.id || '');
     }
   }, [solicitudToManage, tiposPersonal]);
@@ -109,7 +109,10 @@ export default function SolicitudesCprPage() {
         updates.costeImputado = undefined;
         updates.personalAsignado = undefined;
     }
-    updateSolicitud(solicitud.id, updates);
+    const updated = updateSolicitud(solicitud.id, updates);
+    if (updated) {
+        setSolicitudToManage(updated);
+    }
     toast({ title: 'Estado actualizado', description: `La solicitud ${solicitud.id} se ha marcado como ${estado}.` });
   }
 
@@ -225,7 +228,7 @@ export default function SolicitudesCprPage() {
                         <TableHead>Partida</TableHead>
                         <TableHead>Categoría</TableHead>
                         <TableHead>Estado</TableHead>
-                        <TableHead>Proveedor - Categoría Asignada</TableHead>
+                        <TableHead>Proveedor (ETT) - Categoría Asignada</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -267,7 +270,10 @@ export default function SolicitudesCprPage() {
                         <p><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</p>
                         <p><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</p>
                     </div>
-                     <p><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</p>
+                     <div className="grid grid-cols-2 gap-x-4">
+                        <p><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</p>
+                        <p><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></p>
+                     </div>
                     <p className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</p>
                 </div>
             )}
@@ -282,7 +288,7 @@ export default function SolicitudesCprPage() {
                     <div>
                         <h4 className="font-semibold">Estado</h4>
                          <div className="flex gap-2 mt-2">
-                            <Button variant={solicitudToManage?.estado === 'Aprobada' ? 'default' : 'outline'} size="sm" onClick={() => handleUpdateStatus(solicitudToManage!, 'Aprobada')}>Aprobar</Button>
+                            <Button variant={solicitudToManage?.estado === 'Aprobada' || solicitudToManage?.estado === 'Asignada' ? 'default' : 'outline'} size="sm" onClick={() => handleUpdateStatus(solicitudToManage!, 'Aprobada')}>Aprobar</Button>
                             <Button variant={solicitudToManage?.estado === 'Rechazada' ? 'destructive' : 'outline'} size="sm" onClick={() => handleUpdateStatus(solicitudToManage!, 'Rechazada')}>Rechazar</Button>
                         </div>
                     </div>
@@ -290,7 +296,7 @@ export default function SolicitudesCprPage() {
                         <h4 className="font-semibold">Asignar Proveedor</h4>
                          <div className="space-y-2">
                             <Label>Proveedor (ETT)</Label>
-                            <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+                            <Select value={selectedProvider || 'none'} onValueChange={(value) => setSelectedProvider(value === 'none' ? null : value)}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecciona un proveedor..."/>
                                 </SelectTrigger>
@@ -312,7 +318,7 @@ export default function SolicitudesCprPage() {
                                     <SelectContent>
                                         {categoriasDelProveedor.length > 0 ? (
                                             categoriasDelProveedor.map(c => (
-                                            <SelectItem key={c.id} value={c.id}>{c.categoria}</SelectItem>
+                                            <SelectItem key={c.id} value={c.id}>{c.categoria} ({formatCurrency(c.precioHora)}/h)</SelectItem>
                                         ))
                                         ) : (
                                             <div className="text-center text-sm text-muted-foreground p-4">No hay categorías para este proveedor.</div>
