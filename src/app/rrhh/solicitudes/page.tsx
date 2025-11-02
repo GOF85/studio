@@ -8,21 +8,13 @@ import { es } from 'date-fns/locale';
 import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, Send, Briefcase, Factory, MapPin, Clock } from 'lucide-react';
 import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR } from '@/types';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -76,16 +68,14 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
                     <DialogTitle className="flex justify-between items-center">
                         Gestionar Solicitud
                     </DialogTitle>
-                    <DialogDescription>
-                         <div className="flex items-center gap-2 pt-2">
-                             <strong>Origen:</strong>
-                             <Badge variant={isCpr ? "default" : "secondary"}>
-                                {isCpr ? <Factory className="mr-2 h-4 w-4"/> : <Briefcase className="mr-2 h-4 w-4"/>}
-                                {solicitud.osNumber}
-                             </Badge>
-                             <Badge variant={statusVariant[solicitud.estado]}>{solicitud.estado}</Badge>
-                        </div>
-                    </DialogDescription>
+                    <div className="flex items-center gap-2 pt-2">
+                        <strong className="text-sm">Origen:</strong>
+                        <Badge variant={isCpr ? "default" : "secondary"} className={cn(isCpr && "bg-slate-700")}>
+                            {isCpr ? <Factory className="mr-2 h-4 w-4"/> : <Briefcase className="mr-2 h-4 w-4"/>}
+                            {solicitud.osNumber}
+                        </Badge>
+                        <Badge variant={statusVariant[solicitud.estado]}>{solicitud.estado}</Badge>
+                    </div>
                 </DialogHeader>
 
                  <div className="py-4 space-y-3">
