@@ -268,14 +268,14 @@ export default function SolicitudesCprPage() {
                     <DialogDescription asChild>
                         <div className="text-sm space-y-1 border-b pb-4 pt-2">
                             <div className="grid grid-cols-2 gap-x-4">
-                                <p><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</p>
-                                <p><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</p>
+                                <div><strong>Fecha:</strong> {format(new Date(solicitudToManage.fechaServicio), 'PPP', {locale: es})}</div>
+                                <div><strong>Horario:</strong> {solicitudToManage.horaInicio} - {solicitudToManage.horaFin}</div>
                             </div>
                             <div className="grid grid-cols-2 gap-x-4">
                                 <div><strong>Partida:</strong> <Badge variant="outline">{solicitudToManage.partida}</Badge></div>
-                                <p><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</p>
+                                <div><strong>Categoría solicitada:</strong> {solicitudToManage.categoria}</div>
                             </div>
-                            <p className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</p>
+                            <div className="text-muted-foreground pt-1"><strong>Motivo:</strong> {solicitudToManage.motivo}</div>
                         </div>
                     </DialogDescription>
                  )}
@@ -299,12 +299,12 @@ export default function SolicitudesCprPage() {
                         <h4 className="font-semibold">Asignar Proveedor</h4>
                          <div className="space-y-2">
                             <Label>Proveedor (ETT)</Label>
-                            <Select value={selectedProvider || ''} onValueChange={(value) => setSelectedProvider(value === '' ? null : value)}>
+                            <Select value={selectedProvider || ''} onValueChange={(value) => setSelectedProvider(value === 'none' ? null : value)}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecciona un proveedor..."/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">-- Sin asignar --</SelectItem>
+                                    <SelectItem value="none">-- Sin asignar --</SelectItem>
                                     {proveedores.map(p => (
                                         <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
                                     ))}
