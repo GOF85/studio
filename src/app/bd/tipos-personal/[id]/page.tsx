@@ -30,6 +30,9 @@ export default function EditarTipoPersonalPage() {
 
   const form = useForm<TipoPersonalFormValues>({
     resolver: zodResolver(tipoPersonalSchema),
+    defaultValues: {
+      precioHora: 0,
+    }
   });
 
   useEffect(() => {
@@ -40,7 +43,10 @@ export default function EditarTipoPersonalPage() {
     const allItems = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
     const item = allItems.find(p => p.id === id);
     if (item) {
-      form.reset(item);
+      form.reset({
+        ...item,
+        precioHora: item.precioHora || 0 // Ensure it's a number
+      });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la categoría de personal.' });
       router.push('/bd/tipos-personal');
