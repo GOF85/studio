@@ -175,7 +175,7 @@ export default function PortalPersonalPage() {
             : allPersonalExterno;
         
         const filteredSolicitudesCPR: SolicitudPersonalCPR[] = proveedorId 
-            ? allSolicitudesCPR.filter(s => s.proveedorId && allProveedores.some(p => p.id === s.proveedorId))
+            ? allSolicitudesCPR.filter(s => s.proveedorId === proveedorId)
             : allSolicitudesCPR;
         
         const cprTurnos: UnifiedTurno[] = filteredSolicitudesCPR.map(s => ({ ...s, type: 'CPR' }));
@@ -234,7 +234,7 @@ export default function PortalPersonalPage() {
         }
 
         loadData();
-        const osNumber = isCpr ? 'CPR' : serviceOrders.get(pedidos.find(p => 'turnos' in p && p.turnos.some(t => t.id === turnoId))!.osId)?.serviceNumber;
+        const osNumber = isCpr ? 'CPR' : serviceOrders.get(pedidos.find(p => p.type === 'EVENTO' && p.id === turnoId)!.osId)?.serviceNumber;
         logActivity(impersonatedUser, 'Asignar Personal', `Asignados ${nuevasAsignaciones.length} trabajador(es)`, osNumber || 'N/A');
         toast({ title: 'Asignación guardada' });
     };
@@ -414,17 +414,29 @@ export default function PortalPersonalPage() {
                                                             <TableBody>
                                                                 {turnos.map(turno => {
                                                                     const status = 'statusPartner' in turno ? turno.statusPartner : turno.estado;
-                                                                    const isCpr = 'partida' in turno;
                                                                     return (
                                                                     <TableRow key={turno.id} className={cn((status === 'Gestionado' || status === 'Asignada') && 'bg-green-50/50')}>
                                                                         <TableCell className="font-semibold">{turno.categoria}</TableCell>
                                                                         <TableCell>{turno.horaInicio} - {turno.horaSalida}</TableCell>
                                                                         <TableCell className="text-xs text-muted-foreground">{'observaciones' in turno ? turno.observaciones : turno.motivo}</TableCell>
                                                                         <TableCell className="text-center">
-                                                                            <Badge variant={status === 'Gestionado' || status === 'Asignada' ? 'success' : 'secondary'}>{status}</Badge>
+                                                                            <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones} />
                                                                         </TableCell>
                                                                         <TableCell className="text-right">
-                                                                            <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones} isCprRequest={isCpr} />
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger>
+                                                                                    <div className="flex justify-center">
+                                                                                    {status === 'Gestionado' || status === 'Asignada' ? (
+                                                                                        <CheckCircle className="h-5 w-5 text-green-600"/>
+                                                                                    ) : (
+                                                                                        <AlertTriangle className="h-5 w-5 text-amber-500" />
+                                                                                    )}
+                                                                                    </div>
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent>
+                                                                                    {status}
+                                                                                </TooltipContent>
+                                                                            </Tooltip>
                                                                         </TableCell>
                                                                     </TableRow>
                                                                 )})}
@@ -520,81 +532,3 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
-
-```
-- src/components/ui/textarea.tsx:
-```tsx
-import * as React from "react"
-
-import { cn } from "@/lib/utils"
-
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
-
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, ...props }, ref) => {
-    return (
-      <textarea
-        className={cn(
-          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Textarea.displayName = "Textarea"
-
-export { Textarea }
-
-```
-- src/hooks/use-assignable-personal.ts:
-```tsx
-'use client';
-
-import { useState, useEffect } from 'react';
-import type { PersonalExternoTurno, SolicitudPersonalCPR, Personal, PersonalExternoDB } from '@/types';
-
-type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
-type AssignableWorker = { label: string; value: string; id: string; };
-
-export function useAssignablePersonal(turno: UnifiedTurno | null) {
-  const [assignableWorkers, setAssignableWorkers] = useState<AssignableWorker[]>([]);
-  const [isLoading, setIsDataLoading] = useState(true);
-
-  useEffect(() => {
-    if (!turno) {
-        setIsDataLoading(false);
-        return;
-    }
-
-    const allPersonalInterno = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
-
-    let workers: AssignableWorker[] = [];
-
-    if (turno.type === 'EVENTO' || (turno.type === 'CPR' && turno.estado === 'Asignada' && turno.proveedorId)) {
-        // We need to show external staff from the specific provider
-        const providerId = 'proveedorId' in turno ? turno.proveedorId : null;
-        if(providerId) {
-            workers = allPersonalExterno
-                .filter(p => p.proveedorId === providerId)
-                .map(p => ({ label: p.nombreCompleto, value: p.id, id: p.id }));
-        }
-    } else if (turno.type === 'CPR' && (turno.estado === 'Pendiente' || turno.estado === 'Aprobada')) {
-        // CPR request pending assignment, should be assigned from internal MICE staff
-         workers = allPersonalInterno
-            .filter(p => p.departamento === 'CPR' || p.departamento === 'Cocina') // Or other relevant departments
-            .map(p => ({ label: `${p.nombre} ${p.apellidos}`, value: p.id, id: p.id }));
-    }
-
-    setAssignableWorkers(workers);
-    setIsDataLoading(false);
-
-  }, [turno]);
-
-  return { assignableWorkers, isLoading: isDataLoading };
-}
-```
