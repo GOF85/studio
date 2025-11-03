@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Briefcase, Building2, Calendar as CalendarIcon, CheckCircle, Clock, Factory, User, Users, ArrowLeft, ChevronLeft, ChevronRight, Edit, MessageSquare, Pencil, PlusCircle, RefreshCw, Send, Trash2, AlertTriangle, Printer, FileText, Upload } from 'lucide-react';
-import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay, add, sub, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth } from 'date-fns';
+import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,53 +31,32 @@ import { Input } from '@/components/ui/input';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
 import { Combobox } from '@/components/ui/combobox';
+import { useAssignablePersonal } from '@/hooks/use-assignable-personal';
 
-type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
-
-const statusVariant: { [key in SimplifiedPedidoPartnerStatus]: 'success' | 'secondary' } = {
-  'Pendiente': 'secondary',
-  'Aceptado': 'success',
-};
-
-const statusRowClass: { [key in SimplifiedPedidoPartnerStatus]?: string } = {
-  'Aceptado': 'bg-green-100/60 hover:bg-green-100/80',
-};
-
-const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-
-type UnifiedTurno = (PersonalExternoTurno & { osId: string; type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
+type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string }) | (SolicitudPersonalCPR & { type: 'CPR' });
 
 type DayDetails = {
     day: Date;
     events: UnifiedTurno[];
 } | null;
 
-
-function AsignacionDialog({ turno, onSave, isCprRequest }: { turno: PersonalExternoTurno | SolicitudPersonalCPR, onSave: (turnoId: string, asignaciones: AsignacionPersonal[], isCpr: boolean) => void, isCprRequest: boolean }) {
+function AsignacionDialog({ turno, onSave }: { turno: UnifiedTurno, onSave: (turnoId: string, asignaciones: AsignacionPersonal[], isCpr: boolean) => void }) {
     const [isOpen, setIsOpen] = useState(false);
     const [asignaciones, setAsignaciones] = useState<Partial<AsignacionPersonal>[]>([]);
-    const [trabajadoresDB, setTrabajadoresDB] = useState<{label: string, value: string, id:string}[]>([]);
     
+    const { assignableWorkers, isLoading } = useAssignablePersonal(turno);
+
     useEffect(() => {
         if(isOpen) {
-            const initialAsignaciones = 'asignaciones' in turno ? (turno.asignaciones || []) : ('personalAsignado' in turno ? turno.personalAsignado?.map(p => ({ id: p.idPersonal, nombre: p.nombre})) || [] : []);
+            const initialAsignaciones = 'asignaciones' in turno 
+                ? (turno.asignaciones || []) 
+                : ('personalAsignado' in turno ? turno.personalAsignado?.map(p => ({ id: p.idPersonal, nombre: p.nombre})) || [] : []);
             setAsignaciones(initialAsignaciones);
-            
-            const allPersonalExterno = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
-            const allPersonalInterno = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-
-            const combined = isCprRequest
-              ? allPersonalInterno.map(p => ({ label: `${p.nombre} ${p.apellidos}`, value: p.id, id: p.id }))
-              : allPersonalExterno
-                  .filter(p => 'proveedorId' in turno && p.proveedorId === turno.proveedorId)
-                  .map(p => ({ label: p.nombreCompleto, value: p.id, id: p.id }));
-              
-            setTrabajadoresDB(combined);
         }
-    }, [isOpen, turno, isCprRequest]);
+    }, [isOpen, turno]);
 
     const handleSave = () => {
-        onSave(turno.id, asignaciones.filter(a => a.id && a.nombre) as AsignacionPersonal[], isCprRequest);
+        onSave(turno.id, asignaciones.filter(a => a.id && a.nombre) as AsignacionPersonal[], turno.type === 'CPR');
         setIsOpen(false);
     }
     
@@ -86,7 +65,7 @@ function AsignacionDialog({ turno, onSave, isCprRequest }: { turno: PersonalExte
         const updatedAsignacion = { ...newAsignaciones[index], [field]: value };
 
         if (field === 'id') {
-            const trabajador = trabajadoresDB.find(t => t.id === value);
+            const trabajador = assignableWorkers.find(t => t.id === value);
             if (trabajador) {
                 updatedAsignacion.nombre = trabajador.label;
             }
@@ -114,26 +93,28 @@ function AsignacionDialog({ turno, onSave, isCprRequest }: { turno: PersonalExte
           <DialogHeader>
             <DialogTitle>Asignar Personal para {turno.categoria}</DialogTitle>
           </DialogHeader>
-          <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
-            {asignaciones.map((asig, index) => (
-                <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
-                   <div className="flex-grow">
-                     <Combobox 
-                        options={trabajadoresDB}
-                        value={asig.id || ''}
-                        onChange={(val) => updateAsignacion(index, 'id', val)}
-                        placeholder="Buscar trabajador..."
-                     />
-                   </div>
-                   <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeAsignacionRow(index)}>
-                     <Trash2 className="h-4 w-4" />
-                   </Button>
-                </div>
-            ))}
-            <Button variant="outline" size="sm" onClick={addAsignacionRow}>
-                <PlusCircle className="mr-2 h-4 w-4"/> Añadir Fila
-            </Button>
-          </div>
+          {isLoading ? <p>Cargando trabajadores...</p> : (
+            <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                {asignaciones.map((asig, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+                    <div className="flex-grow">
+                        <Combobox 
+                            options={assignableWorkers}
+                            value={asig.id || ''}
+                            onChange={(val) => updateAsignacion(index, 'id', val)}
+                            placeholder="Buscar trabajador..."
+                        />
+                    </div>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeAsignacionRow(index)}>
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                    </div>
+                ))}
+                <Button variant="outline" size="sm" onClick={addAsignacionRow}>
+                    <PlusCircle className="mr-2 h-4 w-4"/> Añadir Fila
+                </Button>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave}>Guardar Asignaciones</Button>
@@ -143,8 +124,9 @@ function AsignacionDialog({ turno, onSave, isCprRequest }: { turno: PersonalExte
     )
 }
 
+
 export default function PortalPersonalPage() {
-    const [pedidos, setPedidos] = useState<(PersonalExterno | SolicitudPersonalCPR)[]>([]);
+    const [pedidos, setPedidos] = useState<UnifiedTurno[]>([]);
     const [serviceOrders, setServiceOrders] = useState<Map<string, ServiceOrder>>(new Map());
     const [briefings, setBriefings] = useState<Map<string, { items: ComercialBriefingItem[] }>>(new Map());
     const [isMounted, setIsMounted] = useState(false);
@@ -165,11 +147,6 @@ export default function PortalPersonalPage() {
         const roles = impersonatedUser.roles || [];
         return roles.includes('Admin') || roles.includes('Comercial');
     }, [impersonatedUser]);
-
-    const isReadOnly = useMemo(() => {
-        if (!impersonatedUser) return true;
-        return isAdminOrComercial;
-    }, [impersonatedUser, isAdminOrComercial]);
     
     const proveedorId = useMemo(() => impersonatedUser?.proveedorId, [impersonatedUser]);
 
@@ -190,18 +167,23 @@ export default function PortalPersonalPage() {
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const allSolicitudesCPR = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
         
-        const filteredPedidos = proveedorId
+        const filteredPedidos: PersonalExterno[] = proveedorId
             ? allPersonalExterno.map(p => ({
                 ...p,
                 turnos: p.turnos.filter(t => t.proveedorId === proveedorId)
             })).filter(p => p.turnos.length > 0)
             : allPersonalExterno;
         
-        const filteredSolicitudesCPR = proveedorId 
-            ? allSolicitudesCPR.filter(s => s.proveedorId === proveedorId) 
+        const filteredSolicitudesCPR: SolicitudPersonalCPR[] = proveedorId 
+            ? allSolicitudesCPR.filter(s => s.proveedorId && allProveedores.some(p => p.id === s.proveedorId))
             : allSolicitudesCPR;
         
-        setPedidos([...filteredPedidos, ...filteredSolicitudesCPR]);
+        const cprTurnos: UnifiedTurno[] = filteredSolicitudesCPR.map(s => ({ ...s, type: 'CPR' }));
+        const eventoTurnos: UnifiedTurno[] = filteredPedidos.flatMap(p => 
+            p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO' }))
+        );
+
+        setPedidos([...cprTurnos, ...eventoTurnos]);
 
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         setServiceOrders(new Map(allServiceOrders.map(os => [os.id, os])));
@@ -256,12 +238,11 @@ export default function PortalPersonalPage() {
         logActivity(impersonatedUser, 'Asignar Personal', `Asignados ${nuevasAsignaciones.length} trabajador(es)`, osNumber || 'N/A');
         toast({ title: 'Asignación guardada' });
     };
-
     
     const filteredPedidos = useMemo(() => {
         const today = startOfToday();
         return pedidos.filter(p => {
-             const fechaServicio = 'turnos' in p ? p.turnos[0]?.fecha : p.fechaServicio;
+             const fechaServicio = 'fecha' in p ? p.fecha : p.fechaServicio;
              if (!fechaServicio) return false;
              
              const isPast = isBefore(new Date(fechaServicio), today);
@@ -284,26 +265,22 @@ export default function PortalPersonalPage() {
 
 
     const turnosAgrupados = useMemo(() => {
-        const grouped: { [date: string]: { [osId: string]: { os: ServiceOrder | { id: string; serviceNumber: string; client: string; space: string; }; briefing: ComercialBriefingItem | undefined; turnos: (PersonalExternoTurno | SolicitudPersonalCPR)[] } } } = {};
+        const grouped: { [date: string]: { [osId: string]: { os: ServiceOrder | { id: string; serviceNumber: string; client: string; space: string; }; briefing: ComercialBriefingItem | undefined; turnos: UnifiedTurno[] } } } = {};
         
-        filteredPedidos.forEach(pedido => {
-            const turnosSource = 'turnos' in pedido ? pedido.turnos : [pedido];
+        filteredPedidos.forEach(turno => {
+            const fechaServicio = 'fecha' in turno ? turno.fecha : ('fechaServicio' in turno ? turno.fechaServicio : new Date().toISOString());
 
-            turnosSource.forEach(turno => {
-                const fechaServicio = 'fecha' in turno ? turno.fecha : ('fechaServicio' in turno ? turno.fechaServicio : new Date().toISOString());
+            const dateKey = format(new Date(fechaServicio), 'yyyy-MM-dd');
+            if (!grouped[dateKey]) grouped[dateKey] = {};
 
-                const dateKey = format(new Date(fechaServicio), 'yyyy-MM-dd');
-                if (!grouped[dateKey]) grouped[dateKey] = {};
-
-                const osId = 'osId' in pedido ? pedido.osId : 'CPR';
-                if (!grouped[dateKey][osId]) {
-                    const os = osId !== 'CPR' ? serviceOrders.get(osId) : { id: 'CPR', serviceNumber: 'CPR', client: 'Producción Interna', space: 'CPR' };
-                    const briefing = osId !== 'CPR' ? briefings.get(osId) : undefined;
-                    const hito = briefing?.items.find(item => 'fecha' in turno && isSameDay(new Date(item.fecha), new Date(turno.fecha)));
-                    grouped[dateKey][osId] = { os: os!, briefing: hito, turnos: [] };
-                }
-                grouped[dateKey][osId].turnos.push(turno);
-            });
+            const osId = 'osId' in turno ? turno.osId : 'CPR';
+            if (!grouped[dateKey][osId]) {
+                const os = osId !== 'CPR' ? serviceOrders.get(osId) : { id: 'CPR', serviceNumber: 'CPR', client: 'Producción Interna', space: 'CPR' };
+                const briefing = osId !== 'CPR' ? briefings.get(osId) : undefined;
+                const hito = briefing?.items.find(item => 'fecha' in turno && isSameDay(new Date(item.fecha), new Date(turno.fecha)));
+                grouped[dateKey][osId] = { os: os!, briefing: hito, turnos: [] };
+            }
+            grouped[dateKey][osId].turnos.push(turno);
         });
 
         return Object.entries(grouped)
@@ -324,12 +301,10 @@ export default function PortalPersonalPage() {
     const eventsByDay = useMemo(() => {
         const grouped: { [dayKey: string]: UnifiedTurno[] } = {};
         pedidos.forEach(p => {
-            const turnosSource = 'turnos' in p ? p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO' as const })) : [{ ...p, type: 'CPR' as const }];
-            turnosSource.forEach(turno => {
-                const dateKey = format(new Date('fecha' in turno ? turno.fecha : turno.fechaServicio), 'yyyy-MM-dd');
-                if (!grouped[dateKey]) grouped[dateKey] = [];
-                grouped[dateKey].push(turno);
-            });
+            const fechaServicio = 'fecha' in p ? p.fecha : p.fechaServicio;
+            const dateKey = format(new Date(fechaServicio), 'yyyy-MM-dd');
+            if (!grouped[dateKey]) grouped[dateKey] = [];
+            grouped[dateKey].push(p);
         });
         return grouped;
     }, [pedidos]);
@@ -407,7 +382,7 @@ export default function PortalPersonalPage() {
                     </div>
                     {turnosAgrupados.length > 0 ? (
                          <Accordion type="multiple" className="w-full space-y-4">
-                            {turnosAgrupados.map(({ date, osEntries, allAccepted, earliestTime }) => (
+                            {turnosAgrupados.map(({ date, osEntries, allAccepted }) => (
                                <AccordionItem value={date} key={date} className="border-none">
                                 <Card className={cn(allAccepted && 'bg-green-100/60')}>
                                         <AccordionTrigger className="p-4 hover:no-underline">
@@ -438,11 +413,10 @@ export default function PortalPersonalPage() {
                                                             </TableHeader>
                                                             <TableBody>
                                                                 {turnos.map(turno => {
+                                                                    const status = 'statusPartner' in turno ? turno.statusPartner : turno.estado;
                                                                     const isCpr = 'partida' in turno;
-                                                                    const status = isCpr ? turno.estado : ('statusPartner' in turno ? turno.statusPartner : 'Pendiente');
-                                                                    
                                                                     return (
-                                                                    <TableRow key={turno.id} className={cn(status === 'Gestionado' && 'bg-green-50/50', status === 'Asignada' && 'bg-green-50/50')}>
+                                                                    <TableRow key={turno.id} className={cn((status === 'Gestionado' || status === 'Asignada') && 'bg-green-50/50')}>
                                                                         <TableCell className="font-semibold">{turno.categoria}</TableCell>
                                                                         <TableCell>{turno.horaInicio} - {turno.horaSalida}</TableCell>
                                                                         <TableCell className="text-xs text-muted-foreground">{'observaciones' in turno ? turno.observaciones : turno.motivo}</TableCell>
@@ -504,7 +478,7 @@ export default function PortalPersonalPage() {
                                             'last:border-r-0',
                                             dayEvents.length > 0 && 'cursor-pointer hover:bg-secondary'
                                         )}
-                                        onClick={() => dayEvents.length > 0 && setDayDetails({ day, events: dayEvents as any })}
+                                        onClick={() => dayEvents.length > 0 && setDayDetails({ day, events: dayEvents })}
                                     >
                                         <span className={cn('font-semibold text-xs', isToday && 'text-primary font-bold flex items-center justify-center h-5 w-5 rounded-full bg-primary/20')}>
                                             {format(day, 'd')}
@@ -546,3 +520,81 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
+
+```
+- src/components/ui/textarea.tsx:
+```tsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+export interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <textarea
+        className={cn(
+          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Textarea.displayName = "Textarea"
+
+export { Textarea }
+
+```
+- src/hooks/use-assignable-personal.ts:
+```tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import type { PersonalExternoTurno, SolicitudPersonalCPR, Personal, PersonalExternoDB } from '@/types';
+
+type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
+type AssignableWorker = { label: string; value: string; id: string; };
+
+export function useAssignablePersonal(turno: UnifiedTurno | null) {
+  const [assignableWorkers, setAssignableWorkers] = useState<AssignableWorker[]>([]);
+  const [isLoading, setIsDataLoading] = useState(true);
+
+  useEffect(() => {
+    if (!turno) {
+        setIsDataLoading(false);
+        return;
+    }
+
+    const allPersonalInterno = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
+
+    let workers: AssignableWorker[] = [];
+
+    if (turno.type === 'EVENTO' || (turno.type === 'CPR' && turno.estado === 'Asignada' && turno.proveedorId)) {
+        // We need to show external staff from the specific provider
+        const providerId = 'proveedorId' in turno ? turno.proveedorId : null;
+        if(providerId) {
+            workers = allPersonalExterno
+                .filter(p => p.proveedorId === providerId)
+                .map(p => ({ label: p.nombreCompleto, value: p.id, id: p.id }));
+        }
+    } else if (turno.type === 'CPR' && (turno.estado === 'Pendiente' || turno.estado === 'Aprobada')) {
+        // CPR request pending assignment, should be assigned from internal MICE staff
+         workers = allPersonalInterno
+            .filter(p => p.departamento === 'CPR' || p.departamento === 'Cocina') // Or other relevant departments
+            .map(p => ({ label: `${p.nombre} ${p.apellidos}`, value: p.id, id: p.id }));
+    }
+
+    setAssignableWorkers(workers);
+    setIsDataLoading(false);
+
+  }, [turno]);
+
+  return { assignableWorkers, isLoading: isDataLoading };
+}
+```
