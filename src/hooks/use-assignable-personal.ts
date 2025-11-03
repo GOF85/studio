@@ -11,6 +11,11 @@ export function useAssignablePersonal(turno: UnifiedTurno | null) {
   const [assignableWorkers, setAssignableWorkers] = useState<AssignableWorker[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
+  const refresh = () => {
+    // This function will re-trigger the useEffect
+    setIsDataLoading(true);
+  };
+  
   useEffect(() => {
     if (!turno) {
         setIsDataLoading(false);
@@ -24,10 +29,9 @@ export function useAssignablePersonal(turno: UnifiedTurno | null) {
 
     let workers: AssignableWorker[] = [];
     
-    // Si es un turno de evento, o es un turno de CPR ya asignado a una ETT
     const isEventTurno = turno.type === 'EVENTO';
     const isCprAsignado = turno.type === 'CPR' && turno.estado === 'Asignada' && turno.proveedorId;
-
+    
     if (isEventTurno || isCprAsignado) {
         const tipoPersonal = allTiposPersonal.find(t => t.id === turno.proveedorId);
         const providerId = tipoPersonal?.proveedorId;
@@ -35,10 +39,9 @@ export function useAssignablePersonal(turno: UnifiedTurno | null) {
         if (providerId) {
             workers = allPersonalExterno
                 .filter(p => p.proveedorId === providerId)
-                .map(p => ({ label: p.nombreCompleto, value: p.id, id: p.id }));
+                .map(p => ({ label: `${p.nombre} ${p.apellido1} (${p.id})`, value: p.id, id: p.id }));
         }
-    } else if (turno.type === 'CPR' && (turno.estado === 'Pendiente' || turno.estado === 'Aprobada')) {
-        // CPR request pendiente de asignación a ETT, debe ser asignado desde personal interno de cocina
+    } else if (turno.type === 'CPR' && (turno.estado === 'Solicitado' || turno.estado === 'Aprobada')) {
          workers = allPersonalInterno
             .filter(p => p.departamento === 'CPR' || p.departamento === 'Cocina')
             .map(p => ({ label: `${p.nombre} ${p.apellidos}`, value: p.id, id: p.id }));
@@ -47,7 +50,7 @@ export function useAssignablePersonal(turno: UnifiedTurno | null) {
     setAssignableWorkers(workers);
     setIsDataLoading(false);
 
-  }, [turno]);
+  }, [turno, isDataLoading]); // re-run when turno or the loading state changes
 
-  return { assignableWorkers, isLoading: isDataLoading };
+  return { assignableWorkers, isLoading: isDataLoading, refresh };
 }

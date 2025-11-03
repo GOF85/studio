@@ -3,10 +3,11 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, Send, Briefcase, Factory, MapPin, Clock, Phone } from 'lucide-react';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, Send, Briefcase, Factory, MapPin, Clock, Phone } from 'lucide-react';
-import type { ServiceOrder, PersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR, CategoriaPersonal } from '@/types';
+
+import type { SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR, CategoriaPersonal } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -32,31 +33,16 @@ import { Combobox } from '@/components/ui/combobox';
 
 const ITEMS_PER_PAGE = 20;
 
-type UnifiedRequest = {
-    id: string; // turnoId o solicitudId
-    osId: string;
-    osNumber: string;
-    cliente: string;
-    fechaServicio: string;
-    horario: string;
-    horas: number;
-    categoria: string;
-    motivo: string;
-    proveedorId?: string;
-    costeEstimado: number;
-    estado: EstadoSolicitudPersonalCPR | PersonalExterno['status'];
-    isCprRequest: boolean;
-};
+type UnifiedRequest = SolicitudPersonalCPR;
 
 const statusVariant: { [key in UnifiedRequest['estado']]: 'success' | 'secondary' | 'warning' | 'destructive' | 'outline' | 'default'} = {
-  'Pendiente': 'warning',
+  'Solicitado': 'warning',
   'Aprobada': 'outline',
   'Rechazada': 'destructive',
-  'Solicitado': 'outline',
-  'Asignado': 'default',
-  'Cerrado': 'default',
-  'Solicitada Cancelacion': 'destructive',
+  'Asignada': 'default',
   'Confirmado': 'success',
+  'Solicitada Cancelacion': 'destructive',
+  'Cerrado': 'default',
 };
 
 function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, onDeleteRequest, proveedoresMap, allTiposPersonal }: { solicitud: UnifiedRequest | null, isOpen: boolean, onClose: () => void, onUpdateStatus: (isCpr: boolean, id: string, status: UnifiedRequest['estado'], proveedorId?: string, coste?: number, categoria?: string) => void, onDeleteRequest: (req: UnifiedRequest) => void, proveedoresMap: Map<string, string>, allTiposPersonal: CategoriaPersonal[] }) {
@@ -68,12 +54,12 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
 
     if (!solicitud) return null;
 
-    const isCpr = solicitud.isCprRequest;
+    const isCpr = true;
     
     const displayStatus = (isCpr && solicitud.estado === 'Aprobada' && solicitud.proveedorId) ? 'Asignada' : solicitud.estado;
     
-    const canManageCpr = isCpr && displayStatus === 'Pendiente';
-    const canDelete = isCpr && (['Pendiente', 'Rechazada'].includes(displayStatus) || displayStatus === 'Solicitada Cancelacion');
+    const canManageCpr = isCpr && displayStatus === 'Solicitado';
+    const canDelete = isCpr && (['Solicitado', 'Rechazada'].includes(displayStatus) || displayStatus === 'Solicitada Cancelacion');
     const canAssignCpr = isCpr && displayStatus === 'Aprobada';
 
     const handleAsignar = () => {
@@ -208,12 +194,12 @@ export default function SolicitudesUnificadasPage() {
             osNumber: os.serviceNumber,
             cliente: os.client,
             fechaServicio: turno.fecha,
-            horario: `${turno.horaEntrada} - ${turno.horaSalida}`,
-            horas: calculateHours(turno.horaEntrada, turno.horaSalida),
+            horario: `${turno.horaInicio} - ${turno.horaSalida}`,
+            horas: calculateHours(turno.horaInicio, turno.horaSalida),
             categoria: turno.categoria,
             motivo: `Evento: ${os.serviceNumber}`,
             proveedorId: turno.proveedorId,
-            costeEstimado: calculateHours(turno.horaEntrada, turno.horaSalida) * turno.precioHora * (turno.asignaciones?.length || 1),
+            costeEstimado: calculateHours(turno.horaInicio, turno.horaSalida) * turno.precioHora * (turno.asignaciones?.length || 1),
             estado: p.status,
             isCprRequest: false,
         }));
