@@ -23,6 +23,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -45,7 +46,7 @@ import { Badge } from '@/components/ui/badge';
 import { RecetaSelector } from '@/components/os/gastronomia/receta-selector';
 
 const gastroItemSchema = z.object({
-  id: z.string(),
+  id: z.string(), // Receta ID
   type: z.enum(['item', 'separator']),
   nombre: z.string(),
   costeMateriaPrima: z.number().optional(),
@@ -121,7 +122,6 @@ function PedidoGastronomiaForm() {
       if (currentHito) {
         setBriefingItem(currentHito);
         
-        // Cargar datos desde el nuevo modelo GastronomyOrder
         const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
         const currentGastroOrder = allGastroOrders.find(o => o.id === briefingItemId);
         
@@ -129,12 +129,6 @@ function PedidoGastronomiaForm() {
             reset({
                 items: currentGastroOrder.items || [],
                 status: currentGastroOrder.status || 'Pendiente',
-            });
-        } else {
-            // Fallback to old data model if new one doesn't exist
-            reset({
-                items: currentHito.gastro_items || [],
-                status: currentHito.gastro_status || 'Pendiente',
             });
         }
       }
@@ -170,7 +164,6 @@ function PedidoGastronomiaForm() {
     if (!briefingItem) return;
     setIsLoading(true);
     
-    // Save to new centralized GastronomyOrder
     let allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     const orderIndex = allGastroOrders.findIndex(o => o.id === briefingItemId);
 
@@ -178,12 +171,6 @@ function PedidoGastronomiaForm() {
         id: briefingItemId,
         osId: osId,
         status: data.status,
-        descripcion: briefingItem.descripcion,
-        fecha: briefingItem.fecha,
-        horaInicio: briefingItem.horaInicio,
-        asistentes: briefingItem.asistentes,
-        comentarios: briefingItem.comentarios,
-        sala: briefingItem.sala,
         items: data.items,
         total: totalPedido
     };
@@ -195,19 +182,7 @@ function PedidoGastronomiaForm() {
     }
     
     localStorage.setItem('gastronomyOrders', JSON.stringify(allGastroOrders));
-    
-    // Also save to briefing for backwards compatibility/consistency
-    let allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-    const briefingIndex = allBriefings.findIndex(b => b.osId === osId);
-    if (briefingIndex !== -1) {
-      const hitoIndex = allBriefings[briefingIndex].items.findIndex(h => h.id === briefingItemId);
-      if (hitoIndex !== -1) {
-        allBriefings[briefingIndex].items[hitoIndex].gastro_items = data.items;
-        allBriefings[briefingIndex].items[hitoIndex].gastro_status = data.status;
-        localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
-      }
-    }
-    
+        
     toast({ title: 'Pedido de Gastronomía Guardado' });
     reset(data); // Mark form as not dirty
     setIsLoading(false);

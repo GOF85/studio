@@ -385,7 +385,7 @@ export type ComercialBriefingItem = {
     matBebida?: string;
     materialGastro?: string;
     manteleria?: string;
-    // --- NUEVOS CAMPOS DE GASTRONOMÍA INTEGRADOS ---
+    // --- LEGACY FIELDS ---
     gastro_items?: GastronomyOrderItem[];
     gastro_total?: number;
     gastro_status?: GastronomyOrderStatus;
@@ -400,12 +400,6 @@ export type GastronomyOrder = {
     id: string; // briefing item ID
     osId: string;
     status: GastronomyOrderStatus;
-    descripcion: string;
-    fecha: string;
-    horaInicio: string;
-    asistentes: number;
-    comentarios?: string;
-    sala?: string;
     items: GastronomyOrderItem[];
     total: number;
 }

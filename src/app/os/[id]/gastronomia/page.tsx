@@ -7,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Utensils } from 'lucide-react';
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, GastronomyOrderStatus } from '@/types';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, GastronomyOrderStatus, GastronomyOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -30,8 +30,13 @@ const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' |
   Incidencia: 'destructive',
 };
 
+type EnrichedBriefingItem = ComercialBriefingItem & {
+    gastro_status?: GastronomyOrderStatus;
+}
+
+
 export default function GastronomiaPage() {
-  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+  const [briefingItems, setBriefingItems] = useState<EnrichedBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   
   const router = useRouter();
@@ -46,28 +51,35 @@ export default function GastronomiaPage() {
     const currentBriefing = allBriefings.find(b => b.osId === osId);
     
     if (currentBriefing) {
-        const itemsWithDefaultGastro = currentBriefing.items.map(item => {
-            if (item.conGastronomia && !item.gastro_status) {
-                return {
-                    ...item,
-                    gastro_status: 'Pendiente' as GastronomyOrderStatus,
-                    gastro_items: [],
-                };
-            }
-            return item;
-        });
+        const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+        const osGastroOrdersMap = new Map(allGastroOrders.filter(o => o.osId === osId).map(o => [o.id, o]));
+        let needsBriefingSave = false;
 
-        if (JSON.stringify(itemsWithDefaultGastro) !== JSON.stringify(currentBriefing.items)) {
-            const newBriefing = { ...currentBriefing, items: itemsWithDefaultGastro };
-            const index = allBriefings.findIndex(b => b.osId === osId);
-            if (index !== -1) {
-                allBriefings[index] = newBriefing;
-                localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
-            }
-            setBriefingItems(itemsWithDefaultGastro.filter(item => item.conGastronomia));
-        } else {
-            setBriefingItems(currentBriefing.items.filter(item => item.conGastronomia));
+        const itemsWithGastro = currentBriefing.items
+            .filter(item => item.conGastronomia)
+            .map(item => {
+                let existingOrder = osGastroOrdersMap.get(item.id);
+                // Si no existe, lo creamos
+                if (!existingOrder) {
+                    existingOrder = {
+                        id: item.id,
+                        osId: osId,
+                        status: 'Pendiente',
+                        items: item.gastro_items || [], // Migrate from old model if exists
+                        total: item.gastro_total || 0,
+                    };
+                    needsBriefingSave = true;
+                    allGastroOrders.push(existingOrder);
+                }
+                
+                return { ...item, gastro_status: existingOrder.status };
+            });
+
+        if(needsBriefingSave) {
+            localStorage.setItem('gastronomyOrders', JSON.stringify(allGastroOrders));
         }
+
+        setBriefingItems(itemsWithGastro);
     }
     
     setIsMounted(true);
