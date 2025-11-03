@@ -7,14 +7,13 @@ import { useRouter } from 'next/navigation';
 import { Briefcase, Building2, Calendar as CalendarIcon, CheckCircle, Clock, Factory, User, Users, ArrowLeft, ChevronLeft, ChevronRight, Edit, MessageSquare, Pencil, PlusCircle, RefreshCw, Send, Trash2, AlertTriangle, Printer, FileText, Upload, Phone } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useForm } from 'react-hook-form';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
-import type { PersonalExterno, SolicitudPersonalCPR, AsignacionPersonal, EstadoSolicitudPersonalCPR, ComercialBriefingItem, Personal, PersonalExternoDB, Proveedor, PersonalExternoTurno, ServiceOrder } from '@/types';
+import type { PersonalExterno, SolicitudPersonalCPR, AsignacionPersonal, EstadoSolicitudPersonalCPR, ComercialBriefingItem, Personal, PersonalExternoDB, Proveedor, PersonalExternoTurno, ServiceOrder, CategoriaPersonal } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -506,18 +505,35 @@ export default function PortalPersonalPage() {
                                                                     <TableHead>Categoría</TableHead>
                                                                     <TableHead>Horario (Horas)</TableHead>
                                                                     <TableHead>Coste Est.</TableHead>
+                                                                    <TableHead>Comentarios</TableHead>
                                                                     <TableHead className="w-56">Asignado a</TableHead>
                                                                 </TableRow>
                                                             </TableHeader>
                                                             <TableBody>
                                                                 {turnos.map(turno => {
                                                                     const costeEstimado = ('precioHora' in turno ? turno.precioHora : 0) * calculateHours(turno.horaInicio, turno.horaFin);
-                                                                    
+                                                                    const costeReal = turno.type === 'EVENTO' && turno.asignaciones?.[0] ? 
+                                                                        ((calculateHours(turno.asignaciones[0].horaEntradaReal, turno.asignaciones[0].horaSalidaReal) || calculateHours(turno.horaInicio, turno.horaFin)) * turno.precioHora)
+                                                                        : ('costeImputado' in turno ? turno.costeImputado : null);
+
                                                                     return (
                                                                     <TableRow key={turno.id} className={cn((turno.estado === 'Confirmado' || ('statusPartner' in turno && turno.statusPartner === 'Gestionado')) && 'bg-green-50/50')}>
                                                                         <TableCell className="font-semibold">{turno.categoria}</TableCell>
                                                                         <TableCell>{turno.horaInicio} - {turno.horaFin} ({calculateHours(turno.horaInicio, turno.horaFin).toFixed(2)}h)</TableCell>
-                                                                        <TableCell>{formatCurrency(costeEstimado)}</TableCell>
+                                                                        <TableCell>
+                                                                            <div className="flex flex-col">
+                                                                                <span className={cn(costeReal !== null && 'line-through text-muted-foreground')}>{formatCurrency(costeEstimado)}</span>
+                                                                                {costeReal !== null && <span className="font-bold">{formatCurrency(costeReal)}</span>}
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        <TableCell>
+                                                                            {'observaciones' in turno && turno.observaciones ? (
+                                                                                <Tooltip>
+                                                                                    <TooltipTrigger><MessageSquare className="h-4 w-4 text-primary"/></TooltipTrigger>
+                                                                                    <TooltipContent><p>{turno.observaciones}</p></TooltipContent>
+                                                                                </Tooltip>
+                                                                            ) : '-'}
+                                                                        </TableCell>
                                                                         <TableCell>
                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignacion} isReadOnly={isReadOnly} />
                                                                         </TableCell>
@@ -615,3 +631,51 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
+
+```
+- src/app/transporte/pedido/page.tsx:
+```tsx
+
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// This page just redirects to the main OS page as transport is managed within an OS.
+export default function TransportePedidoRedirectPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/pes');
+    }, [router]);
+    return null;
+}
+
+```
+- src/components/ui/textarea.tsx:
+```tsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+export interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <textarea
+        className={cn(
+          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Textarea.displayName = "Textarea"
+
+export { Textarea }
+
+```
