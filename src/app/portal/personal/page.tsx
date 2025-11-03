@@ -40,6 +40,8 @@ type DayDetails = {
     events: UnifiedTurno[];
 } | null;
 
+const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
 function AsignacionDialog({ turno, onSave }: { turno: UnifiedTurno, onSave: (turnoId: string, asignaciones: AsignacionPersonal[], isCpr: boolean) => void }) {
     const [isOpen, setIsOpen] = useState(false);
     const [asignaciones, setAsignaciones] = useState<Partial<AsignacionPersonal>[]>([]);
@@ -408,7 +410,6 @@ export default function PortalPersonalPage() {
                                                                     <TableHead>Horario</TableHead>
                                                                     <TableHead>Observaciones</TableHead>
                                                                     <TableHead className="text-center">Estado</TableHead>
-                                                                    <TableHead className="text-right w-12"></TableHead>
                                                                 </TableRow>
                                                             </TableHeader>
                                                             <TableBody>
@@ -421,22 +422,6 @@ export default function PortalPersonalPage() {
                                                                         <TableCell className="text-xs text-muted-foreground">{'observaciones' in turno ? turno.observaciones : turno.motivo}</TableCell>
                                                                         <TableCell className="text-center">
                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones} />
-                                                                        </TableCell>
-                                                                        <TableCell className="text-right">
-                                                                            <Tooltip>
-                                                                                <TooltipTrigger>
-                                                                                    <div className="flex justify-center">
-                                                                                    {status === 'Gestionado' || status === 'Asignada' ? (
-                                                                                        <CheckCircle className="h-5 w-5 text-green-600"/>
-                                                                                    ) : (
-                                                                                        <AlertTriangle className="h-5 w-5 text-amber-500" />
-                                                                                    )}
-                                                                                    </div>
-                                                                                </TooltipTrigger>
-                                                                                <TooltipContent>
-                                                                                    {status}
-                                                                                </TooltipContent>
-                                                                            </Tooltip>
                                                                         </TableCell>
                                                                     </TableRow>
                                                                 )})}
