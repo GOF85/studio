@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -17,7 +16,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,6 +23,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useAssignablePersonal } from '@/hooks/use-assignable-personal';
+import { AsignacionPersonal } from '@/types';
+import { Combobox } from '@/components/ui/combobox';
+
 
 const ITEMS_PER_PAGE = 20;
 
@@ -205,7 +208,7 @@ export default function SolicitudesUnificadasPage() {
             cliente: os.client,
             fechaServicio: turno.fecha,
             horario: `${turno.horaInicio} - ${turno.horaSalida}`,
-            horas: calculateHours(turno.horaInicio, turno.horaSalida),
+            horas: calculateHours(turno.horaEntrada, turno.horaSalida),
             categoria: turno.categoria,
             motivo: `Evento: ${os.serviceNumber}`,
             proveedorId: turno.proveedorId,
@@ -386,6 +389,8 @@ export default function SolicitudesUnificadasPage() {
                 {paginatedItems.length > 0 ? (
                 paginatedItems.map(p => {
                     const displayStatus = (p.isCprRequest && p.estado === 'Aprobada' && p.proveedorId) ? 'Asignada' : p.estado;
+                    const assignedProviderId = p.isCprRequest ? allTiposPersonal.find(t => t.id === p.proveedorId)?.proveedorId : p.proveedorId;
+                    
                     return (
                     <TableRow key={p.id} className="cursor-pointer" onClick={() => setSolicitudToManage(p)}>
                         <TableCell className="font-medium">
@@ -395,7 +400,7 @@ export default function SolicitudesUnificadasPage() {
                         <TableCell>{format(new Date(p.fechaServicio), 'dd/MM/yyyy')}</TableCell>
                         <TableCell>{p.horario} ({p.horas.toFixed(2)}h)</TableCell>
                         <TableCell>{p.categoria}</TableCell>
-                        <TableCell>{proveedoresMap.get(p.proveedorId || '') || '-'}</TableCell>
+                        <TableCell>{proveedoresMap.get(assignedProviderId || '') || '-'}</TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(p.costeEstimado)}</TableCell>
                         <TableCell className="text-right"><Badge variant={statusVariant[displayStatus]}>{displayStatus}</Badge></TableCell>
                     </TableRow>

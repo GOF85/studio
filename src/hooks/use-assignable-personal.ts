@@ -23,7 +23,9 @@ export function useAssignablePersonal(turno: UnifiedTurno | null) {
 
     if (turno.type === 'EVENTO' || (turno.type === 'CPR' && turno.estado === 'Asignada' && turno.proveedorId)) {
         // We need to show external staff from the specific provider
-        const providerId = 'proveedorId' in turno ? turno.proveedorId : null;
+        const tipoPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]').find((t: any) => t.id === turno.proveedorId);
+        const providerId = tipoPersonal?.proveedorId;
+
         if(providerId) {
             workers = allPersonalExterno
                 .filter(p => p.proveedorId === providerId)

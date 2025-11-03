@@ -42,6 +42,24 @@ type DayDetails = {
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
+type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
+
+type PedidoPartnerConEstado = PedidoPartner & {
+    expedicionNumero: string;
+    status: SimplifiedPedidoPartnerStatus;
+    comentarios?: string;
+}
+
+const statusVariant: { [key in SimplifiedPedidoPartnerStatus]: 'success' | 'secondary' } = {
+  'Pendiente': 'secondary',
+  'Aceptado': 'success',
+};
+
+const statusRowClass: { [key in SimplifiedPedidoPartnerStatus]?: string } = {
+  'Aceptado': 'bg-green-100/60 hover:bg-green-100/80',
+};
+
+
 function AsignacionDialog({ turno, onSave }: { turno: UnifiedTurno, onSave: (turnoId: string, asignaciones: AsignacionPersonal[], isCpr: boolean) => void }) {
     const [isOpen, setIsOpen] = useState(false);
     const [asignaciones, setAsignaciones] = useState<Partial<AsignacionPersonal>[]>([]);
@@ -167,17 +185,20 @@ export default function PortalPersonalPage() {
         }
 
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const allSolicitudesCPR = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
+        const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]).filter(s => s.estado === 'Asignada');
         
         const filteredPedidos: PersonalExterno[] = proveedorId
             ? allPersonalExterno.map(p => ({
                 ...p,
-                turnos: p.turnos.filter(t => t.proveedorId === proveedorId)
+                turnos: p.turnos.filter(t => t.proveedorId && allProveedores.find(prov => prov.id === t.proveedorId)?.id === proveedorId)
             })).filter(p => p.turnos.length > 0)
             : allPersonalExterno;
         
         const filteredSolicitudesCPR: SolicitudPersonalCPR[] = proveedorId 
-            ? allSolicitudesCPR.filter(s => s.proveedorId === proveedorId)
+            ? allSolicitudesCPR.filter(s => {
+                const tipo = (JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).find(t => t.id === s.proveedorId);
+                return tipo?.proveedorId === proveedorId;
+            })
             : allSolicitudesCPR;
         
         const cprTurnos: UnifiedTurno[] = filteredSolicitudesCPR.map(s => ({ ...s, type: 'CPR' }));
@@ -218,7 +239,6 @@ export default function PortalPersonalPage() {
             const index = allSolicitudesCPR.findIndex(s => s.id === turnoId);
             if (index > -1) {
                 allSolicitudesCPR[index].personalAsignado = nuevasAsignaciones.map(a => ({ idPersonal: a.id, nombre: a.nombre }));
-                allSolicitudesCPR[index].estado = 'Asignada';
                 localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allSolicitudesCPR));
             }
         } else {
@@ -507,7 +527,7 @@ export default function PortalPersonalPage() {
                             <p className="font-bold text-primary">{os?.serviceNumber} - {os?.client}</p>
                             <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
                                 <span><span className="font-semibold">Categoría:</span> {event.categoria}</span>
-                                <span><span className="font-semibold">Horario:</span> {event.horaInicio} - {event.horaSalida}</span>
+                                <span><span className="font-semibold">Horario:</span> {event.horaInicio} - {event.horaFin}</span>
                             </div>
                         </div>
                     )})}
@@ -517,3 +537,5 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
+
+```
