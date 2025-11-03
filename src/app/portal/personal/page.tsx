@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { calculateHours, formatCurrency, formatDuration, formatNumber } from '@/lib/utils';
+import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
 import type { PersonalExterno, SolicitudPersonalCPR, AsignacionPersonal, EstadoSolicitudPersonalCPR, ComercialBriefingItem, Personal, PersonalExternoDB, Proveedor, PersonalExternoTurno, ServiceOrder, CategoriaPersonal } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -38,7 +38,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
 
-type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status']; osNumber?: string; cliente?: string; }) | (SolicitudPersonalCPR & { type: 'CPR'; });
+type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status']; osNumber?: string; cliente?: string; }) | (SolicitudPersonalCPR & { type: 'CPR'; osNumber?: string; cliente?: string; });
 
 type DayDetails = {
     day: Date;
@@ -215,7 +215,6 @@ export default function PortalPersonalPage() {
     const [pedidos, setPedidos] = useState<UnifiedTurno[]>([]);
     const [serviceOrders, setServiceOrders] = useState<Map<string, ServiceOrder>>(new Map());
     const [briefings, setBriefings] = useState<Map<string, { items: ComercialBriefingItem[] }>>(new Map());
-    const [allTiposPersonal, setAllTiposPersonal] = useState<CategoriaPersonal[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const { impersonatedUser } = useImpersonatedUser();
     const router = useRouter();
@@ -256,14 +255,13 @@ export default function PortalPersonalPage() {
             setProveedorNombre(proveedor?.nombreComercial || '');
         }
         
-        const tiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
-        setAllTiposPersonal(tiposPersonal);
+        const allTiposPersonal = (JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]);
 
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const filteredPedidosEventos = allPersonalExterno.map(p => ({
             ...p,
             turnos: p.turnos.filter(t => {
-                const tipo = tiposPersonal.find(tp => tp.id === t.proveedorId);
+                const tipo = allTiposPersonal.find(tp => tp.id === t.proveedorId);
                 return tipo?.proveedorId === proveedorId;
             })
         })).filter(p => p.turnos.length > 0);
@@ -271,27 +269,26 @@ export default function PortalPersonalPage() {
         const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]);
         const filteredSolicitudesCPR = allSolicitudesCPR.filter(s => {
             if (s.estado !== 'Asignada') return false; // Solo mostrar asignadas a las ETTs
-            const tipo = tiposPersonal.find(t => t.id === s.proveedorId);
+            const tipo = allTiposPersonal.find(t => t.id === s.proveedorId);
             return tipo?.proveedorId === proveedorId;
         });
 
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
-        setServiceOrders(osMap);
-
         const cprTurnos: UnifiedTurno[] = filteredSolicitudesCPR.map(s => ({ ...s, type: 'CPR' }));
         const eventoTurnos: UnifiedTurno[] = filteredPedidosEventos.flatMap(p => {
-            const os = osMap.get(p.osId);
-            return p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO', estado: p.status, osNumber: os?.serviceNumber || '', cliente: os?.client || '' }))
+            const os = serviceOrders.get(p.osId);
+            return p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO', estado: p.status, osNumber: os?.serviceNumber || '', cliente: os?.client || '' }));
         });
 
         setPedidos([...cprTurnos, ...eventoTurnos]);
+
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        setServiceOrders(new Map(allServiceOrders.map(os => [os.id, os])));
 
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as { osId: string; items: ComercialBriefingItem[] }[];
         setBriefings(new Map(allBriefings.map(b => [b.osId, b])));
 
         setIsMounted(true);
-    }, [proveedorId, impersonatedUser]);
+    }, [proveedorId, impersonatedUser, serviceOrders]);
 
     useEffect(() => {
         if (impersonatedUser) {
@@ -483,7 +480,7 @@ export default function PortalPersonalPage() {
                     </div>
                     {turnosAgrupados.length > 0 ? (
                          <Accordion type="multiple" className="w-full space-y-4">
-                            {turnosAgrupados.map(({ date, osEntries, allAccepted, earliestTime }) => (
+                            {turnosAgrupados.map(({ date, osEntries, allAccepted }) => (
                                <AccordionItem value={date} key={date} className="border-none">
                                 <Card className={cn(allAccepted && 'bg-green-100/60')}>
                                         <AccordionTrigger className="p-4 hover:no-underline">
@@ -499,7 +496,7 @@ export default function PortalPersonalPage() {
                                             <div className="border-t px-4 pb-4 space-y-4">
                                                 {osEntries.map(({ os, briefing, turnos }) => (
                                                     <div key={os.id}>
-                                                        <h4 className="font-bold mb-2">
+                                                        <h4 className="font-bold mb-2 mt-2">
                                                             {os.id === 'CPR' ? <Badge>CPR</Badge> : <Badge variant="outline">{os.serviceNumber}</Badge>} - {os.client}
                                                             <span className="text-sm font-normal text-muted-foreground ml-2">{briefing?.descripcion || 'Producción Interna'} ({os.space})</span>
                                                         </h4>
@@ -516,7 +513,6 @@ export default function PortalPersonalPage() {
                                                             <TableBody>
                                                                 {turnos.map(turno => {
                                                                     const costeEstimado = ('precioHora' in turno ? turno.precioHora : 0) * calculateHours(turno.horaInicio, turno.horaSalida);
-                                                                    
                                                                     return (
                                                                     <TableRow key={turno.id} className={cn((turno.estado === 'Confirmado' || ('statusPartner' in turno && turno.statusPartner === 'Gestionado')) && 'bg-green-50/50')}>
                                                                         <TableCell className="font-semibold">{turno.categoria}</TableCell>
@@ -620,4 +616,3 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
-```
