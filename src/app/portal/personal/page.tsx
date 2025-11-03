@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
 import { Briefcase, Building2, Calendar as CalendarIcon, CheckCircle, Clock, Factory, User, Users, ArrowLeft, ChevronLeft, ChevronRight, Edit, MessageSquare, Pencil, PlusCircle, RefreshCw, Send, Trash2, AlertTriangle, Printer, FileText, Upload, Phone } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -11,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
+import { calculateHours, formatCurrency, formatDuration, formatNumber } from '@/lib/utils';
 import type { PersonalExterno, SolicitudPersonalCPR, AsignacionPersonal, EstadoSolicitudPersonalCPR, ComercialBriefingItem, Personal, PersonalExternoDB, Proveedor, PersonalExternoTurno, ServiceOrder, CategoriaPersonal } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -33,12 +34,11 @@ import { logActivity } from '../activity-log/utils';
 import { Combobox } from '@/components/ui/combobox';
 import { useAssignablePersonal } from '@/hooks/use-assignable-personal';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
 
-type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status'] }) | (SolicitudPersonalCPR & { type: 'CPR' });
+type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status']; osNumber?: string; cliente?: string; }) | (SolicitudPersonalCPR & { type: 'CPR'; });
 
 type DayDetails = {
     day: Date;
@@ -215,6 +215,7 @@ export default function PortalPersonalPage() {
     const [pedidos, setPedidos] = useState<UnifiedTurno[]>([]);
     const [serviceOrders, setServiceOrders] = useState<Map<string, ServiceOrder>>(new Map());
     const [briefings, setBriefings] = useState<Map<string, { items: ComercialBriefingItem[] }>>(new Map());
+    const [allTiposPersonal, setAllTiposPersonal] = useState<CategoriaPersonal[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const { impersonatedUser } = useImpersonatedUser();
     const router = useRouter();
@@ -255,13 +256,14 @@ export default function PortalPersonalPage() {
             setProveedorNombre(proveedor?.nombreComercial || '');
         }
         
-        const allTiposPersonal = (JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]);
+        const tiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
+        setAllTiposPersonal(tiposPersonal);
 
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const filteredPedidosEventos = allPersonalExterno.map(p => ({
             ...p,
             turnos: p.turnos.filter(t => {
-                const tipo = allTiposPersonal.find(tp => tp.id === t.proveedorId);
+                const tipo = tiposPersonal.find(tp => tp.id === t.proveedorId);
                 return tipo?.proveedorId === proveedorId;
             })
         })).filter(p => p.turnos.length > 0);
@@ -269,19 +271,21 @@ export default function PortalPersonalPage() {
         const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]);
         const filteredSolicitudesCPR = allSolicitudesCPR.filter(s => {
             if (s.estado !== 'Asignada') return false; // Solo mostrar asignadas a las ETTs
-            const tipo = allTiposPersonal.find(t => t.id === s.proveedorId);
+            const tipo = tiposPersonal.find(t => t.id === s.proveedorId);
             return tipo?.proveedorId === proveedorId;
         });
 
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
+        setServiceOrders(osMap);
+
         const cprTurnos: UnifiedTurno[] = filteredSolicitudesCPR.map(s => ({ ...s, type: 'CPR' }));
-        const eventoTurnos: UnifiedTurno[] = filteredPedidosEventos.flatMap(p => 
-            p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO', estado: p.status }))
-        );
+        const eventoTurnos: UnifiedTurno[] = filteredPedidosEventos.flatMap(p => {
+            const os = osMap.get(p.osId);
+            return p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO', estado: p.status, osNumber: os?.serviceNumber || '', cliente: os?.client || '' }))
+        });
 
         setPedidos([...cprTurnos, ...eventoTurnos]);
-
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        setServiceOrders(new Map(allServiceOrders.map(os => [os.id, os])));
 
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as { osId: string; items: ComercialBriefingItem[] }[];
         setBriefings(new Map(allBriefings.map(b => [b.osId, b])));
@@ -331,7 +335,7 @@ export default function PortalPersonalPage() {
         loadData();
         const turno = pedidos.find(p => p.id === turnoId);
         if(turno) {
-            logActivity(impersonatedUser, 'Asignar Personal', `Asignado ${asignacion.label} a ${turno.categoria}`, turno.osId || 'CPR');
+            logActivity(impersonatedUser, 'Asignar Personal', `Asignado ${asignacion.label} a ${turno.categoria}`, 'osId' in turno ? turno.osId : 'CPR');
         }
         toast({ title: 'Asignación guardada' });
     };
@@ -479,7 +483,7 @@ export default function PortalPersonalPage() {
                     </div>
                     {turnosAgrupados.length > 0 ? (
                          <Accordion type="multiple" className="w-full space-y-4">
-                            {turnosAgrupados.map(({ date, osEntries, allAccepted }) => (
+                            {turnosAgrupados.map(({ date, osEntries, allAccepted, earliestTime }) => (
                                <AccordionItem value={date} key={date} className="border-none">
                                 <Card className={cn(allAccepted && 'bg-green-100/60')}>
                                         <AccordionTrigger className="p-4 hover:no-underline">
@@ -505,6 +509,7 @@ export default function PortalPersonalPage() {
                                                                     <TableHead>Categoría</TableHead>
                                                                     <TableHead>Horario (Horas)</TableHead>
                                                                     <TableHead>Coste Est.</TableHead>
+                                                                    <TableHead>Observaciones</TableHead>
                                                                     <TableHead className="w-56">Asignado a</TableHead>
                                                                 </TableRow>
                                                             </TableHeader>
@@ -517,6 +522,7 @@ export default function PortalPersonalPage() {
                                                                         <TableCell className="font-semibold">{turno.categoria}</TableCell>
                                                                         <TableCell>{turno.horaInicio} - {turno.horaFin} ({calculateHours(turno.horaInicio, turno.horaFin).toFixed(2)}h)</TableCell>
                                                                         <TableCell>{formatCurrency(costeEstimado)}</TableCell>
+                                                                        <TableCell className="text-xs text-muted-foreground">{'observaciones' in turno && turno.observaciones}</TableCell>
                                                                         <TableCell>
                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignacion} isReadOnly={isReadOnly} />
                                                                         </TableCell>
@@ -613,55 +619,5 @@ export default function PortalPersonalPage() {
         </Dialog>
         </TooltipProvider>
     );
-}
-
-```
-- src/app/rrhh/personal-externo/page.tsx:
-```tsx
-
-'use client';
-
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-// This page just redirects to the main database page for external staff.
-export default function PersonalExternoRedirectPage() {
-    const router = useRouter();
-    useEffect(() => {
-        router.replace('/bd/personal-externo-db');
-    }, [router]);
-    return null;
-}
-```
-- src/app/rrhh/personal-interno/page.tsx:
-```tsx
-
-'use client';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-// This page just redirects to the main database page for internal staff.
-export default function PersonalInternoRedirectPage() {
-    const router = useRouter();
-    useEffect(() => {
-        router.replace('/bd/personal');
-    }, [router]);
-    return null;
-}
-```
-- src/app/rrhh/tipos-personal/page.tsx:
-```tsx
-
-'use client';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-// This page just redirects to the main database page for external staff categories.
-export default function TiposPersonalRedirectPage() {
-    const router = useRouter();
-    useEffect(() => {
-        router.replace('/bd/tipos-personal');
-    }, [router]);
-    return null;
 }
 ```
