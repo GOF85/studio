@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { PersonalExternoTurno, SolicitudPersonalCPR, Personal, PersonalExternoDB, CategoriaPersonal } from '@/types';
 
 type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
@@ -11,14 +11,13 @@ export function useAssignablePersonal(turno: UnifiedTurno | null) {
   const [assignableWorkers, setAssignableWorkers] = useState<AssignableWorker[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
-  const refresh = () => {
-    // This function will re-trigger the useEffect
+  const refresh = useCallback(() => {
     setIsDataLoading(true);
-  };
+  }, []);
   
   useEffect(() => {
-    if (!turno) {
-        setIsDataLoading(false);
+    if (!turno || !isDataLoading) {
+        if (!turno) setIsDataLoading(false);
         return;
     }
 
