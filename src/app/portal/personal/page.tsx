@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { calculateHours, formatCurrency, formatDuration, formatNumber } from '@/lib/utils';
+import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
 import type { PersonalExterno, SolicitudPersonalCPR, AsignacionPersonal, EstadoSolicitudPersonalCPR, ComercialBriefingItem, Personal, PersonalExternoDB, Proveedor, PersonalExternoTurno, ServiceOrder, CategoriaPersonal } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -32,7 +32,8 @@ import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
 import { Combobox } from '@/components/ui/combobox';
 import { useAssignablePersonal } from '@/hooks/use-assignable-personal';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, useForm } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
@@ -504,32 +505,18 @@ export default function PortalPersonalPage() {
                                                                     <TableHead>Categoría</TableHead>
                                                                     <TableHead>Horario (Horas)</TableHead>
                                                                     <TableHead>Coste Est.</TableHead>
-                                                                    <TableHead>Coste Final</TableHead>
-                                                                    <TableHead>Observaciones</TableHead>
                                                                     <TableHead className="w-56">Asignado a</TableHead>
                                                                 </TableRow>
                                                             </TableHeader>
                                                             <TableBody>
                                                                 {turnos.map(turno => {
                                                                     const costeEstimado = ('precioHora' in turno ? turno.precioHora : 0) * calculateHours(turno.horaInicio, turno.horaSalida);
-                                                                    const costeReal = turno.type === 'EVENTO' && turno.asignaciones?.[0] ? 
-                                                                        ((calculateHours(turno.asignaciones[0].horaEntradaReal, turno.asignaciones[0].horaSalidaReal) || calculateHours(turno.horaInicio, turno.horaSalida)) * turno.precioHora)
-                                                                        : ('costeImputado' in turno ? turno.costeImputado : null);
-
+                                                                    
                                                                     return (
                                                                     <TableRow key={turno.id} className={cn((turno.estado === 'Confirmado' || ('statusPartner' in turno && turno.statusPartner === 'Gestionado')) && 'bg-green-50/50')}>
                                                                         <TableCell className="font-semibold">{turno.categoria}</TableCell>
                                                                         <TableCell>{turno.horaInicio} - {turno.horaFin} ({calculateHours(turno.horaInicio, turno.horaFin).toFixed(2)}h)</TableCell>
                                                                         <TableCell>{formatCurrency(costeEstimado)}</TableCell>
-                                                                        <TableCell className="font-bold">{costeReal !== null ? formatCurrency(costeReal) : '-'}</TableCell>
-                                                                        <TableCell>
-                                                                            {'observaciones' in turno && turno.observaciones ? (
-                                                                                <Tooltip>
-                                                                                    <TooltipTrigger><MessageSquare className="h-4 w-4 text-primary"/></TooltipTrigger>
-                                                                                    <TooltipContent><p>{turno.observaciones}</p></TooltipContent>
-                                                                                </Tooltip>
-                                                                            ) : '-'}
-                                                                        </TableCell>
                                                                         <TableCell>
                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignacion} isReadOnly={isReadOnly} />
                                                                         </TableCell>
@@ -627,3 +614,54 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
+
+```
+- src/app/rrhh/personal-externo/page.tsx:
+```tsx
+
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// This page just redirects to the main database page for external staff.
+export default function PersonalExternoRedirectPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/bd/personal-externo-db');
+    }, [router]);
+    return null;
+}
+```
+- src/app/rrhh/personal-interno/page.tsx:
+```tsx
+
+'use client';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// This page just redirects to the main database page for internal staff.
+export default function PersonalInternoRedirectPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/bd/personal');
+    }, [router]);
+    return null;
+}
+```
+- src/app/rrhh/tipos-personal/page.tsx:
+```tsx
+
+'use client';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// This page just redirects to the main database page for external staff categories.
+export default function TiposPersonalRedirectPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/bd/tipos-personal');
+    }, [router]);
+    return null;
+}
+```
