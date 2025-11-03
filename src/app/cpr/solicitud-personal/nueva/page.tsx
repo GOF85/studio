@@ -71,7 +71,7 @@ export default function NuevaSolicitudPersonalPage() {
                 ...data,
                 cantidad: 1, // Each request is for 1 person
                 fechaServicio: format(data.fechaServicio, 'yyyy-MM-dd'),
-                estado: 'Pendiente',
+                estado: 'Solicitado',
             };
             allRequests.push(newRequest);
         }
@@ -84,12 +84,11 @@ export default function NuevaSolicitudPersonalPage() {
 
     return (
         <div>
+             <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><UserPlus />Nueva Solicitud de Personal para CPR</h1>
+             </div>
             <Form {...form}>
                 <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
-                    <div className="flex items-center justify-end mb-6">
-                        <Button type="submit"><Save className="mr-2"/> Enviar Solicitud a RRHH</Button>
-                    </div>
-                    
                     <Card>
                         <CardHeader><CardTitle>Detalles de la Necesidad</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
@@ -138,8 +137,12 @@ export default function NuevaSolicitudPersonalPage() {
                             )} />
                         </CardContent>
                     </Card>
+                    <div className="flex items-center justify-end mb-6 gap-2">
+                        <Button type="button" variant="outline" onClick={() => router.push('/cpr/solicitud-personal')}>Cancelar</Button>
+                        <Button type="submit"><Save className="mr-2"/> Enviar Solicitud a RRHH</Button>
+                    </div>
                 </form>
             </Form>
         </div>
-    )
+    );
 }

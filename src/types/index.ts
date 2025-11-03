@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 
 export type CateringItem = {
@@ -385,10 +383,6 @@ export type ComercialBriefingItem = {
     matBebida?: string;
     materialGastro?: string;
     manteleria?: string;
-    // --- LEGACY FIELDS ---
-    gastro_items?: GastronomyOrderItem[];
-    gastro_total?: number;
-    gastro_status?: GastronomyOrderStatus;
 };
 
 export type ComercialBriefing = {
@@ -485,10 +479,10 @@ export type PersonalMiceOrder = {
 export type AsignacionPersonal = {
   id: string;
   nombre: string;
-  dni: string;
-  telefono: string;
+  dni?: string;
+  telefono?: string;
   email?: string;
-  comentarios: string;
+  comentarios?: string;
   comentariosMice?: string;
   rating?: number;
   horaEntradaReal: string;
@@ -506,18 +500,18 @@ export type PersonalExternoTurno = {
   solicitadoPor: 'Sala' | 'Pase' | 'Otro';
   tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
   observaciones?: string;
-  statusPartner: 'Pendiente Asignación' | 'Gestionado' | 'Confirmado';
-  asignaciones: AsignacionPersonal[];
+  statusPartner: 'Pendiente Asignación' | 'Gestionado';
+  asignaciones?: AsignacionPersonal[];
   requiereActualizacion?: boolean;
 };
 
-export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
-export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
+export const ESTADO_TURNO_PERSONAL = ['Solicitado', 'Aprobada', 'Asignado', 'Confirmado', 'Rechazada', 'Solicitada Cancelacion', 'Cerrado'] as const;
+export type EstadoTurnoPersonal = typeof ESTADO_TURNO_PERSONAL[number];
 
 export type PersonalExterno = {
     osId: string;
     turnos: PersonalExternoTurno[];
-    status: EstadoPersonalExterno;
+    status: EstadoTurnoPersonal;
     observacionesGenerales?: string;
     hojaFirmadaUrl?: string;
 };
@@ -1046,8 +1040,9 @@ export type ObjetivoMensualCPR = {
     presupuestoPersonalSolicitadoCpr?: number;
 }
 
-export const ESTADO_SOLICITUD_PERSONAL_CPR = ['Pendiente', 'Aprobada', 'Rechazada', 'Asignada', 'Solicitada Cancelacion', 'Confirmado', 'Cerrado'] as const;
+export const ESTADO_SOLICITUD_PERSONAL_CPR = ['Solicitado', 'Aprobada', 'Rechazada', 'Asignada', 'Confirmado', 'Solicitada Cancelacion', 'Cerrado'] as const;
 export type EstadoSolicitudPersonalCPR = typeof ESTADO_SOLICITUD_PERSONAL_CPR[number];
+
 
 export type SolicitudPersonalCPR = {
   id: string;
@@ -1066,4 +1061,3 @@ export type SolicitudPersonalCPR = {
   observacionesRRHH?: string;
   personalAsignado?: { idPersonal: string; nombre: string; }[];
 };
-
