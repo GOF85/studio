@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
-import type { PersonalExterno, SolicitudPersonalCPR, AsignacionPersonal, EstadoPersonalExterno, EstadoSolicitudPersonalCPR, ComercialBriefingItem, Personal, PersonalExternoDB, Proveedor, PersonalExternoTurno, ServiceOrder } from '@/types';
+import type { PersonalExterno, SolicitudPersonalCPR, AsignacionPersonal, EstadoSolicitudPersonalCPR, ComercialBriefingItem, Personal, PersonalExternoDB, Proveedor, PersonalExternoTurno, ServiceOrder } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -37,7 +37,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
 
-type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string }) | (SolicitudPersonalCPR & { type: 'CPR' });
+type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status'] }) | (SolicitudPersonalCPR & { type: 'CPR' });
 
 type DayDetails = {
     day: Date;
@@ -46,7 +46,7 @@ type DayDetails = {
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-const statusVariant: { [key in UnifiedTurno['estado'] | 'Confirmado']: 'success' | 'secondary' | 'warning' | 'destructive' | 'outline' | 'default'} = {
+const statusVariant: { [key in UnifiedTurno['estado']]: 'success' | 'secondary' | 'warning' | 'destructive' | 'outline' | 'default'} = {
   'Pendiente': 'warning',
   'Aprobada': 'outline',
   'Rechazada': 'destructive',
@@ -54,8 +54,8 @@ const statusVariant: { [key in UnifiedTurno['estado'] | 'Confirmado']: 'success'
   'Asignado': 'default',
   'Cerrado': 'default',
   'Solicitada Cancelacion': 'destructive',
-  'Gestionado': 'success',
   'Confirmado': 'success',
+  'Gestionado': 'success',
 };
 
 const nuevoTrabajadorSchema = z.object({
@@ -102,7 +102,7 @@ function NuevoTrabajadorDialog({ onWorkerCreated }: { onWorkerCreated: (worker: 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full justify-start"><PlusCircle className="mr-2"/>Crear Nuevo Trabajador</Button>
+                <Button variant="outline" size="sm" className="w-full justify-start mt-2"><PlusCircle className="mr-2"/>Crear Nuevo Trabajador</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader><DialogTitle>Nuevo Trabajador</DialogTitle></DialogHeader>
@@ -113,7 +113,9 @@ function NuevoTrabajadorDialog({ onWorkerCreated }: { onWorkerCreated: (worker: 
                             <FormField control={form.control} name="nombre" render={({field}) => <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>}/>
                             <FormField control={form.control} name="apellido1" render={({field}) => <FormItem><FormLabel>Primer Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>}/>
                         </div>
+                         <FormField control={form.control} name="apellido2" render={({field}) => <FormItem><FormLabel>Segundo Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>}/>
                         <FormField control={form.control} name="telefono" render={({field}) => <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>}/>
+                        <FormField control={form.control} name="email" render={({field}) => <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>}/>
                         <DialogFooter>
                             <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
                             <Button type="submit">Crear y Seleccionar</Button>
@@ -128,9 +130,9 @@ function NuevoTrabajadorDialog({ onWorkerCreated }: { onWorkerCreated: (worker: 
 function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, onSave: (turnoId: string, asignacion: AsignacionPersonal, isCpr: boolean) => void, isReadOnly: boolean }) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
-    const { assignableWorkers, isLoading: isLoadingWorkers } = useAssignablePersonal(turno);
+    const { assignableWorkers, isLoading: isLoadingWorkers, refresh } = useAssignablePersonal(turno);
     
-    const initialAsignacion = turno.type === 'EVENTO' ? turno.asignaciones?.[0] : (turno.personalAsignado?.[0] ? { id: turno.personalAsignado[0].idPersonal, nombre: turno.personalAsignado[0].nombre } : null);
+    const initialAsignacion = turno.type === 'EVENTO' ? turno.asignaciones?.[0] : (turno.personalAsignado?.[0] ? { id: turno.personalAsignado[0].idPersonal, label: turno.personalAsignado[0].nombre } : null);
 
     useEffect(() => {
         if(isOpen) {
@@ -139,7 +141,7 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
     }, [isOpen, initialAsignacion]);
 
     const handleSave = () => {
-        const worker = assignableWorkers.find(w => w.id === selectedWorkerId);
+        const worker = assignableWorkers.find(w => w.value === selectedWorkerId);
         if (worker) {
             onSave(turno.id, worker as AsignacionPersonal, turno.type === 'CPR');
             setIsOpen(false);
@@ -147,9 +149,8 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
     }
     
     const handleWorkerCreated = (newWorker: PersonalExternoDB) => {
+        refresh();
         setSelectedWorkerId(newWorker.id);
-        // We will need to refresh the assignable workers list, the hook should handle this if we trigger a re-render.
-        // For simplicity in this fix, we'll assume the user can now find the worker.
     }
 
     const workerDetails = useMemo(() => {
@@ -157,16 +158,16 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
         return allPersonalExternoDB.find(w => w.id === selectedWorkerId);
     }, [selectedWorkerId]);
 
-    const allPersonalExternoDB = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
+    const buttonLabel = initialAsignacion?.label || "Asignar Personal";
+    const buttonIcon = initialAsignacion ? <Pencil className="mr-2 h-4 w-4"/> : <Users className="mr-2 h-4 w-4"/>;
 
     return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-            {initialAsignacion?.nombre ? (
-                <Button variant="outline" size="sm" className="w-full justify-start font-semibold"><Pencil className="mr-2 h-4 w-4"/> {initialAsignacion.nombre}</Button>
-            ) : (
-                <Button variant="secondary" size="sm" className="w-full justify-start"><Users className="mr-2 h-4 w-4"/>Asignar Personal</Button>
-            )}
+            <Button variant={initialAsignacion ? "outline" : "secondary"} size="sm" className="w-full justify-start font-semibold">
+                {buttonIcon}
+                <span className="truncate">{buttonLabel}</span>
+            </Button>
         </DialogTrigger>
         <DialogContent className="max-w-xl">
           <DialogHeader>
@@ -177,7 +178,7 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
                 <div className="space-y-2">
                     <Label>Trabajador</Label>
                      <Combobox 
-                        options={assignableWorkers.map(w => ({ value: w.id, label: `${w.label} - ${w.dni || ''} (${w.telefono || ''})` }))}
+                        options={assignableWorkers}
                         value={selectedWorkerId}
                         onChange={setSelectedWorkerId}
                         placeholder="Buscar por nombre o DNI..."
@@ -252,31 +253,28 @@ export default function PortalPersonalPage() {
             const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
             setProveedorNombre(proveedor?.nombreComercial || '');
         }
+        
+        const allTiposPersonal = (JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]);
 
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]);
-        const allTiposPersonal = (JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]);
-        
-        const filteredPedidos: PersonalExterno[] = proveedorId
-            ? allPersonalExterno.map(p => ({
-                ...p,
-                turnos: p.turnos.filter(t => {
-                    const tipo = allTiposPersonal.find(tp => tp.id === t.proveedorId);
-                    return tipo?.proveedorId === proveedorId;
-                })
-            })).filter(p => p.turnos.length > 0)
-            : allPersonalExterno;
-        
-        const filteredSolicitudesCPR: SolicitudPersonalCPR[] = proveedorId 
-            ? allSolicitudesCPR.filter(s => {
-                const tipo = allTiposPersonal.find(t => t.id === s.proveedorId);
-                return tipo?.proveedorId === proveedorId && s.estado === 'Asignada';
+        const filteredPedidosEventos = allPersonalExterno.map(p => ({
+            ...p,
+            turnos: p.turnos.filter(t => {
+                const tipo = allTiposPersonal.find(tp => tp.id === t.proveedorId);
+                return tipo?.proveedorId === proveedorId;
             })
-            : allSolicitudesCPR;
-        
+        })).filter(p => p.turnos.length > 0);
+
+        const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]);
+        const filteredSolicitudesCPR = allSolicitudesCPR.filter(s => {
+            if (s.estado !== 'Asignada') return false; // Solo mostrar asignadas a las ETTs
+            const tipo = allTiposPersonal.find(t => t.id === s.proveedorId);
+            return tipo?.proveedorId === proveedorId;
+        });
+
         const cprTurnos: UnifiedTurno[] = filteredSolicitudesCPR.map(s => ({ ...s, type: 'CPR' }));
-        const eventoTurnos: UnifiedTurno[] = filteredPedidos.flatMap(p => 
-            p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO' }))
+        const eventoTurnos: UnifiedTurno[] = filteredPedidosEventos.flatMap(p => 
+            p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO', estado: p.status }))
         );
 
         setPedidos([...cprTurnos, ...eventoTurnos]);
@@ -331,7 +329,9 @@ export default function PortalPersonalPage() {
 
         loadData();
         const turno = pedidos.find(p => p.id === turnoId);
-        logActivity(impersonatedUser, 'Asignar Personal', `Asignado ${asignacion.label} a ${turno?.categoria}`, turno?.osId || 'CPR');
+        if(turno) {
+            logActivity(impersonatedUser, 'Asignar Personal', `Asignado ${asignacion.label} a ${turno.categoria}`, turno.osId || 'CPR');
+        }
         toast({ title: 'Asignación guardada' });
     };
     
@@ -478,7 +478,7 @@ export default function PortalPersonalPage() {
                     </div>
                     {turnosAgrupados.length > 0 ? (
                          <Accordion type="multiple" className="w-full space-y-4">
-                            {turnosAgrupados.map(({ date, osEntries, allAccepted }) => (
+                            {turnosAgrupados.map(({ date, osEntries, allAccepted, earliestTime }) => (
                                <AccordionItem value={date} key={date} className="border-none">
                                 <Card className={cn(allAccepted && 'bg-green-100/60')}>
                                         <AccordionTrigger className="p-4 hover:no-underline">
@@ -486,6 +486,7 @@ export default function PortalPersonalPage() {
                                                 {allAccepted ? <CheckCircle className="h-6 w-6 text-green-600"/> : <CalendarIcon className="h-6 w-6"/>}
                                                 <div className="text-left">
                                                     <h3 className="text-xl font-bold capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
+                                                    <p className="text-sm text-muted-foreground">{osEntries.flatMap(e => e.turnos).length} turnos requeridos</p>
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
@@ -501,21 +502,19 @@ export default function PortalPersonalPage() {
                                                             <TableHeader>
                                                                 <TableRow>
                                                                     <TableHead>Categoría</TableHead>
-                                                                    <TableHead>Horario</TableHead>
-                                                                    <TableHead>Observaciones</TableHead>
+                                                                    <TableHead>Horario (Horas)</TableHead>
+                                                                    <TableHead>Coste Est.</TableHead>
                                                                     <TableHead className="w-56">Asignado a</TableHead>
                                                                 </TableRow>
                                                             </TableHeader>
                                                             <TableBody>
                                                                 {turnos.map(turno => {
-                                                                    const asignacion = turno.type === 'EVENTO' ? turno.asignaciones?.[0] : (turno.personalAsignado?.[0] ? { id: turno.personalAsignado[0].idPersonal, nombre: turno.personalAsignado[0].nombre } : null);
-                                                                    const estado = asignacion ? 'Confirmado' : ('estado' in turno ? turno.estado : 'Solicitado');
-                                                                    
+                                                                    const costeEstimado = ('precioHora' in turno ? turno.precioHora : 0) * calculateHours(turno.horaInicio, turno.horaFin);
                                                                     return (
-                                                                    <TableRow key={turno.id} className={cn((estado === 'Gestionado' || estado === 'Confirmado') && 'bg-green-50/50')}>
+                                                                    <TableRow key={turno.id} className={cn((turno.estado === 'Confirmado' || ('statusPartner' in turno && turno.statusPartner === 'Gestionado')) && 'bg-green-50/50')}>
                                                                         <TableCell className="font-semibold">{turno.categoria}</TableCell>
-                                                                        <TableCell>{turno.horaInicio} - {turno.horaFin}</TableCell>
-                                                                        <TableCell className="text-xs text-muted-foreground">{'observaciones' in turno ? turno.observaciones : turno.motivo}</TableCell>
+                                                                        <TableCell>{turno.horaInicio} - {turno.horaFin} ({calculateHours(turno.horaInicio, turno.horaFin).toFixed(2)}h)</TableCell>
+                                                                        <TableCell>{formatCurrency(costeEstimado)}</TableCell>
                                                                         <TableCell>
                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignacion} isReadOnly={isReadOnly} />
                                                                         </TableCell>
@@ -613,4 +612,3 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
-```
