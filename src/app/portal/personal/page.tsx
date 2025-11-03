@@ -158,7 +158,7 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
     const handleSave = () => {
         const worker = assignableWorkers.find(w => w.value === selectedWorkerId);
         if (worker) {
-            const asignacionData = {
+            const asignacionData: any = {
                 id: worker.value,
                 nombre: worker.label,
             };
@@ -640,4 +640,3 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
-```
