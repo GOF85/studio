@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
 import { Briefcase, Building2, Calendar as CalendarIcon, CheckCircle, Clock, Factory, User, Users, ArrowLeft, ChevronLeft, ChevronRight, Edit, MessageSquare, Pencil, PlusCircle, RefreshCw, Send, Trash2, AlertTriangle, Printer, FileText, Upload, Phone } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -33,12 +32,12 @@ import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
 import { Combobox } from '@/components/ui/combobox';
 import { useAssignablePersonal } from '@/hooks/use-assignable-personal';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, useForm } from '@/components/ui/form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
 
-type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status']; osNumber?: string; cliente?: string; }) | (SolicitudPersonalCPR & { type: 'CPR'; osNumber?: string; cliente?: string; });
+type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status']; osNumber?: string; cliente?: string; coste?: number; }) | (SolicitudPersonalCPR & { type: 'CPR'; osNumber?: string; cliente?: string; coste?: number; });
 
 type DayDetails = {
     day: Date;
@@ -136,8 +135,10 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
     const initialAsignacion = turno.type === 'EVENTO' ? turno.asignaciones?.[0] : (turno.personalAsignado?.[0] ? { id: turno.personalAsignado[0].idPersonal, label: turno.personalAsignado[0].nombre } : null);
 
     useEffect(() => {
-        if(isOpen) {
-            setSelectedWorkerId(initialAsignacion?.id || '');
+        if (isOpen && initialAsignacion) {
+            setSelectedWorkerId(initialAsignacion.id);
+        } else if (isOpen) {
+            setSelectedWorkerId('');
         }
     }, [isOpen, initialAsignacion]);
 
@@ -273,10 +274,16 @@ export default function PortalPersonalPage() {
             return tipo?.proveedorId === proveedorId;
         });
 
-        const cprTurnos: UnifiedTurno[] = filteredSolicitudesCPR.map(s => ({ ...s, type: 'CPR' }));
+        const cprTurnos: UnifiedTurno[] = filteredSolicitudesCPR.map(s => {
+            const tipo = allTiposPersonal.find(t => t.id === s.proveedorId);
+            return { ...s, type: 'CPR', coste: s.costeImputado || ((calculateHours(s.horaInicio, s.horaFin) * (tipo?.precioHora || 0)) * s.cantidad) };
+        });
         const eventoTurnos: UnifiedTurno[] = filteredPedidosEventos.flatMap(p => {
             const os = serviceOrders.get(p.osId);
-            return p.turnos.map(t => ({ ...t, osId: p.osId, type: 'EVENTO', estado: p.status, osNumber: os?.serviceNumber || '', cliente: os?.client || '' }));
+            return p.turnos.map(t => {
+                const coste = calculateHours(t.horaInicio, t.horaSalida) * t.precioHora * (t.asignaciones?.length || 1);
+                return { ...t, osId: p.osId, type: 'EVENTO', estado: p.status, osNumber: os?.serviceNumber || '', cliente: os?.client || '', coste };
+            });
         });
 
         setPedidos([...cprTurnos, ...eventoTurnos]);
@@ -288,7 +295,7 @@ export default function PortalPersonalPage() {
         setBriefings(new Map(allBriefings.map(b => [b.osId, b])));
 
         setIsMounted(true);
-    }, [proveedorId, impersonatedUser, serviceOrders]);
+    }, [proveedorId, impersonatedUser, serviceOrders, briefings]);
 
     useEffect(() => {
         if (impersonatedUser) {
@@ -332,7 +339,7 @@ export default function PortalPersonalPage() {
         loadData();
         const turno = pedidos.find(p => p.id === turnoId);
         if(turno) {
-            logActivity(impersonatedUser, 'Asignar Personal', `Asignado ${asignacion.label} a ${turno.categoria}`, 'osId' in turno ? turno.osId : 'CPR');
+            logActivity(impersonatedUser, 'Asignar Personal', `Asignado ${asignacion.label} a ${turno.categoria}`, turno.type === 'EVENTO' ? turno.osId : 'CPR');
         }
         toast({ title: 'Asignación guardada' });
     };
@@ -480,7 +487,7 @@ export default function PortalPersonalPage() {
                     </div>
                     {turnosAgrupados.length > 0 ? (
                          <Accordion type="multiple" className="w-full space-y-4">
-                            {turnosAgrupados.map(({ date, osEntries, allAccepted }) => (
+                            {turnosAgrupados.map(({ date, osEntries, allAccepted, earliestTime }) => (
                                <AccordionItem value={date} key={date} className="border-none">
                                 <Card className={cn(allAccepted && 'bg-green-100/60')}>
                                         <AccordionTrigger className="p-4 hover:no-underline">
@@ -512,13 +519,12 @@ export default function PortalPersonalPage() {
                                                             </TableHeader>
                                                             <TableBody>
                                                                 {turnos.map(turno => {
-                                                                    const costeEstimado = ('precioHora' in turno ? turno.precioHora : 0) * calculateHours(turno.horaInicio, turno.horaSalida);
                                                                     return (
                                                                     <TableRow key={turno.id} className={cn((turno.estado === 'Confirmado' || ('statusPartner' in turno && turno.statusPartner === 'Gestionado')) && 'bg-green-50/50')}>
                                                                         <TableCell className="font-semibold">{turno.categoria}</TableCell>
                                                                         <TableCell>{turno.horaInicio} - {turno.horaFin} ({calculateHours(turno.horaInicio, turno.horaFin).toFixed(2)}h)</TableCell>
-                                                                        <TableCell>{formatCurrency(costeEstimado)}</TableCell>
-                                                                        <TableCell className="text-xs text-muted-foreground">{'observaciones' in turno && turno.observaciones}</TableCell>
+                                                                        <TableCell>{formatCurrency(turno.coste || 0)}</TableCell>
+                                                                        <TableCell className="text-xs text-muted-foreground">{('observaciones' in turno) ? turno.observaciones : ''}</TableCell>
                                                                         <TableCell>
                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignacion} isReadOnly={isReadOnly} />
                                                                         </TableCell>
@@ -616,3 +622,4 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
+```
