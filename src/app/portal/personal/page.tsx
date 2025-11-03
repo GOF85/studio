@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { calculateHours } from '@/lib/utils';
+import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
 import type { PersonalExterno, SolicitudPersonalCPR, AsignacionPersonal, EstadoPersonalExterno, EstadoSolicitudPersonalCPR, ComercialBriefingItem, Personal, PersonalExternoDB, Proveedor, PersonalExternoTurno, ServiceOrder } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -42,21 +42,16 @@ type DayDetails = {
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
 
-type PedidoPartnerConEstado = PedidoPartner & {
-    expedicionNumero: string;
-    status: SimplifiedPedidoPartnerStatus;
-    comentarios?: string;
-}
-
-const statusVariant: { [key in SimplifiedPedidoPartnerStatus]: 'success' | 'secondary' } = {
+const statusVariant: { [key in UnifiedTurno['estado']]: 'success' | 'secondary' | 'warning' | 'destructive' | 'outline' | 'default'} = {
   'Pendiente': 'secondary',
-  'Aceptado': 'success',
-};
-
-const statusRowClass: { [key in SimplifiedPedidoPartnerStatus]?: string } = {
-  'Aceptado': 'bg-green-100/60 hover:bg-green-100/80',
+  'Aprobada': 'outline',
+  'Rechazada': 'destructive',
+  'Solicitado': 'outline',
+  'Asignado': 'success',
+  'Cerrado': 'default',
+  'Solicitada Cancelacion': 'destructive',
+  'Gestionado': 'success'
 };
 
 
@@ -185,19 +180,23 @@ export default function PortalPersonalPage() {
         }
 
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]).filter(s => s.estado === 'Asignada');
+        const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]);
+        const allTiposPersonal = (JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]);
         
         const filteredPedidos: PersonalExterno[] = proveedorId
             ? allPersonalExterno.map(p => ({
                 ...p,
-                turnos: p.turnos.filter(t => t.proveedorId && allProveedores.find(prov => prov.id === t.proveedorId)?.id === proveedorId)
+                turnos: p.turnos.filter(t => {
+                    const tipo = allTiposPersonal.find(tp => tp.id === t.proveedorId);
+                    return tipo?.proveedorId === proveedorId;
+                })
             })).filter(p => p.turnos.length > 0)
             : allPersonalExterno;
         
         const filteredSolicitudesCPR: SolicitudPersonalCPR[] = proveedorId 
             ? allSolicitudesCPR.filter(s => {
-                const tipo = (JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).find(t => t.id === s.proveedorId);
-                return tipo?.proveedorId === proveedorId;
+                const tipo = allTiposPersonal.find(t => t.id === s.proveedorId);
+                return tipo?.proveedorId === proveedorId && s.estado === 'Asignada';
             })
             : allSolicitudesCPR;
         
@@ -438,7 +437,7 @@ export default function PortalPersonalPage() {
                                                                     return (
                                                                     <TableRow key={turno.id} className={cn((status === 'Gestionado' || status === 'Asignada') && 'bg-green-50/50')}>
                                                                         <TableCell className="font-semibold">{turno.categoria}</TableCell>
-                                                                        <TableCell>{turno.horaInicio} - {turno.horaSalida}</TableCell>
+                                                                        <TableCell>{turno.horaInicio} - {turno.horaFin}</TableCell>
                                                                         <TableCell className="text-xs text-muted-foreground">{'observaciones' in turno ? turno.observaciones : turno.motivo}</TableCell>
                                                                         <TableCell className="text-center">
                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones} />
@@ -537,5 +536,3 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
-
-```
