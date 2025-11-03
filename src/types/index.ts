@@ -506,7 +506,7 @@ export type PersonalExternoTurno = {
   solicitadoPor: 'Sala' | 'Pase' | 'Otro';
   tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
   observaciones?: string;
-  statusPartner: 'Pendiente Asignación' | 'Gestionado';
+  statusPartner: 'Pendiente Asignación' | 'Gestionado' | 'Confirmado';
   asignaciones: AsignacionPersonal[];
   requiereActualizacion?: boolean;
 };
@@ -1046,7 +1046,7 @@ export type ObjetivoMensualCPR = {
     presupuestoPersonalSolicitadoCpr?: number;
 }
 
-export const ESTADO_SOLICITUD_PERSONAL_CPR = ['Pendiente', 'Aprobada', 'Rechazada', 'Asignada', 'Solicitada Cancelacion'] as const;
+export const ESTADO_SOLICITUD_PERSONAL_CPR = ['Pendiente', 'Aprobada', 'Rechazada', 'Asignada', 'Solicitada Cancelacion', 'Confirmado', 'Cerrado'] as const;
 export type EstadoSolicitudPersonalCPR = typeof ESTADO_SOLICITUD_PERSONAL_CPR[number];
 
 export type SolicitudPersonalCPR = {
@@ -1061,7 +1061,9 @@ export type SolicitudPersonalCPR = {
   cantidad: number;
   motivo: string;
   estado: EstadoSolicitudPersonalCPR;
-  proveedorId?: string; // ID del proveedor (ETT) asignado
+  proveedorId?: string; // ID del tipo de personal (que incluye el proveedor)
   costeImputado?: number;
   observacionesRRHH?: string;
+  personalAsignado?: { idPersonal: string; nombre: string; }[];
 };
+

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -5,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { format, isSameDay, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, Send, Briefcase, Factory, MapPin, Clock, Phone } from 'lucide-react';
-import type { ServiceOrder, PersonalExterno, EstadoPersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR, CategoriaPersonal } from '@/types';
+import type { ServiceOrder, PersonalExterno, PersonalExternoTurno, SolicitudPersonalCPR, Proveedor, EstadoSolicitudPersonalCPR, CategoriaPersonal } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -43,18 +44,19 @@ type UnifiedRequest = {
     motivo: string;
     proveedorId?: string;
     costeEstimado: number;
-    estado: EstadoPersonalExterno | EstadoSolicitudPersonalCPR;
+    estado: EstadoSolicitudPersonalCPR | PersonalExterno['status'];
     isCprRequest: boolean;
 };
 
-const statusVariant: { [key in UnifiedRequest['estado']]: 'success' | 'warning' | 'destructive' | 'outline' | 'default' } = {
+const statusVariant: { [key in UnifiedRequest['estado']]: 'success' | 'secondary' | 'warning' | 'destructive' | 'outline' | 'default'} = {
   'Pendiente': 'warning',
   'Aprobada': 'outline',
   'Rechazada': 'destructive',
   'Solicitado': 'outline',
-  'Asignado': 'success',
+  'Asignado': 'default',
   'Cerrado': 'default',
-  'Solicitada Cancelacion': 'destructive'
+  'Solicitada Cancelacion': 'destructive',
+  'Confirmado': 'success',
 };
 
 function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, onDeleteRequest, proveedoresMap, allTiposPersonal }: { solicitud: UnifiedRequest | null, isOpen: boolean, onClose: () => void, onUpdateStatus: (isCpr: boolean, id: string, status: UnifiedRequest['estado'], proveedorId?: string, coste?: number, categoria?: string) => void, onDeleteRequest: (req: UnifiedRequest) => void, proveedoresMap: Map<string, string>, allTiposPersonal: CategoriaPersonal[] }) {
@@ -68,7 +70,6 @@ function GestionSolicitudDialog({ solicitud, isOpen, onClose, onUpdateStatus, on
 
     const isCpr = solicitud.isCprRequest;
     
-    // Corrected Logic: If it's a CPR request, approved, and has a provider, it's 'Asignada'.
     const displayStatus = (isCpr && solicitud.estado === 'Aprobada' && solicitud.proveedorId) ? 'Asignada' : solicitud.estado;
     
     const canManageCpr = isCpr && displayStatus === 'Pendiente';
@@ -207,7 +208,7 @@ export default function SolicitudesUnificadasPage() {
             osNumber: os.serviceNumber,
             cliente: os.client,
             fechaServicio: turno.fecha,
-            horario: `${turno.horaInicio} - ${turno.horaSalida}`,
+            horario: `${turno.horaEntrada} - ${turno.horaSalida}`,
             horas: calculateHours(turno.horaEntrada, turno.horaSalida),
             categoria: turno.categoria,
             motivo: `Evento: ${os.serviceNumber}`,
@@ -389,8 +390,9 @@ export default function SolicitudesUnificadasPage() {
                 {paginatedItems.length > 0 ? (
                 paginatedItems.map(p => {
                     const displayStatus = (p.isCprRequest && p.estado === 'Aprobada' && p.proveedorId) ? 'Asignada' : p.estado;
-                    const assignedProviderId = p.isCprRequest ? allTiposPersonal.find(t => t.id === p.proveedorId)?.proveedorId : p.proveedorId;
-                    
+                    const tipoPersonal = allTiposPersonal.find(t => t.id === p.proveedorId);
+                    const assignedProviderId = p.isCprRequest ? tipoPersonal?.proveedorId : (p as PersonalExternoTurno).proveedorId;
+
                     return (
                     <TableRow key={p.id} className="cursor-pointer" onClick={() => setSolicitudToManage(p)}>
                         <TableCell className="font-medium">
