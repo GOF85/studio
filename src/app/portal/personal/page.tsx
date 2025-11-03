@@ -3,9 +3,10 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Briefcase, Building2, Calendar as CalendarIcon, CheckCircle, Clock, Factory, User, Users, ArrowLeft, ChevronLeft, ChevronRight, Edit, MessageSquare, Pencil, PlusCircle, RefreshCw, Send, Trash2, AlertTriangle, Printer, FileText, Upload, Phone } from 'lucide-react';
+import { Briefcase, Building2, Calendar as CalendarIcon, CheckCircle, Clock, Factory, User, Users, ArrowLeft, ChevronLeft, ChevronRight, Edit, MessageSquare, Pencil, PlusCircle, RefreshCw, Send, Trash2, AlertTriangle, Printer, FileText, Upload, Phone, Save, Loader2 } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useForm } from 'react-hook-form';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -32,12 +33,14 @@ import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
 import { Combobox } from '@/components/ui/combobox';
 import { useAssignablePersonal } from '@/hooks/use-assignable-personal';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, useForm } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
 
-type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status']; osNumber?: string; cliente?: string; coste?: number; }) | (SolicitudPersonalCPR & { type: 'CPR'; osNumber?: string; cliente?: string; coste?: number; });
+
+type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status']; osNumber?: string; cliente?: string; costeEstimado: number; horario: string; horas: number; isCprRequest: false; }) | (SolicitudPersonalCPR & { type: 'CPR'; osNumber?: string; cliente?: string; costeEstimado: number; horario: string; horas: number; isCprRequest: true; });
+
 
 type DayDetails = {
     day: Date;
@@ -61,7 +64,7 @@ const statusVariant: { [key in UnifiedTurno['estado']]: 'success' | 'secondary' 
 const nuevoTrabajadorSchema = z.object({
   id: z.string().min(1, 'El DNI/ID es obligatorio'),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
-  apellido1: z.string().min(1, 'El primer apellido es obligatorio'),
+  apellido1: z.string().min(1, 'El primer apellido es obligatororio'),
   apellido2: z.string().optional().default(''),
   telefono: z.string().optional().default(''),
   email: z.string().email('Debe ser un email válido').optional().or(z.literal('')),
@@ -133,6 +136,12 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
     const { assignableWorkers, isLoading: isLoadingWorkers, refresh } = useAssignablePersonal(turno);
     
     const initialAsignacion = turno.type === 'EVENTO' ? turno.asignaciones?.[0] : (turno.personalAsignado?.[0] ? { id: turno.personalAsignado[0].idPersonal, label: turno.personalAsignado[0].nombre } : null);
+
+    useEffect(() => {
+        if (isOpen) {
+            refresh();
+        }
+    }, [isOpen, refresh]);
 
     useEffect(() => {
         if (isOpen && initialAsignacion) {
@@ -263,39 +272,41 @@ export default function PortalPersonalPage() {
             ...p,
             turnos: p.turnos.filter(t => {
                 const tipo = allTiposPersonal.find(tp => tp.id === t.proveedorId);
-                return tipo?.proveedorId === proveedorId;
+                return isAdminOrComercial || tipo?.proveedorId === proveedorId;
             })
         })).filter(p => p.turnos.length > 0);
 
         const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]);
         const filteredSolicitudesCPR = allSolicitudesCPR.filter(s => {
-            if (s.estado !== 'Asignada') return false; // Solo mostrar asignadas a las ETTs
+            if (s.estado !== 'Asignada') return false; 
             const tipo = allTiposPersonal.find(t => t.id === s.proveedorId);
-            return tipo?.proveedorId === proveedorId;
+            return isAdminOrComercial || tipo?.proveedorId === proveedorId;
         });
 
         const cprTurnos: UnifiedTurno[] = filteredSolicitudesCPR.map(s => {
             const tipo = allTiposPersonal.find(t => t.id === s.proveedorId);
-            return { ...s, type: 'CPR', coste: s.costeImputado || ((calculateHours(s.horaInicio, s.horaFin) * (tipo?.precioHora || 0)) * s.cantidad) };
+            return { ...s, type: 'CPR', costeEstimado: s.costeImputado || ((calculateHours(s.horaInicio, s.horaFin) * (tipo?.precioHora || 0)) * s.cantidad), horario: `${s.horaInicio} - ${s.horaFin}`, horas: calculateHours(s.horaInicio, s.horaFin), isCprRequest: true };
         });
+        
+        const allServiceOrdersData = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const serviceOrdersMap = new Map(allServiceOrdersData.map(os => [os.id, os]));
+        setServiceOrders(serviceOrdersMap);
+
         const eventoTurnos: UnifiedTurno[] = filteredPedidosEventos.flatMap(p => {
-            const os = serviceOrders.get(p.osId);
+            const os = serviceOrdersMap.get(p.osId);
             return p.turnos.map(t => {
-                const coste = calculateHours(t.horaInicio, t.horaSalida) * t.precioHora * (t.asignaciones?.length || 1);
-                return { ...t, osId: p.osId, type: 'EVENTO', estado: p.status, osNumber: os?.serviceNumber || '', cliente: os?.client || '', coste };
+                const coste = calculateHours(t.horaEntrada, t.horaSalida) * t.precioHora * (t.asignaciones?.length || 1);
+                return { ...t, osId: p.osId, type: 'EVENTO', estado: p.status, osNumber: os?.serviceNumber || '', cliente: os?.client || '', costeEstimado: coste, horario: `${t.horaInicio} - ${t.horaSalida}`, horas: calculateHours(t.horaInicio, t.horaSalida), isCprRequest: false };
             });
         });
 
         setPedidos([...cprTurnos, ...eventoTurnos]);
 
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        setServiceOrders(new Map(allServiceOrders.map(os => [os.id, os])));
-
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as { osId: string; items: ComercialBriefingItem[] }[];
         setBriefings(new Map(allBriefings.map(b => [b.osId, b])));
 
         setIsMounted(true);
-    }, [proveedorId, impersonatedUser, serviceOrders, briefings]);
+    }, [proveedorId, impersonatedUser, isAdminOrComercial]);
 
     useEffect(() => {
         if (impersonatedUser) {
@@ -495,7 +506,6 @@ export default function PortalPersonalPage() {
                                                 {allAccepted ? <CheckCircle className="h-6 w-6 text-green-600"/> : <CalendarIcon className="h-6 w-6"/>}
                                                 <div className="text-left">
                                                     <h3 className="text-xl font-bold capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
-                                                    <p className="text-sm text-muted-foreground">{osEntries.flatMap(e => e.turnos).length} turnos requeridos</p>
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
@@ -519,11 +529,13 @@ export default function PortalPersonalPage() {
                                                             </TableHeader>
                                                             <TableBody>
                                                                 {turnos.map(turno => {
+                                                                    const displayStatus = (turno.isCprRequest && turno.estado === 'Aprobada' && turno.proveedorId) ? 'Asignada' : turno.estado;
+                                                                    const costeTurno = turno.costeEstimado || 0;
                                                                     return (
-                                                                    <TableRow key={turno.id} className={cn((turno.estado === 'Confirmado' || ('statusPartner' in turno && turno.statusPartner === 'Gestionado')) && 'bg-green-50/50')}>
+                                                                    <TableRow key={turno.id} className={cn((displayStatus === 'Confirmado' || ('statusPartner' in turno && turno.statusPartner === 'Gestionado')) && 'bg-green-50/50')}>
                                                                         <TableCell className="font-semibold">{turno.categoria}</TableCell>
-                                                                        <TableCell>{turno.horaInicio} - {turno.horaFin} ({calculateHours(turno.horaInicio, turno.horaFin).toFixed(2)}h)</TableCell>
-                                                                        <TableCell>{formatCurrency(turno.coste || 0)}</TableCell>
+                                                                        <TableCell>{turno.horario} ({turno.horas.toFixed(2)}h)</TableCell>
+                                                                        <TableCell>{formatCurrency(costeTurno)}</TableCell>
                                                                         <TableCell className="text-xs text-muted-foreground">{('observaciones' in turno) ? turno.observaciones : ''}</TableCell>
                                                                         <TableCell>
                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignacion} isReadOnly={isReadOnly} />
@@ -602,7 +614,7 @@ export default function PortalPersonalPage() {
         <Dialog open={!!dayDetails} onOpenChange={(open) => !open && setDayDetails(null)}>
             <DialogContent className="max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Personal para el {dayDetails?.day ? format(dayDetails.day, 'PPP', { locale: es }) : ''}</DialogTitle>
+                    <DialogTitle>Turnos para el {dayDetails?.day ? format(dayDetails.day, 'PPP', { locale: es }) : ''}</DialogTitle>
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
                     {dayDetails && dayDetails.events.map((event) => {
@@ -612,7 +624,7 @@ export default function PortalPersonalPage() {
                             <p className="font-bold text-primary">{os?.serviceNumber} - {os?.client}</p>
                             <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
                                 <span><span className="font-semibold">Categoría:</span> {event.categoria}</span>
-                                <span><span className="font-semibold">Horario:</span> {event.horaInicio} - {event.horaFin}</span>
+                                <span><span className="font-semibold">Horario:</span> {event.horario}</span>
                             </div>
                         </div>
                     )})}
@@ -622,4 +634,271 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
+
+```
+- src/hooks/use-loading-store.ts:
+```ts
+import { create } from 'zustand';
+
+type LoadingState = {
+  isLoading: boolean;
+  setIsLoading: (isLoading: boolean) => void;
+};
+
+export const useLoadingStore = create<LoadingState>()((set) => ({
+  isLoading: false,
+  setIsLoading: (isLoading) => set({ isLoading }),
+}));
+
+```
+- src/hooks/use-sidebar-store.ts:
+```ts
+
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+
+type SidebarState = {
+  isCollapsed: boolean;
+  toggleSidebar: () => void;
+};
+
+export const useSidebarStore = create<SidebarState>()(
+  persist(
+    (set, get) => ({
+      isCollapsed: false,
+      toggleSidebar: () => set({ isCollapsed: !get().isCollapsed }),
+    }),
+    {
+      name: 'sidebar-storage', // name of the item in the storage (must be unique)
+      storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
+    }
+  )
+);
+
+```
+- src/hooks/use-toast.ts:
+```ts
+"use client"
+
+// Inspired by react-hot-toast library
+import * as React from "react"
+
+import type {
+  ToastActionElement,
+  ToastProps,
+} from "@/components/ui/toast"
+
+const TOAST_LIMIT = 1
+const TOAST_REMOVE_DELAY = 1000000
+
+type ToasterToast = ToastProps & {
+  id: string
+  title?: React.ReactNode
+  description?: React.ReactNode
+  action?: ToastActionElement
+}
+
+const actionTypes = {
+  ADD_TOAST: "ADD_TOAST",
+  UPDATE_TOAST: "UPDATE_TOAST",
+  DISMISS_TOAST: "DISMISS_TOAST",
+  REMOVE_TOAST: "REMOVE_TOAST",
+} as const
+
+let count = 0
+
+function genId() {
+  count = (count + 1) % Number.MAX_SAFE_INTEGER
+  return count.toString()
+}
+
+type ActionType = typeof actionTypes
+
+type Action =
+  | {
+      type: ActionType["ADD_TOAST"]
+      toast: ToasterToast
+    }
+  | {
+      type: ActionType["UPDATE_TOAST"]
+      toast: Partial<ToasterToast>
+    }
+  | {
+      type: ActionType["DISMISS_TOAST"]
+      toastId?: ToasterToast["id"]
+    }
+  | {
+      type: ActionType["REMOVE_TOAST"]
+      toastId?: ToasterToast["id"]
+    }
+
+interface State {
+  toasts: ToasterToast[]
+}
+
+const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+
+const addToRemoveQueue = (toastId: string) => {
+  if (toastTimeouts.has(toastId)) {
+    return
+  }
+
+  const timeout = setTimeout(() => {
+    toastTimeouts.delete(toastId)
+    dispatch({
+      type: "REMOVE_TOAST",
+      toastId: toastId,
+    })
+  }, TOAST_REMOVE_DELAY)
+
+  toastTimeouts.set(toastId, timeout)
+}
+
+export const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case "ADD_TOAST":
+      return {
+        ...state,
+        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+      }
+
+    case "UPDATE_TOAST":
+      return {
+        ...state,
+        toasts: state.toasts.map((t) =>
+          t.id === action.toast.id ? { ...t, ...action.toast } : t
+        ),
+      }
+
+    case "DISMISS_TOAST": {
+      const { toastId } = action
+
+      // ! Side effects ! - This could be extracted into a dismissToast() action,
+      // but I'll keep it here for simplicity
+      if (toastId) {
+        addToRemoveQueue(toastId)
+      } else {
+        state.toasts.forEach((toast) => {
+          addToRemoveQueue(toast.id)
+        })
+      }
+
+      return {
+        ...state,
+        toasts: state.toasts.map((t) =>
+          t.id === toastId || toastId === undefined
+            ? {
+                ...t,
+                open: false,
+              }
+            : t
+        ),
+      }
+    }
+    case "REMOVE_TOAST":
+      if (action.toastId === undefined) {
+        return {
+          ...state,
+          toasts: [],
+        }
+      }
+      return {
+        ...state,
+        toasts: state.toasts.filter((t) => t.id !== action.toastId),
+      }
+  }
+}
+
+const listeners: Array<(state: State) => void> = []
+
+let memoryState: State = { toasts: [] }
+
+function dispatch(action: Action) {
+  memoryState = reducer(memoryState, action)
+  listeners.forEach((listener) => {
+    listener(memoryState)
+  })
+}
+
+type Toast = Omit<ToasterToast, "id">
+
+function toast({ ...props }: Toast) {
+  const id = genId()
+
+  const update = (props: ToasterToast) =>
+    dispatch({
+      type: "UPDATE_TOAST",
+      toast: { ...props, id },
+    })
+  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
+
+  dispatch({
+    type: "ADD_TOAST",
+    toast: {
+      ...props,
+      id,
+      open: true,
+      onOpenChange: (open) => {
+        if (!open) dismiss()
+      },
+    },
+  })
+  
+  // Auto-dismiss after a delay
+  setTimeout(() => {
+    dismiss()
+  }, props.duration || 5000);
+
+
+  return {
+    id: id,
+    dismiss,
+    update,
+  }
+}
+
+function useToast() {
+  const [state, setState] = React.useState<State>(memoryState)
+
+  React.useEffect(() => {
+    listeners.push(setState)
+    return () => {
+      const index = listeners.indexOf(setState)
+      if (index > -1) {
+        listeners.splice(index, 1)
+      }
+    }
+  }, [state])
+
+  return {
+    ...state,
+    toast,
+    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+  }
+}
+
+export { useToast, toast }
+
+```
+- src/lib/fonts.ts:
+```ts
+
+import { Open_Sans, Roboto, Roboto_Mono } from 'next/font/google';
+
+export const openSans = Open_Sans({
+  subsets: ['latin'],
+  variable: '--font-headline',
+});
+
+export const roboto = Roboto({
+  weight: ['400', '500'],
+  subsets: ['latin'],
+  variable: '--font-body',
+});
+
+export const robotoMono = Roboto_Mono({
+  subsets: ['latin'],
+  variable: '--font-code',
+});
+
 ```
