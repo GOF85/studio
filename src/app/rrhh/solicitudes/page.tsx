@@ -18,7 +18,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent as ModalContent, DialogHeader as ModalHeader, DialogTitle as ModalTitle, DialogDescription as ModalDescription } from '@/components/ui/dialog';
+import { Dialog as Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription } from '@/components/ui/dialog';
 import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -42,7 +42,7 @@ const partidaColorClasses: Record<PartidaProduccion, string> = {
 
 function CommentModal({ comment, trigger }: { comment: string, trigger: React.ReactNode }) {
     return (
-        <Dialog>
+        <Modal>
             <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
                  {trigger}
             </DialogTrigger>
@@ -67,6 +67,10 @@ export default function SolicitudesCprPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
+  const [managementAction, setManagementAction] = useState<'delete' | 'cancel' | null>(null);
+  const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  
   const router = useRouter();
   const { toast } = useToast();
 
@@ -99,35 +103,62 @@ export default function SolicitudesCprPage() {
       return searchMatch && dateMatch;
     }).sort((a,b) => new Date(b.fechaSolicitud).getTime() - new Date(a.fechaSolicitud).getTime());
   }, [solicitudes, searchTerm, dateFilter]);
-  
-  const handleOpenDialog = (solicitud: SolicitudPersonalCPR) => {
-    setSolicitudToManage(solicitud);
-  };
 
-  const handleAction = (action: 'aprobar' | 'rechazar' | 'asignar', data?: any) => {
+  const handleActionClick = (solicitud: SolicitudPersonalCPR, action: 'delete' | 'cancel' | 'aprobar' | 'rechazar' | 'asignar') => {
+    setSolicitudToManage(solicitud);
+    if (action === 'rechazar') {
+      setIsRejectionModalOpen(true);
+    } else if (action === 'delete' || action === 'cancel') {
+        setManagementAction(action);
+    } else {
+        handleAction(action);
+    }
+  };
+  
+  const handleAction = (action: 'aprobar' | 'rechazar' | 'asignar' | 'delete' | 'cancel', data?: any) => {
     if(!solicitudToManage) return;
 
-    const updatedSolicitudes = solicitudes.map(s => {
-        if (s.id === solicitudToManage.id) {
-            switch(action) {
-                case 'aprobar':
-                    return {...s, estado: 'Aprobada' as const};
-                case 'rechazar':
-                    return {...s, estado: 'Rechazada' as const, observacionesRRHH: data.reason};
-                case 'asignar':
-                    const tipoPersonal = tiposPersonal.find(tp => tp.id === data.proveedorId);
-                    const coste = calculateHours(s.horaInicio, s.horaFin) * (tipoPersonal?.precioHora || 0);
-                    return {...s, estado: 'Asignada' as const, proveedorId: data.proveedorId, costeImputado: coste};
-            }
-        }
-        return s;
-    });
+    let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
+    const index = allRequests.findIndex(r => r.id === solicitudToManage.id);
 
-    localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updatedSolicitudes));
-    setSolicitudes(updatedSolicitudes);
+    if(index === -1) return;
+
+    switch(action) {
+        case 'aprobar':
+            allRequests[index].estado = 'Aprobada';
+            toast({ title: 'Solicitud Aprobada' });
+            break;
+        case 'rechazar':
+            allRequests[index].estado = 'Rechazada';
+            allRequests[index].observacionesRRHH = data.reason;
+            toast({ title: 'Solicitud Rechazada' });
+            break;
+        case 'asignar':
+            const tipoPersonal = tiposPersonal.find(tp => tp.id === data.proveedorId);
+            const coste = calculateHours(solicitudToManage.horaInicio, solicitudToManage.horaFin) * (tipoPersonal?.precioHora || 0);
+            allRequests[index].estado = 'Asignada';
+            allRequests[index].proveedorId = data.proveedorId;
+            allRequests[index].costeImputado = coste;
+            toast({ title: 'Proveedor Asignado' });
+            break;
+        case 'delete':
+            allRequests = allRequests.filter(r => r.id !== solicitudToManage.id);
+            toast({ title: 'Solicitud Eliminada' });
+            break;
+        case 'cancel':
+            allRequests[index].estado = 'Solicitada Cancelacion';
+            toast({ title: 'Cancelación Solicitada' });
+            break;
+    }
+
+    localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
+    setSolicitudes(allRequests);
     setSolicitudToManage(null);
-    toast({title: 'Estado de la solicitud actualizado'});
-  }
+    setManagementAction(null);
+    setIsRejectionModalOpen(false);
+    setRejectionReason('');
+  };
+
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
@@ -198,7 +229,7 @@ export default function SolicitudesCprPage() {
                             <TableCell><Badge className={cn("text-black", partidaColorClasses[s.partida])}>{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>{s.motivo}</TableCell>
-                            <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
+                            <TableCell><Badge variant={statusVariant[s.estado] || 'secondary'}>{s.estado}</Badge></TableCell>
                             <TableCell>
                                 {proveedorNombre && (
                                     <div className="flex items-center">
@@ -228,7 +259,23 @@ export default function SolicitudesCprPage() {
         </CardContent>
       </Card>
       
-        <Dialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
+        <AlertDialog open={!!solicitudToManage && !!managementAction} onOpenChange={() => { setSolicitudToManage(null); setManagementAction(null); }}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {managementAction === 'delete' && 'Esta acción eliminará la solicitud permanentemente.'}
+                        {managementAction === 'cancel' && 'Se enviará una petición a RRHH para cancelar esta asignación. ¿Continuar?'}
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>No</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => managementAction && handleAction(managementAction)}>Sí, continuar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        <Dialog open={!!solicitudToManage && !managementAction} onOpenChange={() => setSolicitudToManage(null)}>
             <ModalContent>
                 <ModalHeader>
                     <ModalTitle>Gestionar Solicitud de Personal</ModalTitle>
@@ -243,7 +290,7 @@ export default function SolicitudesCprPage() {
                         <div className="space-y-4 pt-4 border-t">
                             <h4 className="font-bold">Acciones de RRHH</h4>
                              <Button onClick={() => handleAction('aprobar')}>Aprobar Solicitud</Button>
-                            <Button variant="destructive" className="ml-2" onClick={() => handleAction('rechazar', { reason: prompt('Motivo del rechazo:') })}>Rechazar</Button>
+                            <Button variant="destructive" className="ml-2" onClick={() => handleActionClick(solicitudToManage, 'rechazar')}>Rechazar</Button>
                         </div>
                     )}
                     
@@ -265,8 +312,20 @@ export default function SolicitudesCprPage() {
                 </div>
             </ModalContent>
         </Dialog>
+        
+         <AlertDialog open={isRejectionModalOpen} onOpenChange={setIsRejectionModalOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Motivo del Rechazo</AlertDialogTitle>
+                    <AlertDialogDescription>Por favor, indica por qué se rechaza esta solicitud.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <Textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} />
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleAction('rechazar', { reason: rejectionReason })}>Confirmar Rechazo</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   )
 }
-
-    
