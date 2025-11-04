@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
 import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -11,7 +11,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, PersonalMiceOrder, PersonalExterno, SolicitudPersonalCPR, CategoriaPersonal, Proveedor, Personal, PersonalExternoDB } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatNumber, formatPercentage, calculateHours } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -472,7 +472,7 @@ export default function AnaliticaRrhhPage() {
                  </TabsContent>
                  <TabsContent value="valoracion">
                     <div className="space-y-6">
-                         <Card>
+                        <Card>
                             <CardHeader>
                                 <CardTitle>Resumen Global del Personal Externo</CardTitle>
                                 <CardDescription>Totales para todos los trabajadores externos en el periodo seleccionado.</CardDescription>
@@ -603,3 +603,4 @@ export default function AnaliticaRrhhPage() {
     );
 }
 
+    
