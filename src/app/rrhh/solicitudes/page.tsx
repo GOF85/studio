@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { calculateHours, formatNumber } from '@/lib/utils';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   'Solicitado': 'secondary',
@@ -162,8 +163,9 @@ export default function SolicitudesCprPage() {
                         <TableHead>Horas</TableHead>
                         <TableHead>Partida</TableHead>
                         <TableHead>Categoría</TableHead>
-                        <TableHead>Asignado a</TableHead>
+                        <TableHead>Motivo</TableHead>
                         <TableHead>Estado</TableHead>
+                        <TableHead>Asignado a</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -183,16 +185,17 @@ export default function SolicitudesCprPage() {
                             <TableCell className="font-semibold">{formatNumber(calculateHours(s.horaInicio, s.horaFin), 2)}h</TableCell>
                             <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
+                            <TableCell>{s.motivo}</TableCell>
+                            <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
                             <TableCell>
                                 {proveedorNombre && (
                                     <div className="flex items-center">
                                         <span>{proveedorNombre}</span>
-                                        {asignado?.nombre && <span className="text-muted-foreground ml-1">({asignado.nombre})</span>}
+                                        {asignado?.nombre && <span className="text-muted-foreground ml-1">({asignado.nombre.split(' (')[0]})</span>}
                                         {asignado?.comentarios && <CommentModal comment={asignado.comentarios}/>}
                                     </div>
                                 )}
                             </TableCell>
-                            <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
                             <TableCell className="text-right">
                                 {canDelete && <Button variant="destructive" size="sm" onClick={() => handleActionClick(s, 'delete')}><Trash2 className="mr-2 h-4 w-4"/>Borrar</Button>}
                                 {canCancel && <Button variant="destructive" size="sm" onClick={() => handleActionClick(s, 'cancel')}><Trash2 className="mr-2 h-4 w-4"/>Solicitar Cancelación</Button>}
@@ -201,7 +204,7 @@ export default function SolicitudesCprPage() {
                         </TableRow>
                     )}) : (
                         <TableRow>
-                            <TableCell colSpan={8} className="h-24 text-center">No has realizado ninguna solicitud.</TableCell>
+                            <TableCell colSpan={9} className="h-24 text-center">No has realizado ninguna solicitud.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
