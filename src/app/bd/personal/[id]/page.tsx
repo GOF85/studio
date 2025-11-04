@@ -39,9 +39,10 @@ export default function EditarPersonalPage() {
     const item = allItems.find(p => p.id === id);
     if (item) {
       form.reset({
-        ...item,
-        apellido1: item.apellido1 || (item.apellidos || '').split(' ')[0] || '',
-        apellido2: item.apellido2 || (item.apellidos || '').split(' ').slice(1).join(' ') || '',
+        id: item.id || '',
+        nombre: item.nombre || '',
+        apellido1: item.apellido1 || '',
+        apellido2: item.apellido2 || '',
         telefono: item.telefono || '',
         iniciales: item.iniciales || '',
         email: item.email || '',
@@ -68,6 +69,7 @@ export default function EditarPersonalPage() {
         nombreCompacto: `${data.nombre} ${data.apellido1}`,
         iniciales: `${data.nombre[0]}${data.apellido1[0]}`.toUpperCase(),
         email: data.email,
+        apellidos: `${data.apellido1} ${data.apellido2 || ''}`.trim(), // Keep old field for compatibility if needed elsewhere
     }
       allItems[index] = finalData;
       localStorage.setItem('personal', JSON.stringify(allItems));
