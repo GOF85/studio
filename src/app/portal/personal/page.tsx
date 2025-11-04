@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Briefcase, Building2, Calendar as CalendarIcon, CheckCircle, Clock, Factory, User, Users, ArrowLeft, ChevronLeft, ChevronRight, Edit, MessageSquare, Pencil, PlusCircle, RefreshCw, Send, Trash2, AlertTriangle, Printer, FileText, Upload, Phone, Save, Loader2, MapPin } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -616,7 +616,7 @@ export default function PortalPersonalPage() {
                         </Popover>
                         <div className="flex items-center space-x-2">
                             <Checkbox id="show-completed" checked={showCompleted} onCheckedChange={(checked) => setShowCompleted(Boolean(checked))} />
-                            <Label htmlFor="show-completed">Mostrar completados/pasados</Label>
+                            <Label htmlFor="show-completed">Mostrar pasados/cerrados</Label>
                         </div>
                     </div>
                     {turnosAgrupados.length > 0 ? (
@@ -761,3 +761,119 @@ export default function PortalPersonalPage() {
 }
 
 ```
+- src/app/transporte/pedido/[id]/page.tsx:
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function TransportePedidoIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/transporte/pedido?orderId=${params.id}`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/app/transporte/pedido/layout.tsx:
+```tsx
+
+'use client';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+
+// This page just redirects to the main OS page as transport is managed within an OS.
+export default function TransporteRedirectPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/pes');
+    }, [router]);
+    return <LoadingSkeleton title="Redirigiendo..."/>;
+}
+
+```
+- src/hooks/use-local-storage.ts:
+```ts
+'use client';
+
+import { useState, useEffect } from 'react';
+
+export function useLocalStorage<T>(key: string, initialValue: T) {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === 'undefined') {
+      return initialValue;
+    }
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.error(error);
+      return initialValue;
+    }
+  });
+
+  const setValue = (value: T | ((val: T) => T)) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        window.dispatchEvent(new StorageEvent('storage', { key }));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === key) {
+        try {
+            const item = window.localStorage.getItem(key);
+            setStoredValue(item ? JSON.parse(item) : initialValue);
+        } catch (error) {
+            console.error(error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [key, initialValue]);
+
+  return [storedValue, setValue] as const;
+}
+
+```
+- src/lib/fonts.ts:
+```ts
+
+import { Open_Sans, Roboto, Roboto_Mono } from 'next/font/google';
+
+export const openSans = Open_Sans({
+  subsets: ['latin'],
+  variable: '--font-headline',
+});
+
+export const roboto = Roboto({
+  weight: ['400', '500'],
+  subsets: ['latin'],
+  variable: '--font-body',
+});
+
+export const robotoMono = Roboto_Mono({
+  subsets: ['latin'],
+  variable: '--font-code',
+})
+
+```
+- src/app/os/[id]/transporte/pedido/page.tsx:
+```tsx
+'use client';
+export { default } from '@/app/transporte/pedido/page';
+
+```
+
