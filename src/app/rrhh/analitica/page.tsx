@@ -31,4 +31,10 @@ export default function AnaliticaRrhhPage() {
                         <CardTitle className="flex items-center gap-3 text-muted-foreground"><Users />Personal Interno</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-muted-foreground">Próximamente: Analiza la productividad y costes del personal de MICE Catering
+                        <p className="text-sm text-muted-foreground">Próximamente: Analiza la productividad y costes del personal de MICE Catering.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        </main>
+    );
+}
