@@ -2,9 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Euro, Users, Clock, Calendar as CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
@@ -18,32 +17,10 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { KpiCard } from '@/components/dashboard/kpi-card';
+import { Users, Clock, Euro, TrendingDown, TrendingUp, Calendar as CalendarIcon } from 'lucide-react';
 
-
-type KpiCardProps = {
-    title: string;
-    value: string;
-    icon: React.ElementType;
-    description?: string;
-    className?: string;
-}
-
-function KpiCard({ title, value, icon: Icon, description, className }: KpiCardProps) {
-    return (
-        <Card className={className}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-3 pt-2">
-                <CardTitle className="text-xs font-medium">{title}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="px-3 pb-2">
-                <div className="text-xl font-bold">{value}</div>
-                {description && <p className="text-xs text-muted-foreground">{description}</p>}
-            </CardContent>
-        </Card>
-    )
-}
 
 type AnaliticaData = {
     costeTotal: number;
@@ -153,7 +130,8 @@ export default function AnaliticaRrhhPage() {
         // Solicitudes CPR
         allSolicitudesCPR.forEach(solicitud => {
             if (!isWithinInterval(new Date(solicitud.fechaServicio), { start: rangeStart, end: rangeEnd })) return;
-            if (solicitud.estado !== 'Asignada') return;
+            if (solicitud.estado !== 'Cerrado') return;
+             if (proveedorFilter !== 'all' && solicitud.proveedorId !== proveedorFilter) return;
 
             const coste = solicitud.costeImputado || 0;
             const horas = calculateHours(solicitud.horaInicio, solicitud.horaFin) * (solicitud.personalAsignado?.length || 0);

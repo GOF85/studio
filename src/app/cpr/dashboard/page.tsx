@@ -12,6 +12,7 @@ import { Factory, AlertTriangle, List, Clock, CheckCircle, UserCheck } from 'luc
 import { isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { OrdenFabricacion, SolicitudPersonalCPR } from '@/types';
+import { KpiCard } from '@/components/dashboard/kpi-card';
 
 
 const workflowSections = {
@@ -29,21 +30,6 @@ const workflowSections = {
   }
 };
 
-function KpiCard({ title, value, icon: Icon, href, className }: { title: string, value: number, icon: LucideIcon, href: string, className?: string }) {
-    return (
-        <Link href={href}>
-            <Card className={cn("hover:shadow-md transition-all", className)}>
-                <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{value}</div>
-                </CardContent>
-            </Card>
-        </Link>
-    )
-}
 
 function WorkflowSection({ title, modules }: { title: string, modules: (typeof cprNav[number])[] }) {
     if (modules.length === 0) return null;

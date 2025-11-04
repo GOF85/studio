@@ -17,7 +17,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
 import { FeedbackDialog } from '@/components/portal/feedback-dialog';
 import { cn } from '@/lib/utils';
@@ -103,7 +102,6 @@ export default function ValidacionHorasPage() {
         allRequests[reqIndex].personalAsignado![0].rating = feedback.rating;
         allRequests[reqIndex].personalAsignado![0].comentariosMice = feedback.comment;
         
-        // Always allow hour modification
         if (feedback.horaEntradaReal && feedback.horaSalidaReal) {
              const originalHours = { 
                 entrada: allRequests[reqIndex].personalAsignado![0].horaEntradaReal, 
@@ -112,7 +110,6 @@ export default function ValidacionHorasPage() {
             allRequests[reqIndex].personalAsignado![0].horaEntradaReal = feedback.horaEntradaReal;
             allRequests[reqIndex].personalAsignado![0].horaSalidaReal = feedback.horaSalidaReal;
 
-             // Only change state if it's not already closed
             if (originalState !== 'Cerrado') {
                  allRequests[reqIndex].estado = 'Cerrado';
                  logActivity(impersonatedUser, 'Cerrar Turno CPR', `Turno de ${asignacion.nombre} cerrado con horas ${feedback.horaEntradaReal}-${feedback.horaSalidaReal}.`, solicitud.id);
