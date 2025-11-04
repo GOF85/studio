@@ -17,7 +17,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useLoadingStore } from '@/hooks/use-loading-store';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 type PersonalFormValues = z.infer<typeof personalFormSchema>;
@@ -41,10 +40,11 @@ export default function EditarPersonalPage() {
     if (item) {
       form.reset({
         ...item,
+        apellido1: item.apellido1 || (item.apellidos || '').split(' ')[0] || '',
+        apellido2: item.apellido2 || (item.apellidos || '').split(' ').slice(1).join(' ') || '',
         telefono: item.telefono || '',
-        dni: item.dni || '',
         iniciales: item.iniciales || '',
-        mail: item.mail || '',
+        email: item.email || '',
         precioHora: item.precioHora || 0,
         departamento: item.departamento || '',
         categoria: item.categoria || '',
@@ -62,12 +62,14 @@ export default function EditarPersonalPage() {
     const index = allItems.findIndex(p => p.id === id);
 
     if (index !== -1) {
-      if (!data.iniciales && data.nombre && data.apellidos) {
-        const nameParts = data.nombre.split(' ');
-        const lastNameParts = data.apellidos.split(' ');
-        data.iniciales = `${nameParts[0][0]}${lastNameParts[0][0]}`.toUpperCase();
-      }
-      allItems[index] = data;
+       const finalData: Personal = {
+        ...data,
+        nombreCompleto: `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim(),
+        nombreCompacto: `${data.nombre} ${data.apellido1}`,
+        iniciales: `${data.nombre[0]}${data.apellido1[0]}`.toUpperCase(),
+        email: data.email,
+    }
+      allItems[index] = finalData;
       localStorage.setItem('personal', JSON.stringify(allItems));
       toast({ description: 'Empleado actualizado correctamente.' });
     }
@@ -111,8 +113,11 @@ export default function EditarPersonalPage() {
                   <FormField control={form.control} name="nombre" render={({ field }) => (
                     <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
-                  <FormField control={form.control} name="apellidos" render={({ field }) => (
-                    <FormItem className="md:col-span-2"><FormLabel>Apellidos</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                   <FormField control={form.control} name="apellido1" render={({ field }) => (
+                    <FormItem><FormLabel>Primer Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="apellido2" render={({ field }) => (
+                    <FormItem><FormLabel>Segundo Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -139,11 +144,11 @@ export default function EditarPersonalPage() {
                      <FormField control={form.control} name="telefono" render={({ field }) => (
                         <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                     <FormField control={form.control} name="mail" render={({ field }) => (
+                     <FormField control={form.control} name="email" render={({ field }) => (
                         <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <FormField control={form.control} name="dni" render={({ field }) => (
-                        <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormField control={form.control} name="id" render={({ field }) => (
+                        <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} readOnly /></FormControl><FormMessage /></FormItem>
                     )} />
                  </div>
               </CardContent>
