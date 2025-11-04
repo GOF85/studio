@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
@@ -113,7 +113,7 @@ export default function AnaliticaRrhhPage() {
         tiposPersonal.forEach(tp => ettIds.add(tp.proveedorId));
         return proveedores.filter(p => ettIds.has(p.id) && p.tipos.includes('Personal'));
     }, [allPersonalExterno, proveedores, tiposPersonal]);
-
+    
     const analiticaData: AnaliticaData = useMemo(() => {
         if (!isMounted || !dateRange?.from) return { costeTotal: 0, costePlanificado: 0, desviacionCoste: 0, horasTotales: 0, horasPlanificadas: 0, desviacionHoras: 0, numTurnos: 0, costePorProveedor: [], horasPorCategoria: [], detalleCompleto: [] };
 
@@ -295,22 +295,26 @@ export default function AnaliticaRrhhPage() {
     }, [analiticaData.detalleCompleto]);
 
 
-    const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
+    const setDatePreset = (preset: 'month' | 'year') => {
         const now = new Date();
         let fromDate, toDate;
         switch(preset) {
             case 'month': fromDate = startOfMonth(now); toDate = endOfMonth(now); break;
             case 'year': fromDate = startOfYear(now); toDate = endOfYear(now); break;
-            case 'q1': fromDate = startOfQuarter(new Date(now.getFullYear(), 0, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 2, 31)); break;
-            case 'q2': fromDate = startOfQuarter(new Date(now.getFullYear(), 3, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 5, 30)); break;
-            case 'q3': fromDate = startOfQuarter(new Date(now.getFullYear(), 6, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 8, 30)); break;
-            case 'q4': fromDate = startOfQuarter(new Date(now.getFullYear(), 9, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 11, 31)); break;
         }
         setDateRange({ from: fromDate, to: toDate });
     };
     
+    const selectedWorkerDetails = useMemo(() => {
+        if (!selectedWorkerForModal) return null;
+        return {
+            ...selectedWorkerForModal,
+            turnos: analiticaData.detalleCompleto.filter(t => t.trabajadorId === selectedWorkerForModal.id)
+        }
+    }, [selectedWorkerForModal, analiticaData.detalleCompleto]);
+    
     const handlePrintWorkerHistory = () => {
-        if (!selectedWorkerDetails) return;
+        if (!selectedWorkerDetails || !selectedWorkerDetails.nombre) return;
 
         const doc = new jsPDF();
         doc.setFontSize(16);
@@ -339,14 +343,6 @@ export default function AnaliticaRrhhPage() {
 
         doc.save(`Historial_${selectedWorkerDetails.nombre.replace(/\s/g, '_')}.pdf`);
     };
-
-    const selectedWorkerDetails = useMemo(() => {
-        if (!selectedWorkerForModal) return null;
-        return {
-            ...selectedWorkerForModal,
-            turnos: analiticaData.detalleCompleto.filter(t => t.trabajadorId === selectedWorkerForModal.id)
-        }
-    }, [selectedWorkerForModal, analiticaData.detalleCompleto]);
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Analítica de RRHH..." />;
@@ -402,8 +398,8 @@ export default function AnaliticaRrhhPage() {
             <Tabs defaultValue="resumen">
                 <TabsList className="grid w-full grid-cols-3 mb-6">
                     <TabsTrigger value="resumen">Resumen Gráfico</TabsTrigger>
-                    <TabsTrigger value="detalle">Detalle por Trabajador</TabsTrigger>
-                    <TabsTrigger value="valoracion">Valoración de Empleados</TabsTrigger>
+                    <TabsTrigger value="detalle">Detalle por Turno</TabsTrigger>
+                    <TabsTrigger value="valoracion">Rendimiento de Empleados</TabsTrigger>
                 </TabsList>
                 <TabsContent value="resumen">
                     <div className="grid lg:grid-cols-2 gap-8 mb-8">
