@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -744,14 +743,15 @@ export default function PortalPersonalPage() {
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
                     {dayDetails && dayDetails.events.map((event) => {
+                        const osLink = event.osId !== 'CPR' ? `/os/${event.osId}/personal-externo` : '#';
                         return (
-                        <div key={event.id} className="block p-3 hover:bg-muted rounded-md">
+                        <Link href={osLink} key={event.id} className="block p-3 hover:bg-muted rounded-md">
                             <p className="font-bold text-primary">{event.osNumber} - {event.cliente}</p>
                             <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
                                 <span><span className="font-semibold">Categoría:</span> {event.categoria}</span>
                                 <span><span className="font-semibold">Horario:</span> {event.horario}</span>
                             </div>
-                        </div>
+                        </Link>
                     )})}
                 </div>
             </DialogContent>
