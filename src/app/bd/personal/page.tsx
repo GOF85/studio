@@ -36,7 +36,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
 
-const CSV_HEADERS = ["id", "nombre", "apellido1", "apellido2", "nombreCompleto", "nombreCompacto", "iniciales", "departamento", "categoria", "telefono", "email", "precioHora"];
+const CSV_HEADERS = ["id", "nombre", "apellido1", "apellido2", "departamento", "categoria", "telefono", "email", "precioHora"];
 
 
 function PersonalPageContent() {
@@ -98,10 +98,22 @@ function PersonalPageContent() {
                 return;
             }
             
-            const importedData: Personal[] = results.data.map(item => ({
-              ...item,
-              precioHora: parseFloat(item.precioHora) || 0
-            }));
+            const importedData: Personal[] = results.data.map(item => {
+                const nombre = item.nombre || '';
+                const apellido1 = item.apellido1 || '';
+                const apellido2 = item.apellido2 || '';
+
+                return {
+                    ...item,
+                    nombre,
+                    apellido1,
+                    apellido2,
+                    nombreCompleto: `${nombre} ${apellido1} ${apellido2}`.trim(),
+                    nombreCompacto: `${nombre} ${apellido1}`.trim(),
+                    iniciales: `${nombre[0] || ''}${apellido1[0] || ''}`.toUpperCase(),
+                    precioHora: parseFloat(item.precioHora) || 0
+                }
+            });
             
             localStorage.setItem('personal', JSON.stringify(importedData));
             setItems(importedData);
@@ -123,8 +135,20 @@ function PersonalPageContent() {
             toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
             return;
         }
+        
+        const dataToExport = items.map(item => ({
+            id: item.id,
+            nombre: item.nombre,
+            apellido1: item.apellido1,
+            apellido2: item.apellido2,
+            departamento: item.departamento,
+            categoria: item.categoria,
+            telefono: item.telefono,
+            email: item.email,
+            precioHora: item.precioHora
+        }));
 
-        const csv = Papa.unparse(items);
+        const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
