@@ -59,8 +59,11 @@ export function FeedbackDialog({
 
     const handleSave = () => {
         onSave({ rating, comment, horaEntradaReal: horaEntrada, horaSalidaReal: horaSalida });
+        if (onOpenChange) {
+          onOpenChange(false);
+        }
     };
-
+    
     const dialogContent = (
         <DialogContent>
             <DialogHeader>
@@ -105,16 +108,10 @@ export function FeedbackDialog({
         </DialogContent>
     );
 
-    if (trigger) {
-        return (
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogTrigger asChild>
-                    {trigger}
-                </DialogTrigger>
-                {dialogContent}
-            </Dialog>
-        );
-    }
-    
-    return open ? dialogContent : null;
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+            {dialogContent}
+        </Dialog>
+    );
 }
