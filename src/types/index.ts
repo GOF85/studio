@@ -483,8 +483,8 @@ export type AsignacionPersonal = {
   telefono?: string;
   email?: string;
   comentarios?: string;
+  rating?: number; // From 1 to 5
   comentariosMice?: string;
-  rating?: number;
   horaEntradaReal: string;
   horaSalidaReal: string;
 };
@@ -505,13 +505,13 @@ export type PersonalExternoTurno = {
   requiereActualizacion?: boolean;
 };
 
-export const ESTADO_TURNO_PERSONAL = ['Solicitado', 'Aprobada', 'Asignado', 'Confirmado', 'Rechazada', 'Solicitada Cancelacion', 'Cerrado'] as const;
-export type EstadoTurnoPersonal = typeof ESTADO_TURNO_PERSONAL[number];
+export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
+export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
 
 export type PersonalExterno = {
     osId: string;
     turnos: PersonalExternoTurno[];
-    status: EstadoTurnoPersonal;
+    status: EstadoPersonalExterno;
     observacionesGenerales?: string;
     hojaFirmadaUrl?: string;
 };
@@ -669,7 +669,7 @@ export type ElaboracionEnReceta = {
   merma: number;
 }
 
-export const SABORES_PRINCIPALES = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
+export const SABORES_PRINCIPales = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
 export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
 
 export const TECNICAS_COCCION = ['Horneado / Asado', 'Fritura', 'Guiso / Estofado', 'Plancha / Salteado', 'Vapor / Hervido', 'Crudo / Marinado', 'Baja Temperatura / Sous-vide'] as const;
@@ -1043,6 +1043,14 @@ export type ObjetivoMensualCPR = {
 export const ESTADO_SOLICITUD_PERSONAL_CPR = ['Solicitado', 'Aprobada', 'Rechazada', 'Asignada', 'Confirmado', 'Solicitada Cancelacion', 'Cerrado'] as const;
 export type EstadoSolicitudPersonalCPR = typeof ESTADO_SOLICITUD_PERSONAL_CPR[number];
 
+export type AsignacionPersonalCPR = {
+  idPersonal: string;
+  nombre: string;
+  horaEntradaReal?: string;
+  horaSalidaReal?: string;
+  rating?: number;
+  comentariosMice?: string;
+};
 
 export type SolicitudPersonalCPR = {
   id: string;
@@ -1059,5 +1067,5 @@ export type SolicitudPersonalCPR = {
   proveedorId?: string; // ID del tipo de personal (que incluye el proveedor)
   costeImputado?: number;
   observacionesRRHH?: string;
-  personalAsignado?: { idPersonal: string; nombre: string; }[];
+  personalAsignado?: AsignacionPersonalCPR[];
 };

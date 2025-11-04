@@ -9,8 +9,9 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
-export function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex: number, form: any }) {
+export function FeedbackDialog({ turnoIndex, asigIndex, form, onSave }: { turnoIndex: number; asigIndex: number, form: any, onSave: () => void }) {
     const [isOpen, setIsOpen] = useState(false);
     const { getValues, setValue } = form;
 
@@ -31,13 +32,11 @@ export function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: nu
     const handleSave = () => {
         setValue(ratingFieldName, rating, { shouldDirty: true });
         setValue(commentFieldName, comment, { shouldDirty: true });
+        onSave();
         setIsOpen(false);
     };
 
     const handleOpenChange = (open: boolean) => {
-        if (!open && isOpen) { // Only save on close if it was open
-            handleSave();
-        }
         setIsOpen(open);
     }
     
@@ -47,14 +46,18 @@ export function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: nu
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                <div className="relative group">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
-                        <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
-                    </Button>
-                    <span className="absolute bottom-full mb-2 w-max max-w-xs scale-0 group-hover:scale-100 transition-transform origin-bottom bg-gray-800 text-white text-xs rounded-md px-2 py-1 z-10">
-                        {tooltipText}
-                    </span>
-                </div>
+                 <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div className="flex items-center justify-center cursor-pointer">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
+                                <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
+                            </Button>
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p className="max-w-xs">{tooltipText}</p>
+                    </TooltipContent>
+                </Tooltip>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
