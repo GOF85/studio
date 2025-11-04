@@ -33,7 +33,7 @@ export default function ValidacionHorasPage() {
 
     const loadData = useCallback(() => {
         const storedData = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[])
-            .filter(s => s.estado === 'Asignada');
+            .filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada');
         setSolicitudes(storedData);
     }, []);
 
@@ -61,13 +61,14 @@ export default function ValidacionHorasPage() {
         const reqIndex = allRequests.findIndex(r => r.id === solicitudId);
         if (reqIndex === -1) return;
         
-        const asigIndex = allRequests[reqIndex].personalAsignado?.findIndex(a => a.idPersonal === asignacionId);
-        if (asigIndex === -1 || !allRequests[reqIndex].personalAsignado) return;
+        if (!allRequests[reqIndex].personalAsignado) return;
+        const asigIndex = allRequests[reqIndex].personalAsignado!.findIndex(a => a.idPersonal === asignacionId);
+        if (asigIndex === -1) return;
 
         allRequests[reqIndex].personalAsignado![asigIndex][field] = value;
         
         localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-        setSolicitudes(allRequests.filter(s => s.estado === 'Asignada'));
+        setSolicitudes(allRequests.filter(s => s.estado === 'Asignada' || s.estado === 'Confirmado'));
     };
     
     const handleSaveFeedback = (solicitudId: string, asignacionId: string, feedback: { rating: number; comment: string }) => {
@@ -82,7 +83,7 @@ export default function ValidacionHorasPage() {
         allRequests[reqIndex].personalAsignado![asigIndex].comentariosMice = feedback.comment;
         
         localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-        setSolicitudes(allRequests.filter(s => s.estado === 'Asignada'));
+        setSolicitudes(allRequests.filter(s => s.estado === 'Asignada' || s.estado === 'Confirmado'));
         toast({ title: 'Valoración guardada.' });
     };
 
@@ -110,9 +111,6 @@ export default function ValidacionHorasPage() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><UserCheck />Validación de Horas del Personal de Apoyo</h1>
-            </div>
             <div className="flex gap-4 mb-4">
                 <Input placeholder="Buscar por trabajador, categoría, motivo..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="max-w-sm"/>
                 <Popover>

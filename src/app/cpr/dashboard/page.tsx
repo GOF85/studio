@@ -97,7 +97,7 @@ export default function CprDashboardPage() {
         const incidencias = storedOFs.filter(of => of.estado === 'Incidencia').length;
 
         const storedSolicitudes = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-        const turnosPorValidar = storedSolicitudes.filter(s => s.estado === 'Asignada' && s.personalAsignado && s.personalAsignado.length > 0 && !s.personalAsignado[0].horaEntradaReal).length;
+        const turnosPorValidar = storedSolicitudes.filter(s => (s.estado === 'Asignada' || s.estado === 'Confirmado') && s.personalAsignado && s.personalAsignado.length > 0 && !s.personalAsignado[0].horaEntradaReal).length;
 
         setKpiData({ pendientes, enProceso, finalizadasHoy, incidencias, turnosPorValidar });
         setIsMounted(true);
