@@ -26,7 +26,6 @@ interface FeedbackDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  isCloseMode?: boolean;
   title?: string;
   description?: string;
   saveButtonText?: string;
@@ -43,7 +42,6 @@ export function FeedbackDialog({
   trigger,
   open,
   onOpenChange,
-  isCloseMode = false,
   title = "Valoración",
   description = "Deja una valoración y comentarios sobre el desempeño.",
   saveButtonText = "Guardar Valoración"
@@ -85,18 +83,16 @@ export function FeedbackDialog({
                         </>
                     )}
                 </div>
-                 {isCloseMode && (
-                    <div className="grid grid-cols-2 gap-4">
-                         <div className="space-y-2">
-                             <Label>Hora Entrada Real</Label>
-                             <Input type="time" value={horaEntrada} onChange={e => setHoraEntrada(e.target.value)} />
-                         </div>
-                         <div className="space-y-2">
-                            <Label>Hora Salida Real</Label>
-                            <Input type="time" value={horaSalida} onChange={e => setHoraSalida(e.target.value)} />
-                         </div>
-                    </div>
-                 )}
+                <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                          <Label>Hora Entrada Real</Label>
+                          <Input type="time" value={horaEntrada} onChange={e => setHoraEntrada(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Hora Salida Real</Label>
+                        <Input type="time" value={horaSalida} onChange={e => setHoraSalida(e.target.value)} />
+                      </div>
+                </div>
                 <div className="space-y-2">
                     <Label>Desempeño (1-5)</Label>
                     <div className="flex items-center gap-4 pt-2">
@@ -131,5 +127,5 @@ export function FeedbackDialog({
         );
     }
     
-    return dialogContent;
+    return open ? dialogContent : null;
 }
