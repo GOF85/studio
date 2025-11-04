@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -16,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from '@/components/ui/badge';
 import { KpiCard } from '@/components/dashboard/kpi-card';
 import { Users, Clock, Euro, TrendingDown, TrendingUp, Calendar as CalendarIcon, Star } from 'lucide-react';
@@ -249,9 +250,10 @@ export default function AnaliticaRrhhPage() {
             }
         });
 
-        return Array.from(summary.values()).map(worker => {
+        return Array.from(summary.entries()).map(([id, worker]) => {
             const avgRating = worker.ratings.length > 0 ? worker.ratings.reduce((a, b) => a + b, 0) / worker.ratings.length : 0;
             return {
+                id,
                 nombre: worker.nombre,
                 totalJornadas: worker.totalJornadas,
                 avgRating,
@@ -424,7 +426,7 @@ export default function AnaliticaRrhhPage() {
                                          </TableHeader>
                                          <TableBody>
                                              {workerPerformanceSummary.map(w => (
-                                                 <TableRow key={w.nombre}>
+                                                 <TableRow key={w.id}>
                                                      <TableCell className="font-semibold">{w.nombre}</TableCell>
                                                      <TableCell className="text-center">{w.totalJornadas}</TableCell>
                                                      <TableCell>
@@ -479,3 +481,4 @@ export default function AnaliticaRrhhPage() {
         </main>
     );
 }
+
