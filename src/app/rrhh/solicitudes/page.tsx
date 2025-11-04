@@ -7,7 +7,7 @@ import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, MessageSqu
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { SolicitudPersonalCPR, Proveedor, CategoriaPersonal } from '@/types';
+import type { SolicitudPersonalCPR, Proveedor, CategoriaPersonal, PartidaProduccion } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,11 +19,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent as ModalContent, DialogHeader as ModalHeader, DialogTitle as ModalTitle, DialogDescription as ModalDescription } from '@/components/ui/dialog';
-import { calculateHours, formatNumber } from '@/lib/utils';
+import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import type { PartidaProduccion } from '@/types';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
-const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'success' | 'secondary' | 'warning' | 'destructive' | 'outline' } = {
+const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'success' | 'secondary' | 'warning' | 'destructive' | 'outline' | 'default'} = {
   'Solicitado': 'warning',
   'Aprobada': 'outline',
   'Rechazada': 'destructive',
@@ -61,6 +61,7 @@ function CommentModal({ comment, trigger }: { comment: string, trigger: React.Re
 export default function SolicitudesCprPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
+  const [personalExternoDB, setPersonalExternoDB] = useState<Map<string, { nombre: string; proveedorId: string; }>>(new Map());
   const [tiposPersonal, setTiposPersonal] = useState<CategoriaPersonal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -78,6 +79,9 @@ export default function SolicitudesCprPage() {
     
     const storedTiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
     setTiposPersonal(storedTiposPersonal);
+
+    const storedPersonalExterno = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as {id: string, nombreCompleto: string, proveedorId: string}[];
+    setPersonalExternoDB(new Map(storedPersonalExterno.map(p => [p.id, {nombre: p.nombreCompleto, proveedorId: p.proveedorId}])));
 
     setIsMounted(true);
   }, []);
@@ -132,7 +136,10 @@ export default function SolicitudesCprPage() {
   return (
     <div>
         <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Solicitudes de Personal (CPR)</h1>
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Mis Solicitudes de Personal</h1>
+            <Button onClick={() => router.push('/cpr/solicitud-personal/nueva')}>
+                <PlusCircle className="mr-2" /> Nueva Solicitud
+            </Button>
         </div>
 
       <div className="flex gap-4 mb-4">
@@ -181,6 +188,7 @@ export default function SolicitudesCprPage() {
                         const tipoPersonalAsignado = tiposPersonal.find(t => t.id === s.proveedorId);
                         const proveedorNombre = tipoPersonalAsignado ? proveedoresMap.get(tipoPersonalAsignado.proveedorId) : null;
                         const asignado = s.personalAsignado?.[0];
+                        const personalInfo = asignado ? personalExternoDB.get(asignado.idPersonal) : null;
                         
                         return (
                         <TableRow key={s.id} onClick={() => handleOpenDialog(s)} className="cursor-pointer">
@@ -195,7 +203,7 @@ export default function SolicitudesCprPage() {
                                 {proveedorNombre && (
                                     <div className="flex items-center">
                                         <span>{proveedorNombre}</span>
-                                        {asignado?.nombre && <span className="text-muted-foreground ml-1">({asignado.nombre.split(' (')[0]})</span>}
+                                        {personalInfo && <span className="text-muted-foreground ml-1">({personalInfo.nombre})</span>}
                                         {asignado?.comentarios && (
                                             <CommentModal
                                                 comment={asignado.comentarios}
@@ -212,7 +220,7 @@ export default function SolicitudesCprPage() {
                         </TableRow>
                     )}) : (
                         <TableRow>
-                            <TableCell colSpan={9} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
+                            <TableCell colSpan={8} className="h-24 text-center">No has realizado ninguna solicitud.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -260,3 +268,5 @@ export default function SolicitudesCprPage() {
     </div>
   )
 }
+
+    
