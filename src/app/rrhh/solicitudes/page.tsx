@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, MessageSquare } from 'lucide-react';
-import { format, isSameDay } from 'date-fns';
+import { format, isSameDay, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import type { SolicitudPersonalCPR, Proveedor, CategoriaPersonal, PartidaProduccion } from '@/types';
@@ -18,10 +18,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Dialog as Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription } from '@/components/ui/dialog';
-import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { calculateHours, formatNumber } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'success' | 'secondary' | 'warning' | 'destructive' | 'outline' | 'default'} = {
   'Solicitado': 'warning',
@@ -42,18 +41,18 @@ const partidaColorClasses: Record<PartidaProduccion, string> = {
 
 function CommentModal({ comment, trigger }: { comment: string, trigger: React.ReactNode }) {
     return (
-        <Modal>
+        <Dialog>
             <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
                  {trigger}
             </DialogTrigger>
-            <ModalContent>
-                <ModalHeader>
-                    <ModalTitle>Comentario de la Asignación</ModalTitle>
-                </ModalHeader>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Comentario de la Asignación</DialogTitle>
+                </DialogHeader>
                 <div className="py-4">
                     <p className="text-sm text-muted-foreground bg-secondary p-4 rounded-md">{comment}</p>
                 </div>
-            </ModalContent>
+            </DialogContent>
         </Dialog>
     )
 }
@@ -104,15 +103,8 @@ export default function SolicitudesCprPage() {
     }).sort((a,b) => new Date(b.fechaSolicitud).getTime() - new Date(a.fechaSolicitud).getTime());
   }, [solicitudes, searchTerm, dateFilter]);
 
-  const handleActionClick = (solicitud: SolicitudPersonalCPR, action: 'delete' | 'cancel' | 'aprobar' | 'rechazar' | 'asignar') => {
+  const handleOpenDialog = (solicitud: SolicitudPersonalCPR) => {
     setSolicitudToManage(solicitud);
-    if (action === 'rechazar') {
-      setIsRejectionModalOpen(true);
-    } else if (action === 'delete' || action === 'cancel') {
-        setManagementAction(action);
-    } else {
-        handleAction(action);
-    }
   };
   
   const handleAction = (action: 'aprobar' | 'rechazar' | 'asignar' | 'delete' | 'cancel', data?: any) => {
@@ -159,6 +151,10 @@ export default function SolicitudesCprPage() {
     setRejectionReason('');
   };
 
+  const handleActionClick = (solicitud: SolicitudPersonalCPR, action: 'delete' | 'cancel') => {
+    setSolicitudToManage(solicitud);
+    setManagementAction(action);
+  };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
@@ -276,10 +272,10 @@ export default function SolicitudesCprPage() {
         </AlertDialog>
 
         <Dialog open={!!solicitudToManage && !managementAction} onOpenChange={() => setSolicitudToManage(null)}>
-            <ModalContent>
-                <ModalHeader>
-                    <ModalTitle>Gestionar Solicitud de Personal</ModalTitle>
-                </ModalHeader>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Gestionar Solicitud de Personal</DialogTitle>
+                </DialogHeader>
                 <div className="space-y-4 py-4">
                     <p><strong>Categoría:</strong> {solicitudToManage?.categoria}</p>
                     <p><strong>Fecha:</strong> {solicitudToManage?.fechaServicio ? format(new Date(solicitudToManage.fechaServicio), 'dd/MM/yyyy') : ''}</p>
@@ -290,7 +286,7 @@ export default function SolicitudesCprPage() {
                         <div className="space-y-4 pt-4 border-t">
                             <h4 className="font-bold">Acciones de RRHH</h4>
                              <Button onClick={() => handleAction('aprobar')}>Aprobar Solicitud</Button>
-                            <Button variant="destructive" className="ml-2" onClick={() => handleActionClick(solicitudToManage, 'rechazar')}>Rechazar</Button>
+                            <Button variant="destructive" className="ml-2" onClick={() => setIsRejectionModalOpen(true)}>Rechazar</Button>
                         </div>
                     )}
                     
@@ -310,7 +306,7 @@ export default function SolicitudesCprPage() {
                         </div>
                     )}
                 </div>
-            </ModalContent>
+            </DialogContent>
         </Dialog>
         
          <AlertDialog open={isRejectionModalOpen} onOpenChange={setIsRejectionModalOpen}>
