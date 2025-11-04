@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,28 +12,28 @@ import { Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
-export function FeedbackDialog({ turnoIndex, asigIndex, form, onSave }: { turnoIndex: number; asigIndex: number, form: any, onSave: () => void }) {
-    const [isOpen, setIsOpen] = useState(false);
-    const { getValues, setValue } = form;
+interface FeedbackDialogProps {
+  initialRating?: number;
+  initialComment?: string;
+  workerName: string;
+  onSave: (feedback: { rating: number; comment: string }) => void;
+  trigger: React.ReactNode;
+}
 
-    const ratingFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.rating`;
-    const commentFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`;
-    const asignacion = getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}`);
-    
-    const [rating, setRating] = useState(getValues(ratingFieldName) || 3);
-    const [comment, setComment] = useState(getValues(commentFieldName) || '');
+export function FeedbackDialog({ initialRating, initialComment, workerName, onSave, trigger }: FeedbackDialogProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [rating, setRating] = useState(initialRating || 3);
+    const [comment, setComment] = useState(initialComment || '');
     
     useEffect(() => {
         if(isOpen) {
-            setRating(getValues(ratingFieldName) || 3);
-            setComment(getValues(commentFieldName) || '');
+            setRating(initialRating || 3);
+            setComment(initialComment || '');
         }
-    }, [isOpen, getValues, ratingFieldName, commentFieldName]);
+    }, [isOpen, initialRating, initialComment]);
 
     const handleSave = () => {
-        setValue(ratingFieldName, rating, { shouldDirty: true });
-        setValue(commentFieldName, comment, { shouldDirty: true });
-        onSave();
+        onSave({ rating, comment });
         setIsOpen(false);
     };
 
@@ -40,19 +41,14 @@ export function FeedbackDialog({ turnoIndex, asigIndex, form, onSave }: { turnoI
         setIsOpen(open);
     }
     
-    const tooltipText = asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3) ? `Valoración: ${'⭐'.repeat(asignacion.rating || 0)} - ${asignacion.comentariosMice || 'Sin comentarios'}` : 'Añadir valoración';
-
+    const tooltipText = initialComment || (initialRating && initialRating !== 3) ? `Valoración: ${'⭐'.repeat(initialRating || 0)} - ${initialComment || 'Sin comentarios'}` : 'Añadir valoración';
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                  <Tooltip>
                     <TooltipTrigger asChild>
-                        <div className="flex items-center justify-center cursor-pointer">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
-                                <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
-                            </Button>
-                        </div>
+                       {trigger}
                     </TooltipTrigger>
                     <TooltipContent>
                         <p className="max-w-xs">{tooltipText}</p>
@@ -61,7 +57,7 @@ export function FeedbackDialog({ turnoIndex, asigIndex, form, onSave }: { turnoI
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Valoración para: {asignacion?.nombre}</DialogTitle>
+                    <DialogTitle>Valoración para: {workerName}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-6 py-4">
                     <div className="space-y-2">

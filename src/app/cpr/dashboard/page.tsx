@@ -1,14 +1,15 @@
 
+
 'use client';
 
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useState, useEffect, useMemo } from 'react';
 import type { LucideIcon, OrdenFabricacion } from 'lucide-react';
 import { cprNav } from '@/lib/cpr-nav';
 import { Separator } from '@/components/ui/separator';
-import { Factory, AlertTriangle, List, Clock, CheckCircle } from 'lucide-react';
+import { Factory, AlertTriangle, List, Clock, CheckCircle, UserCheck } from 'lucide-react';
 import { isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +24,7 @@ const workflowSections = {
   },
   analizar: {
     title: '3. Analizar y Supervisar',
-    modules: ['Stock Elaboraciones', 'Productividad', 'Informe de Picking', 'Trazabilidad', 'Incidencias']
+    modules: ['Stock Elaboraciones', 'Productividad', 'Informe de Picking', 'Trazabilidad', 'Incidencias', 'Validación de Horas']
   }
 };
 
@@ -81,6 +82,7 @@ export default function CprDashboardPage() {
         enProceso: 0,
         finalizadasHoy: 0,
         incidencias: 0,
+        turnosPorValidar: 0,
     });
 
     useEffect(() => {
@@ -92,7 +94,10 @@ export default function CprDashboardPage() {
         const finalizadasHoy = storedOFs.filter(of => of.fechaFinalizacion && isToday(parseISO(of.fechaFinalizacion))).length;
         const incidencias = storedOFs.filter(of => of.estado === 'Incidencia').length;
 
-        setKpiData({ pendientes, enProceso, finalizadasHoy, incidencias });
+        const storedSolicitudes = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as any[];
+        const turnosPorValidar = storedSolicitudes.filter(s => s.estado === 'Asignada' && s.personalAsignado?.[0]?.horaEntradaReal === undefined).length;
+
+        setKpiData({ pendientes, enProceso, finalizadasHoy, incidencias, turnosPorValidar });
         setIsMounted(true);
     }, []);
 
@@ -102,10 +107,11 @@ export default function CprDashboardPage() {
 
     return (
         <main>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">
                 <KpiCard title="OFs Pendientes" value={kpiData.pendientes} icon={List} href="/cpr/of?status=Pendiente" />
                 <KpiCard title="OFs en Proceso" value={kpiData.enProceso} icon={Clock} href="/cpr/of?status=En+Proceso" />
                 <KpiCard title="Finalizadas Hoy" value={kpiData.finalizadasHoy} icon={CheckCircle} href="/cpr/of" />
+                <KpiCard title="Turnos por Validar" value={kpiData.turnosPorValidar} icon={UserCheck} href="/cpr/validacion-horas" className={kpiData.turnosPorValidar > 0 ? "border-amber-500 bg-amber-50" : ""} />
                 <KpiCard title="Incidencias Activas" value={kpiData.incidencias} icon={AlertTriangle} href="/cpr/incidencias" className={kpiData.incidencias > 0 ? "border-destructive bg-destructive/10" : ""} />
             </div>
 
