@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -37,6 +38,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status']; osNumber?: string; cliente?: string; costeEstimado: number; horario: string; horas: number; isCprRequest: false; }) | (SolicitudPersonalCPR & { type: 'CPR'; osNumber?: string; cliente?: string; costeEstimado: number; horario: string; horas: number; isCprRequest: true; });
 
@@ -71,18 +74,27 @@ const nuevoTrabajadorSchema = z.object({
 type NuevoTrabajadorFormValues = z.infer<typeof nuevoTrabajadorSchema>;
 
 
-function NuevoTrabajadorDialog({ onWorkerCreated }: { onWorkerCreated: (worker: PersonalExternoDB) => void }) {
+function NuevoTrabajadorDialog({ onWorkerCreated, initialData, trigger }: { onWorkerCreated: (worker: PersonalExternoDB) => void, initialData?: Partial<NuevoTrabajadorFormValues>, trigger: React.ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
     const { impersonatedUser } = useImpersonatedUser();
 
     const form = useForm<NuevoTrabajadorFormValues>({
         resolver: zodResolver(nuevoTrabajadorSchema),
-        defaultValues: { id: '', nombre: '', apellido1: '', apellido2: '', telefono: '', email: '' }
+        defaultValues: initialData || { id: '', nombre: '', apellido1: '', apellido2: '', telefono: '', email: '' }
     });
+    
+    useEffect(() => {
+        if(isOpen) {
+            form.reset(initialData || { id: '', nombre: '', apellido1: '', apellido2: '', telefono: '', email: '' });
+        }
+    }, [isOpen, initialData, form]);
 
     const onSubmit = (data: NuevoTrabajadorFormValues) => {
         const allWorkers = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
-        if (allWorkers.some(w => w.id.toLowerCase() === data.id.toLowerCase())) {
+        
+        const existingIndex = allWorkers.findIndex(w => w.id === data.id);
+        
+        if (existingIndex === -1 && allWorkers.some(w => w.id.toLowerCase() === data.id.toLowerCase())) {
             form.setError('id', { message: 'Este DNI/ID ya existe.'});
             return;
         }
@@ -94,7 +106,11 @@ function NuevoTrabajadorDialog({ onWorkerCreated }: { onWorkerCreated: (worker: 
             nombreCompacto: `${data.nombre} ${data.apellido1}`,
         };
         
-        allWorkers.push(newWorker);
+        if (existingIndex > -1) {
+            allWorkers[existingIndex] = newWorker;
+        } else {
+            allWorkers.push(newWorker);
+        }
         localStorage.setItem('personalExternoDB', JSON.stringify(allWorkers));
         onWorkerCreated(newWorker);
         setIsOpen(false);
@@ -104,13 +120,13 @@ function NuevoTrabajadorDialog({ onWorkerCreated }: { onWorkerCreated: (worker: 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full justify-start mt-2"><PlusCircle className="mr-2"/>Crear Nuevo Trabajador</Button>
+                {trigger}
             </DialogTrigger>
             <DialogContent>
-                <DialogHeader><DialogTitle>Nuevo Trabajador</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{initialData ? 'Editar' : 'Nuevo'} Trabajador</DialogTitle></DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField control={form.control} name="id" render={({field}) => <FormItem><FormLabel>DNI / ID</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>}/>
+                        <FormField control={form.control} name="id" render={({field}) => <FormItem><FormLabel>DNI / ID</FormLabel><FormControl><Input {...field} readOnly={!!initialData} /></FormControl><FormMessage/></FormItem>}/>
                         <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="nombre" render={({field}) => <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>}/>
                             <FormField control={form.control} name="apellido1" render={({field}) => <FormItem><FormLabel>Primer Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>}/>
@@ -120,7 +136,7 @@ function NuevoTrabajadorDialog({ onWorkerCreated }: { onWorkerCreated: (worker: 
                         <FormField control={form.control} name="email" render={({field}) => <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>}/>
                         <DialogFooter>
                             <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                            <Button type="submit">Crear y Seleccionar</Button>
+                            <Button type="submit">Guardar</Button>
                         </DialogFooter>
                     </form>
                 </Form>
@@ -202,7 +218,7 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
                         onChange={setSelectedWorkerId}
                         placeholder="Buscar por nombre o DNI..."
                      />
-                     {!isReadOnly && <NuevoTrabajadorDialog onWorkerCreated={handleWorkerCreated}/>}
+                     {!isReadOnly && <NuevoTrabajadorDialog onWorkerCreated={handleWorkerCreated} trigger={<Button variant="outline" size="sm" className="w-full justify-start mt-2"><PlusCircle className="mr-2"/>Crear Nuevo Trabajador</Button>}/>}
                 </div>
                 {workerDetails && (
                     <Card className="bg-secondary/50">
@@ -227,6 +243,105 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
         </DialogContent>
       </Dialog>
     )
+}
+
+function EmployeeTab({ impersonatedUser }: { impersonatedUser: PortalUser | null }) {
+    const [workers, setWorkers] = useState<PersonalExternoDB[]>([]);
+    const [editingWorker, setEditingWorker] = useState<PersonalExternoDB | null>(null);
+    const [workerToDelete, setWorkerToDelete] = useState<PersonalExternoDB | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const { toast } = useToast();
+
+    const loadWorkers = useCallback(() => {
+        const allWorkers = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
+        const filtered = allWorkers.filter(w => w.proveedorId === impersonatedUser?.proveedorId);
+        setWorkers(filtered);
+    }, [impersonatedUser]);
+
+    useEffect(() => {
+        loadWorkers();
+    }, [loadWorkers]);
+
+    const handleWorkerSaved = () => {
+        loadWorkers();
+        toast({ title: 'Datos del trabajador guardados.' });
+    };
+
+    const handleDelete = () => {
+        if (!workerToDelete) return;
+        let allWorkers = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
+        allWorkers = allWorkers.filter(w => w.id !== workerToDelete.id);
+        localStorage.setItem('personalExternoDB', JSON.stringify(allWorkers));
+        loadWorkers();
+        setWorkerToDelete(null);
+        toast({ title: 'Trabajador eliminado.' });
+    };
+
+    const filteredWorkers = useMemo(() => {
+        return workers.filter(w =>
+            w.nombreCompleto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            w.id.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [workers, searchTerm]);
+
+    return (
+        <Card>
+            <CardHeader className="flex-row items-center justify-between">
+                <CardTitle>Mis Trabajadores</CardTitle>
+                 <NuevoTrabajadorDialog onWorkerCreated={handleWorkerSaved} trigger={<Button size="sm"><PlusCircle className="mr-2" />Nuevo</Button>}/>
+            </CardHeader>
+            <CardContent>
+                <Input
+                    placeholder="Buscar por nombre o DNI..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="mb-4"
+                />
+                 <div className="border rounded-lg max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>DNI / ID</TableHead>
+                                <TableHead>Nombre Completo</TableHead>
+                                <TableHead>Teléfono</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredWorkers.map(worker => (
+                                <TableRow key={worker.id}>
+                                    <TableCell className="font-mono">{worker.id}</TableCell>
+                                    <TableCell className="font-semibold">{worker.nombreCompleto}</TableCell>
+                                    <TableCell>{worker.telefono}</TableCell>
+                                    <TableCell>{worker.email}</TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex gap-2 justify-end">
+                                            <NuevoTrabajadorDialog 
+                                                onWorkerCreated={handleWorkerSaved} 
+                                                initialData={worker}
+                                                trigger={<Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="h-4 w-4"/></Button>}
+                                            />
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setWorkerToDelete(worker)}><Trash2 className="h-4 w-4"/></Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <AlertDialog open={!!workerToDelete} onOpenChange={() => setWorkerToDelete(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader><AlertDialogTitle>¿Eliminar trabajador?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete}>Eliminar</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </CardContent>
+        </Card>
+    );
 }
 
 export default function PortalPersonalPage() {
@@ -482,9 +597,10 @@ export default function PortalPersonalPage() {
             </div>
 
             <Tabs defaultValue="lista">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="lista">Lista de Solicitudes</TabsTrigger>
                     <TabsTrigger value="calendario">Calendario</TabsTrigger>
+                    <TabsTrigger value="empleados">Empleados</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista" className="mt-6">
                      <div className="flex items-center space-x-4 mb-4">
@@ -615,6 +731,9 @@ export default function PortalPersonalPage() {
                         </div>
                     </div>
                 </TabsContent>
+                <TabsContent value="empleados" className="mt-6">
+                    <EmployeeTab impersonatedUser={impersonatedUser} />
+                </TabsContent>
             </Tabs>
          </main>
 
@@ -640,3 +759,5 @@ export default function PortalPersonalPage() {
         </TooltipProvider>
     );
 }
+
+```
