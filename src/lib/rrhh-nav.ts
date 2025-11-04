@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Users, ClipboardList, BarChart3, UserPlus, FilePenLine, UserCheck } from 'lucide-react';
+import { Users, ClipboardList, BarChart3, UserPlus } from 'lucide-react';
 
 export const rrhhNav = [
     { title: 'Solicitudes de Personal', href: '/rrhh/solicitudes', icon: ClipboardList, description: 'Gestiona todas las necesidades de personal para Eventos y CPR.' },
