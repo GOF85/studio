@@ -7,7 +7,7 @@ import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, MessageSqu
 import { format, isSameDay, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { SolicitudPersonalCPR, Proveedor, CategoriaPersonal, PartidaProduccion } from '@/types';
+import type { SolicitudPersonalCPR, Proveedor, CategoriaPersonal, PartidaProduccion, PersonalExternoDB, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,8 +19,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { calculateHours, formatNumber } from '@/lib/utils';
+import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'success' | 'secondary' | 'warning' | 'destructive' | 'outline' | 'default'} = {
   'Solicitado': 'warning',
@@ -61,6 +62,7 @@ export default function SolicitudesCprPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [personalExternoDB, setPersonalExternoDB] = useState<Map<string, { nombre: string; proveedorId: string; }>>(new Map());
+  const [personalInternoDB, setPersonalInternoDB] = useState<Map<string, { nombre: string }>>(new Map());
   const [tiposPersonal, setTiposPersonal] = useState<CategoriaPersonal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,6 +87,9 @@ export default function SolicitudesCprPage() {
 
     const storedPersonalExterno = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as {id: string, nombreCompleto: string, proveedorId: string}[];
     setPersonalExternoDB(new Map(storedPersonalExterno.map(p => [p.id, {nombre: p.nombreCompleto, proveedorId: p.proveedorId}])));
+
+    const storedPersonalInterno = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    setPersonalInternoDB(new Map(storedPersonalInterno.map(p => [p.id, {nombre: `${p.nombre} ${p.apellidos}`}])));
 
     setIsMounted(true);
   }, []);
@@ -151,11 +156,6 @@ export default function SolicitudesCprPage() {
     setRejectionReason('');
   };
 
-  const handleActionClick = (solicitud: SolicitudPersonalCPR, action: 'delete' | 'cancel') => {
-    setSolicitudToManage(solicitud);
-    setManagementAction(action);
-  };
-
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
   }
@@ -215,8 +215,12 @@ export default function SolicitudesCprPage() {
                         const tipoPersonalAsignado = tiposPersonal.find(t => t.id === s.proveedorId);
                         const proveedorNombre = tipoPersonalAsignado ? proveedoresMap.get(tipoPersonalAsignado.proveedorId) : null;
                         const asignado = s.personalAsignado?.[0];
-                        const personalInfo = asignado ? personalExternoDB.get(asignado.idPersonal) : null;
                         
+                        let personalInfo = null;
+                        if(asignado?.idPersonal) {
+                            personalInfo = personalExternoDB.get(asignado.idPersonal) || personalInternoDB.get(asignado.idPersonal);
+                        }
+
                         return (
                         <TableRow key={s.id} onClick={() => handleOpenDialog(s)} className="cursor-pointer">
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
@@ -255,21 +259,21 @@ export default function SolicitudesCprPage() {
         </CardContent>
       </Card>
       
-        <AlertDialog open={!!solicitudToManage && !!managementAction} onOpenChange={() => { setSolicitudToManage(null); setManagementAction(null); }}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        {managementAction === 'delete' && 'Esta acción eliminará la solicitud permanentemente.'}
-                        {managementAction === 'cancel' && 'Se enviará una petición a RRHH para cancelar esta asignación. ¿Continuar?'}
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>No</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => managementAction && handleAction(managementAction)}>Sí, continuar</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={!!solicitudToManage && !!managementAction} onOpenChange={() => { setSolicitudToManage(null); setManagementAction(null); }}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    {managementAction === 'delete' && 'Esta acción eliminará la solicitud permanentemente.'}
+                    {managementAction === 'cancel' && 'Se enviará una petición a RRHH para cancelar esta asignación. ¿Continuar?'}
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>No</AlertDialogCancel>
+                <AlertDialogAction onClick={() => managementAction && handleAction(managementAction)}>Sí, continuar</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
         <Dialog open={!!solicitudToManage && !managementAction} onOpenChange={() => setSolicitudToManage(null)}>
             <DialogContent>
