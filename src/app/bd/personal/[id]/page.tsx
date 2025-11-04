@@ -45,6 +45,7 @@ export default function EditarPersonalPage() {
         dni: item.dni || '',
         iniciales: item.iniciales || '',
         mail: item.mail || '',
+        precioHora: item.precioHora || 0,
       });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el empleado.' });
