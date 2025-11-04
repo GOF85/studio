@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, parseISO, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
@@ -315,7 +315,7 @@ export default function AnaliticaRrhhPage() {
             turnos: analiticaData.detalleCompleto.filter(t => t.trabajadorId === selectedWorkerForModal.id)
         }
     }, [selectedWorkerForModal, analiticaData.detalleCompleto]);
-
+    
     const handlePrintWorkerHistory = () => {
         if (!selectedWorkerDetails || !selectedWorkerDetails.nombre) return;
 
