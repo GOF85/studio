@@ -44,6 +44,7 @@ export default function EditarPersonalPage() {
         telefono: item.telefono || '',
         dni: item.dni || '',
         iniciales: item.iniciales || '',
+        mail: item.mail || '',
       });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el empleado.' });
