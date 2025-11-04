@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Users, Menu, ChevronRight } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,9 @@ export default function RrhhLayout({ children }: { children: React.ReactNode }) 
     const pathname = usePathname();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
-    const currentPage = rrhhNav.find(item => pathname.startsWith(item.href));
+    const currentPage = useMemo(() => {
+        return rrhhNav.find(item => pathname.startsWith(item.href) && item.href !== '/rrhh');
+    }, [pathname]);
 
     return (
         <>
@@ -70,8 +72,10 @@ export default function RrhhLayout({ children }: { children: React.ReactNode }) 
                         {currentPage && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <currentPage.icon className="h-5 w-5 text-muted-foreground"/>
-                                <span>{currentPage.title}</span>
+                                 <Link href={currentPage.href} className="flex items-center gap-2 font-bold text-primary">
+                                    <currentPage.icon className="h-5 w-5"/>
+                                    <span>{currentPage.title}</span>
+                                </Link>
                             </>
                         )}
                     </div>

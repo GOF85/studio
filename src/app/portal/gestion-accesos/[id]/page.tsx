@@ -122,10 +122,6 @@ export default function PortalUserFormPage() {
     <>
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-                <UserCog className="h-8 w-8" />
-                <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Usuario de Portal</h1>
-            </div>
           <div className="flex gap-2">
             <Button variant="outline" type="button" onClick={() => router.push('/portal/gestion-accesos')}>
                 <X className="mr-2 h-4 w-4" />

@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Building2 } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
@@ -92,7 +91,6 @@ export default function PartnerPortalPage() {
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
-    const [proveedorNombre, setProveedorNombre] = useState('');
     const router = useRouter();
     
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -119,12 +117,6 @@ export default function PartnerPortalPage() {
             setPedidos([]);
             setIsMounted(true);
             return;
-        }
-
-        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        if (impersonatedUser?.proveedorId) {
-            const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
-            setProveedorNombre(proveedor?.nombreComercial || '');
         }
 
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
@@ -318,26 +310,6 @@ export default function PartnerPortalPage() {
     return (
         <TooltipProvider>
          <main className="container mx-auto px-4 py-8">
-             <div className="flex items-center justify-between border-b pb-4 mb-8">
-                <div className="flex items-center gap-4">
-                    <Factory className="w-10 h-10 text-primary" />
-                    <div>
-                        <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Partner de Producción</h1>
-                    </div>
-                </div>
-                 {proveedorNombre && (
-                    <Badge variant="secondary" className="px-4 py-2 text-lg">
-                        <Building2 className="mr-2 h-5 w-5" />
-                        {proveedorNombre}
-                    </Badge>
-                )}
-                {isAdminOrComercial && (
-                     <Badge variant="outline" className="px-4 py-2 text-lg border-primary text-primary">
-                        Vista de Administrador
-                    </Badge>
-                )}
-            </div>
-
             <Tabs defaultValue="lista">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="lista">Lista de Producción</TabsTrigger>

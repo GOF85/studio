@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -87,13 +86,7 @@ export default function GestionAccesosPage() {
     <>
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-            <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push('/portal')} className="mb-2">
-                    <ArrowLeft className="mr-2" />
-                    Volver a Portales
-                </Button>
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><UserCog />Gestión de Accesos a Portales</h1>
-            </div>
+            <div/>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/portal/gestion-accesos/nuevo">

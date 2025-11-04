@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Factory, Truck, Users, Activity, UserCog } from 'lucide-react';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 
@@ -64,9 +64,8 @@ export default function PortalHomePage() {
     : portalLinks.filter(link => userRoles.includes(link.requiredRole));
 
   return (
-    <main className="container mx-auto px-4 py-16">
+    <main className="container mx-auto px-4 py-8">
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-headline font-bold tracking-tight">Portal de Colaboradores</h1>
         {impersonatedUser ? (
             <p className="text-lg text-muted-foreground mt-2">Selecciona tu portal para acceder a tus tareas asignadas.</p>
         ) : (

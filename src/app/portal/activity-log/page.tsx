@@ -49,16 +49,6 @@ export default function ActivityLogPage() {
 
   return (
     <main className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <Button variant="ghost" size="sm" onClick={() => router.push('/portal')} className="mb-2">
-            <ArrowLeft className="mr-2" />
-            Volver a Portales
-          </Button>
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Activity />Registro de Actividad</h1>
-        </div>
-      </div>
-
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <Input
           placeholder="Buscar en los registros..."
