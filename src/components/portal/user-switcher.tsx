@@ -32,8 +32,8 @@ export function UserSwitcher() {
             const personalData = JSON.parse(storedPersonal) as Personal[];
             const mappedInternalUsers: PortalUser[] = personalData.map(p => ({
                 id: p.id,
-                nombre: `${p.nombre} ${p.apellidos}`,
-                email: p.mail,
+                nombre: p.nombreCompleto,
+                email: p.email,
                 roles: [p.departamento as PortalUser['roles'][0]], // Assume department is the role
             }));
             setInternalUsers(mappedInternalUsers);

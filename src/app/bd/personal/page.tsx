@@ -36,7 +36,8 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
 
-const CSV_HEADERS = ["id", "nombre", "apellidos", "iniciales", "departamento", "categoria", "telefono", "mail", "dni", "precioHora"];
+const CSV_HEADERS = ["id", "nombre", "apellido1", "apellido2", "nombreCompleto", "nombreCompacto", "iniciales", "departamento", "categoria", "telefono", "email", "precioHora"];
+
 
 function PersonalPageContent() {
   const [items, setItems] = useState<Personal[]>([]);
@@ -64,8 +65,7 @@ function PersonalPageContent() {
   const filteredItems = useMemo(() => {
     return items.filter(item => {
         const searchMatch = 
-          (item.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (item.apellidos || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (item.nombreCompleto || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase());
         const departmentMatch = departmentFilter === 'all' || item.departamento === departmentFilter;
         return searchMatch && departmentMatch;
@@ -94,7 +94,7 @@ function PersonalPageContent() {
           delimiter,
           complete: (results) => {
             if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
-                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${CSV_HEADERS.join(', ')}`});
+                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
                 return;
             }
             
@@ -183,8 +183,7 @@ function PersonalPageContent() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Apellidos</TableHead>
+              <TableHead>Nombre Completo</TableHead>
               <TableHead>Departamento</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Teléfono</TableHead>
@@ -195,8 +194,7 @@ function PersonalPageContent() {
             {filteredItems.length > 0 ? (
               filteredItems.map(item => (
                 <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/personal/${item.id}`)}>
-                  <TableCell className="font-medium">{item.nombre}</TableCell>
-                  <TableCell>{item.apellidos}</TableCell>
+                  <TableCell className="font-medium">{item.nombreCompleto}</TableCell>
                   <TableCell>{item.departamento}</TableCell>
                   <TableCell>{item.categoria}</TableCell>
                   <TableCell>{item.telefono}</TableCell>
@@ -222,7 +220,7 @@ function PersonalPageContent() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   No se encontraron empleados.
                 </TableCell>
               </TableRow>

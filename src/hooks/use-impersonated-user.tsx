@@ -18,7 +18,12 @@ export function ImpersonatedUserProvider({ children }: { children: ReactNode }) 
     // On initial load, try to get the user from localStorage
     const storedUser = localStorage.getItem('impersonatedUser');
     if (storedUser) {
-      setImpersonatedUserState(JSON.parse(storedUser));
+      try {
+        setImpersonatedUserState(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Failed to parse impersonated user from localStorage", e);
+        localStorage.removeItem('impersonatedUser');
+      }
     }
   }, []);
 

@@ -118,15 +118,17 @@ export const DEPARTAMENTOS_PERSONAL = ['Sala', 'Pase', 'CPR', 'RRHH', 'Almacén'
 export type DepartamentoPersonal = typeof DEPARTAMENTOS_PERSONAL[number];
 
 export type Personal = {
-    id: string;
+    id: string; // DNI
     nombre: string;
-    apellidos: string;
+    apellido1: string;
+    apellido2: string;
+    nombreCompleto: string;
+    nombreCompacto: string;
     iniciales: string;
     departamento: string;
     categoria: string;
     telefono: string;
-    mail: string;
-    dni: string;
+    email: string;
     precioHora: number;
 }
 
