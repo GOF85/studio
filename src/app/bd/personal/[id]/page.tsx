@@ -46,6 +46,8 @@ export default function EditarPersonalPage() {
         iniciales: item.iniciales || '',
         mail: item.mail || '',
         precioHora: item.precioHora || 0,
+        departamento: item.departamento || '',
+        categoria: item.categoria || '',
       });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el empleado.' });
@@ -118,7 +120,7 @@ export default function EditarPersonalPage() {
                         <FormItem>
                             <FormLabel>Departamento</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     {DEPARTAMENTOS_PERSONAL.map(dep => <SelectItem key={dep} value={dep}>{dep}</SelectItem>)}
                                 </SelectContent>
