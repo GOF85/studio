@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, endOfDay, isBefore, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
@@ -11,7 +11,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, PersonalMiceOrder, PersonalExterno, SolicitudPersonalCPR, CategoriaPersonal, Proveedor, Personal, PersonalExternoDB } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrency, formatNumber, formatPercentage, calculateHours } from '@/lib/utils';
+import { formatCurrency, formatNumber, formatPercentage } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -26,6 +26,21 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Input } from '@/components/ui/input';
 
+const StarRating = ({ rating }: { rating: number }) => {
+    return (
+        <div className="flex">
+            {[...Array(5)].map((_, i) => (
+                <Star
+                    key={i}
+                    className={cn(
+                        "h-5 w-5",
+                        i < Math.round(rating) ? "text-amber-400 fill-amber-400" : "text-gray-300"
+                    )}
+                />
+            ))}
+        </div>
+    );
+};
 
 type DetalleTrabajador = {
     id: string; // Composite key
@@ -60,21 +75,6 @@ type AnaliticaData = {
     detalleCompleto: DetalleTrabajador[];
 }
 
-const StarRating = ({ rating }: { rating: number }) => {
-    return (
-        <div className="flex">
-            {[...Array(5)].map((_, i) => (
-                <Star
-                    key={i}
-                    className={cn(
-                        "h-5 w-5",
-                        i < Math.round(rating) ? "text-amber-400 fill-amber-400" : "text-gray-300"
-                    )}
-                />
-            ))}
-        </div>
-    );
-};
 
 export default function AnaliticaRrhhPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -114,6 +114,19 @@ export default function AnaliticaRrhhPage() {
         return proveedores.filter(p => ettIds.has(p.id) && p.tipos.includes('Personal'));
     }, [allPersonalExterno, proveedores, tiposPersonal]);
     
+    const calculateHours = (start?: string, end?: string): number => {
+        if (!start || !end) return 0;
+        try {
+            const startTime = new Date(`1970-01-01T${start}:00`);
+            const endTime = new Date(`1970-01-01T${end}:00`);
+            if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
+            const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+            return diff > 0 ? diff : 0;
+        } catch (e) {
+            return 0;
+        }
+    }
+
     const analiticaData: AnaliticaData = useMemo(() => {
         if (!isMounted || !dateRange?.from) return { costeTotal: 0, costePlanificado: 0, desviacionCoste: 0, horasTotales: 0, horasPlanificadas: 0, desviacionHoras: 0, numTurnos: 0, costePorProveedor: [], horasPorCategoria: [], detalleCompleto: [] };
 
@@ -249,14 +262,14 @@ export default function AnaliticaRrhhPage() {
     const { workerPerformanceSummary, performanceTotals } = useMemo(() => {
         if (!analiticaData.detalleCompleto) return { workerPerformanceSummary: [], performanceTotals: { totalJornadas: 0, totalHorasReales: 0, totalCosteReal: 0, mediaValoracion: 0 }};
 
-        const summary = new Map<string, { totalJornadas: number; totalHoras: number; totalCoste: number; ratings: number[]; nombre: string }>();
+        const summary = new Map<string, { totalJornadas: number; totalHoras: number; totalCoste: number; ratings: number[]; nombre: string, proveedor: string; }>();
 
         analiticaData.detalleCompleto.forEach(turno => {
             if (!turno.trabajadorId || !turno.esExterno) return;
 
             let workerData = summary.get(turno.trabajadorId);
             if (!workerData) {
-                workerData = { totalJornadas: 0, totalHoras: 0, totalCoste: 0, ratings: [], nombre: turno.nombre };
+                workerData = { totalJornadas: 0, totalHoras: 0, totalCoste: 0, ratings: [], nombre: turno.nombre, proveedor: turno.proveedor };
                 summary.set(turno.trabajadorId, workerData);
             }
 
@@ -273,6 +286,7 @@ export default function AnaliticaRrhhPage() {
             return {
                 id,
                 nombre: worker.nombre,
+                proveedor: worker.proveedor,
                 totalJornadas: worker.totalJornadas,
                 totalHoras: worker.totalHoras,
                 totalCoste: worker.totalCoste,
@@ -293,17 +307,6 @@ export default function AnaliticaRrhhPage() {
 
         return { workerPerformanceSummary: performanceArray, performanceTotals: { ...totals, mediaValoracion } };
     }, [analiticaData.detalleCompleto]);
-
-
-    const setDatePreset = (preset: 'month' | 'year') => {
-        const now = new Date();
-        let fromDate, toDate;
-        switch(preset) {
-            case 'month': fromDate = startOfMonth(now); toDate = endOfMonth(now); break;
-            case 'year': fromDate = startOfYear(now); toDate = endOfYear(now); break;
-        }
-        setDateRange({ from: fromDate, to: toDate });
-    };
     
     const selectedWorkerDetails = useMemo(() => {
         if (!selectedWorkerForModal) return null;
@@ -312,7 +315,7 @@ export default function AnaliticaRrhhPage() {
             turnos: analiticaData.detalleCompleto.filter(t => t.trabajadorId === selectedWorkerForModal.id)
         }
     }, [selectedWorkerForModal, analiticaData.detalleCompleto]);
-    
+
     const handlePrintWorkerHistory = () => {
         if (!selectedWorkerDetails || !selectedWorkerDetails.nombre) return;
 
@@ -344,6 +347,16 @@ export default function AnaliticaRrhhPage() {
         doc.save(`Historial_${selectedWorkerDetails.nombre.replace(/\s/g, '_')}.pdf`);
     };
 
+    const setDatePreset = (preset: 'month' | 'year') => {
+        const now = new Date();
+        let fromDate, toDate;
+        switch(preset) {
+            case 'month': fromDate = startOfMonth(now); toDate = endOfMonth(now); break;
+            case 'year': fromDate = startOfYear(now); toDate = endOfYear(now); break;
+        }
+        setDateRange({ from: fromDate, to: toDate });
+    };
+    
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Analítica de RRHH..." />;
     }
@@ -514,6 +527,7 @@ export default function AnaliticaRrhhPage() {
                                          <TableHeader>
                                              <TableRow>
                                                  <TableHead>Nombre</TableHead>
+                                                 <TableHead>ETT</TableHead>
                                                  <TableHead className="text-center">Jornadas Realizadas</TableHead>
                                                  <TableHead>Valoración Media</TableHead>
                                              </TableRow>
@@ -522,6 +536,7 @@ export default function AnaliticaRrhhPage() {
                                              {workerPerformanceSummary.map(w => (
                                                  <TableRow key={w.id} onClick={() => setSelectedWorkerForModal({ id: w.id, nombre: w.nombre })} className="cursor-pointer hover:bg-muted/50">
                                                      <TableCell className="font-semibold">{w.nombre}</TableCell>
+                                                     <TableCell><Badge variant="secondary">{w.proveedor}</Badge></TableCell>
                                                      <TableCell className="text-center">{w.totalJornadas}</TableCell>
                                                      <TableCell>
                                                         <div className="flex items-center gap-2">
