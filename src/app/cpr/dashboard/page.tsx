@@ -12,6 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { Factory, AlertTriangle, List, Clock, CheckCircle, UserCheck } from 'lucide-react';
 import { isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import type { SolicitudPersonalCPR } from '@/types';
+
 
 const workflowSections = {
   planificar: {
@@ -44,7 +46,7 @@ function KpiCard({ title, value, icon: Icon, href, className }: { title: string,
     )
 }
 
-function WorkflowSection({ title, modules }: { title: string, modules: typeof cprNav }) {
+function WorkflowSection({ title, modules }: { title: string, modules: (typeof cprNav[number])[] }) {
     if (modules.length === 0) return null;
     return (
         <div className="space-y-3">
@@ -94,8 +96,8 @@ export default function CprDashboardPage() {
         const finalizadasHoy = storedOFs.filter(of => of.fechaFinalizacion && isToday(parseISO(of.fechaFinalizacion))).length;
         const incidencias = storedOFs.filter(of => of.estado === 'Incidencia').length;
 
-        const storedSolicitudes = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as any[];
-        const turnosPorValidar = storedSolicitudes.filter(s => s.estado === 'Asignada' && s.personalAsignado?.[0]?.horaEntradaReal === undefined).length;
+        const storedSolicitudes = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
+        const turnosPorValidar = storedSolicitudes.filter(s => s.estado === 'Asignada' && s.personalAsignado && s.personalAsignado.length > 0 && !s.personalAsignado[0].horaEntradaReal).length;
 
         setKpiData({ pendientes, enProceso, finalizadasHoy, incidencias, turnosPorValidar });
         setIsMounted(true);
@@ -104,6 +106,13 @@ export default function CprDashboardPage() {
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Panel de control de Producción..." />;
     }
+    
+    const navSections = {
+      planificar: cprNav.filter(item => workflowSections.planificar.modules.includes(item.title)),
+      ejecutar: cprNav.filter(item => workflowSections.ejecutar.modules.includes(item.title)),
+      analizar: cprNav.filter(item => workflowSections.analizar.modules.includes(item.title))
+    };
+
 
     return (
         <main>
@@ -111,24 +120,24 @@ export default function CprDashboardPage() {
                 <KpiCard title="OFs Pendientes" value={kpiData.pendientes} icon={List} href="/cpr/of?status=Pendiente" />
                 <KpiCard title="OFs en Proceso" value={kpiData.enProceso} icon={Clock} href="/cpr/of?status=En+Proceso" />
                 <KpiCard title="Finalizadas Hoy" value={kpiData.finalizadasHoy} icon={CheckCircle} href="/cpr/of" />
-                <KpiCard title="Turnos por Validar" value={kpiData.turnosPorValidar} icon={UserCheck} href="/cpr/validacion-horas" className={kpiData.turnosPorValidar > 0 ? "border-amber-500 bg-amber-50" : ""} />
                 <KpiCard title="Incidencias Activas" value={kpiData.incidencias} icon={AlertTriangle} href="/cpr/incidencias" className={kpiData.incidencias > 0 ? "border-destructive bg-destructive/10" : ""} />
+                <KpiCard title="Turnos por Validar" value={kpiData.turnosPorValidar} icon={UserCheck} href="/cpr/validacion-horas" className={kpiData.turnosPorValidar > 0 ? "border-amber-500 bg-amber-50" : ""} />
             </div>
 
             <div className="space-y-6">
                 <WorkflowSection 
                     title={workflowSections.planificar.title}
-                    modules={cprNav.filter(item => workflowSections.planificar.modules.includes(item.title))}
+                    modules={navSections.planificar}
                 />
                 <Separator />
                  <WorkflowSection 
                     title={workflowSections.ejecutar.title}
-                    modules={cprNav.filter(item => workflowSections.ejecutar.modules.includes(item.title))}
+                    modules={navSections.ejecutar}
                 />
                 <Separator />
                 <WorkflowSection 
                     title={workflowSections.analizar.title}
-                    modules={cprNav.filter(item => workflowSections.analizar.modules.includes(item.title))}
+                    modules={navSections.analizar}
                 />
             </div>
         </main>

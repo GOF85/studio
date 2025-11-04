@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -20,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
 import { FeedbackDialog } from '@/components/portal/feedback-dialog';
 import { Pencil } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function ValidacionHorasPage() {
     const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
@@ -31,7 +33,7 @@ export default function ValidacionHorasPage() {
 
     const loadData = useCallback(() => {
         const storedData = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[])
-            .filter(s => s.estado === 'Asignada' && s.personalAsignado && s.personalAsignado.length > 0 && !s.personalAsignado[0].horaEntradaReal);
+            .filter(s => s.estado === 'Asignada');
         setSolicitudes(storedData);
     }, []);
 
@@ -65,7 +67,7 @@ export default function ValidacionHorasPage() {
         allRequests[reqIndex].personalAsignado![asigIndex][field] = value;
         
         localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-        setSolicitudes(allRequests); // Esto re-renderizará con los datos actualizados
+        setSolicitudes(allRequests.filter(s => s.estado === 'Asignada'));
     };
     
     const handleSaveFeedback = (solicitudId: string, asignacionId: string, feedback: { rating: number; comment: string }) => {
@@ -80,20 +82,17 @@ export default function ValidacionHorasPage() {
         allRequests[reqIndex].personalAsignado![asigIndex].comentariosMice = feedback.comment;
         
         localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-        setSolicitudes(allRequests);
+        setSolicitudes(allRequests.filter(s => s.estado === 'Asignada'));
         toast({ title: 'Valoración guardada.' });
     };
 
-    const handleCloseTurno = (solicitudId: string, asignacionId: string) => {
+    const handleCloseTurno = (solicitudId: string) => {
         const allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
         const reqIndex = allRequests.findIndex(r => r.id === solicitudId);
         if (reqIndex === -1) return;
         
-        const asigIndex = allRequests[reqIndex].personalAsignado?.findIndex(a => a.idPersonal === asignacionId);
-        if (asigIndex === -1 || !allRequests[reqIndex].personalAsignado) return;
-        
-        const asignacion = allRequests[reqIndex].personalAsignado![asigIndex];
-        if (!asignacion.horaEntradaReal || !asignacion.horaSalidaReal) {
+        const asignacion = allRequests[reqIndex].personalAsignado?.[0];
+        if (!asignacion || !asignacion.horaEntradaReal || !asignacion.horaSalidaReal) {
             toast({ variant: 'destructive', title: 'Error', description: 'Debes introducir la hora de entrada y salida real para cerrar el turno.' });
             return;
         }
@@ -155,7 +154,6 @@ export default function ValidacionHorasPage() {
                                 const horasReales = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
                                 const costePlanificado = s.costeImputado || 0;
                                 const costeReal = horasReales > 0 ? (costePlanificado / horasPlanificadas) * horasReales : 0;
-                                const desviacion = costeReal > 0 ? costeReal - costePlanificado : 0;
                                 
                                 return (
                                     <TableRow key={s.id}>
@@ -185,7 +183,7 @@ export default function ValidacionHorasPage() {
                                             />
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button size="sm" onClick={() => handleCloseTurno(s.id, asignacion.idPersonal)} disabled={!asignacion.horaEntradaReal || !asignacion.horaSalidaReal}>
+                                            <Button size="sm" onClick={() => handleCloseTurno(s.id)} disabled={!asignacion.horaEntradaReal || !asignacion.horaSalidaReal}>
                                                 <CheckCircle className="mr-2"/>Cerrar Turno
                                             </Button>
                                         </TableCell>
