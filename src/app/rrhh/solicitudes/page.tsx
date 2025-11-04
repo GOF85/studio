@@ -34,6 +34,13 @@ const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'sec
   'Cerrado': 'secondary'
 };
 
+const partidaColorClasses: Record<string, string> = {
+    FRIO: 'bg-green-100 text-green-800 border-green-200',
+    CALIENTE: 'bg-red-100 text-red-800 border-red-200',
+    PASTELERIA: 'bg-blue-100 text-blue-800 border-blue-200',
+    EXPEDICION: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+};
+
 function CommentModal({ comment, trigger }: { comment: string, trigger: React.ReactNode }) {
     return (
         <Dialog>
@@ -195,13 +202,13 @@ export default function SolicitudesCprPage() {
                 <TableHeader>
                     <TableRow>
                         <TableHead>Fecha Servicio</TableHead>
-                        <TableHead>Horario</TableHead>
-                        <TableHead>Horas</TableHead>
+                        <TableHead>Horario (Horas)</TableHead>
                         <TableHead>Partida</TableHead>
                         <TableHead>Categoría</TableHead>
-                        <TableHead>Motivo</TableHead>
+                        <TableHead>Comentarios</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Asignado a</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -214,13 +221,13 @@ export default function SolicitudesCprPage() {
                         if(asignado?.idPersonal) {
                             personalInfo = personalExternoDB.get(asignado.idPersonal) || personalInternoDB.get(asignado.idPersonal);
                         }
+                        const horas = calculateHours(s.horaInicio, s.horaFin);
 
                         return (
                         <TableRow key={s.id} onClick={() => handleOpenDialog(s)} className="cursor-pointer">
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
-                            <TableCell className="font-semibold">{formatNumber(calculateHours(s.horaInicio, s.horaFin), 2)}h</TableCell>
-                            <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
+                            <TableCell>{s.horaInicio} - {s.horaFin} ({formatNumber(horas, 2)}h)</TableCell>
+                            <TableCell><Badge variant="outline" className={cn(partidaColorClasses[s.partida])}>{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>{s.motivo}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado] || 'secondary'}>{s.estado}</Badge></TableCell>
@@ -241,6 +248,11 @@ export default function SolicitudesCprPage() {
                                         )}
                                     </div>
                                 )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                                {(s.estado === 'Solicitado' || s.estado === 'Aprobada') && <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); handleAction('delete') }}><Trash2 className="mr-2 h-4 w-4"/>Borrar</Button>}
+                                {s.estado === 'Asignada' && !isBefore(new Date(s.fechaServicio), startOfToday()) && <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); handleAction('cancel') }}><Trash2 className="mr-2 h-4 w-4"/>Solicitar Cancelación</Button>}
+                                {s.estado === 'Solicitada Cancelacion' && <Badge variant="destructive">Pendiente RRHH</Badge>}
                             </TableCell>
                         </TableRow>
                     )}) : (

@@ -15,7 +15,6 @@ export const GASTO_LABELS: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, str
     personalMice: 'Personal MICE',
     personalExterno: 'Personal Externo',
     costePruebaMenu: 'Coste Prueba de Menu',
-    personalSolicitadoCpr: 'Personal de Apoyo CPR',
 };
 
 export const ALERGENOS_INFO: Record<Alergeno, { abbr: string; color: string }> = {
