@@ -7,7 +7,7 @@ import { PlusCircle, Search, Calendar as CalendarIcon, Users, Trash2, MessageSqu
 import { format, isSameDay, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { SolicitudPersonalCPR, Proveedor, CategoriaPersonal, PartidaProduccion, PersonalExternoDB, Personal } from '@/types';
+import type { SolicitudPersonalCPR, Proveedor, CategoriaPersonal } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,8 +18,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { calculateHours, formatNumber } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
@@ -33,11 +33,11 @@ const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'success' | 'sec
   'Cerrado': 'secondary'
 };
 
-const partidaColorClasses: Record<PartidaProduccion, string> = {
-    FRIO: 'bg-blue-100 text-blue-800',
-    CALIENTE: 'bg-red-100 text-red-800',
-    PASTELERIA: 'bg-purple-100 text-purple-800',
-    EXPEDICION: 'bg-yellow-100 text-yellow-800'
+const partidaColorClasses = {
+  FRIO: 'bg-blue-100 text-blue-800',
+  CALIENTE: 'bg-red-100 text-red-800',
+  PASTELERIA: 'bg-purple-100 text-purple-800',
+  EXPEDICION: 'bg-yellow-100 text-yellow-800',
 };
 
 function CommentModal({ comment, trigger }: { comment: string, trigger: React.ReactNode }) {
@@ -310,6 +310,11 @@ export default function SolicitudesCprPage() {
                         </div>
                     )}
                 </div>
+                 <AlertDialogFooter>
+                    {solicitudToManage && (solicitudToManage.estado === 'Pendiente' || solicitudToManage.estado === 'Aprobada') && (
+                        <Button variant="destructive" onClick={() => handleAction('delete')}>Borrar Solicitud</Button>
+                    )}
+                </AlertDialogFooter>
             </DialogContent>
         </Dialog>
         
@@ -329,3 +334,5 @@ export default function SolicitudesCprPage() {
     </div>
   )
 }
+
+    
