@@ -43,7 +43,7 @@ const partidaColorClasses: Record<PartidaProduccion, string> = {
 function CommentModal({ comment, trigger }: { comment: string, trigger: React.ReactNode }) {
     return (
         <Dialog>
-            <DialogTrigger asChild>
+            <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
                  {trigger}
             </DialogTrigger>
             <ModalContent>
@@ -181,6 +181,7 @@ export default function SolicitudesCprPage() {
                         const tipoPersonalAsignado = tiposPersonal.find(t => t.id === s.proveedorId);
                         const proveedorNombre = tipoPersonalAsignado ? proveedoresMap.get(tipoPersonalAsignado.proveedorId) : null;
                         const asignado = s.personalAsignado?.[0];
+                        
                         return (
                         <TableRow key={s.id} onClick={() => handleOpenDialog(s)} className="cursor-pointer">
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
