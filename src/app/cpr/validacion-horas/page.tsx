@@ -1,13 +1,14 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserCheck, Search, Calendar as CalendarIcon, CheckCircle, Pencil } from 'lucide-react';
+import { UserCheck, Search, Calendar as CalendarIcon, CheckCircle, Pencil, AlertTriangle } from 'lucide-react';
 import { format, isSameDay, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { SolicitudPersonalCPR, PersonalExternoDB, Personal } from '@/types';
+import type { SolicitudPersonalCPR, Proveedor, PersonalExternoDB, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -25,12 +26,12 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 
-const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
+const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' } = {
   'Solicitado': 'secondary',
   'Aprobada': 'outline',
   'Rechazada': 'destructive',
   'Asignada': 'default',
-  'Confirmado': 'default',
+  'Confirmado': 'success',
   'Solicitada Cancelacion': 'destructive',
   'Cerrado': 'secondary'
 };
@@ -100,23 +101,7 @@ export default function ValidacionHorasPage() {
         setSolicitudes(prev => prev.map(s => s.id === solicitudId ? allRequests[reqIndex] : s));
     };
     
-    const handleSaveFeedback = (solicitudId: string, asignacionId: string, feedback: { rating: number; comment: string }) => {
-        const allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-        const reqIndex = allRequests.findIndex(r => r.id === solicitudId);
-        if (reqIndex === -1 || !allRequests[reqIndex].personalAsignado) return;
-
-        const asigIndex = allRequests[reqIndex].personalAsignado!.findIndex(a => a.idPersonal === asignacionId);
-        if (asigIndex === -1) return;
-
-        allRequests[reqIndex].personalAsignado![asigIndex].rating = feedback.rating;
-        allRequests[reqIndex].personalAsignado![asigIndex].comentariosMice = feedback.comment;
-        
-        localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-        setSolicitudes(prev => prev.map(s => s.id === solicitudId ? allRequests[reqIndex] : s));
-        toast({ title: 'Valoración guardada.' });
-    };
-
-    const handleConfirmClose = (feedback: { rating: number; comment: string }) => {
+    const handleConfirmClose = (feedback: { rating: number; comment: string, horaEntradaReal?: string, horaSalidaReal?: string }) => {
         if (!solicitudToClose) return;
 
         const allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
@@ -124,7 +109,9 @@ export default function ValidacionHorasPage() {
         if (reqIndex === -1) return;
         
         const asignacion = allRequests[reqIndex].personalAsignado?.[0];
-        if (!asignacion || !asignacion.horaEntradaReal || !asignacion.horaSalidaReal) {
+        if (!asignacion) return;
+
+        if (!feedback.horaEntradaReal || !feedback.horaSalidaReal) {
             toast({ variant: 'destructive', title: 'Error', description: 'Debes introducir la hora de entrada y salida real para cerrar el turno.' });
             return;
         }
@@ -132,6 +119,8 @@ export default function ValidacionHorasPage() {
         allRequests[reqIndex].estado = 'Cerrado';
         allRequests[reqIndex].personalAsignado![0].rating = feedback.rating;
         allRequests[reqIndex].personalAsignado![0].comentariosMice = feedback.comment;
+        allRequests[reqIndex].personalAsignado![0].horaEntradaReal = feedback.horaEntradaReal;
+        allRequests[reqIndex].personalAsignado![0].horaSalidaReal = feedback.horaSalidaReal;
 
         localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
         loadData(); // Reload data to apply filters
@@ -182,9 +171,7 @@ export default function ValidacionHorasPage() {
                                     <TableHead>Trabajador</TableHead>
                                     <TableHead>Categoría</TableHead>
                                     <TableHead>H. Planificadas</TableHead>
-                                    <TableHead className="w-24">H. Entrada Real</TableHead>
-                                    <TableHead className="w-24">H. Salida Real</TableHead>
-                                    <TableHead>Horas Reales</TableHead>
+                                    <TableHead>H. Reales</TableHead>
                                     <TableHead>Coste Real</TableHead>
                                     <TableHead className="text-center">Valoración</TableHead>
                                     <TableHead className="text-right">Acción</TableHead>
@@ -199,7 +186,8 @@ export default function ValidacionHorasPage() {
                                     const horasReales = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
                                     const costePlanificado = s.costeImputado || 0;
                                     const costeReal = horasReales > 0 && horasPlanificadas > 0 ? (costePlanificado / horasPlanificadas) * horasReales : 0;
-                                    
+                                    const desviacionHoras = horasReales - horasPlanificadas;
+
                                     const nombreAsignado = getAssignedName(asignacion);
 
                                     return (
@@ -208,20 +196,19 @@ export default function ValidacionHorasPage() {
                                             <TableCell className="font-semibold">{nombreAsignado}</TableCell>
                                             <TableCell>{s.categoria}</TableCell>
                                             <TableCell>{s.horaInicio} - {s.horaFin} ({formatNumber(horasPlanificadas, 2)}h)</TableCell>
-                                            <TableCell>
-                                                <Input type="time" defaultValue={asignacion.horaEntradaReal} onBlur={(e) => handleSaveHours(s.id, asignacion.idPersonal, 'horaEntradaReal', e.target.value)} className="h-8" disabled={s.estado === 'Cerrado'}/>
+                                            <TableCell className={cn("font-mono font-semibold", desviacionHoras > 0 ? 'text-orange-600' : desviacionHoras < 0 ? 'text-green-600' : '')}>
+                                                {formatNumber(horasReales, 2)}h
                                             </TableCell>
-                                            <TableCell>
-                                                <Input type="time" defaultValue={asignacion.horaSalidaReal} onBlur={(e) => handleSaveHours(s.id, asignacion.idPersonal, 'horaSalidaReal', e.target.value)} className="h-8" disabled={s.estado === 'Cerrado'}/>
-                                            </TableCell>
-                                            <TableCell className="font-mono font-semibold">{formatNumber(horasReales, 2)}h</TableCell>
                                             <TableCell className="font-mono">{formatCurrency(costeReal)}</TableCell>
                                             <TableCell className="text-center">
-                                                <FeedbackDialog 
+                                                 <FeedbackDialog 
                                                     workerName={nombreAsignado}
                                                     initialRating={asignacion.rating}
                                                     initialComment={asignacion.comentariosMice}
-                                                    onSave={(feedback) => handleSaveFeedback(s.id, asignacion.idPersonal, feedback)}
+                                                    initialHoraEntrada={asignacion.horaEntradaReal || s.horaInicio}
+                                                    initialHoraSalida={asignacion.horaSalidaReal || s.horaFin}
+                                                    onSave={(feedback) => handleConfirmClose({ ...s, personalAsignado: [{ ...asignacion, ...feedback }] } as any)}
+                                                    isCloseMode={s.estado !== 'Cerrado'}
                                                     trigger={
                                                         <Button variant="ghost" size="icon" className="h-8 w-8">
                                                             <Pencil className={cn("h-4 w-4", (asignacion.rating || asignacion.comentariosMice) && 'text-primary')}/>
@@ -231,7 +218,7 @@ export default function ValidacionHorasPage() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 {s.estado !== 'Cerrado' ? (
-                                                    <Button size="sm" onClick={() => setSolicitudToClose(s)} disabled={!asignacion.horaEntradaReal || !asignacion.horaSalidaReal}>
+                                                    <Button size="sm" onClick={() => setSolicitudToClose(s)}>
                                                         <CheckCircle className="mr-2"/>Cerrar Turno
                                                     </Button>
                                                 ) : <Badge variant="secondary">Cerrado</Badge>}
@@ -240,7 +227,7 @@ export default function ValidacionHorasPage() {
                                     )
                                 }) : (
                                     <TableRow>
-                                        <TableCell colSpan={10} className="h-48 text-center">No hay turnos pendientes de validación para los filtros seleccionados.</TableCell>
+                                        <TableCell colSpan={8} className="h-48 text-center">No hay turnos pendientes de validación para los filtros seleccionados.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -253,7 +240,10 @@ export default function ValidacionHorasPage() {
                     workerName={getAssignedName(solicitudToClose?.personalAsignado?.[0])}
                     initialRating={solicitudToClose?.personalAsignado?.[0]?.rating}
                     initialComment={solicitudToClose?.personalAsignado?.[0]?.comentariosMice}
+                    initialHoraEntrada={solicitudToClose?.personalAsignado?.[0]?.horaEntradaReal || solicitudToClose?.horaInicio}
+                    initialHoraSalida={solicitudToClose?.personalAsignado?.[0]?.horaSalidaReal || solicitudToClose?.horaFin}
                     onSave={handleConfirmClose}
+                    isCloseMode={true}
                     title="Confirmar Cierre y Valoración de Turno"
                     description="Verifica las horas reales e introduce la valoración del desempeño antes de cerrar el turno."
                     saveButtonText="Confirmar y Cerrar"
@@ -262,3 +252,182 @@ export default function ValidacionHorasPage() {
         </TooltipProvider>
     );
 }
+
+```
+- src/components/portal/feedback-dialog.tsx:
+```tsx
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
+import { Pencil } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import { Input } from '../ui/input';
+
+interface FeedbackDialogProps {
+  initialRating?: number;
+  initialComment?: string;
+  initialHoraEntrada?: string;
+  initialHoraSalida?: string;
+  workerName: string;
+  onSave: (feedback: { rating: number; comment: string; horaEntradaReal?: string, horaSalidaReal?: string }) => void;
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  isCloseMode?: boolean;
+  title?: string;
+  description?: string;
+  saveButtonText?: string;
+}
+
+export function FeedbackDialog({
+  initialRating,
+  initialComment,
+  initialHoraEntrada,
+  initialHoraSalida,
+  workerName,
+  onSave,
+  trigger,
+  open,
+  onOpenChange,
+  isCloseMode = false,
+  title = "Valoración",
+  description = "Deja una valoración y comentarios sobre el desempeño.",
+  saveButtonText = "Guardar Valoración"
+}: FeedbackDialogProps) {
+    const [rating, setRating] = useState(initialRating || 3);
+    const [comment, setComment] = useState(initialComment || '');
+    const [horaEntrada, setHoraEntrada] = useState(initialHoraEntrada || '');
+    const [horaSalida, setHoraSalida] = useState(initialHoraSalida || '');
+    
+    useEffect(() => {
+        if(open) {
+            setRating(initialRating || 3);
+            setComment(initialComment || '');
+            setHoraEntrada(initialHoraEntrada || '');
+            setHoraSalida(initialHoraSalida || '');
+        }
+    }, [open, initialRating, initialComment, initialHoraEntrada, initialHoraSalida]);
+
+    const handleSave = () => {
+        onSave({ rating, comment, horaEntradaReal: horaEntrada, horaSalidaReal: horaSalida });
+    };
+
+    const dialogContent = (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{title}</DialogTitle>
+                <DialogDescription>{description}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+                 {isCloseMode && (
+                    <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                             <Label>Hora Entrada Real</Label>
+                             <Input type="time" value={horaEntrada} onChange={e => setHoraEntrada(e.target.value)} />
+                         </div>
+                         <div className="space-y-2">
+                            <Label>Hora Salida Real</Label>
+                            <Input type="time" value={horaSalida} onChange={e => setHoraSalida(e.target.value)} />
+                         </div>
+                    </div>
+                 )}
+                <div className="space-y-2">
+                    <Label>Desempeño (1-5)</Label>
+                    <div className="flex items-center gap-4 pt-2">
+                        <span className="text-sm text-muted-foreground">Bajo</span>
+                        <Slider value={[rating]} onValueChange={(value) => setRating(value[0])} max={5} min={1} step={1} />
+                        <span className="text-sm text-muted-foreground">Alto</span>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label>Comentarios Internos MICE</Label>
+                    <Textarea 
+                        value={comment} 
+                        onChange={(e) => setComment(e.target.value)}
+                        rows={4}
+                        placeholder="Añade aquí comentarios internos sobre el desempeño..."
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="secondary" onClick={() => onOpenChange?.(false)}>Cancelar</Button>
+                <Button onClick={handleSave}>{saveButtonText}</Button>
+            </DialogFooter>
+        </DialogContent>
+    );
+
+    if (trigger) {
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogTrigger asChild>
+                    {trigger}
+                </DialogTrigger>
+                {dialogContent}
+            </Dialog>
+        );
+    }
+    
+    return open ? dialogContent : null;
+}
+```
+- src/lib/cpr-nav.ts:
+```ts
+
+
+'use client';
+
+import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare, Shield, Users, UserCheck } from 'lucide-react';
+
+export const cprNav = [
+    { title: 'Panel de control', href: '/cpr/dashboard', icon: LayoutDashboard, description: 'Visión general del taller de producción.' },
+    { title: 'Planificación y OFs', href: '/cpr/of', icon: Factory, description: 'Agrega necesidades y gestiona las O.F.' },
+    { title: 'Taller de Producción', href: '/cpr/produccion', icon: ChefHat, description: 'Interfaz para cocineros en tablets.' },
+    { title: 'Picking y Logística', href: '/cpr/picking', icon: ListChecks, description: 'Prepara las expediciones para eventos.' },
+    { title: 'Control de Calidad', href: '/cpr/calidad', icon: CheckCircle, description: 'Valida las elaboraciones.' },
+    { title: 'Solicitudes de Personal', href: '/cpr/solicitud-personal', icon: Users, description: 'Pide personal de apoyo para picos de trabajo.' },
+    { title: 'Validación de Horas', href: '/cpr/validacion-horas', icon: UserCheck, description: 'Cierra y valora los turnos del personal de apoyo.'},
+    { title: 'Stock Elaboraciones', href: '/cpr/excedentes', icon: PackagePlus, description: 'Consulta el inventario de elaboraciones.' },
+    { title: 'Productividad', href: '/cpr/productividad', icon: BarChart3, description: 'Analiza los tiempos de producción.' },
+    { title: 'Informe de Picking', href: '/cpr/informe-picking', icon: Printer, description: 'Consulta el picking completo de una OS.' },
+    { title: 'Trazabilidad', href: '/cpr/trazabilidad', icon: History, description: 'Consulta lotes y su histórico.' },
+    { title: 'Incidencias', href: '/cpr/incidencias', icon: AlertTriangle, description: 'Revisa las incidencias de producción.' },
+];
+
+export const bookNavLinks = [
+    { title: 'Panel de Control', path: '/book', icon: BookHeart, exact: true },
+    { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
+    { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
+    { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
+    { title: 'Verificación de Ingredientes', path: '/book/verificacionIngredientes', icon: Shield },
+    { title: 'Revisión Gastronómica', path: '/book/revision-ingredientes', icon: CheckSquare },
+    { title: 'Información de Alérgenos', path: '/book/alergenos', icon: Sprout },
+    { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
+];
+
+    
+
+```
+- src/lib/rrhh-nav.ts:
+```ts
+
+
+'use client';
+
+import { Users, ClipboardList, BarChart3, Factory, UserPlus } from 'lucide-react';
+
+export const rrhhNav = [
+    { title: 'Gestión de Solicitudes', href: '/rrhh/solicitudes', icon: ClipboardList, description: 'Gestiona todas las necesidades de personal para Eventos y CPR.' },
+    { title: 'Personal Interno', href: '/bd/personal', icon: Users, description: 'Administra la base de datos de empleados de MICE.' },
+    { title: 'Personal Externo (ETT)', href: '/bd/personal-externo-db', icon: UserPlus, description: 'Administra la base de datos de trabajadores de ETTs.' },
+    { title: 'Analítica de RRHH', href: '/rrhh/analitica', icon: BarChart3, description: 'Analiza costes, horas y productividad del personal.' },
+];
+
+
+```
