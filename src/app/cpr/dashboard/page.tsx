@@ -5,19 +5,19 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useState, useEffect, useMemo } from 'react';
-import type { LucideIcon, OrdenFabricacion } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { cprNav } from '@/lib/cpr-nav';
 import { Separator } from '@/components/ui/separator';
 import { Factory, AlertTriangle, List, Clock, CheckCircle, UserCheck } from 'lucide-react';
 import { isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { SolicitudPersonalCPR } from '@/types';
+import type { OrdenFabricacion, SolicitudPersonalCPR } from '@/types';
 
 
 const workflowSections = {
   planificar: {
     title: '1. Planificar',
-    modules: ['Planificación y OFs', 'Solicitudes de Personal']
+    modules: ['Planificación y OFs', 'Solicitudes de Personal', 'Validación de Horas']
   },
   ejecutar: {
     title: '2. Ejecutar',
@@ -25,7 +25,7 @@ const workflowSections = {
   },
   analizar: {
     title: '3. Analizar y Supervisar',
-    modules: ['Validación de Horas', 'Stock Elaboraciones', 'Productividad', 'Informe de Picking', 'Trazabilidad', 'Incidencias']
+    modules: ['Stock Elaboraciones', 'Productividad', 'Informe de Picking', 'Trazabilidad', 'Incidencias']
   }
 };
 
