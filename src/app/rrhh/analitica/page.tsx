@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -20,7 +19,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Badge } from '@/components/ui/badge';
 import { KpiCard } from '@/components/dashboard/kpi-card';
 import { Users, Clock, Euro, TrendingDown, TrendingUp, Calendar as CalendarIcon, Star } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 type DetalleTrabajador = {
@@ -53,6 +52,22 @@ type AnaliticaData = {
     horasPorCategoria: { name: string; value: number }[];
     detalleCompleto: DetalleTrabajador[];
 }
+
+const StarRating = ({ rating }: { rating: number }) => {
+    return (
+        <div className="flex">
+            {[...Array(5)].map((_, i) => (
+                <Star
+                    key={i}
+                    className={cn(
+                        "h-5 w-5",
+                        i < Math.round(rating) ? "text-amber-400 fill-amber-400" : "text-gray-300"
+                    )}
+                />
+            ))}
+        </div>
+    );
+};
 
 export default function AnaliticaRrhhPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -100,10 +115,13 @@ export default function AnaliticaRrhhPage() {
         const detalleCompleto: DetalleTrabajador[] = [];
 
         let costeTotal = 0, costePlanificado = 0, horasTotales = 0, numTurnos = 0;
+        
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+
 
         // Personal MICE
         allPersonalMice.forEach(order => {
-            const os = JSON.parse(localStorage.getItem('serviceOrders') || '[]').find((so: ServiceOrder) => so.id === order.osId);
+            const os = allServiceOrders.find((so: ServiceOrder) => so.id === order.osId);
             if (!os || !isWithinInterval(new Date(os.startDate), { start: rangeStart, end: rangeEnd })) return;
             if (proveedorFilter !== 'all') return;
 
@@ -132,7 +150,7 @@ export default function AnaliticaRrhhPage() {
 
         // Personal Externo Eventos
         allPersonalExterno.forEach(pedido => {
-            const os = JSON.parse(localStorage.getItem('serviceOrders') || '[]').find((so: ServiceOrder) => so.id === pedido.osId);
+            const os = allServiceOrders.find((so: ServiceOrder) => so.id === pedido.osId);
             if (!os || !isWithinInterval(new Date(os.startDate), { start: rangeStart, end: rangeEnd })) return;
             
             pedido.turnos.forEach(turno => {
@@ -209,6 +227,37 @@ export default function AnaliticaRrhhPage() {
         };
 
     }, [isMounted, dateRange, proveedorFilter, allPersonalMice, allPersonalExterno, allSolicitudesCPR, proveedores, personalInterno, personalExternoDB, tiposPersonal]);
+    
+    const workerPerformanceSummary = useMemo(() => {
+        if (!analiticaData.detalleCompleto) return [];
+
+        const summary = new Map<string, { totalJornadas: number; ratings: number[]; nombre: string }>();
+
+        analiticaData.detalleCompleto.forEach(turno => {
+            if (!turno.trabajadorId) return;
+
+            let workerData = summary.get(turno.trabajadorId);
+            if (!workerData) {
+                workerData = { totalJornadas: 0, ratings: [], nombre: turno.nombre };
+                summary.set(turno.trabajadorId, workerData);
+            }
+
+            workerData.totalJornadas += 1;
+            if (turno.rating) {
+                workerData.ratings.push(turno.rating);
+            }
+        });
+
+        return Array.from(summary.values()).map(worker => {
+            const avgRating = worker.ratings.length > 0 ? worker.ratings.reduce((a, b) => a + b, 0) / worker.ratings.length : 0;
+            return {
+                nombre: worker.nombre,
+                totalJornadas: worker.totalJornadas,
+                avgRating,
+            };
+        }).sort((a, b) => b.avgRating - a.avgRating);
+    }, [analiticaData.detalleCompleto]);
+
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
         const now = new Date();
@@ -359,45 +408,71 @@ export default function AnaliticaRrhhPage() {
                     </Card>
                  </TabsContent>
                  <TabsContent value="valoracion">
-                     <Card>
-                        <CardHeader><CardTitle>Valoración de Empleados</CardTitle></CardHeader>
-                        <CardContent>
-                            <div className="border rounded-lg max-h-[60vh] overflow-y-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Nombre</TableHead>
-                                            <TableHead>Tipo</TableHead>
-                                            <TableHead>OS / Centro</TableHead>
-                                            <TableHead>Fecha</TableHead>
-                                            <TableHead className="text-center">Valoración</TableHead>
-                                            <TableHead>Comentarios</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {analiticaData.detalleCompleto.filter(t => t.rating).map(t => (
-                                            <TableRow key={t.id}>
-                                                <TableCell className="font-semibold">{t.nombre}</TableCell>
-                                                <TableCell>
-                                                    <Badge variant={t.esExterno ? 'outline' : 'secondary'}>
-                                                        {t.proveedor}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell><Badge variant="outline">{t.osNumber}</Badge></TableCell>
-                                                <TableCell>{format(new Date(t.fecha), 'dd/MM/yy')}</TableCell>
-                                                <TableCell className="text-center font-bold text-lg text-amber-500">
-                                                    <div className="flex justify-center">
-                                                        {Array.from({length: t.rating || 0}).map((_, i) => <Star key={i} className="h-5 w-5 fill-current" />)}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">{t.comentarios}</TableCell>
+                    <div className="space-y-6">
+                        <Card>
+                             <CardHeader><CardTitle>Resumen de Rendimiento de Personal Externo</CardTitle></CardHeader>
+                             <CardContent>
+                                 <div className="border rounded-lg max-h-96 overflow-y-auto">
+                                     <Table>
+                                         <TableHeader>
+                                             <TableRow>
+                                                 <TableHead>Nombre</TableHead>
+                                                 <TableHead className="text-center">Jornadas Realizadas</TableHead>
+                                                 <TableHead>Valoración Media</TableHead>
+                                             </TableRow>
+                                         </TableHeader>
+                                         <TableBody>
+                                             {workerPerformanceSummary.map(w => (
+                                                 <TableRow key={w.nombre}>
+                                                     <TableCell className="font-semibold">{w.nombre}</TableCell>
+                                                     <TableCell className="text-center">{w.totalJornadas}</TableCell>
+                                                     <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <StarRating rating={w.avgRating} />
+                                                            <span className="text-muted-foreground text-sm">({formatNumber(w.avgRating, 2)})</span>
+                                                        </div>
+                                                     </TableCell>
+                                                 </TableRow>
+                                             ))}
+                                         </TableBody>
+                                     </Table>
+                                 </div>
+                             </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader><CardTitle>Detalle de Valoraciones</CardTitle></CardHeader>
+                            <CardContent>
+                                <div className="border rounded-lg max-h-[60vh] overflow-y-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Nombre</TableHead>
+                                                <TableHead>OS / Centro</TableHead>
+                                                <TableHead>Fecha</TableHead>
+                                                <TableHead className="text-center">Valoración</TableHead>
+                                                <TableHead>Comentarios</TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {analiticaData.detalleCompleto.filter(t => t.rating).map(t => (
+                                                <TableRow key={t.id}>
+                                                    <TableCell className="font-semibold">{t.nombre}</TableCell>
+                                                    <TableCell><Badge variant="outline">{t.osNumber}</Badge></TableCell>
+                                                    <TableCell>{format(new Date(t.fecha), 'dd/MM/yy')}</TableCell>
+                                                    <TableCell className="text-center font-bold text-lg text-amber-500">
+                                                        <div className="flex justify-center">
+                                                            {'⭐'.repeat(t.rating || 0)}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm text-muted-foreground">{t.comentarios}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                  </TabsContent>
             </Tabs>
         </main>
