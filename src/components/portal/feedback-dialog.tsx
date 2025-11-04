@@ -11,6 +11,9 @@ import { Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { Input } from '../ui/input';
+import type { SolicitudPersonalCPR } from '@/types';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface FeedbackDialogProps {
   initialRating?: number;
@@ -18,6 +21,7 @@ interface FeedbackDialogProps {
   initialHoraEntrada?: string;
   initialHoraSalida?: string;
   workerName: string;
+  turnoInfo?: SolicitudPersonalCPR | null;
   onSave: (feedback: { rating: number; comment: string; horaEntradaReal?: string, horaSalidaReal?: string }) => void;
   trigger?: React.ReactNode;
   open?: boolean;
@@ -34,6 +38,7 @@ export function FeedbackDialog({
   initialHoraEntrada,
   initialHoraSalida,
   workerName,
+  turnoInfo,
   onSave,
   trigger,
   open,
@@ -71,6 +76,15 @@ export function FeedbackDialog({
                 <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
+                 <div className="text-sm p-2 bg-secondary rounded-md">
+                    <p><strong>Trabajador:</strong> {workerName}</p>
+                    {turnoInfo && (
+                        <>
+                        <p><strong>Categoría:</strong> {turnoInfo.categoria} ({turnoInfo.partida})</p>
+                        <p><strong>Fecha y Hora (Plan):</strong> {format(new Date(turnoInfo.fechaServicio), 'dd/MM/yyyy')} de {turnoInfo.horaInicio} a {turnoInfo.horaFin}</p>
+                        </>
+                    )}
+                </div>
                  {isCloseMode && (
                     <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-2">
@@ -108,10 +122,14 @@ export function FeedbackDialog({
         </DialogContent>
     );
 
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-            {dialogContent}
-        </Dialog>
-    );
+    if (trigger) {
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogTrigger asChild>{trigger}</DialogTrigger>
+                {dialogContent}
+            </Dialog>
+        );
+    }
+    
+    return dialogContent;
 }

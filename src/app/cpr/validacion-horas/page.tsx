@@ -43,7 +43,7 @@ export default function ValidacionHorasPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
     const [showClosed, setShowClosed] = useState(false);
-    const [solicitudToClose, setSolicitudToClose] = useState<SolicitudPersonalCPR | null>(null);
+    const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
 
     const router = useRouter();
     const { toast } = useToast();
@@ -85,31 +85,34 @@ export default function ValidacionHorasPage() {
         }).sort((a,b) => new Date(a.fechaServicio).getTime() - new Date(b.fechaServicio).getTime());
     }, [solicitudes, searchTerm, dateFilter, showClosed]);
     
-    const handleConfirmClose = (feedback: { rating: number; comment: string, horaEntradaReal?: string, horaSalidaReal?: string }) => {
-        if (!solicitudToClose) return;
+    const handleSaveFeedback = (solicitud: SolicitudPersonalCPR, feedback: { rating: number; comment: string, horaEntradaReal?: string, horaSalidaReal?: string }) => {
+        if (!solicitud) return;
 
         const allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-        const reqIndex = allRequests.findIndex(r => r.id === solicitudToClose.id);
+        const reqIndex = allRequests.findIndex(r => r.id === solicitud.id);
         if (reqIndex === -1) return;
         
         const asignacion = allRequests[reqIndex].personalAsignado?.[0];
         if (!asignacion) return;
 
-        if (!feedback.horaEntradaReal || !feedback.horaSalidaReal) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Debes introducir la hora de entrada y salida real para cerrar el turno.' });
-            return;
-        }
-
-        allRequests[reqIndex].estado = 'Cerrado';
         allRequests[reqIndex].personalAsignado![0].rating = feedback.rating;
         allRequests[reqIndex].personalAsignado![0].comentariosMice = feedback.comment;
-        allRequests[reqIndex].personalAsignado![0].horaEntradaReal = feedback.horaEntradaReal;
-        allRequests[reqIndex].personalAsignado![0].horaSalidaReal = feedback.horaSalidaReal;
+        
+        // Si el turno no está cerrado, también actualizamos las horas y lo cerramos.
+        if (allRequests[reqIndex].estado !== 'Cerrado') {
+             if (!feedback.horaEntradaReal || !feedback.horaSalidaReal) {
+                toast({ variant: 'destructive', title: 'Error', description: 'Debes introducir la hora de entrada y salida real para cerrar el turno.' });
+                return;
+            }
+            allRequests[reqIndex].estado = 'Cerrado';
+            allRequests[reqIndex].personalAsignado![0].horaEntradaReal = feedback.horaEntradaReal;
+            allRequests[reqIndex].personalAsignado![0].horaSalidaReal = feedback.horaSalidaReal;
+        }
 
         localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-        loadData(); // Reload data to apply filters
-        toast({ title: 'Turno Cerrado', description: `El turno de ${asignacion.nombre} ha sido validado y cerrado.` });
-        setSolicitudToClose(null);
+        loadData();
+        toast({ title: 'Valoración guardada', description: `La valoración para ${asignacion.nombre} ha sido guardada.` });
+        setSolicitudToManage(null);
     };
 
     const getAssignedName = (asignacion?: {idPersonal: string, nombre?: string}) => {
@@ -184,12 +187,13 @@ export default function ValidacionHorasPage() {
                                             <TableCell className="font-mono">{formatCurrency(costeReal)}</TableCell>
                                             <TableCell className="text-center">
                                                 <FeedbackDialog 
+                                                    turnoInfo={s}
                                                     workerName={nombreAsignado}
                                                     initialRating={asignacion.rating}
                                                     initialComment={asignacion.comentariosMice}
                                                     initialHoraEntrada={asignacion.horaEntradaReal || s.horaInicio}
                                                     initialHoraSalida={asignacion.horaSalidaReal || s.horaFin}
-                                                    onSave={(feedback) => handleConfirmClose({ ...s, personalAsignado: [{ ...asignacion, ...feedback }] } as any)}
+                                                    onSave={(feedback) => handleSaveFeedback(s, feedback)}
                                                     isCloseMode={s.estado !== 'Cerrado'}
                                                     trigger={
                                                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -200,7 +204,7 @@ export default function ValidacionHorasPage() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 {s.estado !== 'Cerrado' ? (
-                                                    <Button size="sm" onClick={() => setSolicitudToClose(s)}>
+                                                    <Button size="sm" onClick={() => setSolicitudToManage(s)}>
                                                         <CheckCircle className="mr-2"/>Cerrar Turno
                                                     </Button>
                                                 ) : <Badge variant="secondary">Cerrado</Badge>}
@@ -217,15 +221,16 @@ export default function ValidacionHorasPage() {
                     </CardContent>
                 </Card>
                  <FeedbackDialog
-                    open={!!solicitudToClose}
-                    onOpenChange={(isOpen) => !isOpen && setSolicitudToClose(null)}
-                    workerName={getAssignedName(solicitudToClose?.personalAsignado?.[0])}
-                    initialRating={solicitudToClose?.personalAsignado?.[0]?.rating}
-                    initialComment={solicitudToClose?.personalAsignado?.[0]?.comentariosMice}
-                    initialHoraEntrada={solicitudToClose?.personalAsignado?.[0]?.horaEntradaReal || solicitudToClose?.horaInicio}
-                    initialHoraSalida={solicitudToClose?.personalAsignado?.[0]?.horaSalidaReal || solicitudToClose?.horaFin}
-                    onSave={handleConfirmClose}
-                    isCloseMode={true}
+                    open={!!solicitudToManage}
+                    onOpenChange={(isOpen) => !isOpen && setSolicitudToManage(null)}
+                    turnoInfo={solicitudToManage}
+                    workerName={getAssignedName(solicitudToManage?.personalAsignado?.[0])}
+                    initialRating={solicitudToManage?.personalAsignado?.[0]?.rating}
+                    initialComment={solicitudToManage?.personalAsignado?.[0]?.comentariosMice}
+                    initialHoraEntrada={solicitudToManage?.personalAsignado?.[0]?.horaEntradaReal || solicitudToManage?.horaInicio}
+                    initialHoraSalida={solicitudToManage?.personalAsignado?.[0]?.horaSalidaReal || solicitudToManage?.horaFin}
+                    onSave={(feedback) => solicitudToManage && handleSaveFeedback(solicitudToManage, feedback)}
+                    isCloseMode={solicitudToManage?.estado !== 'Cerrado'}
                     title="Confirmar Cierre y Valoración de Turno"
                     description="Verifica las horas reales e introduce la valoración del desempeño antes de cerrar el turno."
                     saveButtonText="Confirmar y Cerrar"
@@ -234,4 +239,3 @@ export default function ValidacionHorasPage() {
         </TooltipProvider>
     );
 }
-
