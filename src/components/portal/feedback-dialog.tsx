@@ -68,7 +68,7 @@ export function FeedbackDialog({
     };
     
     const dialogContent = (
-        <DialogContent>
+        <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
                 <DialogTitle>{title}</DialogTitle>
                 <DialogDescription>{description}</DialogDescription>
@@ -118,14 +118,10 @@ export function FeedbackDialog({
         </DialogContent>
     );
 
-    if (trigger) {
-        return (
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogTrigger asChild>{trigger}</DialogTrigger>
-                {dialogContent}
-            </Dialog>
-        );
-    }
-    
-    return open ? dialogContent : null;
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+            {open && dialogContent}
+        </Dialog>
+    );
 }
