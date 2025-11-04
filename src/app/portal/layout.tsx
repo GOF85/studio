@@ -9,6 +9,7 @@ import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import type { Proveedor } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 const breadcrumbNameMap: { [key: string]: { name: string; icon: React.ElementType } } = {
     'portal': { name: 'Portal', icon: Home },
