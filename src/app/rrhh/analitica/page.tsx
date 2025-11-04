@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -158,15 +159,15 @@ export default function AnaliticaRrhhPage() {
                 if (proveedorFilter !== 'all' && tipoPersonal?.proveedorId !== proveedorFilter) return;
 
                 const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-                const quantity = (turno.asignaciones || []).length > 0 ? turno.asignaciones.length : 1;
-                const costePlanificadoTurno = plannedHours * turno.precioHora * quantity;
-                costePlanificado += costePlanificadoTurno;
                 
                 (turno.asignaciones || []).forEach(asig => {
                     numTurnos++;
                     const realHours = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || plannedHours;
                     const costeRealTurno = realHours * turno.precioHora;
+                    const costePlanificadoTurno = plannedHours * turno.precioHora;
+
                     costeTotal += costeRealTurno;
+                    costePlanificado += costePlanificadoTurno;
                     horasTotales += realHours;
                     
                     const prov = proveedores.find(p => p.id === tipoPersonal?.proveedorId);
@@ -177,7 +178,7 @@ export default function AnaliticaRrhhPage() {
                     detalleCompleto.push({
                          id: `${turno.id}-${asig.id}`, trabajadorId: asig.id, nombre: asig.nombre, esExterno: true, proveedor: prov?.nombreComercial || '', osNumber: os.serviceNumber, osId: os.id,
                         fecha: turno.fecha, categoria: turno.categoria, horarioPlanificado: `${turno.horaEntrada}-${turno.horaSalida}`, horarioReal: `${asig.horaEntradaReal}-${asig.horaSalidaReal}`,
-                        horasPlanificadas: plannedHours, horasReales: realHours, costePlanificado: plannedHours * turno.precioHora, costeReal: costeRealTurno, rating: asig.rating, comentarios: asig.comentariosMice
+                        horasPlanificadas: plannedHours, horasReales: realHours, costePlanificado: costePlanificadoTurno, costeReal: costeRealTurno, rating: asig.rating, comentarios: asig.comentariosMice
                     });
                 });
             });
@@ -234,7 +235,7 @@ export default function AnaliticaRrhhPage() {
         const summary = new Map<string, { totalJornadas: number; ratings: number[]; nombre: string }>();
 
         analiticaData.detalleCompleto.forEach(turno => {
-            if (!turno.trabajadorId) return;
+            if (!turno.trabajadorId || !turno.esExterno) return;
 
             let workerData = summary.get(turno.trabajadorId);
             if (!workerData) {
