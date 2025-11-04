@@ -21,6 +21,19 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 type PersonalFormValues = z.infer<typeof personalFormSchema>;
 
+const defaultFormValues: PersonalFormValues = {
+  id: '',
+  nombre: '',
+  apellido1: '',
+  apellido2: '',
+  telefono: '',
+  iniciales: '',
+  email: '',
+  precioHora: 0,
+  departamento: '',
+  categoria: '',
+};
+
 export default function EditarPersonalPage() {
   const router = useRouter();
   const params = useParams();
@@ -32,6 +45,7 @@ export default function EditarPersonalPage() {
 
   const form = useForm<PersonalFormValues>({
     resolver: zodResolver(personalFormSchema),
+    defaultValues,
   });
 
   useEffect(() => {
@@ -39,16 +53,13 @@ export default function EditarPersonalPage() {
     const item = allItems.find(p => p.id === id);
     if (item) {
       form.reset({
-        id: item.id || '',
-        nombre: item.nombre || '',
-        apellido1: item.apellido1 || '',
+        ...defaultFormValues, // Ensure all fields have a default
+        ...item, // Overwrite with existing data
+        precioHora: item.precioHora || 0, // Ensure number is not undefined
         apellido2: item.apellido2 || '',
         telefono: item.telefono || '',
-        iniciales: item.iniciales || '',
         email: item.email || '',
-        precioHora: item.precioHora || 0,
-        departamento: item.departamento || '',
-        categoria: item.categoria || '',
+        iniciales: item.iniciales || '',
       });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el empleado.' });
@@ -65,11 +76,12 @@ export default function EditarPersonalPage() {
     if (index !== -1) {
        const finalData: Personal = {
         ...data,
+        id,
         nombreCompleto: `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim(),
         nombreCompacto: `${data.nombre} ${data.apellido1}`,
-        iniciales: `${data.nombre[0]}${data.apellido1[0]}`.toUpperCase(),
+        iniciales: `${data.nombre[0] || ''}${data.apellido1[0] || ''}`.toUpperCase(),
         email: data.email,
-        apellidos: `${data.apellido1} ${data.apellido2 || ''}`.trim(), // Keep old field for compatibility if needed elsewhere
+        apellidos: `${data.apellido1} ${data.apellido2 || ''}`.trim(),
     }
       allItems[index] = finalData;
       localStorage.setItem('personal', JSON.stringify(allItems));
