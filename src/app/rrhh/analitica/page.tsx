@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
@@ -388,7 +389,7 @@ export default function AnaliticaRrhhPage() {
                     </div>
                 </CardContent>
             </Card>
-            <div className="grid gap-2 md:grid-cols-4 lg:grid-cols-8 mb-6">
+            <div className="grid gap-2 md:grid-cols-4 lg:grid-cols-7 mb-6">
                 <KpiCard title="Coste Total Personal" value={formatCurrency(analiticaData.costeTotal)} icon={Euro} description="Suma de costes reales en el periodo." />
                 <KpiCard title="Coste / Hora Medio" value={formatCurrency(analiticaData.horasTotales > 0 ? analiticaData.costeTotal / analiticaData.horasTotales : 0)} icon={Euro} description="Coste real total / Horas reales totales." />
                 <KpiCard title="Horas Totales Trabajadas" value={formatNumber(analiticaData.horasTotales, 2)} icon={Clock} description="Suma de todas las horas reales trabajadas."/>
