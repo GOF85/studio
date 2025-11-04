@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, parseISO, endOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
@@ -347,14 +347,21 @@ export default function AnaliticaRrhhPage() {
         doc.save(`Historial_${selectedWorkerDetails.nombre.replace(/\s/g, '_')}.pdf`);
     };
 
-    const setDatePreset = (preset: 'month' | 'year') => {
+    const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
         const now = new Date();
         let fromDate, toDate;
         switch(preset) {
             case 'month': fromDate = startOfMonth(now); toDate = endOfMonth(now); break;
             case 'year': fromDate = startOfYear(now); toDate = endOfYear(now); break;
+            case 'q1': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 0, 1)), to: endOfQuarter(new Date(now.getFullYear(), 2, 31)) }); break;
+            case 'q2': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 3, 1)), to: endOfQuarter(new Date(now.getFullYear(), 5, 30)) }); break;
+            case 'q3': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 6, 1)), to: endOfQuarter(new Date(now.getFullYear(), 8, 30)) }); break;
+            case 'q4': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 9, 1)), to: endOfQuarter(new Date(now.getFullYear(), 11, 31)) }); break;
         }
-        setDateRange({ from: fromDate, to: toDate });
+        if (fromDate && toDate) {
+            setDateRange({ from: fromDate, to: toDate });
+        }
+        setIsDatePickerOpen(false);
     };
     
     if (!isMounted) {
@@ -380,6 +387,10 @@ export default function AnaliticaRrhhPage() {
                          <div className="flex gap-1">
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('month')}>Mes</Button>
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
                         </div>
                     </div>
                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -627,3 +638,5 @@ export default function AnaliticaRrhhPage() {
         </main>
     );
 }
+
+    
