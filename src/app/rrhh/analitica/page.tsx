@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
@@ -19,11 +18,12 @@ import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from '@/components/ui/badge';
 import { KpiCard } from '@/components/dashboard/kpi-card';
-import { Users, Clock, Euro, TrendingDown, TrendingUp, Calendar as CalendarIcon, Star, Printer } from 'lucide-react';
+import { Users, Clock, Euro, TrendingDown, TrendingUp, Calendar as CalendarIcon, Star, Printer, Shuffle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Input } from '@/components/ui/input';
 
 
 type DetalleTrabajador = {
@@ -49,8 +49,10 @@ type DetalleTrabajador = {
 type AnaliticaData = {
     costeTotal: number;
     costePlanificado: number;
-    desviacion: number;
+    desviacionCoste: number;
     horasTotales: number;
+    horasPlanificadas: number;
+    desviacionHoras: number;
     numTurnos: number;
     costePorProveedor: { name: string; value: number }[];
     horasPorCategoria: { name: string; value: number }[];
@@ -81,6 +83,7 @@ export default function AnaliticaRrhhPage() {
     });
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [proveedorFilter, setProveedorFilter] = useState('all');
+    const [osFilter, setOsFilter] = useState('');
 
     const [allPersonalMice, setAllPersonalMice] = useState<PersonalMiceOrder[]>([]);
     const [allPersonalExterno, setAllPersonalExterno] = useState<PersonalExterno[]>([]);
@@ -111,7 +114,7 @@ export default function AnaliticaRrhhPage() {
     }, [allPersonalExterno, proveedores, tiposPersonal]);
 
     const analiticaData: AnaliticaData = useMemo(() => {
-        if (!isMounted || !dateRange?.from) return { costeTotal: 0, costePlanificado: 0, desviacion: 0, horasTotales: 0, numTurnos: 0, costePorProveedor: [], horasPorCategoria: [], detalleCompleto: [] };
+        if (!isMounted || !dateRange?.from) return { costeTotal: 0, costePlanificado: 0, desviacionCoste: 0, horasTotales: 0, horasPlanificadas: 0, desviacionHoras: 0, numTurnos: 0, costePorProveedor: [], horasPorCategoria: [], detalleCompleto: [] };
 
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
@@ -120,16 +123,17 @@ export default function AnaliticaRrhhPage() {
         const horasPorCategoria: Record<string, number> = {};
         const detalleCompleto: DetalleTrabajador[] = [];
 
-        let costeTotal = 0, costePlanificado = 0, horasTotales = 0, numTurnos = 0;
+        let costeTotal = 0, costePlanificado = 0, horasTotales = 0, horasPlanificadas = 0, numTurnos = 0;
         
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-
 
         // Personal MICE
         allPersonalMice.forEach(order => {
             const os = allServiceOrders.find((so: ServiceOrder) => so.id === order.osId);
             if (!os || !isWithinInterval(new Date(os.startDate), { start: rangeStart, end: rangeEnd })) return;
-            if (proveedorFilter !== 'all') return;
+            if (proveedorFilter !== 'all') return; // MICE staff is not external
+            if (osFilter && !(os.serviceNumber.toLowerCase().includes(osFilter.toLowerCase()) || os.client.toLowerCase().includes(osFilter.toLowerCase()))) return;
+
 
             const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
             const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal) || plannedHours;
@@ -139,6 +143,7 @@ export default function AnaliticaRrhhPage() {
             costeTotal += costeRealTurno;
             costePlanificado += costePlanificadoTurno;
             horasTotales += realHours;
+            horasPlanificadas += plannedHours;
             numTurnos++;
             
             const trabajador = personalInterno.find(p => p.nombre === order.nombre);
@@ -158,6 +163,7 @@ export default function AnaliticaRrhhPage() {
         allPersonalExterno.forEach(pedido => {
             const os = allServiceOrders.find((so: ServiceOrder) => so.id === pedido.osId);
             if (!os || !isWithinInterval(new Date(os.startDate), { start: rangeStart, end: rangeEnd })) return;
+             if (osFilter && !(os.serviceNumber.toLowerCase().includes(osFilter.toLowerCase()) || os.client.toLowerCase().includes(osFilter.toLowerCase()))) return;
             
             pedido.turnos.forEach(turno => {
                 const tipoPersonal = tiposPersonalMap.get(turno.proveedorId);
@@ -174,6 +180,7 @@ export default function AnaliticaRrhhPage() {
                     costeTotal += costeRealTurno;
                     costePlanificado += costePlanificadoTurno;
                     horasTotales += realHours;
+                    horasPlanificadas += plannedHours;
                     
                     const prov = proveedores.find(p => p.id === tipoPersonal?.proveedorId);
                     if(prov) costePorProveedor[prov.nombreComercial] = (costePorProveedor[prov.nombreComercial] || 0) + costeRealTurno;
@@ -193,6 +200,7 @@ export default function AnaliticaRrhhPage() {
         allSolicitudesCPR.forEach(solicitud => {
             if (!isWithinInterval(new Date(solicitud.fechaServicio), { start: rangeStart, end: rangeEnd })) return;
             if (solicitud.estado !== 'Cerrado') return;
+            if (osFilter && !'cpr'.includes(osFilter.toLowerCase())) return;
             
             const tipoPersonal = tiposPersonalMap.get(solicitud.proveedorId || '');
             if (proveedorFilter !== 'all' && tipoPersonal?.proveedorId !== proveedorFilter) return;
@@ -208,6 +216,7 @@ export default function AnaliticaRrhhPage() {
                 costeTotal += costeRealTurno;
                 costePlanificado += costePlanificadoTurno;
                 horasTotales += realHours;
+                horasPlanificadas += plannedHours;
                 horasPorCategoria[solicitud.categoria] = (horasPorCategoria[solicitud.categoria] || 0) + realHours;
                 
                 const prov = proveedores.find(p => p.id === tipoPersonal?.proveedorId);
@@ -224,15 +233,17 @@ export default function AnaliticaRrhhPage() {
         return {
             costeTotal,
             costePlanificado,
-            desviacion: costeTotal - costePlanificado,
+            desviacionCoste: costeTotal - costePlanificado,
             horasTotales,
+            horasPlanificadas,
+            desviacionHoras: horasTotales - horasPlanificadas,
             numTurnos,
             costePorProveedor: Object.entries(costePorProveedor).map(([name, value]) => ({ name, value })),
             horasPorCategoria: Object.entries(horasPorCategoria).map(([name, value]) => ({ name, value })),
             detalleCompleto: detalleCompleto.sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()),
         };
 
-    }, [isMounted, dateRange, proveedorFilter, allPersonalMice, allPersonalExterno, allSolicitudesCPR, proveedores, personalInterno, personalExternoDB, tiposPersonal]);
+    }, [isMounted, dateRange, proveedorFilter, osFilter, allPersonalMice, allPersonalExterno, allSolicitudesCPR, proveedores, personalInterno, personalExternoDB, tiposPersonal]);
     
     const { workerPerformanceSummary, performanceTotals } = useMemo(() => {
         if (!analiticaData.detalleCompleto) return { workerPerformanceSummary: [], performanceTotals: { totalJornadas: 0, totalHorasReales: 0, totalCosteReal: 0, mediaValoracion: 0 }};
@@ -359,10 +370,6 @@ export default function AnaliticaRrhhPage() {
                          <div className="flex gap-1">
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('month')}>Mes</Button>
                             <Button size="sm" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
                         </div>
                     </div>
                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -373,16 +380,22 @@ export default function AnaliticaRrhhPage() {
                                 {uniqueProveedores.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>)}
                             </SelectContent>
                         </Select>
+                         <Input
+                            placeholder="Buscar por OS / Centro..."
+                            value={osFilter}
+                            onChange={(e) => setOsFilter(e.target.value)}
+                        />
                     </div>
                 </CardContent>
             </Card>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
+            <div className="grid gap-2 md:grid-cols-4 lg:grid-cols-8 mb-6">
                 <KpiCard title="Coste Total Personal" value={formatCurrency(analiticaData.costeTotal)} icon={Euro} description="Suma de costes reales en el periodo." />
-                <KpiCard title="Coste Total Planificado" value={formatCurrency(analiticaData.costePlanificado)} icon={Euro} />
-                <KpiCard title="Desviación de Coste" value={formatCurrency(analiticaData.desviacion)} icon={analiticaData.desviacion > 0 ? TrendingDown : TrendingUp} description="Real vs. Planificado" className={analiticaData.desviacion > 0 ? 'text-destructive' : 'text-green-600'} />
-                <KpiCard title="Horas Totales Trabajadas" value={formatNumber(analiticaData.horasTotales, 2)} icon={Clock} />
-                <KpiCard title="Nº Total de Turnos" value={formatNumber(analiticaData.numTurnos, 0)} icon={Users} />
+                <KpiCard title="Coste / Hora Medio" value={formatCurrency(analiticaData.horasTotales > 0 ? analiticaData.costeTotal / analiticaData.horasTotales : 0)} icon={Euro} description="Coste real total / Horas reales totales." />
+                <KpiCard title="Horas Totales Trabajadas" value={formatNumber(analiticaData.horasTotales, 2)} icon={Clock} description="Suma de todas las horas reales trabajadas."/>
+                <KpiCard title="Nº Total de Turnos" value={formatNumber(analiticaData.numTurnos, 0)} icon={Users} description="Número total de jornadas individuales."/>
+                <KpiCard title="Desviación de Coste" value={formatCurrency(analiticaData.desviacionCoste)} icon={analiticaData.desviacionCoste > 0 ? TrendingDown : TrendingUp} className={analiticaData.desviacionCoste > 0 ? 'text-destructive' : 'text-green-600'} description="Coste Real vs. Planificado."/>
+                <KpiCard title="Desviación de Horas" value={formatNumber(analiticaData.desviacionHoras, 2) + 'h'} icon={analiticaData.desviacionHoras > 0 ? TrendingDown : TrendingUp} className={analiticaData.desviacionHoras > 0 ? 'text-destructive' : 'text-green-600'} description="Horas Reales vs. Planificadas."/>
+                <KpiCard title="Valoración Media" value={formatNumber(performanceTotals.mediaValoracion, 2)} icon={Star} description="Valoración media de todo el personal externo."/>
             </div>
             
             <Tabs defaultValue="resumen">
@@ -425,7 +438,7 @@ export default function AnaliticaRrhhPage() {
                 </TabsContent>
                  <TabsContent value="detalle">
                      <Card>
-                        <CardHeader><CardTitle>Detalle por Trabajador</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Detalle por Turno</CardTitle></CardHeader>
                         <CardContent>
                             <div className="border rounded-lg max-h-[60vh] overflow-y-auto">
                                 <Table>
@@ -602,5 +615,3 @@ export default function AnaliticaRrhhPage() {
         </main>
     );
 }
-
-    
