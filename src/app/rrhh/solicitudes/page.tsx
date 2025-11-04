@@ -22,22 +22,16 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from 
 import { calculateHours, formatNumber } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
-const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'success' | 'secondary' | 'warning' | 'destructive' | 'outline' | 'default'} = {
-  'Solicitado': 'warning',
+const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
+  'Solicitado': 'secondary',
   'Aprobada': 'outline',
   'Rechazada': 'destructive',
   'Asignada': 'default',
-  'Confirmado': 'success',
+  'Confirmado': 'default',
   'Solicitada Cancelacion': 'destructive',
   'Cerrado': 'secondary'
-};
-
-const partidaColorClasses = {
-  FRIO: 'bg-blue-100 text-blue-800',
-  CALIENTE: 'bg-red-100 text-red-800',
-  PASTELERIA: 'bg-purple-100 text-purple-800',
-  EXPEDICION: 'bg-yellow-100 text-yellow-800',
 };
 
 function CommentModal({ comment, trigger }: { comment: string, trigger: React.ReactNode }) {
@@ -226,7 +220,7 @@ export default function SolicitudesCprPage() {
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
                             <TableCell className="font-semibold">{formatNumber(calculateHours(s.horaInicio, s.horaFin), 2)}h</TableCell>
-                            <TableCell><Badge className={cn("text-black", partidaColorClasses[s.partida])}>{s.partida}</Badge></TableCell>
+                            <TableCell><Badge variant="outline">{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>{s.motivo}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado] || 'secondary'}>{s.estado}</Badge></TableCell>
@@ -334,5 +328,3 @@ export default function SolicitudesCprPage() {
     </div>
   )
 }
-
-    
