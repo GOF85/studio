@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -67,7 +66,6 @@ export default function SolicitudesCprPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
-  const [managementAction, setManagementAction] = useState<'delete' | 'cancel' | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -97,34 +95,35 @@ export default function SolicitudesCprPage() {
       return searchMatch && dateMatch;
     }).sort((a,b) => new Date(b.fechaSolicitud).getTime() - new Date(a.fechaSolicitud).getTime());
   }, [solicitudes, searchTerm, dateFilter]);
-
-  const handleActionClick = (solicitud: SolicitudPersonalCPR, action: 'delete' | 'cancel') => {
-    setSolicitudToManage(solicitud);
-    setManagementAction(action);
-  };
   
-  const confirmAction = () => {
-    if (!solicitudToManage || !managementAction) return;
-
-    let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-
-    if (managementAction === 'delete') {
-        const updatedRequests = allRequests.filter(r => r.id !== solicitudToManage.id);
-        localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updatedRequests));
-        setSolicitudes(updatedRequests);
-        toast({ title: 'Solicitud Eliminada' });
-    } else if (managementAction === 'cancel') {
-        const index = allRequests.findIndex(r => r.id === solicitudToManage.id);
-        if (index > -1) {
-            allRequests[index].estado = 'Solicitada Cancelacion';
-            localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-            setSolicitudes(allRequests);
-            toast({ title: 'Cancelación Solicitada', description: 'RRHH ha sido notificado para confirmar la cancelación.' });
-        }
-    }
-    setSolicitudToManage(null);
-    setManagementAction(null);
+  const handleOpenDialog = (solicitud: SolicitudPersonalCPR) => {
+    setSolicitudToManage(solicitud);
   };
+
+  const handleAction = (action: 'aprobar' | 'rechazar' | 'asignar', data?: any) => {
+    if(!solicitudToManage) return;
+
+    const updatedSolicitudes = solicitudes.map(s => {
+        if (s.id === solicitudToManage.id) {
+            switch(action) {
+                case 'aprobar':
+                    return {...s, estado: 'Aprobada' as const};
+                case 'rechazar':
+                    return {...s, estado: 'Rechazada' as const, observacionesRRHH: data.reason};
+                case 'asignar':
+                    const tipoPersonal = tiposPersonal.find(tp => tp.id === data.proveedorId);
+                    const coste = calculateHours(s.horaInicio, s.horaFin) * (tipoPersonal?.precioHora || 0);
+                    return {...s, estado: 'Asignada' as const, proveedorId: data.proveedorId, costeImputado: coste};
+            }
+        }
+        return s;
+    });
+
+    localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updatedSolicitudes));
+    setSolicitudes(updatedSolicitudes);
+    setSolicitudToManage(null);
+    toast({title: 'Estado de la solicitud actualizado'});
+  }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
@@ -133,10 +132,7 @@ export default function SolicitudesCprPage() {
   return (
     <div>
         <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Mis Solicitudes de Personal</h1>
-            <Button onClick={() => router.push('/cpr/solicitud-personal/nueva')}>
-                <PlusCircle className="mr-2" /> Nueva Solicitud
-            </Button>
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Solicitudes de Personal (CPR)</h1>
         </div>
 
       <div className="flex gap-4 mb-4">
@@ -185,13 +181,12 @@ export default function SolicitudesCprPage() {
                         const tipoPersonalAsignado = tiposPersonal.find(t => t.id === s.proveedorId);
                         const proveedorNombre = tipoPersonalAsignado ? proveedoresMap.get(tipoPersonalAsignado.proveedorId) : null;
                         const asignado = s.personalAsignado?.[0];
-
                         return (
-                        <TableRow key={s.id} onClick={() => handleActionClick(s, 'delete')} className="cursor-pointer">
+                        <TableRow key={s.id} onClick={() => handleOpenDialog(s)} className="cursor-pointer">
                             <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{s.horaInicio} - {s.horaFin}</TableCell>
                             <TableCell className="font-semibold">{formatNumber(calculateHours(s.horaInicio, s.horaFin), 2)}h</TableCell>
-                            <TableCell><Badge className={cn(partidaColorClasses[s.partida])}>{s.partida}</Badge></TableCell>
+                            <TableCell><Badge className={cn("text-black", partidaColorClasses[s.partida])}>{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
                             <TableCell>{s.motivo}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado]}>{s.estado}</Badge></TableCell>
@@ -216,7 +211,7 @@ export default function SolicitudesCprPage() {
                         </TableRow>
                     )}) : (
                         <TableRow>
-                            <TableCell colSpan={9} className="h-24 text-center">No has realizado ninguna solicitud.</TableCell>
+                            <TableCell colSpan={9} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -224,21 +219,43 @@ export default function SolicitudesCprPage() {
         </CardContent>
       </Card>
       
-      <AlertDialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    {managementAction === 'delete' && 'Esta acción eliminará la solicitud permanentemente.'}
-                    {managementAction === 'cancel' && 'Se enviará una petición a RRHH para cancelar esta asignación. ¿Continuar?'}
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel>No</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmAction}>Sí, continuar</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <Dialog open={!!solicitudToManage} onOpenChange={() => setSolicitudToManage(null)}>
+            <ModalContent>
+                <ModalHeader>
+                    <ModalTitle>Gestionar Solicitud de Personal</ModalTitle>
+                </ModalHeader>
+                <div className="space-y-4 py-4">
+                    <p><strong>Categoría:</strong> {solicitudToManage?.categoria}</p>
+                    <p><strong>Fecha:</strong> {solicitudToManage?.fechaServicio ? format(new Date(solicitudToManage.fechaServicio), 'dd/MM/yyyy') : ''}</p>
+                    <p><strong>Horario:</strong> {solicitudToManage?.horaInicio} - {solicitudToManage?.horaFin}</p>
+                    <p><strong>Partida:</strong> {solicitudToManage?.partida}</p>
+                    
+                    {solicitudToManage?.estado === 'Solicitado' && (
+                        <div className="space-y-4 pt-4 border-t">
+                            <h4 className="font-bold">Acciones de RRHH</h4>
+                             <Button onClick={() => handleAction('aprobar')}>Aprobar Solicitud</Button>
+                            <Button variant="destructive" className="ml-2" onClick={() => handleAction('rechazar', { reason: prompt('Motivo del rechazo:') })}>Rechazar</Button>
+                        </div>
+                    )}
+                    
+                    {solicitudToManage?.estado === 'Aprobada' && (
+                        <div className="space-y-4 pt-4 border-t">
+                            <h4 className="font-bold">Asignar Proveedor</h4>
+                            <Select onValueChange={(value) => handleAction('asignar', { proveedorId: value })}>
+                                <SelectTrigger><SelectValue placeholder="Seleccionar ETT y categoría..." /></SelectTrigger>
+                                <SelectContent>
+                                    {tiposPersonal.map(tp => (
+                                        <SelectItem key={tp.id} value={tp.id}>
+                                            {proveedoresMap.get(tp.proveedorId)} - {tp.categoria} ({formatCurrency(tp.precioHora)}/h)
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                </div>
+            </ModalContent>
+        </Dialog>
     </div>
   )
 }
