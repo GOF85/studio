@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
@@ -12,7 +11,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, PersonalMiceOrder, PersonalExterno, SolicitudPersonalCPR, CategoriaPersonal, Proveedor, Personal, PersonalExternoDB } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrency, formatNumber, calculateHours } from '@/lib/utils';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -20,8 +19,11 @@ import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from '@/components/ui/badge';
 import { KpiCard } from '@/components/dashboard/kpi-card';
-import { Users, Clock, Euro, TrendingDown, TrendingUp, Calendar as CalendarIcon, Star } from 'lucide-react';
+import { Users, Clock, Euro, TrendingDown, TrendingUp, Calendar as CalendarIcon, Star, Printer } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 
 type DetalleTrabajador = {
@@ -87,6 +89,8 @@ export default function AnaliticaRrhhPage() {
     const [personalInterno, setPersonalInterno] = useState<Personal[]>([]);
     const [personalExternoDB, setPersonalExternoDB] = useState<PersonalExternoDB[]>([]);
     const [tiposPersonal, setTiposPersonal] = useState<CategoriaPersonal[]>([]);
+
+    const [selectedWorkerForModal, setSelectedWorkerForModal] = useState<{ id: string, nombre: string } | null>(null);
 
 
     useEffect(() => {
@@ -230,35 +234,52 @@ export default function AnaliticaRrhhPage() {
 
     }, [isMounted, dateRange, proveedorFilter, allPersonalMice, allPersonalExterno, allSolicitudesCPR, proveedores, personalInterno, personalExternoDB, tiposPersonal]);
     
-    const workerPerformanceSummary = useMemo(() => {
-        if (!analiticaData.detalleCompleto) return [];
+    const { workerPerformanceSummary, performanceTotals } = useMemo(() => {
+        if (!analiticaData.detalleCompleto) return { workerPerformanceSummary: [], performanceTotals: { totalJornadas: 0, totalHorasReales: 0, totalCosteReal: 0, mediaValoracion: 0 }};
 
-        const summary = new Map<string, { totalJornadas: number; ratings: number[]; nombre: string }>();
+        const summary = new Map<string, { totalJornadas: number; totalHoras: number; totalCoste: number; ratings: number[]; nombre: string }>();
 
         analiticaData.detalleCompleto.forEach(turno => {
             if (!turno.trabajadorId || !turno.esExterno) return;
 
             let workerData = summary.get(turno.trabajadorId);
             if (!workerData) {
-                workerData = { totalJornadas: 0, ratings: [], nombre: turno.nombre };
+                workerData = { totalJornadas: 0, totalHoras: 0, totalCoste: 0, ratings: [], nombre: turno.nombre };
                 summary.set(turno.trabajadorId, workerData);
             }
 
             workerData.totalJornadas += 1;
+            workerData.totalHoras += turno.horasReales;
+            workerData.totalCoste += turno.costeReal;
             if (turno.rating) {
                 workerData.ratings.push(turno.rating);
             }
         });
 
-        return Array.from(summary.entries()).map(([id, worker]) => {
+        const performanceArray = Array.from(summary.entries()).map(([id, worker]) => {
             const avgRating = worker.ratings.length > 0 ? worker.ratings.reduce((a, b) => a + b, 0) / worker.ratings.length : 0;
             return {
                 id,
                 nombre: worker.nombre,
                 totalJornadas: worker.totalJornadas,
+                totalHoras: worker.totalHoras,
+                totalCoste: worker.totalCoste,
                 avgRating,
             };
-        }).sort((a, b) => b.avgRating - a.avgRating);
+        }).sort((a, b) => b.totalJornadas - a.totalJornadas);
+        
+        const totals = performanceArray.reduce((acc, worker) => {
+            acc.totalJornadas += worker.totalJornadas;
+            acc.totalHorasReales += worker.totalHoras;
+            acc.totalCosteReal += worker.totalCoste;
+            return acc;
+        }, { totalJornadas: 0, totalHorasReales: 0, totalCosteReal: 0 });
+
+        const allRatings = performanceArray.flatMap(w => w.avgRating > 0 ? w.avgRating : []);
+        const mediaValoracion = allRatings.length > 0 ? allRatings.reduce((a,b) => a+b, 0) / allRatings.length : 0;
+
+
+        return { workerPerformanceSummary: performanceArray, performanceTotals: { ...totals, mediaValoracion } };
     }, [analiticaData.detalleCompleto]);
 
 
@@ -275,6 +296,45 @@ export default function AnaliticaRrhhPage() {
         }
         setDateRange({ from: fromDate, to: toDate });
     };
+    
+    const handlePrintWorkerHistory = () => {
+        if (!selectedWorkerDetails) return;
+
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Historial de Servicios: ${selectedWorkerDetails.nombre}`, 14, 22);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Periodo: ${dateRange?.from ? format(dateRange.from, 'dd/MM/yyyy') : ''} - ${dateRange?.to ? format(dateRange.to, 'dd/MM/yyyy') : ''}`, 14, 30);
+        
+        autoTable(doc, {
+            startY: 40,
+            head: [['Fecha', 'OS/Centro', 'Horario Real', 'Horas', 'Coste', 'Valoración', 'Comentarios']],
+            body: selectedWorkerDetails.turnos.map(t => [
+                format(new Date(t.fecha), 'dd/MM/yy'),
+                t.osNumber,
+                t.horarioReal || '-',
+                formatNumber(t.horasReales, 2) + 'h',
+                formatCurrency(t.costeReal),
+                '⭐'.repeat(t.rating || 0),
+                t.comentarios || '-'
+            ]),
+            headStyles: { fillColor: [34, 197, 94] },
+            columnStyles: { 6: { cellWidth: 'auto' }}
+        });
+
+        doc.save(`Historial_${selectedWorkerDetails.nombre.replace(/\s/g, '_')}.pdf`);
+    };
+
+    const selectedWorkerDetails = useMemo(() => {
+        if (!selectedWorkerForModal) return null;
+        return {
+            ...selectedWorkerForModal,
+            turnos: analiticaData.detalleCompleto.filter(t => t.trabajadorId === selectedWorkerForModal.id)
+        }
+    }, [selectedWorkerForModal, analiticaData.detalleCompleto]);
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Analítica de RRHH..." />;
@@ -413,7 +473,31 @@ export default function AnaliticaRrhhPage() {
                  <TabsContent value="valoracion">
                     <div className="space-y-6">
                         <Card>
-                             <CardHeader><CardTitle>Resumen de Rendimiento de Personal Externo</CardTitle></CardHeader>
+                            <CardHeader>
+                                <CardTitle>Resumen Global del Personal Externo</CardTitle>
+                                <CardDescription>Totales para todos los trabajadores externos en el periodo seleccionado.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                <TableBody>
+                                <TableRow>
+                                    <TableHead className="font-bold">Total Jornadas</TableHead>
+                                    <TableCell>{performanceTotals.totalJornadas}</TableCell>
+                                    <TableHead className="font-bold">Total Horas Reales</TableHead>
+                                    <TableCell>{formatNumber(performanceTotals.totalHorasReales, 2)}h</TableCell>
+                                    <TableHead className="font-bold">Coste Real Total</TableHead>
+                                    <TableCell>{formatCurrency(performanceTotals.totalCosteReal)}</TableCell>
+                                    <TableHead className="font-bold">Valoración Media</TableHead>
+                                    <TableCell className="flex items-center gap-2">
+                                        <StarRating rating={performanceTotals.mediaValoracion} /> ({formatNumber(performanceTotals.mediaValoracion, 2)})
+                                    </TableCell>
+                                </TableRow>
+                                </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader><CardTitle>Resumen de Rendimiento por Trabajador Externo</CardTitle></CardHeader>
                              <CardContent>
                                  <div className="border rounded-lg max-h-96 overflow-y-auto">
                                      <Table>
@@ -426,7 +510,7 @@ export default function AnaliticaRrhhPage() {
                                          </TableHeader>
                                          <TableBody>
                                              {workerPerformanceSummary.map(w => (
-                                                 <TableRow key={w.id}>
+                                                 <TableRow key={w.id} onClick={() => setSelectedWorkerForModal({ id: w.id, nombre: w.nombre })} className="cursor-pointer hover:bg-muted/50">
                                                      <TableCell className="font-semibold">{w.nombre}</TableCell>
                                                      <TableCell className="text-center">{w.totalJornadas}</TableCell>
                                                      <TableCell>
@@ -464,7 +548,7 @@ export default function AnaliticaRrhhPage() {
                                                     <TableCell>{format(new Date(t.fecha), 'dd/MM/yy')}</TableCell>
                                                     <TableCell className="text-center font-bold text-lg text-amber-500">
                                                         <div className="flex justify-center">
-                                                            {'⭐'.repeat(t.rating || 0)}
+                                                            <StarRating rating={t.rating || 0} />
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-sm text-muted-foreground">{t.comentarios}</TableCell>
@@ -478,7 +562,43 @@ export default function AnaliticaRrhhPage() {
                     </div>
                  </TabsContent>
             </Tabs>
+             <Dialog open={!!selectedWorkerForModal} onOpenChange={() => setSelectedWorkerForModal(null)}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader className="flex-row justify-between items-center">
+                        <DialogTitle>Historial de Servicios: {selectedWorkerForModal?.nombre}</DialogTitle>
+                         <Button variant="outline" size="sm" onClick={handlePrintWorkerHistory}>
+                            <Printer className="mr-2 h-4 w-4" />
+                            Imprimir Historial
+                        </Button>
+                    </DialogHeader>
+                    <div className="max-h-[60vh] overflow-y-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Fecha</TableHead>
+                                    <TableHead>OS / Centro</TableHead>
+                                    <TableHead>Horario Real</TableHead>
+                                    <TableHead>Horas</TableHead>
+                                    <TableHead>Coste</TableHead>
+                                    <TableHead>Valoración</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {selectedWorkerDetails?.turnos.map(t => (
+                                    <TableRow key={t.id}>
+                                        <TableCell>{format(new Date(t.fecha), 'dd/MM/yy')}</TableCell>
+                                        <TableCell><Badge variant="outline">{t.osNumber}</Badge></TableCell>
+                                        <TableCell>{t.horarioReal}</TableCell>
+                                        <TableCell>{formatNumber(t.horasReales, 2)}h</TableCell>
+                                        <TableCell>{formatCurrency(t.costeReal)}</TableCell>
+                                        <TableCell><StarRating rating={t.rating || 0} /></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </main>
     );
 }
-
