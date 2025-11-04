@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useMemo } from 'react';
-import { Users, Menu, ChevronRight } from 'lucide-react';
+import { Users, Menu, ChevronRight, BarChart3, UserPlus } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { rrhhNav } from '@/lib/rrhh-nav';
@@ -46,8 +46,18 @@ export default function RrhhLayout({ children }: { children: React.ReactNode }) 
     const pathname = usePathname();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
-    const currentPage = useMemo(() => {
-        return rrhhNav.find(item => pathname.startsWith(item.href) && item.href !== '/rrhh');
+    const { currentPage, subPage } = useMemo(() => {
+        const pathSegments = pathname.split('/').filter(Boolean);
+        const mainPage = rrhhNav.find(item => pathSegments[1] === item.href.split('/')[2]);
+        
+        if (pathSegments[2] === 'analitica' && pathSegments[3] === 'externos') {
+            return {
+                currentPage: mainPage,
+                subPage: { title: 'Personal Externo', icon: UserPlus }
+            }
+        }
+        
+        return { currentPage: mainPage, subPage: null };
     }, [pathname]);
 
     return (
@@ -69,13 +79,22 @@ export default function RrhhLayout({ children }: { children: React.ReactNode }) 
                             <Users className="h-5 w-5"/>
                             <span>Recursos Humanos</span>
                         </Link>
-                        {currentPage && (
+                        {currentPage && currentPage.href !== '/rrhh' && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                 <Link href={currentPage.href} className="flex items-center gap-2 font-bold text-primary">
+                                 <Link href={currentPage.href} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
                                     <currentPage.icon className="h-5 w-5"/>
                                     <span>{currentPage.title}</span>
                                 </Link>
+                            </>
+                        )}
+                        {subPage && (
+                             <>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground"/>
+                                 <span className="flex items-center gap-2 font-bold text-primary">
+                                    <subPage.icon className="h-5 w-5"/>
+                                    <span>{subPage.title}</span>
+                                </span>
                             </>
                         )}
                     </div>
