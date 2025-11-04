@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
@@ -67,7 +67,7 @@ export default function AnaliticaRrhhPage() {
 
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
-
+        
         const costePorProveedor: Record<string, number> = {};
         const horasPorCategoria: Record<string, number> = {};
         const detallePorTrabajador: Record<string, { id: string; nombre: string; esExterno: boolean; horas: number; coste: number }> = {};
