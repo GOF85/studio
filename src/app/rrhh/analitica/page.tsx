@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear, endOfQuarter, subDays, startOfDay, parseISO } from 'date-fns';
+import { format, parseISO, startOfToday, subDays, isWithinInterval, endOfDay, startOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
@@ -163,7 +163,7 @@ export default function AnaliticaRrhhPage() {
             const trabajador = personalInterno.find(p => p.nombre === order.nombre);
             if(trabajador) {
                 detalleCompleto.push({
-                    id: `${order.id}-mice`, trabajadorId: trabajador.id, nombre: `${trabajador.nombre} ${trabajador.apellidos}`, esExterno: false, proveedor: 'MICE', osNumber: os.serviceNumber, osId: os.id,
+                    id: `${order.id}-mice`, trabajadorId: trabajador.id, nombre: `${trabajador.nombre} ${trabajador.apellido1}`, esExterno: false, proveedor: 'MICE', osNumber: os.serviceNumber, osId: os.id,
                     fecha: os.startDate, categoria: trabajador.categoria, horarioPlanificado: `${order.horaEntrada}-${order.horaSalida}`, horarioReal: `${order.horaEntradaReal}-${order.horaSalidaReal}`,
                     horasPlanificadas: plannedHours, horasReales: realHours, costePlanificado: costePlanificadoTurno, costeReal: costeRealTurno
                 });
@@ -639,4 +639,3 @@ export default function AnaliticaRrhhPage() {
     );
 }
 
-    
