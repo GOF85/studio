@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { calculateHours, formatNumber } from '@/lib/utils';
+import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -199,7 +199,7 @@ export default function SolicitudesCprPage() {
                         <TableHead>Horas</TableHead>
                         <TableHead>Partida</TableHead>
                         <TableHead>Categoría</TableHead>
-                        <TableHead>Comentario</TableHead>
+                        <TableHead>Motivo</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Asignado a</TableHead>
                     </TableRow>
