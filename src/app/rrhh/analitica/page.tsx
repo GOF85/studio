@@ -69,6 +69,7 @@ export default function AnaliticaRrhhPage() {
     const [proveedores, setProveedores] = useState<Proveedor[]>([]);
     const [personalInterno, setPersonalInterno] = useState<Personal[]>([]);
     const [personalExternoDB, setPersonalExternoDB] = useState<PersonalExternoDB[]>([]);
+    const [tiposPersonal, setTiposPersonal] = useState<CategoriaPersonal[]>([]);
 
 
     useEffect(() => {
@@ -78,15 +79,15 @@ export default function AnaliticaRrhhPage() {
         setProveedores(JSON.parse(localStorage.getItem('proveedores') || '[]'));
         setPersonalInterno(JSON.parse(localStorage.getItem('personal') || '[]'));
         setPersonalExternoDB(JSON.parse(localStorage.getItem('personalExternoDB') || '[]'));
+        setTiposPersonal(JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]);
         setIsMounted(true);
     }, []);
 
     const uniqueProveedores = useMemo(() => {
         const ettIds = new Set(allPersonalExterno.flatMap(p => p.turnos.map(t => t.proveedorId)));
-        const tiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
         tiposPersonal.forEach(tp => ettIds.add(tp.proveedorId));
         return proveedores.filter(p => ettIds.has(p.id) && p.tipos.includes('Personal'));
-    }, [allPersonalExterno, proveedores]);
+    }, [allPersonalExterno, proveedores, tiposPersonal]);
 
     const analiticaData: AnaliticaData = useMemo(() => {
         if (!isMounted || !dateRange?.from) return { costeTotal: 0, costePlanificado: 0, desviacion: 0, horasTotales: 0, numTurnos: 0, costePorProveedor: [], horasPorCategoria: [], detalleCompleto: [] };
@@ -126,7 +127,7 @@ export default function AnaliticaRrhhPage() {
             }
         });
         
-        const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
+        const tiposPersonalMap = new Map((tiposPersonal || []).map(t => [t.id, t]));
 
 
         // Personal Externo Eventos
@@ -168,9 +169,10 @@ export default function AnaliticaRrhhPage() {
         allSolicitudesCPR.forEach(solicitud => {
             if (!isWithinInterval(new Date(solicitud.fechaServicio), { start: rangeStart, end: rangeEnd })) return;
             if (solicitud.estado !== 'Cerrado') return;
-             if (proveedorFilter !== 'all' && solicitud.proveedorId !== proveedorFilter) return;
-
+            
             const tipoPersonal = tiposPersonalMap.get(solicitud.proveedorId || '');
+            if (proveedorFilter !== 'all' && tipoPersonal?.proveedorId !== proveedorFilter) return;
+
             const plannedHours = calculateHours(solicitud.horaInicio, solicitud.horaFin);
             const costePlanificadoTurno = plannedHours * (tipoPersonal?.precioHora || 0);
 
@@ -206,7 +208,7 @@ export default function AnaliticaRrhhPage() {
             detalleCompleto: detalleCompleto.sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()),
         };
 
-    }, [isMounted, dateRange, proveedorFilter, allPersonalMice, allPersonalExterno, allSolicitudesCPR, proveedores, personalInterno, personalExternoDB]);
+    }, [isMounted, dateRange, proveedorFilter, allPersonalMice, allPersonalExterno, allSolicitudesCPR, proveedores, personalInterno, personalExternoDB, tiposPersonal]);
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
         const now = new Date();
@@ -337,7 +339,7 @@ export default function AnaliticaRrhhPage() {
                                                 <TableCell className="font-semibold">{t.nombre}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={t.esExterno ? 'outline' : 'secondary'}>
-                                                        {t.esExterno ? t.proveedor : 'MICE'}
+                                                        {t.proveedor}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell><Badge variant="outline">{t.osNumber}</Badge></TableCell>
@@ -378,7 +380,7 @@ export default function AnaliticaRrhhPage() {
                                                 <TableCell className="font-semibold">{t.nombre}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={t.esExterno ? 'outline' : 'secondary'}>
-                                                        {t.esExterno ? t.proveedor : 'MICE'}
+                                                        {t.proveedor}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell><Badge variant="outline">{t.osNumber}</Badge></TableCell>
@@ -401,3 +403,4 @@ export default function AnaliticaRrhhPage() {
         </main>
     );
 }
+
