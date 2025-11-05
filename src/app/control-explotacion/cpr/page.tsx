@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { AreaChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info, MessageSquare, Save } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachMonthOfInterval, startOfYear, endOfYear, endOfMonth, startOfQuarter, endOfQuarter, subDays, startOfMonth, getYear } from 'date-fns';
@@ -122,7 +122,7 @@ export default function CprControlExplotacionPage() {
         setAllCesionesPersonal(JSON.parse(localStorage.getItem('cesionesPersonal') || '[]'));
 
         const personalData = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        setPersonalMap(new Map(personalData.map(p => [p.id, p])));
+        setPersonalMap(new Map(personalData.map(p => [p.nombreCompleto, p])));
         setPersonalInterno(personalData);
 
 
@@ -140,6 +140,7 @@ export default function CprControlExplotacionPage() {
         const storedComentarios = osId ? (JSON.parse(localStorage.getItem('ctaComentarios') || '{}')[osId] || {}) : {};
         setComentarios(storedComentarios);
         
+        // Load real costs from localStorage for persistence
         const storedRealCosts = osId ? (JSON.parse(localStorage.getItem('ctaRealCosts') || '{}')[osId] || {}) : {};
         setRealCostInputs(storedRealCosts);
 
@@ -213,14 +214,21 @@ export default function CprControlExplotacionPage() {
             return sum + orderTotal;
         }, 0);
         
-        const cesionesEnRango = allCesionesPersonal.filter(c => c.fecha && isWithinInterval(parseISO(c.fecha), { start: rangeStart, end: rangeEnd }));
-        const localPersonalMap = new Map((personalInterno || []).map(p => [p.nombreCompleto, p]));
+        const cesionesEnRango = allCesionesPersonal.filter(c => {
+          if (!c.fecha) return false;
+          try {
+            const fechaCesion = new Date(c.fecha.replace(/-/g, '/'));
+            return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
+          } catch(e) {
+            return false;
+          }
+        });
 
         let ingresosCesionPersonalPlanificado = 0, ingresosCesionPersonalCierre = 0;
         let gastosCesionPersonalPlanificado = 0, gastosCesionPersonalCierre = 0;
         
         cesionesEnRango.forEach(c => {
-            const personalInfo = localPersonalMap.get(c.nombre);
+            const personalInfo = personalMap.get(c.nombre);
             if (!personalInfo) return;
 
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
@@ -274,13 +282,12 @@ export default function CprControlExplotacionPage() {
         
         return { kpis, objetivo: allObjetivos.find(o => o.mes === format(objetivoMes, 'yyyy-MM')) || {}, costeEscandallo, ingresosVenta, ingresosCesionPersonalPlanificado, ingresosCesionPersonalCierre, gastosCesionPersonalPlanificado, gastosCesionPersonalCierre, costesFijosPeriodo: otrosGastos, facturacionNeta: ingresosTotales, costePersonalSolicitadoPlanificado, costePersonalSolicitadoCierre };
 
-    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes, allCesionesPersonal, personalInterno]);
+    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes, allCesionesPersonal, personalMap]);
 
     const dataAcumulada = useMemo(() => {
         if (!isMounted) return [];
         const mesesDelAno = eachMonthOfInterval({ start: startOfYear(new Date()), end: endOfYear(new Date())});
-        
-        const localPersonalMap = new Map((personalInterno || []).map(p => [p.nombreCompleto, p]));
+        const personalMapLocal = new Map((personalInterno || []).map(p => [p.nombreCompleto, p]));
 
         return mesesDelAno.map(month => {
             const rangeStart = startOfMonth(month);
@@ -309,10 +316,18 @@ export default function CprControlExplotacionPage() {
                 }, 0);
             }, 0);
             
-            const cesionesEnRango = allCesionesPersonal.filter(c => c.fecha && isWithinInterval(parseISO(c.fecha.replace(/-/g, '/')), { start: rangeStart, end: rangeEnd }));
+            const cesionesEnRango = allCesionesPersonal.filter(c => {
+                if (!c.fecha) return false;
+                try {
+                    const fechaCesion = new Date(c.fecha.replace(/-/g, '/'));
+                    return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
+                } catch(e) {
+                    return false;
+                }
+            });
 
-            const ingresosCesionPersonal = cesionesEnRango.filter(c => localPersonalMap.get(c.nombre)?.departamento === 'CPR' && c.centroCoste !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
-            const gastosCesionPersonal = cesionesEnRango.filter(c => c.centroCoste === 'CPR' && localPersonalMap.get(c.nombre)?.departamento !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
+            const ingresosCesionPersonal = cesionesEnRango.filter(c => personalMapLocal.get(c.nombre)?.departamento === 'CPR' && c.centroCoste !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
+            const gastosCesionPersonal = cesionesEnRango.filter(c => c.centroCoste === 'CPR' && personalMapLocal.get(c.nombre)?.departamento !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
             
             const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
                  try {
