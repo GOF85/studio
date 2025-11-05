@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { AreaChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info, MessageSquare, Save } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachMonthOfInterval, startOfYear, endOfYear, endOfMonth, startOfQuarter, endOfQuarter, subDays, startOfMonth, getYear } from 'date-fns';
@@ -30,6 +30,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency, formatNumber, formatPercentage, calculateHours } from '@/lib/utils';
+import type { ObjetivosGasto } from '@/types';
 
 
 type KpiCardProps = {
@@ -103,6 +104,7 @@ export default function CprControlExplotacionPage() {
     const [allSolicitudesPersonalCPR, setAllSolicitudesPersonalCPR] = useState<SolicitudPersonalCPR[]>([]);
     const [allCesionesPersonal, setAllCesionesPersonal] = useState<CesionStorage[]>([]);
     const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
+    const [personalInterno, setPersonalInterno] = useState<Personal[]>([]);
     
     // Estados para valores manuales
     const [realCostInputs, setRealCostInputs] = useState<Record<string, number | undefined>>({});
@@ -121,6 +123,8 @@ export default function CprControlExplotacionPage() {
 
         const personalData = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
         setPersonalMap(new Map(personalData.map(p => [p.id, p])));
+        setPersonalInterno(personalData);
+
 
         const objetivosData = JSON.parse(localStorage.getItem('objetivosCPR') || '[]') as ObjetivoMensualCPR[];
         setAllObjetivos(objetivosData);
@@ -209,19 +213,11 @@ export default function CprControlExplotacionPage() {
             return sum + orderTotal;
         }, 0);
         
-        const cesionesEnRango = allCesionesPersonal.filter(c => {
-            try {
-                // Parse date as YYYY/MM/DD to avoid timezone issues with `new Date()`
-                const fechaCesion = new Date(c.fecha.replace(/-/g, '/'));
-                return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
-            } catch (e) {
-                return false;
-            }
-        });
+        const cesionesEnRango = allCesionesPersonal.filter(c => c.fecha && isWithinInterval(parseISO(c.fecha), { start: rangeStart, end: rangeEnd }));
+        const localPersonalMap = new Map((personalInterno || []).map(p => [p.nombreCompleto, p]));
 
         let ingresosCesionPersonalPlanificado = 0, ingresosCesionPersonalCierre = 0;
         let gastosCesionPersonalPlanificado = 0, gastosCesionPersonalCierre = 0;
-        const localPersonalMap = new Map(Array.from(personalMap.values()).map(p => [p.nombreCompleto, p]));
         
         cesionesEnRango.forEach(c => {
             const personalInfo = localPersonalMap.get(c.nombre);
@@ -278,13 +274,13 @@ export default function CprControlExplotacionPage() {
         
         return { kpis, objetivo: allObjetivos.find(o => o.mes === format(objetivoMes, 'yyyy-MM')) || {}, costeEscandallo, ingresosVenta, ingresosCesionPersonalPlanificado, ingresosCesionPersonalCierre, gastosCesionPersonalPlanificado, gastosCesionPersonalCierre, costesFijosPeriodo: otrosGastos, facturacionNeta: ingresosTotales, costePersonalSolicitadoPlanificado, costePersonalSolicitadoCierre };
 
-    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes, allCesionesPersonal, personalMap]);
+    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes, allCesionesPersonal, personalInterno]);
 
     const dataAcumulada = useMemo(() => {
         if (!isMounted) return [];
         const mesesDelAno = eachMonthOfInterval({ start: startOfYear(new Date()), end: endOfYear(new Date())});
         
-        const localPersonalMap = new Map((JSON.parse(localStorage.getItem('personal') || '[]') as Personal[]).map(p => [p.nombreCompleto, p]));
+        const localPersonalMap = new Map((personalInterno || []).map(p => [p.nombreCompleto, p]));
 
         return mesesDelAno.map(month => {
             const rangeStart = startOfMonth(month);
@@ -313,7 +309,8 @@ export default function CprControlExplotacionPage() {
                 }, 0);
             }, 0);
             
-            const cesionesEnRango = allCesionesPersonal.filter(c => isWithinInterval(new Date(c.fecha.replace(/-/g, '/')), { start: rangeStart, end: rangeEnd }));
+            const cesionesEnRango = allCesionesPersonal.filter(c => c.fecha && isWithinInterval(parseISO(c.fecha.replace(/-/g, '/')), { start: rangeStart, end: rangeEnd }));
+
             const ingresosCesionPersonal = cesionesEnRango.filter(c => localPersonalMap.get(c.nombre)?.departamento === 'CPR' && c.centroCoste !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
             const gastosCesionPersonal = cesionesEnRango.filter(c => c.centroCoste === 'CPR' && localPersonalMap.get(c.nombre)?.departamento !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
             
@@ -355,7 +352,7 @@ export default function CprControlExplotacionPage() {
             }
         });
 
-    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal, personalMap]);
+    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal, personalInterno]);
 
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -416,19 +413,15 @@ export default function CprControlExplotacionPage() {
         { label: "Cesión de Personal", presupuesto: ingresosCesionPersonalPlanificado, cierre: ingresosCesionPersonalCierre, real: realCostInputs['Cesión de Personal'] ?? ingresosCesionPersonalCierre, objetivo: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), objetivo_pct: (objetivo.presupuestoCesionPersonal || 0) / 100, comentario: comentarios['Cesión de Personal'] },
         { label: GASTO_LABELS.gastronomia, presupuesto: costeEscandallo, cierre: costeEscandallo, real: realCostInputs[GASTO_LABELS.gastronomia] ?? costeEscandallo, objetivo: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosMP || 0) / 100, comentario: comentarios[GASTO_LABELS.gastronomia], detailType: 'costeMP' },
         { label: "Personal Cedido a CPR", presupuesto: gastosCesionPersonalPlanificado, cierre: gastosCesionPersonalCierre, real: realCostInputs["Personal Cedido a CPR"] ?? gastosCesionPersonalCierre, objetivo: 0, objetivo_pct: 0, comentario: comentarios["Personal Cedido a CPR"]},
-        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitadoPlanificado, cierre: costePersonalSolicitadoCierre, real: realCostInputs[GASTO_LABELS.personalSolicitadoCpr] ?? costePersonalSolicitadoCierre, objetivo: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosPersonalExterno || 0) / 100, comentario: comentarios[GASTO_LABELS.personalSolicitadoCpr], detailType: 'personalApoyo' },
+        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitadoPlanificado, cierre: costePersonalSolicitadoCierre, real: realCostInputs[GASTO_LABELS.personalSolicitadoCpr] ?? costePersonalSolicitadoCierre, objetivo: facturacionNeta * ((objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100), objetivo_pct: (objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100, comentario: comentarios[GASTO_LABELS.personalSolicitadoCpr], detailType: 'personalApoyo' },
         { label: "Otros Gastos", presupuesto: costesFijosPeriodo, cierre: costesFijosPeriodo, real: realCostInputs['Otros Gastos'] ?? costesFijosPeriodo, objetivo: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), objetivo_pct: (objetivo.presupuestoOtrosGastos || 0) / 100, comentario: comentarios['Otros Gastos'] },
     ];
     const ingresos = tablaExplotacion.filter(r => ["Venta Gastronomía", "Cesión de Personal"].includes(r.label));
     const gastos = tablaExplotacion.filter(r => !["Venta Gastronomía", "Cesión de Personal"].includes(r.label));
 
-    const totalIngresos = ingresos.reduce((sum, r) => sum + r.real, 0);
-    const totalPresupuesto = gastos.reduce((sum, r) => sum + r.presupuesto, 0);
-    const totalCierre = gastos.reduce((sum, r) => sum + r.cierre, 0);
-    const totalReal = gastos.reduce((sum, r) => sum + r.real, 0);
-    const totalObjetivo = gastos.reduce((sum, r) => sum + r.objetivo, 0);
-
-    const rentabilidadReal = facturacionNeta - totalReal;
+    const totalRealIngresos = ingresos.reduce((sum, r) => sum + r.real, 0);
+    const totalRealGastos = gastos.reduce((sum, r) => sum + r.real, 0);
+    const rentabilidadReal = totalRealIngresos - totalRealGastos;
 
     const renderCostRow = (row: CostRow, index: number) => {
         const pctSFactPresupuesto = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
@@ -583,9 +576,9 @@ export default function CprControlExplotacionPage() {
                                             </TableRow>
                                         </TableHeader>
                                          <TableBody>
-                                            {renderSummaryRow('INGRESOS', totalIngresos, true)}
+                                            {renderSummaryRow('INGRESOS', totalRealIngresos, true)}
                                             {ingresos.map(renderCostRow)}
-                                            {renderSummaryRow('GASTOS', totalGastos, true)}
+                                            {renderSummaryRow('GASTOS', totalRealGastos, true)}
                                             {gastos.map(renderCostRow)}
                                             {renderFinalRow('RESULTADO', rentabilidadReal)}
                                         </TableBody>
@@ -679,6 +672,8 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
+    
 
     
 
