@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from "react"
@@ -96,18 +95,18 @@ export default function CprControlExplotacionPage() {
 
     // Estados para datos maestros
     const [allServiceOrders, setAllServiceOrders] = useState<ServiceOrder[]>([]);
-    const [allGastroOrders, setAllGastroOrders = useState<GastronomyOrder[]>([]);
-    const [allRecetas, setAllRecetas = useState<Receta[]>([]);
-    const [allPersonalMiceOrders, setAllPersonalMiceOrders = useState<PersonalMiceOrder[]>([]);
-    const [allCostesFijos, setAllCostesFijos = useState<CosteFijoCPR[]>([]);
-    const [allObjetivos, setAllObjetivos = useState<ObjetivoMensualCPR[]>([]);
-    const [allSolicitudesPersonalCPR, setAllSolicitudesPersonalCPR = useState<SolicitudPersonalCPR[]>([]);
+    const [allGastroOrders, setAllGastroOrders] = useState<GastronomyOrder[]>([]);
+    const [allRecetas, setAllRecetas] = useState<Receta[]>([]);
+    const [allPersonalMiceOrders, setAllPersonalMiceOrders] = useState<PersonalMiceOrder[]>([]);
+    const [allCostesFijos, setAllCostesFijos] = useState<CosteFijoCPR[]>([]);
+    const [allObjetivos, setAllObjetivos] = useState<ObjetivoMensualCPR[]>([]);
+    const [allSolicitudesPersonalCPR, setAllSolicitudesPersonalCPR] = useState<SolicitudPersonalCPR[]>([]);
     
     // Estados para valores manuales
-    const [costePersonalEtt, setCostePersonalEtt = useState(0);
-    const [realCostInputs, setRealCostInputs = useState<Record<string, number | undefined>>({});
-    const [comentarios, setComentarios = useState<Record<string, string>>({});
-    const [editingComment, setEditingComment = useState<{label: string, text: string} | null>(null);
+    const [costePersonalEtt, setCostePersonalEtt] = useState(0);
+    const [realCostInputs, setRealCostInputs] = useState<Record<string, number | undefined>>({});
+    const [comentarios, setComentarios] = useState<Record<string, string>>({});
+    const [editingComment, setEditingComment] = useState<{label: string, text: string} | null>(null);
 
     const osId = searchParams.get('osId');
 
@@ -225,9 +224,13 @@ export default function CprControlExplotacionPage() {
         
         const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
             const fechaServicio = new Date(solicitud.fechaServicio);
-            return solicitud.estado === 'Asignada' && isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
+            return solicitud.estado === 'Cerrado' && isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
         });
-        const costePersonalSolicitado = solicitudesPersonalEnRango.reduce((sum, s) => sum + (s.costeImputado || 0), 0);
+        const costePersonalSolicitado = solicitudesPersonalEnRango.reduce((sum, s) => {
+            const horas = calculateHours(s.personalAsignado?.[0]?.horaEntradaReal, s.personalAsignado?.[0]?.horaSalidaReal);
+            const precioHora = s.costeImputado ? s.costeImputado / calculateHours(s.horaInicio, s.horaFin) : 0;
+            return sum + (horas * precioHora);
+        }, 0);
 
         const mesObjetivoKey = format(objetivoMes, 'yyyy-MM');
         const objetivo = allObjetivos.find(o => o.mes === mesObjetivoKey) || { presupuestoVentas: 0, presupuestoCesionPersonal: 0, presupuestoGastosMP: 0, presupuestoGastosPersonalMice: 0, presupuestoGastosPersonalExterno: 0, presupuestoOtrosGastos: 0, presupuestoPersonalSolicitadoCpr: 0 };
@@ -287,9 +290,14 @@ export default function CprControlExplotacionPage() {
             
             const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
                 const fechaServicio = new Date(solicitud.fechaServicio);
-                return solicitud.estado === 'Asignada' && isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
+                return solicitud.estado === 'Cerrado' && isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
             });
-            const costePersonalSolicitado = solicitudesPersonalEnRango.reduce((sum, s) => sum + (s.costeImputado || 0), 0);
+            const costePersonalSolicitado = solicitudesPersonalEnRango.reduce((sum, s) => {
+                const horas = calculateHours(s.personalAsignado?.[0]?.horaEntradaReal, s.personalAsignado?.[0]?.horaSalidaReal);
+                const precioHora = s.costeImputado ? s.costeImputado / calculateHours(s.horaInicio, s.horaFin) : 0;
+                return sum + (horas * precioHora);
+            }, 0);
+
 
             // Nota: Estos costes son simplificaciones para el acumulado.
             const costePersonalMiceMes = allCostesFijos.find(c => c.concepto === 'Personal MICE CPR')?.importeMensual || 0;
@@ -334,19 +342,6 @@ export default function CprControlExplotacionPage() {
         setIsDatePickerOpen(false);
     };
 
-    const handleSaveComentario = () => {
-        if (!editingComment || !osId) return;
-        const newComentarios = { ...comentarios, [editingComment.label]: editingComment.text };
-        setComentarios(newComentarios);
-        
-        const allComentarios = JSON.parse(localStorage.getItem('ctaComentarios') || '{}');
-        allComentarios[osId] = newComentarios;
-        localStorage.setItem('ctaComentarios', JSON.stringify(allComentarios));
-        
-        setEditingComment(null);
-        toast({ title: "Comentario guardado" });
-    };
-    
     const handleRealCostInputChange = (label: string, value: string) => {
         const numericValue = value === '' ? undefined : parseFloat(value) || 0;
         setRealCostInputs(prev => ({...prev, [label]: numericValue}));
@@ -386,21 +381,12 @@ export default function CprControlExplotacionPage() {
     const totalGastos = gastos.reduce((sum, r) => sum + r.real, 0);
 
     const renderCostRow = (row: CostRow, index: number) => {
+        const pctSFactPresupuesto = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
+        const pctSFactCierre = facturacionNeta > 0 ? row.cierre / facturacionNeta : 0;
         const pctSFactReal = facturacionNeta > 0 ? row.real / facturacionNeta : 0;
-        const pptoPct = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
+        const desviacion = row.objetivo - row.real;
+        const desviacionPct = row.objetivo > 0 ? desviacion / row.objetivo : 0;
         
-        let desviacion, desviacionPct;
-
-        const isGasto = !["Venta Gastronomía", "Cesión de Personal"].includes(row.label);
-        
-        if (isGasto) {
-            desviacion = row.objetivo - row.real;
-            if(row.objetivo !== 0) desviacionPct = desviacion / row.objetivo;
-        } else {
-            desviacion = row.real - row.objetivo;
-             if(row.objetivo !== 0) desviacionPct = desviacion / row.objetivo;
-        }
-
         return (
              <TableRow key={`${row.label}-${index}`}>
                 <TableCell className="p-0 font-medium sticky left-0 bg-background z-10 w-48">
@@ -434,12 +420,8 @@ export default function CprControlExplotacionPage() {
                 <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-l">{formatCurrency(row.objetivo)}</TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
                 
-                <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion !== undefined && desviacion < 0 && "text-destructive font-bold", desviacion !== undefined && desviacion > 0 && "text-green-600 font-bold")}>
-                    {desviacion !== undefined ? formatCurrency(desviacion) : ''}
-                </TableCell>
-                <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion !== undefined && desviacion < 0 && "text-destructive font-bold", desviacion !== undefined && desviacion > 0 && "text-green-600 font-bold")}>
-                     {desviacionPct !== undefined ? formatPercentage(desviacionPct) : ''}
-                </TableCell>
+                <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatCurrency(desviacion)}</TableCell>
+                <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatPercentage(desviacionPct)}</TableCell>
             </TableRow>
         )
     };
@@ -524,7 +506,7 @@ export default function CprControlExplotacionPage() {
                         <TabsTrigger value="acumulado-mensual">Acumulado Mensual</TabsTrigger>
                     </TabsList>
                     <TabsContent value="control-explotacion" className="mt-4">
-                        <div className="grid gap-2 grid-cols-3">
+                        <div className="grid gap-2 md:grid-cols-3">
                             <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} className="bg-green-100/60" />
                             <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} className="bg-red-100/60"/>
                             <KpiCard title="RESULTADO" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
@@ -659,26 +641,10 @@ export default function CprControlExplotacionPage() {
                     </TabsContent>
                 </Tabs>
             </TooltipProvider>
-            
-            <Dialog open={!!editingComment} onOpenChange={() => setEditingComment(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Comentario para: {editingComment?.label}</DialogTitle>
-                        <DialogDescription>Añade una nota explicativa para esta partida de coste.</DialogDescription>
-                    </DialogHeader>
-                    <Textarea 
-                        value={editingComment?.text || ''}
-                        onChange={(e) => setEditingComment(prev => prev ? {...prev, text: e.target.value} : null)}
-                        rows={5}
-                    />
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="secondary">Cerrar</Button></DialogClose>
-                        <Button onClick={handleSaveComentario}><Save className="mr-2"/>Guardar</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }
+
+    
 
     
