@@ -11,7 +11,17 @@ export default function ControlExplotacionLayout({ children }: { children: React
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const isCprPage = pathname.startsWith('/control-explotacion/cpr');
-    const isDetailPage = pathname.includes('/ventaGastronomia') || pathname.includes('/costeMP');
+    
+    const isDetailPage = pathname.includes('/ventaGastronomia') || pathname.includes('/costeMP') || pathname.includes('/personalApoyo');
+
+    let detailPageTitle = '';
+    if (pathname.includes('/ventaGastronomia')) {
+        detailPageTitle = 'Detalle de Venta';
+    } else if (pathname.includes('/costeMP')) {
+        detailPageTitle = 'Detalle de Coste MP';
+    } else if (pathname.includes('/personalApoyo')) {
+        detailPageTitle = 'Detalle Personal Apoyo';
+    }
     
     const from = searchParams.get('from');
     const to = searchParams.get('to');
@@ -35,16 +45,10 @@ export default function ControlExplotacionLayout({ children }: { children: React
                                 </Link>
                             </>
                         )}
-                         {isDetailPage && pathname.includes('/ventaGastronomia') && (
+                         {isDetailPage && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <span className="text-primary font-bold">Detalle de Venta</span>
-                            </>
-                         )}
-                         {isDetailPage && pathname.includes('/costeMP') && (
-                            <>
-                                <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <span className="text-primary font-bold">Detalle de Coste MP</span>
+                                <span className="text-primary font-bold">{detailPageTitle}</span>
                             </>
                          )}
                     </div>
