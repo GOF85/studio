@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -1071,3 +1072,26 @@ export type SolicitudPersonalCPR = {
   observacionesRRHH?: string;
   personalAsignado?: AsignacionPersonalCPR[];
 };
+
+export const ESTADO_CESION_PERSONAL = ['Solicitado', 'Aprobado', 'Asignado', 'Cerrado', 'Rechazado'] as const;
+export type EstadoCesionPersonal = typeof ESTADO_CESION_PERSONAL[number];
+export const CENTRO_COSTE_OPCIONES = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'ALMACEN', 'COMERCIAL', 'DIRECCION', 'MARKETING', 'PASE', 'CPR'] as const;
+export type CentroCoste = typeof CENTRO_COSTE_OPCIONES[number];
+
+export type CesionStorage = {
+  id: string;
+  fecha: string;
+  centroCoste: CentroCoste;
+  nombre: string;
+  dni?: string;
+  tipoServicio?: string;
+  horaEntrada: string;
+  horaSalida: string;
+  precioHora: number;
+  horaEntradaReal?: string;
+  horaSalidaReal?: string;
+  comentarios?: string;
+  estado: EstadoCesionPersonal;
+};
+
+    

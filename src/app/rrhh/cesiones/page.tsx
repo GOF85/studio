@@ -9,7 +9,8 @@ import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, Shuffle, Save, Loader2, Trash2, Pencil, Calendar as CalendarIcon } from 'lucide-react';
-import type { Personal } from '@/types';
+import type { Personal, CesionStorage, EstadoCesionPersonal, CentroCoste } from '@/types';
+import { ESTADO_CESION_PERSONAL, CENTRO_COSTE_OPCIONES } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -27,12 +28,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 
-const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'ALMACEN', 'COMERCIAL', 'DIRECCION', 'MARKETING', 'PASE', 'CPR'] as const;
-
 const cesionFormSchema = z.object({
   id: z.string(),
   fecha: z.date({ required_error: 'La fecha es obligatoria.' }),
-  centroCoste: z.enum(centroCosteOptions),
+  centroCoste: z.enum(CENTRO_COSTE_OPCIONES),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   dni: z.string().optional().default(''),
   tipoServicio: z.string().optional(),
@@ -42,11 +41,10 @@ const cesionFormSchema = z.object({
   horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
   horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
   comentarios: z.string().optional().default(''),
+  estado: z.enum(ESTADO_CESION_PERSONAL),
 });
 
 type CesionFormValues = z.infer<typeof cesionFormSchema>;
-
-type CesionStorage = Omit<CesionFormValues, 'fecha'> & { fecha: string };
 
 function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDelete }: { open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: CesionStorage) => void; personalDB: Personal[]; initialData?: Partial<CesionStorage> | null; onDelete?: (id: string) => void; }) {
     const form = useForm<CesionFormValues>({
@@ -59,6 +57,7 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
             centroCoste: 'CPR',
             horaEntrada: '09:00',
             horaSalida: '17:00',
+            estado: 'Solicitado',
             ...initialData,
             fecha: initialData?.fecha ? new Date(initialData.fecha) : new Date(),
         };
@@ -121,16 +120,12 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
                         <FormField control={form.control} name="centroCoste" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Dpto. Destino</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{CENTRO_COSTE_OPCIONES.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
                             </FormItem>
                         )} />
                         <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="horaEntrada" render={({ field }) => <FormItem><FormLabel>H. Entrada Planificada</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>} />
                             <FormField control={form.control} name="horaSalida" render={({ field }) => <FormItem><FormLabel>H. Salida Planificada</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="horaEntradaReal" render={({ field }) => <FormItem><FormLabel>H. Entrada Real</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>} />
-                            <FormField control={form.control} name="horaSalidaReal" render={({ field }) => <FormItem><FormLabel>H. Salida Real</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>} />
                         </div>
                         <FormField control={form.control} name="comentarios" render={({ field }) => <FormItem><FormLabel>Comentarios</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
                         <DialogFooter>
@@ -149,7 +144,6 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
         </Dialog>
     );
 }
-
 
 export default function CesionesPersonalPage() {
   const [cesiones, setCesiones] = useState<CesionStorage[]>([]);
@@ -297,3 +291,4 @@ export default function CesionesPersonalPage() {
   );
 }
 
+    

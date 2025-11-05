@@ -48,7 +48,7 @@ export default function ValidacionCesionesPage() {
   
   const filteredCesiones = useMemo(() => {
     return cesiones.filter(c => {
-      const isValidated = c.horaEntradaReal && c.horaSalidaReal;
+      const isValidated = c.estado === 'Cerrado';
       if (!showValidated && isValidated) {
         return false;
       }
@@ -73,6 +73,7 @@ export default function ValidacionCesionesPage() {
             ...allCesiones[index],
             horaEntradaReal,
             horaSalidaReal,
+            estado: 'Cerrado',
         };
         localStorage.setItem('cesionesPersonal', JSON.stringify(allCesiones));
         setCesiones(allCesiones);
@@ -140,10 +141,11 @@ export default function ValidacionCesionesPage() {
                     {filteredCesiones.length > 0 ? filteredCesiones.map(cesion => {
                         const dptoOrigen = personalMap.get(cesion.nombre)?.departamento || 'N/A';
                         const horasPlan = calculateHours(cesion.horaEntrada, cesion.horaSalida);
+                        const isClosed = cesion.estado === 'Cerrado';
                         
                         return (
-                            <TableRow key={cesion.id} className={cn(cesion.horaEntradaReal && cesion.horaSalidaReal && 'bg-green-50/50')}>
-                                <TableCell>{format(new Date(cesion.fecha), 'dd/MM/yyyy')}</TableCell>
+                            <TableRow key={cesion.id} className={cn(isClosed && 'bg-green-50/50')}>
+                                <TableCell>{cesion.fecha ? format(new Date(cesion.fecha), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                 <TableCell className="font-semibold">{cesion.nombre}</TableCell>
                                 <TableCell><Badge variant="outline">{dptoOrigen}</Badge></TableCell>
                                 <TableCell><Badge variant="secondary">{cesion.centroCoste}</Badge></TableCell>
@@ -165,8 +167,8 @@ export default function ValidacionCesionesPage() {
                                     />
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <Button size="sm" variant="ghost" onClick={() => handleSaveHours(cesion.id, cesion.horaEntradaReal || cesion.horaEntrada, cesion.horaSalidaReal || cesion.horaSalida)}>
-                                        <CheckCircle className="mr-2 h-4 w-4"/>Validar
+                                    <Button size="sm" variant={isClosed ? "secondary" : "default"} onClick={() => handleSaveHours(cesion.id, cesion.horaEntradaReal || cesion.horaEntrada, cesion.horaSalidaReal || cesion.horaSalida)}>
+                                        <CheckCircle className="mr-2 h-4 w-4"/>{isClosed ? 'Re-validar' : 'Validar'}
                                     </Button>
                                 </TableCell>
                             </TableRow>
@@ -183,3 +185,5 @@ export default function ValidacionCesionesPage() {
     </div>
   )
 }
+
+    
