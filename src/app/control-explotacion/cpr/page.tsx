@@ -208,7 +208,7 @@ export default function CprControlExplotacionPage() {
             return sum + orderTotal;
         }, 0);
 
-        const cesionesEnRango = allCesionesPersonal.filter(c => {
+         const cesionesEnRango = allCesionesPersonal.filter(c => {
              try {
                 const fechaCesion = new Date(c.fecha);
                 return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
@@ -221,7 +221,7 @@ export default function CprControlExplotacionPage() {
         cesionesEnRango.forEach(c => {
             const origenDpto = personalMap.get(c.nombre)?.departamento;
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
-            const costeReal = (calculateHours(c.horaEntradaReal, c.horaSalidaReal) || costePlanificado / c.precioHora) * c.precioHora;
+            const costeReal = (calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora;
 
             if (origenDpto === 'CPR' && c.centroCoste !== 'CPR') {
                 ingresosCesionPersonalPlanificado += costePlanificado;
@@ -277,7 +277,7 @@ export default function CprControlExplotacionPage() {
     const dataAcumulada = useMemo(() => {
         if (!isMounted) return [];
         const mesesDelAno = eachMonthOfInterval({ start: startOfYear(new Date()), end: endOfYear(new Date())});
-        const personalMapLocal = new Map((JSON.parse(localStorage.getItem('personal') || '[]') as Personal[]).map(p => [p.nombreCompleto, p]]);
+        const personalMapLocal = new Map((JSON.parse(localStorage.getItem('personal') || '[]') as Personal[]).map(p => [p.nombreCompleto, p]));
 
         return mesesDelAno.map(month => {
             const rangeStart = startOfMonth(month);
@@ -344,7 +344,7 @@ export default function CprControlExplotacionPage() {
             }
         });
 
-    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal]);
+    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal, personalMap]);
 
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -662,5 +662,3 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
-
-    
