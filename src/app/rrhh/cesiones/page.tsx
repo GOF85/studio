@@ -117,12 +117,20 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
                                 </FormItem>
                             )} />
                         </div>
-                        <FormField control={form.control} name="centroCoste" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Dpto. Destino</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{CENTRO_COSTE_OPCIONES.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
-                            </FormItem>
-                        )} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="centroCoste" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Dpto. Destino</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{CENTRO_COSTE_OPCIONES.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                </FormItem>
+                            )} />
+                             <FormField control={form.control} name="estado" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Estado</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{ESTADO_CESION_PERSONAL.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                </FormItem>
+                            )} />
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="horaEntrada" render={({ field }) => <FormItem><FormLabel>H. Entrada Planificada</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>} />
                             <FormField control={form.control} name="horaSalida" render={({ field }) => <FormItem><FormLabel>H. Salida Planificada</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>} />
@@ -144,6 +152,14 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
         </Dialog>
     );
 }
+
+const statusVariant: { [key in EstadoCesionPersonal]: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' } = {
+  'Solicitado': 'secondary',
+  'Aprobado': 'outline',
+  'Asignado': 'default',
+  'Cerrado': 'success',
+  'Rechazado': 'destructive',
+};
 
 export default function CesionesPersonalPage() {
   const [cesiones, setCesiones] = useState<CesionStorage[]>([]);
@@ -244,18 +260,15 @@ export default function CesionesPersonalPage() {
                         <TableHead className="p-2">Empleado</TableHead>
                         <TableHead className="p-2">Dpto. Origen</TableHead>
                         <TableHead className="p-2">Dpto. Destino</TableHead>
-                        <TableHead className="p-2">Horario Planificado</TableHead>
-                        <TableHead className="p-2">Horario Real</TableHead>
-                        <TableHead className="p-2 text-right">Coste Planificado</TableHead>
-                        <TableHead className="p-2 text-right">Coste Real</TableHead>
+                        <TableHead className="p-2">Horario</TableHead>
+                        <TableHead className="p-2">Coste</TableHead>
+                        <TableHead className="p-2">Estado</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {filteredCesiones.length > 0 ? filteredCesiones.map((cesion) => {
                         const horasPlan = calculateHours(cesion.horaEntrada, cesion.horaSalida);
-                        const costePlanificado = horasPlan * cesion.precioHora;
-                        const horasReal = calculateHours(cesion.horaEntradaReal, cesion.horaSalidaReal);
-                        const costeReal = (horasReal || horasPlan) * cesion.precioHora;
+                        const coste = horasPlan * cesion.precioHora;
                         const dptoOrigen = personalMap.get(cesion.nombre)?.departamento || 'N/A';
 
                         return (
@@ -265,14 +278,13 @@ export default function CesionesPersonalPage() {
                                 <TableCell className="p-2">{dptoOrigen}</TableCell>
                                 <TableCell className="p-2"><Badge variant="outline">{cesion.centroCoste}</Badge></TableCell>
                                 <TableCell className="p-2">{cesion.horaEntrada} - {cesion.horaSalida} ({horasPlan.toFixed(2)}h)</TableCell>
-                                <TableCell className="p-2">{cesion.horaEntradaReal && cesion.horaSalidaReal ? `${cesion.horaEntradaReal} - ${cesion.horaSalidaReal} (${horasReal.toFixed(2)}h)` : '-'}</TableCell>
-                                <TableCell className="p-2 font-mono text-right">{formatCurrency(costePlanificado)}</TableCell>
-                                <TableCell className="p-2 font-mono font-semibold text-right">{formatCurrency(costeReal)}</TableCell>
+                                <TableCell className="p-2 font-mono font-semibold text-right">{formatCurrency(coste)}</TableCell>
+                                <TableCell className="p-2"><Badge variant={statusVariant[cesion.estado]}>{cesion.estado}</Badge></TableCell>
                             </TableRow>
                         );
                     }) : (
                         <TableRow>
-                            <TableCell colSpan={8} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
+                            <TableCell colSpan={7} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -290,5 +302,3 @@ export default function CesionesPersonalPage() {
     </main>
   );
 }
-
-    
