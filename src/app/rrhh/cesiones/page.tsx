@@ -1,11 +1,9 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Shuffle, Search, Calendar as CalendarIcon, Users, PlusCircle, Save, Trash2, Loader2, Pencil } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Loader2, Pencil, Shuffle } from 'lucide-react';
 import type { PersonalMiceOrder, ServiceOrder, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,14 +16,6 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { DateRange } from 'react-day-picker';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { cn, calculateHours, formatCurrency } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Combobox } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -37,11 +27,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
+import { calculateHours, formatCurrency } from '@/lib/utils';
 
 
 const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'ALMACEN', 'COMERCIAL', 'DIRECCION', 'MARKETING', 'PASE', 'CPR'] as const;
@@ -213,6 +208,8 @@ export default function CesionesPersonalPage() {
     }
   }
 
+  const watchedCesiones = useWatch({ control, name: 'cesiones' });
+
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Cesiones de Personal..." />;
   }
@@ -242,27 +239,31 @@ export default function CesionesPersonalPage() {
             </div>
             
             <div className="border rounded-lg overflow-x-auto">
-                <Table>
+                <Table className="text-xs">
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="p-2 min-w-48">Empleado</TableHead>
-                            <TableHead className="p-2">Dpto. Origen</TableHead>
-                            <TableHead className="p-2">Dpto. Destino</TableHead>
-                            <TableHead className="p-2 min-w-40">Tipo Servicio</TableHead>
-                            <TableHead className="p-2 w-24">H. Entrada</TableHead>
-                            <TableHead className="p-2 w-24">H. Salida</TableHead>
-                            <TableHead className="p-2 w-24">H. Entrada Real</TableHead>
-                            <TableHead className="p-2 w-24">H. Salida Real</TableHead>
-                            <TableHead className="p-2">Coste Real</TableHead>
-                            <TableHead className="p-2">Comentarios</TableHead>
-                            <TableHead className="p-2 text-right">Acción</TableHead>
+                            <TableHead className="p-1 min-w-48">Empleado</TableHead>
+                            <TableHead className="p-1">Dpto. Origen</TableHead>
+                            <TableHead className="p-1">Dpto. Destino</TableHead>
+                            <TableHead className="p-1 min-w-40">Tipo Servicio</TableHead>
+                            <TableHead className="p-1 w-24">H. Entrada</TableHead>
+                            <TableHead className="p-1 w-24">H. Salida</TableHead>
+                            <TableHead className="p-1 w-24">H. Entrada Real</TableHead>
+                            <TableHead className="p-1 w-24">H. Salida Real</TableHead>
+                            <TableHead className="p-1 text-right">Coste Planificado</TableHead>
+                            <TableHead className="p-1 text-right">Coste Real</TableHead>
+                            <TableHead className="p-1 text-center">Comentarios</TableHead>
+                            <TableHead className="p-1 text-right">Acción</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredCesiones.length > 0 ? filteredCesiones.map(({ field, index }) => {
-                            const horasPlan = calculateHours(field.horaEntrada, field.horaSalida);
-                            const horasReal = calculateHours(field.horaEntradaReal, field.horaSalidaReal);
-                            const costeReal = (horasReal || horasPlan) * field.precioHora;
+                            const cesion = watchedCesiones[index];
+                            const horasPlan = calculateHours(cesion.horaEntrada, cesion.horaSalida);
+                            const costePlanificado = horasPlan * cesion.precioHora;
+                            const horasReal = calculateHours(cesion.horaEntradaReal, cesion.horaSalidaReal);
+                            const costeReal = (horasReal || horasPlan) * cesion.precioHora;
+                            const dptoOrigen = personalMap.get(cesion.nombre)?.departamento || 'N/A';
 
                             return (
                                 <TableRow key={field.id}>
@@ -271,27 +272,28 @@ export default function CesionesPersonalPage() {
                                             <Combobox options={personalOptions} value={field.value} onChange={(value) => handlePersonalChange(index, value)} placeholder="Seleccionar empleado..."/>
                                         )}/>
                                     </TableCell>
-                                    <TableCell className="p-2">{personalMap.get(field.nombre)?.departamento || 'N/A'}</TableCell>
+                                    <TableCell className="p-1 font-semibold">{dptoOrigen}</TableCell>
                                     <TableCell className="p-1">
                                         <FormField control={control} name={`cesiones.${index}.centroCoste`} render={({field}) => (
-                                            <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl><SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                            <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
                                         )}/>
                                     </TableCell>
                                     <TableCell className="p-1">
                                         <FormField control={control} name={`cesiones.${index}.tipoServicio`} render={({field}) => (
-                                            <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl><SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                            <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
                                         )}/>
                                     </TableCell>
-                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaEntrada`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
-                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaSalida`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
-                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaEntradaReal`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
-                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaSalidaReal`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
+                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaEntrada`} render={({field}) => <Input type="time" {...field} className="h-8 text-xs"/>}/></TableCell>
+                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaSalida`} render={({field}) => <Input type="time" {...field} className="h-8 text-xs"/>}/></TableCell>
+                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaEntradaReal`} render={({field}) => <Input type="time" {...field} className="h-8 text-xs"/>}/></TableCell>
+                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaSalidaReal`} render={({field}) => <Input type="time" {...field} className="h-8 text-xs"/>}/></TableCell>
+                                    <TableCell className="p-2 font-mono text-right">{formatCurrency(costePlanificado)}</TableCell>
                                     <TableCell className="p-2 font-mono font-semibold text-right">{formatCurrency(costeReal)}</TableCell>
                                     <TableCell className="p-1 text-center">
                                        <CommentDialog index={index} form={form} onSave={handleSubmit(onSubmit)} />
                                     </TableCell>
                                     <TableCell className="p-1 text-right">
-                                        <Button variant="ghost" size="icon" className="text-destructive h-9" type="button" onClick={() => setRowToDelete(index)}>
+                                        <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" type="button" onClick={() => setRowToDelete(index)}>
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </TableCell>
@@ -299,7 +301,7 @@ export default function CesionesPersonalPage() {
                             );
                         }) : (
                             <TableRow>
-                                <TableCell colSpan={11} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
+                                <TableCell colSpan={12} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -329,3 +331,5 @@ export default function CesionesPersonalPage() {
     </main>
   );
 }
+
+    
