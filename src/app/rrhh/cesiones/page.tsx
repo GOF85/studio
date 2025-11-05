@@ -5,10 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Shuffle, Search, Calendar as CalendarIcon, Users, PlusCircle, Save, Trash2, Loader2 } from 'lucide-react';
+import { Shuffle, Search, Calendar as CalendarIcon, Users, PlusCircle, Save, Trash2, Loader2, Pencil } from 'lucide-react';
 import type { PersonalMiceOrder, ServiceOrder, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,6 +38,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 
 
 const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'ALMACEN', 'COMERCIAL', 'DIRECCION', 'MARKETING', 'PASE', 'CPR'] as const;
@@ -68,6 +69,52 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+function CommentDialog({ index, form, onSave }: { index: number; form: any, onSave: (data: FormValues) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { getValues, setValue } = form;
+
+    const fieldName = `cesiones.${index}.comentarios`;
+    const dialogTitle = `Observaciones para: ${getValues(`cesiones.${index}.nombre`)}`;
+
+    const [comment, setComment] = useState(getValues(fieldName) || '');
+
+    const handleSave = () => {
+        setValue(fieldName, comment, { shouldDirty: true });
+        onSave(getValues());
+        setIsOpen(false);
+    };
+    
+    useEffect(() => {
+        if(isOpen) {
+            setComment(getValues(fieldName) || '');
+        }
+    }, [isOpen, getValues, fieldName]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
+                    <Pencil className={cn("h-4 w-4", getValues(fieldName) && "text-primary")} />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{dialogTitle}</DialogTitle>
+                </DialogHeader>
+                <Textarea 
+                    value={comment} 
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={4}
+                    placeholder="Añade aquí comentarios..."
+                />
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSave}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function CesionesPersonalPage() {
   const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
@@ -97,7 +144,6 @@ export default function CesionesPersonalPage() {
     }
     setPersonalMap(pMap);
     
-    // For now, we will manage cesiones in their own DB
     let storedCesiones = localStorage.getItem('cesionesPersonal');
     reset({ cesiones: storedCesiones ? JSON.parse(storedCesiones) : [] });
     setIsMounted(true);
@@ -207,7 +253,6 @@ export default function CesionesPersonalPage() {
                             <TableHead className="p-2 w-24">H. Salida</TableHead>
                             <TableHead className="p-2 w-24">H. Entrada Real</TableHead>
                             <TableHead className="p-2 w-24">H. Salida Real</TableHead>
-                            <TableHead className="p-2 w-20">€/h</TableHead>
                             <TableHead className="p-2">Coste Real</TableHead>
                             <TableHead className="p-2">Comentarios</TableHead>
                             <TableHead className="p-2 text-right">Acción</TableHead>
@@ -241,9 +286,10 @@ export default function CesionesPersonalPage() {
                                     <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaSalida`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
                                     <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaEntradaReal`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
                                     <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaSalidaReal`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
-                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.precioHora`} render={({field}) => <Input type="number" step="0.01" {...field} className="h-9 text-right" readOnly/>}/></TableCell>
                                     <TableCell className="p-2 font-mono font-semibold text-right">{formatCurrency(costeReal)}</TableCell>
-                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.comentarios`} render={({field}) => <Input {...field} className="h-9"/>}/></TableCell>
+                                    <TableCell className="p-1 text-center">
+                                       <CommentDialog index={index} form={form} onSave={handleSubmit(onSubmit)} />
+                                    </TableCell>
                                     <TableCell className="p-1 text-right">
                                         <Button variant="ghost" size="icon" className="text-destructive h-9" type="button" onClick={() => setRowToDelete(index)}>
                                             <Trash2 className="h-4 w-4" />
@@ -253,7 +299,7 @@ export default function CesionesPersonalPage() {
                             );
                         }) : (
                             <TableRow>
-                                <TableCell colSpan={12} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
+                                <TableCell colSpan={11} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -283,4 +329,3 @@ export default function CesionesPersonalPage() {
     </main>
   );
 }
-
