@@ -123,7 +123,12 @@ export default function CprControlExplotacionPage() {
         setAllCesionesPersonal(cesionesData);
         
         const personalData = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        setPersonalMap(new Map(personalData.map(p => [p.nombreCompleto, p])));
+        const pMap = new Map<string, Personal>();
+        personalData.forEach(p => {
+            pMap.set(p.nombre, p); // Compatibility with older data
+            pMap.set(p.nombreCompleto, p);
+        });
+        setPersonalMap(pMap);
         setPersonalInterno(personalData);
 
 
@@ -216,14 +221,13 @@ export default function CprControlExplotacionPage() {
         console.log("[DEBUG] personalMap size:", personalMap.size);
 
         const cesionesEnRango = allCesionesPersonal.filter(c => {
-            if (!c.fecha) return false;
-            try {
-                const [year, month, day] = c.fecha.split('-').map(Number);
-                const fechaCesion = new Date(year, month - 1, day);
+             if (!c.fecha) return false;
+             try {
+                // Robust date parsing for YYYY-MM-DD
+                const parts = c.fecha.split('-').map(Number);
+                const fechaCesion = new Date(parts[0], parts[1] - 1, parts[2]);
                 return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
-            } catch (e) {
-                return false;
-            }
+            } catch(e) { return false; }
         });
         
         console.log("[DEBUG] Cesiones in date range:", cesionesEnRango);
@@ -232,7 +236,7 @@ export default function CprControlExplotacionPage() {
         let gastosCesionPersonalPlanificado = 0, gastosCesionPersonalCierre = 0;
         
         cesionesEnRango.forEach(c => {
-            const personalInfo = personalInterno.find(p => p.nombreCompleto === c.nombre);
+            const personalInfo = personalMap.get(c.nombre) || personalInterno.find(p => p.nombre === c.nombre);
             if (!personalInfo) return;
 
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
@@ -331,8 +335,8 @@ export default function CprControlExplotacionPage() {
             const cesionesEnRango = allCesionesPersonal.filter(c => {
                 if (!c.fecha) return false;
                 try {
-                    const [year, month, day] = c.fecha.split('-').map(Number);
-                    const fechaCesion = new Date(year, month - 1, day);
+                    const parts = c.fecha.split('-').map(Number);
+                    const fechaCesion = new Date(parts[0], parts[1] - 1, parts[2]);
                     return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
                 } catch(e) { return false; }
             });
@@ -381,7 +385,7 @@ export default function CprControlExplotacionPage() {
         });
 
     }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal, personalInterno]);
-
+    
     const processedCostes: CostRow[] = useMemo(() => {
         if (!dataCalculada) return [];
         const { facturacionNeta, objetivo } = dataCalculada;
@@ -414,7 +418,7 @@ export default function CprControlExplotacionPage() {
             }
         });
     }, [dataCalculada, realCostInputs, comentarios]);
-
+    
     const { totalPresupuesto, totalCierre, totalReal, totalObjetivo } = useMemo(() => {
         if (!processedCostes) return { totalPresupuesto: 0, totalCierre: 0, totalReal: 0, totalObjetivo: 0 };
         const totalPresupuesto = processedCostes.reduce((sum, row) => sum + row.presupuesto, 0);
@@ -668,7 +672,7 @@ export default function CprControlExplotacionPage() {
                                                 {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatCurrency(m.consumoMMPP)}</TableCell>)}
                                             </TableRow>
                                             <TableRow>
-                                                <TableCell className="pl-8">Cesiones de Personal (Gasto)</TableCell>
+                                                <TableCell className="pl-8">Personal Cedido a CPR</TableCell>
                                                 {dataAcumulada.map(m => <TableCell key={m.mes} className="text-right">{formatCurrency(m.cesionesGasto)}</TableCell>)}
                                             </TableRow>
                                              <TableRow>

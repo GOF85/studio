@@ -35,6 +35,7 @@ const cesionFormSchema = z.object({
   centroCoste: z.enum(centroCosteOptions),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   dni: z.string().optional().default(''),
+  tipoServicio: z.string().optional(),
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
@@ -168,10 +169,7 @@ export default function CesionesPersonalPage() {
     setPersonalMap(pMap);
 
     let storedCesiones = localStorage.getItem('cesionesPersonal');
-    const parsedCesiones = (storedCesiones ? JSON.parse(storedCesiones) : []).map((c: any) => ({
-        ...c,
-        fecha: c.fecha ? format(new Date(c.fecha), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
-    }));
+    const parsedCesiones = (storedCesiones ? JSON.parse(storedCesiones) : []);
     setCesiones(parsedCesiones);
     setIsMounted(true);
   }, []);
@@ -298,3 +296,4 @@ export default function CesionesPersonalPage() {
     </main>
   );
 }
+
