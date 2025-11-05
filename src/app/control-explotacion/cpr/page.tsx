@@ -102,6 +102,7 @@ export default function CprControlExplotacionPage() {
     const [allCostesFijos, setAllCostesFijos] = useState<CosteFijoCPR[]>([]);
     const [allObjetivos, setAllObjetivos] = useState<ObjetivoMensualCPR[]>([]);
     const [allSolicitudesPersonalCPR, setAllSolicitudesPersonalCPR] = useState<SolicitudPersonalCPR[]>([]);
+    const [allPersonalExterno, setAllPersonalExterno] = useState<PersonalExterno[]>([]);
     
     // Estados para valores manuales
     const [realCostInputs, setRealCostInputs] = useState<Record<string, number | undefined>>({});
@@ -117,6 +118,7 @@ export default function CprControlExplotacionPage() {
         setAllPersonalMiceOrders(JSON.parse(localStorage.getItem('personalMiceOrders') || '[]'));
         setAllCostesFijos(JSON.parse(localStorage.getItem('costesFijosCPR') || '[]'));
         setAllSolicitudesPersonalCPR(JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]'));
+        setAllPersonalExterno(JSON.parse(localStorage.getItem('personalExterno') || '[]'));
 
         const objetivosData = JSON.parse(localStorage.getItem('objetivosCPR') || '[]') as ObjetivoMensualCPR[];
         setAllObjetivos(objetivosData);
@@ -226,19 +228,9 @@ export default function CprControlExplotacionPage() {
                 const hours = calculateHours(order.horaEntradaReal || order.horaEntrada, order.horaSalidaReal || order.horaSalida);
                 return sum + (hours * (order.precioHora || 0));
             }, 0);
-
-        const costesFijosPeriodo = allCostesFijos.reduce((sum, fijo) => sum + (fijo.importeMensual || 0), 0);
         
-        const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
-            const fechaServicio = new Date(solicitud.fechaServicio);
-            return (solicitud.estado === 'Confirmado' || solicitud.estado === 'Cerrado') && isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
-        });
-        
-        const allPersonalExterno = (JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[]).filter(p => osIdsEnRango.has(p.osId));
-        const allTiposPersonal = (JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]);
-        const tiposPersonalMap = new Map(allTiposPersonal.map(t => [t.id, t]));
-
-        const costePersonalExternoPlanificado = allPersonalExterno.reduce((sum, p) => {
+        const personalExternoEnRango = allPersonalExterno.filter(p => osIdsEnRango.has(p.osId));
+        const costePersonalExternoPlanificado = personalExternoEnRango.reduce((sum, p) => {
             return sum + p.turnos.reduce((turnoSum, t) => {
                 const horas = calculateHours(t.horaEntrada, t.horaSalida);
                 const cantidad = (t.asignaciones || []).length || 1;
@@ -246,7 +238,7 @@ export default function CprControlExplotacionPage() {
             }, 0);
         }, 0);
 
-        const costePersonalExternoCierre = allPersonalExterno.reduce((sum, p) => {
+        const costePersonalExternoCierre = personalExternoEnRango.reduce((sum, p) => {
             return sum + p.turnos.reduce((turnoSum, t) => {
                 return turnoSum + (t.asignaciones || []).reduce((asigSum, a) => {
                     const horas = calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida);
@@ -255,9 +247,16 @@ export default function CprControlExplotacionPage() {
             }, 0);
         }, 0);
 
+        const costesFijosPeriodo = allCostesFijos.reduce((sum, fijo) => sum + (fijo.importeMensual || 0), 0);
+        
+        const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
+            const fechaServicio = new Date(solicitud.fechaServicio);
+            return (solicitud.estado === 'Cerrado') && isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
+        });
+        
+        const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
 
         const costePersonalSolicitado = solicitudesPersonalEnRango.reduce((sum, s) => {
-            if (s.estado !== 'Cerrado') return sum;
             const horas = calculateHours(s.personalAsignado?.[0]?.horaEntradaReal, s.personalAsignado?.[0]?.horaSalidaReal);
             const tipo = tiposPersonalMap.get(s.proveedorId || '');
             const precioHora = tipo?.precioHora || 0;
@@ -281,7 +280,7 @@ export default function CprControlExplotacionPage() {
         
         return { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonal, costePersonalMicePlanificado, costePersonalMiceCierre, costePersonalExternoPlanificado, costePersonalExternoCierre, costesFijosPeriodo, otrosGastos, facturacionNeta: ingresosTotales, costePersonalSolicitado };
 
-    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes]);
+    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allPersonalMiceOrders, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes, allPersonalExterno]);
 
     const dataAcumulada = useMemo(() => {
         if (!isMounted) return [];
@@ -444,7 +443,7 @@ export default function CprControlExplotacionPage() {
                 <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
                 
                 <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
-                <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(facturacionNeta > 0 ? row.cierre / facturacionNeta : 0)}</TableCell>
+                <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(pctSFactCierre)}</TableCell>
 
                 <TableCell className="py-1 px-2 text-right border-l bg-green-50/50">
                     <Input
