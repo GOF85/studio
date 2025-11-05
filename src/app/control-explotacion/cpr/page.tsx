@@ -162,7 +162,9 @@ export default function CprControlExplotacionPage() {
     }, [dateRange, router]);
 
     const dataCalculada = useMemo(() => {
-        if (!isMounted || !dateRange?.from || personalMap.size === 0) return null;
+        if (!isMounted || !dateRange?.from) return null;
+
+        console.log("--- STARTING CALCULATION ---");
 
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
@@ -207,6 +209,9 @@ export default function CprControlExplotacionPage() {
             }, 0);
             return sum + orderTotal;
         }, 0);
+        
+        console.log("[DEBUG] Raw cesionesPersonal data:", allCesionesPersonal);
+        console.log("[DEBUG] personalMap size:", personalMap.size);
 
         const cesionesEnRango = allCesionesPersonal.filter(c => {
              try {
@@ -215,16 +220,26 @@ export default function CprControlExplotacionPage() {
             } catch(e) { return false; }
         });
         
+        console.log("[DEBUG] Cesiones in date range:", cesionesEnRango);
+
         let ingresosCesionPersonalPlanificado = 0, ingresosCesionPersonalCierre = 0;
         let gastosCesionPersonalPlanificado = 0, gastosCesionPersonalCierre = 0;
         
         cesionesEnRango.forEach(c => {
-            const personalInfo = personalMap.get(c.nombre);
-            if (!personalInfo) return;
+            // Find person by trying both 'nombre' and 'nombreCompleto' for robustness
+            const personalInfo = personalMap.get(c.nombre) || Array.from(personalMap.values()).find(p => p.nombre === c.nombre);
+            console.log(`[DEBUG] Processing cesion for: ${c.nombre}. Found personalInfo:`, personalInfo);
+
+            if (!personalInfo) {
+                console.warn(`[DEBUG] Could not find employee data for: ${c.nombre}`);
+                return;
+            };
 
             const origenDpto = personalInfo.departamento;
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
             const costeReal = (calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora;
+
+            console.log(`[DEBUG] Cesion for ${c.nombre} from ${origenDpto} to ${c.centroCoste}. Plan: ${costePlanificado}, Real: ${costeReal}`);
 
             if (origenDpto === 'CPR' && c.centroCoste !== 'CPR') {
                 ingresosCesionPersonalPlanificado += costePlanificado;
@@ -234,7 +249,10 @@ export default function CprControlExplotacionPage() {
                 gastosCesionPersonalCierre += costeReal;
             }
         });
-        
+
+        console.log(`[DEBUG] Final Ingresos Cesion Cierre: ${ingresosCesionPersonalCierre}`);
+        console.log(`[DEBUG] Final Gastos Cesion Cierre: ${gastosCesionPersonalCierre}`);
+
         const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
         const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
             try {
@@ -250,8 +268,7 @@ export default function CprControlExplotacionPage() {
             return sum + (horas * precioHora * s.cantidad);
         }, 0);
 
-        const costePersonalSolicitadoCierre = solicitudesPersonalEnRango.reduce((sum, s) => {
-            if (s.estado !== 'Cerrado') return sum;
+        const costePersonalSolicitadoCierre = solicitudesPersonalEnRango.filter(s => s.estado === 'Cerrado').reduce((sum, s) => {
             const tipo = tiposPersonalMap.get(s.proveedorId || '');
             const precioHora = tipo?.precioHora || 0;
             const horasReales = s.personalAsignado && s.personalAsignado.length > 0
@@ -415,6 +432,10 @@ export default function CprControlExplotacionPage() {
 
     const totalIngresos = ingresos.reduce((sum, r) => sum + r.real, 0);
     const totalGastos = gastos.reduce((sum, r) => sum + r.real, 0);
+    const totalPresupuesto = gastos.reduce((sum, r) => sum + r.presupuesto, 0);
+    const totalCierre = gastos.reduce((sum, r) => sum + r.cierre, 0);
+    const totalReal = gastos.reduce((sum, r) => sum + r.real, 0);
+    const totalObjetivo = gastos.reduce((sum, r) => sum + r.objetivo, 0);
 
     const renderCostRow = (row: CostRow, index: number) => {
         const pctSFactPresupuesto = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
@@ -542,10 +563,11 @@ export default function CprControlExplotacionPage() {
                         <TabsTrigger value="acumulado-mensual">Acumulado Mensual</TabsTrigger>
                     </TabsList>
                     <TabsContent value="control-explotacion" className="mt-4">
-                        <div className="grid gap-2 md:grid-cols-3">
+                        <div className="grid gap-2 md:grid-cols-4">
                             <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} className="bg-green-100/60" />
                             <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} className="bg-red-100/60"/>
                             <KpiCard title="RESULTADO" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
+                             <KpiCard title="Margen Bruto" value={formatPercentage(kpis.margen)} icon={kpis.margen >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.margen >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
                         </div>
                         
                         <Card className="mt-4">
