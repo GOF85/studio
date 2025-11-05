@@ -1,11 +1,13 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { format, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { PlusCircle, Shuffle, Save, Loader2, Trash2, Pencil, Calendar as CalendarIcon } from 'lucide-react';
 import type { Personal } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -21,15 +23,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Textarea } from '@/components/ui/textarea';
 import { calculateHours, formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 
 const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'ALMACEN', 'COMERCIAL', 'DIRECCION', 'MARKETING', 'PASE', 'CPR'] as const;
 
-// Schema for the form inside the modal
 const cesionFormSchema = z.object({
   id: z.string(),
   fecha: z.date({ required_error: 'La fecha es obligatoria.' }),
@@ -46,42 +45,7 @@ const cesionFormSchema = z.object({
 
 type CesionFormValues = z.infer<typeof cesionFormSchema>;
 
-// The type for data stored in localStorage and state, where date is a string
 type CesionStorage = Omit<CesionFormValues, 'fecha'> & { fecha: string };
-
-function CommentDialog({ comment, onSave }: { comment: string, onSave: (text: string) => void }) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [text, setText] = useState(comment);
-    
-    useEffect(() => {
-        setText(comment);
-    }, [comment, isOpen]);
-
-    return (
-         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
-                    <Pencil className={cn("h-4 w-4", comment && "text-primary")} />
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Comentarios de la Cesión</DialogTitle>
-                </DialogHeader>
-                <Textarea 
-                    value={text} 
-                    onChange={(e) => setText(e.target.value)}
-                    rows={4}
-                    placeholder="Añade aquí comentarios..."
-                />
-                <DialogFooter>
-                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button onClick={() => { onSave(text); setIsOpen(false); }}>Guardar</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
 
 function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDelete }: { open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: CesionStorage) => void; personalDB: Personal[]; initialData?: Partial<CesionStorage> | null; onDelete?: (id: string) => void; }) {
     const form = useForm<CesionFormValues>({
@@ -94,7 +58,6 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
             centroCoste: 'CPR',
             horaEntrada: '09:00',
             horaSalida: '17:00',
-            fecha: new Date(),
             ...initialData,
             fecha: initialData?.fecha ? new Date(initialData.fecha) : new Date(),
         };
@@ -205,7 +168,11 @@ export default function CesionesPersonalPage() {
     setPersonalMap(pMap);
 
     let storedCesiones = localStorage.getItem('cesionesPersonal');
-    setCesiones(storedCesiones ? JSON.parse(storedCesiones) : []);
+    const parsedCesiones = (storedCesiones ? JSON.parse(storedCesiones) : []).map((c: any) => ({
+        ...c,
+        fecha: c.fecha ? format(new Date(c.fecha), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+    }));
+    setCesiones(parsedCesiones);
     setIsMounted(true);
   }, []);
 
@@ -301,7 +268,7 @@ export default function CesionesPersonalPage() {
 
                         return (
                             <TableRow key={cesion.id} onClick={() => handleRowClick(cesion)} className="cursor-pointer">
-                                <TableCell className="p-2 font-semibold">{format(new Date(cesion.fecha), 'dd/MM/yyyy')}</TableCell>
+                                <TableCell className="p-2 font-semibold">{cesion.fecha ? format(new Date(cesion.fecha), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                 <TableCell className="p-2 font-semibold">{cesion.nombre}</TableCell>
                                 <TableCell className="p-2">{dptoOrigen}</TableCell>
                                 <TableCell className="p-2"><Badge variant="outline">{cesion.centroCoste}</Badge></TableCell>
@@ -331,4 +298,3 @@ export default function CesionesPersonalPage() {
     </main>
   );
 }
-
