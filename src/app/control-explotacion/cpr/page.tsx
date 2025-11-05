@@ -210,9 +210,7 @@ export default function CprControlExplotacionPage() {
         
         const cesionesEnRango = allCesionesPersonal.filter(c => {
              try {
-                 // The date string from localStorage might not have a timezone.
-                 // Appending 'T00:00:00' treats it as local time but avoids timezone shifts with new Date().
-                 const fechaCesion = new Date(`${c.fecha}T00:00:00`);
+                 const fechaCesion = new Date(`${c.fecha}T00:00:00Z`);
                 return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
             } catch(e) { return false; }
         });
@@ -221,8 +219,7 @@ export default function CprControlExplotacionPage() {
         let gastosCesionPersonalPlanificado = 0, gastosCesionPersonalCierre = 0;
         
         cesionesEnRango.forEach(c => {
-            const personalInfo = Array.from(personalMap.values()).find(p => p.nombreCompleto === c.nombre);
-
+            const personalInfo = personalMap.get(c.nombre)
             if (!personalInfo) return;
 
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
@@ -311,7 +308,7 @@ export default function CprControlExplotacionPage() {
                 }, 0);
             }, 0);
             
-            const cesionesEnRango = allCesionesPersonal.filter(c => isWithinInterval(new Date(`${c.fecha}T00:00:00`), { start: rangeStart, end: rangeEnd }));
+            const cesionesEnRango = allCesionesPersonal.filter(c => isWithinInterval(new Date(`${c.fecha}T00:00:00Z`), { start: rangeStart, end: rangeEnd }));
             const ingresosCesionPersonal = cesionesEnRango.filter(c => personalMapLocal.get(c.nombre)?.departamento === 'CPR' && c.centroCoste !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
             const gastosCesionPersonal = cesionesEnRango.filter(c => c.centroCoste === 'CPR' && personalMapLocal.get(c.nombre)?.departamento !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
             
@@ -349,7 +346,7 @@ export default function CprControlExplotacionPage() {
             }
         });
 
-    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal]);
+    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal, personalMap]);
 
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -423,7 +420,7 @@ export default function CprControlExplotacionPage() {
     const totalReal = gastos.reduce((sum, r) => sum + r.real, 0);
     const totalObjetivo = gastos.reduce((sum, r) => sum + r.objetivo, 0);
 
-    const rentabilidadReal = facturacionNeta - totals.totalReal;
+    const rentabilidadReal = facturacionNeta - totalReal;
 
     const renderCostRow = (row: CostRow, index: number) => {
         const pctSFactPresupuesto = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
@@ -674,3 +671,5 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
+    
