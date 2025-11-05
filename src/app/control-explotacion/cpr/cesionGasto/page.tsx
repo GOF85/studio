@@ -12,9 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { formatCurrency, formatNumber, calculateHours } from '@/lib/utils';
 import Link from 'next/link';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type DetalleGasto = CesionStorage & {
     costeReal: number;
@@ -26,6 +28,8 @@ export default function CesionGastoPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [detalles, setDetalles] = useState<DetalleGasto[]>([]);
     const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
+    const [searchTerm, setSearchTerm] = useState('');
+    const [departmentFilter, setDepartmentFilter] = useState('all');
     const searchParams = useSearchParams();
 
     const from = searchParams.get('from');
@@ -41,15 +45,19 @@ export default function CesionGastoPage() {
         const rangeEnd = endOfDay(parseISO(to));
         
         const allCesiones = (JSON.parse(localStorage.getItem('cesionesPersonal') || '[]') as CesionStorage[])
-            .filter(c => c.fecha && isWithinInterval(new Date(c.fecha), { start: rangeStart, end: rangeEnd }));
+            .filter(c => {
+                if (!c.fecha) return false;
+                try {
+                    const [year, month, day] = c.fecha.split('-').map(Number);
+                    const fechaCesion = new Date(year, month - 1, day);
+                    return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
+                } catch(e) { return false; }
+            });
             
         const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
         const pMap = new Map(allPersonal.map(p => [p.nombreCompleto, p]));
         setPersonalMap(pMap);
         
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
-
         const gastosDetallados: DetalleGasto[] = allCesiones
             .filter(c => {
                 const p = pMap.get(c.nombre);
@@ -69,18 +77,39 @@ export default function CesionGastoPage() {
         setIsMounted(true);
     }, [from, to]);
     
+    const uniqueDepartments = useMemo(() => {
+        const departments = new Set<string>();
+        detalles.forEach(d => {
+            const p = personalMap.get(d.nombre);
+            if (p?.departamento) {
+                departments.add(p.departamento);
+            }
+        });
+        return ['all', ...Array.from(departments).sort()];
+    }, [detalles, personalMap]);
+
+    const filteredDetails = useMemo(() => {
+        return detalles.filter(item => {
+            const personalInfo = personalMap.get(item.nombre);
+            const term = searchTerm.toLowerCase();
+            const searchMatch = item.nombre.toLowerCase().includes(term);
+            const departmentMatch = departmentFilter === 'all' || personalInfo?.departamento === departmentFilter;
+            return searchMatch && departmentMatch;
+        });
+    }, [detalles, searchTerm, departmentFilter, personalMap]);
+
     const dateRangeDisplay = useMemo(() => {
         if (!from || !to) return "Rango de fechas no especificado";
         return `${format(parseISO(from), 'dd/MM/yyyy')} - ${format(parseISO(to), 'dd/MM/yyyy')}`;
     }, [from, to]);
     
     const { totalCosteReal, totalCostePlanificado } = useMemo(() => {
-        return detalles.reduce((acc, item) => {
+        return filteredDetails.reduce((acc, item) => {
             acc.totalCosteReal += item.costeReal;
             acc.totalCostePlanificado += item.costePlanificado;
             return acc;
         }, { totalCosteReal: 0, totalCostePlanificado: 0});
-    }, [detalles]);
+    }, [filteredDetails]);
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando detalle de gastos por cesión..." />;
@@ -97,6 +126,27 @@ export default function CesionGastoPage() {
                     <CardDescription>Desglose de los costes generados por personal de otros departamentos que han trabajado para el CPR.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                    <div className="flex gap-4 mb-4">
+                        <div className="relative flex-grow max-w-sm">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Buscar por empleado..."
+                                className="pl-8 w-full"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                            <SelectTrigger className="w-[240px]">
+                                <SelectValue placeholder="Filtrar por departamento" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {uniqueDepartments.map(d => <SelectItem key={d} value={d}>{d === 'all' ? 'Todos los Dptos.' : d}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Button variant="secondary" onClick={() => { setSearchTerm(''); setDepartmentFilter('all'); }}>Limpiar</Button>
+                    </div>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -111,7 +161,7 @@ export default function CesionGastoPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {detalles.length > 0 ? detalles.map((item, i) => (
+                            {filteredDetails.length > 0 ? filteredDetails.map((item, i) => (
                                 <TableRow key={item.id}>
                                     <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
                                     <TableCell>{item.nombre}</TableCell>
