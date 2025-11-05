@@ -40,15 +40,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 
-const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
-const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
+const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'ALMACEN', 'COMERCIAL', 'DIRECCION', 'MARKETING', 'PASE', 'CPR'] as const;
+const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga', 'Limpieza', 'Apoyo Oficina'] as const;
 
 
-const personalMiceSchema = z.object({
+const cesionSchema = z.object({
   id: z.string(),
-  osId: z.string().min(1, 'La OS es obligatoria.'),
+  osId: z.string().optional(), // No es obligatorio para cesiones internas
   centroCoste: z.enum(centroCosteOptions),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   dni: z.string().optional().default(''),
@@ -58,21 +59,20 @@ const personalMiceSchema = z.object({
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
   horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
   horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  comentarios: z.string().optional().default(''),
 });
 
 const formSchema = z.object({
-    cesiones: z.array(personalMiceSchema)
+    cesiones: z.array(cesionSchema)
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 
 export default function CesionesPersonalPage() {
-  const [serviceOrdersMap, setServiceOrdersMap] = useState<Map<string, ServiceOrder>>(new Map());
   const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -90,16 +90,6 @@ export default function CesionesPersonalPage() {
   });
 
   const loadData = useCallback(() => {
-    let storedOrders = localStorage.getItem('personalMiceOrders');
-    const allCesiones = storedOrders ? JSON.parse(storedOrders) : [];
-
-    let storedServiceOrders = localStorage.getItem('serviceOrders');
-    const osMap = new Map<string, ServiceOrder>();
-    if (storedServiceOrders) {
-        (JSON.parse(storedServiceOrders) as ServiceOrder[]).forEach(os => osMap.set(os.id, os));
-    }
-    setServiceOrdersMap(osMap);
-
     let storedPersonal = localStorage.getItem('personal');
     const pMap = new Map<string, Personal>();
      if (storedPersonal) {
@@ -107,17 +97,15 @@ export default function CesionesPersonalPage() {
     }
     setPersonalMap(pMap);
     
-    reset({ cesiones: allCesiones });
+    // For now, we will manage cesiones in their own DB
+    let storedCesiones = localStorage.getItem('cesionesPersonal');
+    reset({ cesiones: storedCesiones ? JSON.parse(storedCesiones) : [] });
     setIsMounted(true);
   }, [reset]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
-  
-  const getDepartment = (nombre: string) => {
-    return personalMap.get(nombre)?.departamento || 'N/A';
-  }
   
   const handlePersonalChange = useCallback((index: number, name: string) => {
     const person = personalMap.get(name);
@@ -131,54 +119,39 @@ export default function CesionesPersonalPage() {
 
   const filteredCesiones = useMemo(() => {
     return fields.map((field, index) => ({ field, index })).filter(({ field }) => {
-      const os = serviceOrdersMap.get(field.osId);
       const searchMatch = searchTerm === '' ||
         field.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (field.dni || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         field.centroCoste.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (os && os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+        (field.comentarios || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-      let dateMatch = true;
-      if (dateRange?.from && os) {
-          const osDate = new Date(os.startDate);
-          if(dateRange.to) {
-              dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
-          } else {
-              dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
-          }
-      }
-      return searchMatch && dateMatch;
+      return searchMatch;
     }).sort((a,b) => {
-        const osA = serviceOrdersMap.get(a.field.osId);
-        const osB = serviceOrdersMap.get(b.field.osId);
-        if(!osA || !osB) return 0;
-        return new Date(osA.startDate).getTime() - new Date(osB.startDate).getTime();
+        return a.field.nombre.localeCompare(b.field.nombre);
     });
-  }, [fields, searchTerm, dateRange, serviceOrdersMap]);
+  }, [fields, searchTerm]);
   
   const personalOptions = useMemo(() => Array.from(personalMap.keys()).map(p => ({ label: p, value: p})), [personalMap]);
-  const osOptions = useMemo(() => Array.from(serviceOrdersMap.values()).map(os => ({ label: `${os.serviceNumber} - ${os.client}`, value: os.id })), [serviceOrdersMap]);
 
   const addRow = () => {
     const newId = Date.now().toString();
     append({
         id: newId,
-        osId: '',
-        centroCoste: 'SALA',
+        centroCoste: 'CPR',
         nombre: '',
         dni: '',
-        tipoServicio: 'Servicio',
+        tipoServicio: 'Producción',
         horaEntrada: '09:00',
         horaSalida: '17:00',
         precioHora: 0,
         horaEntradaReal: '',
         horaSalidaReal: '',
+        comentarios: '',
     });
   };
 
   const onSubmit = (data: FormValues) => {
     setIsLoading(true);
-    localStorage.setItem('personalMiceOrders', JSON.stringify(data.cesiones));
+    localStorage.setItem('cesionesPersonal', JSON.stringify(data.cesiones));
     setTimeout(() => {
         setIsLoading(false);
         toast({ title: "Guardado", description: "Las cesiones de personal han sido guardadas." });
@@ -215,45 +188,33 @@ export default function CesionesPersonalPage() {
 
             <div className="flex gap-4 mb-4">
                 <Input 
-                placeholder="Buscar por empleado, OS..."
+                placeholder="Buscar por empleado, departamento, comentario..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="max-w-sm"
                 />
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "PPP", { locale: es })} - {format(dateRange.to, "PPP", { locale: es })} </>) : (format(dateRange.from, "PPP", { locale: es }))) : (<span>Filtrar por fecha de evento...</span>)}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
-                    </PopoverContent>
-                </Popover>
-                <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateRange(undefined); }}>Limpiar</Button>
             </div>
             
             <div className="border rounded-lg overflow-x-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="p-2 min-w-48">OS</TableHead>
                             <TableHead className="p-2 min-w-48">Empleado</TableHead>
                             <TableHead className="p-2">Dpto. Origen</TableHead>
-                            <TableHead className="p-2">Destino</TableHead>
+                            <TableHead className="p-2">Dpto. Destino</TableHead>
+                            <TableHead className="p-2 min-w-40">Tipo Servicio</TableHead>
                             <TableHead className="p-2 w-24">H. Entrada</TableHead>
                             <TableHead className="p-2 w-24">H. Salida</TableHead>
                             <TableHead className="p-2 w-24">H. Entrada Real</TableHead>
                             <TableHead className="p-2 w-24">H. Salida Real</TableHead>
                             <TableHead className="p-2 w-20">€/h</TableHead>
                             <TableHead className="p-2">Coste Real</TableHead>
+                            <TableHead className="p-2">Comentarios</TableHead>
                             <TableHead className="p-2 text-right">Acción</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredCesiones.length > 0 ? filteredCesiones.map(({ field, index }) => {
-                            const os = serviceOrdersMap.get(field.osId);
                             const horasPlan = calculateHours(field.horaEntrada, field.horaSalida);
                             const horasReal = calculateHours(field.horaEntradaReal, field.horaSalidaReal);
                             const costeReal = (horasReal || horasPlan) * field.precioHora;
@@ -261,19 +222,19 @@ export default function CesionesPersonalPage() {
                             return (
                                 <TableRow key={field.id}>
                                     <TableCell className="p-1">
-                                        <FormField control={control} name={`cesiones.${index}.osId`} render={({field}) => (
-                                            <Combobox options={osOptions} value={field.value} onChange={field.onChange} placeholder="Seleccionar OS..."/>
-                                        )}/>
-                                    </TableCell>
-                                    <TableCell className="p-1">
                                          <FormField control={control} name={`cesiones.${index}.nombre`} render={({field}) => (
                                             <Combobox options={personalOptions} value={field.value} onChange={(value) => handlePersonalChange(index, value)} placeholder="Seleccionar empleado..."/>
                                         )}/>
                                     </TableCell>
-                                    <TableCell className="p-2">{getDepartment(field.nombre)}</TableCell>
+                                    <TableCell className="p-2">{personalMap.get(field.nombre)?.departamento || 'N/A'}</TableCell>
                                     <TableCell className="p-1">
                                         <FormField control={control} name={`cesiones.${index}.centroCoste`} render={({field}) => (
                                             <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl><SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                        )}/>
+                                    </TableCell>
+                                    <TableCell className="p-1">
+                                        <FormField control={control} name={`cesiones.${index}.tipoServicio`} render={({field}) => (
+                                            <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl><SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
                                         )}/>
                                     </TableCell>
                                     <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaEntrada`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
@@ -282,6 +243,7 @@ export default function CesionesPersonalPage() {
                                     <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaSalidaReal`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
                                     <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.precioHora`} render={({field}) => <Input type="number" step="0.01" {...field} className="h-9 text-right" readOnly/>}/></TableCell>
                                     <TableCell className="p-2 font-mono font-semibold text-right">{formatCurrency(costeReal)}</TableCell>
+                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.comentarios`} render={({field}) => <Input {...field} className="h-9"/>}/></TableCell>
                                     <TableCell className="p-1 text-right">
                                         <Button variant="ghost" size="icon" className="text-destructive h-9" type="button" onClick={() => setRowToDelete(index)}>
                                             <Trash2 className="h-4 w-4" />
@@ -291,7 +253,7 @@ export default function CesionesPersonalPage() {
                             );
                         }) : (
                             <TableRow>
-                                <TableCell colSpan={11} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
+                                <TableCell colSpan={12} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -304,7 +266,7 @@ export default function CesionesPersonalPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                Se eliminará esta fila de la planificación. Para que el cambio sea permanente, recuerda guardar los cambios.
+                Esta acción eliminará la fila de la tabla. El cambio será permanente al guardar.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -322,4 +284,3 @@ export default function CesionesPersonalPage() {
   );
 }
 
-    
