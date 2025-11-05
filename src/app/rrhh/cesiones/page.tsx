@@ -135,7 +135,7 @@ export default function CesionesPersonalPage() {
     let storedPersonal = localStorage.getItem('personal');
     const pMap = new Map<string, Personal>();
      if (storedPersonal) {
-        (JSON.parse(storedPersonal) as Personal[]).forEach(p => pMap.set(p.nombre, p));
+        (JSON.parse(storedPersonal) as Personal[]).forEach(p => pMap.set(p.nombreCompleto, p));
     }
     setPersonalMap(pMap);
     
@@ -151,7 +151,7 @@ export default function CesionesPersonalPage() {
   const handlePersonalChange = useCallback((index: number, name: string) => {
     const person = personalMap.get(name);
     if (person) {
-      setValue(`cesiones.${index}.nombre`, person.nombre, { shouldDirty: true });
+      setValue(`cesiones.${index}.nombre`, person.nombreCompleto, { shouldDirty: true });
       setValue(`cesiones.${index}.dni`, person.dni || '', { shouldDirty: true });
       setValue(`cesiones.${index}.precioHora`, person.precioHora || 0, { shouldDirty: true });
     }
@@ -207,9 +207,7 @@ export default function CesionesPersonalPage() {
         toast({ title: 'Fila eliminada', description: 'La fila se ha eliminado. Guarda los cambios para hacerlo permanente.' });
     }
   }
-
-  const watchedCesiones = useWatch({ control, name: 'cesiones' });
-
+  
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Cesiones de Personal..." />;
   }
@@ -258,18 +256,18 @@ export default function CesionesPersonalPage() {
                     </TableHeader>
                     <TableBody>
                         {filteredCesiones.length > 0 ? filteredCesiones.map(({ field, index }) => {
-                            const cesion = watchedCesiones[index];
+                            const cesion = field; // Use field directly
                             const horasPlan = calculateHours(cesion.horaEntrada, cesion.horaSalida);
-                            const costePlanificado = horasPlan * cesion.precioHora;
+                            const costePlanificado = horasPlan * (cesion.precioHora || 0);
                             const horasReal = calculateHours(cesion.horaEntradaReal, cesion.horaSalidaReal);
-                            const costeReal = (horasReal || horasPlan) * cesion.precioHora;
+                            const costeReal = (horasReal || horasPlan) * (cesion.precioHora || 0);
                             const dptoOrigen = personalMap.get(cesion.nombre)?.departamento || 'N/A';
 
                             return (
                                 <TableRow key={field.id}>
                                     <TableCell className="p-1">
                                          <FormField control={control} name={`cesiones.${index}.nombre`} render={({field}) => (
-                                            <Combobox options={personalOptions} value={field.value} onChange={(value) => handlePersonalChange(index, value)} placeholder="Seleccionar empleado..."/>
+                                            <Combobox options={personalOptions} value={field.value} onChange={(value) => { field.onChange(value); handlePersonalChange(index, value); }} placeholder="Seleccionar empleado..."/>
                                         )}/>
                                     </TableCell>
                                     <TableCell className="p-1 font-semibold">{dptoOrigen}</TableCell>
@@ -331,5 +329,3 @@ export default function CesionesPersonalPage() {
     </main>
   );
 }
-
-    
