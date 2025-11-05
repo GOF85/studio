@@ -35,7 +35,7 @@ const ALL_DATABASE_KEYS = [
     'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 'familiasERP',
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones', 'personalExternoDB', 'historicoPreciosERP',
-    'incidenciasRetorno', 'costesFijosCPR', 'objetivosCPR', 'solicitudesPersonalCPR'
+    'incidenciasRetorno', 'costesFijosCPR', 'objetivosCPR', 'solicitudesPersonalCPR', 'cesionesPersonal'
 ];
 
 
@@ -95,6 +95,7 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
     costesFijosCPR: 'Configuración de los gastos estructurales mensuales del CPR.',
     objetivosCPR: 'Presupuestos mensuales para la Cta. de Explotación del CPR.',
     solicitudesPersonalCPR: 'Solicitudes de personal de apoyo para el CPR.',
+    cesionesPersonal: 'Registro de cesiones de personal interno entre departamentos.',
 };
 
 
@@ -208,6 +209,7 @@ export default function DebugDbPage() {
 }
 
     
+
 
 
 

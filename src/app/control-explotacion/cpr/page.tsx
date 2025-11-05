@@ -208,7 +208,7 @@ export default function CprControlExplotacionPage() {
             return sum + orderTotal;
         }, 0);
 
-         const cesionesEnRango = allCesionesPersonal.filter(c => {
+        const cesionesEnRango = allCesionesPersonal.filter(c => {
              try {
                 const fechaCesion = new Date(c.fecha);
                 return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
@@ -217,9 +217,10 @@ export default function CprControlExplotacionPage() {
         
         let ingresosCesionPersonalPlanificado = 0, ingresosCesionPersonalCierre = 0;
         let gastosCesionPersonalPlanificado = 0, gastosCesionPersonalCierre = 0;
-
+        
         cesionesEnRango.forEach(c => {
-            const origenDpto = personalMap.get(c.nombre)?.departamento;
+            const personalInfo = personalMap.get(c.nombre);
+            const origenDpto = personalInfo?.departamento;
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
             const costeReal = (calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora;
 
@@ -401,11 +402,11 @@ export default function CprControlExplotacionPage() {
     const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonalPlanificado, ingresosCesionPersonalCierre, gastosCesionPersonalPlanificado, gastosCesionPersonalCierre, costesFijosPeriodo, facturacionNeta, costePersonalSolicitadoPlanificado, costePersonalSolicitadoCierre } = dataCalculada;
     
     const tablaExplotacion: CostRow[] = [
-        { label: "Venta Gastronomía", presupuesto: ingresosVenta, cierre: ingresosVenta, real: ingresosVenta, objetivo: facturacionNeta * ((objetivo.presupuestoVentas || 0) / 100), objetivo_pct: (objetivo.presupuestoVentas || 0) / 100, comentario: comentarios['Venta Gastronomía'], detailType: 'ventaGastronomia' },
+        { label: "Venta Gastronomía", presupuesto: ingresosVenta, cierre: ingresosVenta, real: realCostInputs['Venta Gastronomía'] ?? ingresosVenta, objetivo: facturacionNeta * ((objetivo.presupuestoVentas || 0) / 100), objetivo_pct: (objetivo.presupuestoVentas || 0) / 100, comentario: comentarios['Venta Gastronomía'], detailType: 'ventaGastronomia' },
         { label: "Cesión de Personal", presupuesto: ingresosCesionPersonalPlanificado, cierre: ingresosCesionPersonalCierre, real: realCostInputs['Cesión de Personal'] ?? ingresosCesionPersonalCierre, objetivo: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), objetivo_pct: (objetivo.presupuestoCesionPersonal || 0) / 100, comentario: comentarios['Cesión de Personal'] },
         { label: GASTO_LABELS.gastronomia, presupuesto: costeEscandallo, cierre: costeEscandallo, real: realCostInputs[GASTO_LABELS.gastronomia] ?? costeEscandallo, objetivo: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosMP || 0) / 100, comentario: comentarios[GASTO_LABELS.gastronomia], detailType: 'costeMP' },
         { label: "Personal Cedido a CPR", presupuesto: gastosCesionPersonalPlanificado, cierre: gastosCesionPersonalCierre, real: realCostInputs["Personal Cedido a CPR"] ?? gastosCesionPersonalCierre, objetivo: 0, objetivo_pct: 0, comentario: comentarios["Personal Cedido a CPR"]},
-        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitadoPlanificado, cierre: costePersonalSolicitadoCierre, real: realCostInputs[GASTO_LABELS.personalSolicitadoCpr] ?? costePersonalSolicitadoCierre, objetivo: facturacionNeta * ((objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100), objetivo_pct: (objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100, comentario: comentarios[GASTO_LABELS.personalSolicitadoCpr], detailType: 'personalApoyo' },
+        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitadoPlanificado, cierre: costePersonalSolicitadoCierre, real: realCostInputs[GASTO_LABELS.personalSolicitadoCpr] ?? costePersonalSolicitadoCierre, objetivo: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosPersonalExterno || 0) / 100, comentario: comentarios[GASTO_LABELS.personalSolicitadoCpr], detailType: 'personalApoyo' },
         { label: "Otros Gastos", presupuesto: costesFijosPeriodo, cierre: costesFijosPeriodo, real: realCostInputs['Otros Gastos'] ?? costesFijosPeriodo, objetivo: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), objetivo_pct: (objetivo.presupuestoOtrosGastos || 0) / 100, comentario: comentarios['Otros Gastos'] },
     ];
     const ingresos = tablaExplotacion.filter(r => ["Venta Gastronomía", "Cesión de Personal"].includes(r.label));
