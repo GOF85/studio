@@ -119,8 +119,10 @@ export default function CprControlExplotacionPage() {
         setAllRecetas(JSON.parse(localStorage.getItem('recetas') || '[]'));
         setAllCostesFijos(JSON.parse(localStorage.getItem('costesFijosCPR') || '[]'));
         setAllSolicitudesPersonalCPR(JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]'));
-        setAllCesionesPersonal(JSON.parse(localStorage.getItem('cesionesPersonal') || '[]'));
-
+        
+        const cesionesData = JSON.parse(localStorage.getItem('cesionesPersonal') || '[]') as CesionStorage[];
+        setAllCesionesPersonal(cesionesData);
+        
         const personalData = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
         setPersonalMap(new Map(personalData.map(p => [p.nombreCompleto, p])));
         setPersonalInterno(personalData);
@@ -140,7 +142,6 @@ export default function CprControlExplotacionPage() {
         const storedComentarios = osId ? (JSON.parse(localStorage.getItem('ctaComentarios') || '{}')[osId] || {}) : {};
         setComentarios(storedComentarios);
         
-        // Load real costs from localStorage for persistence
         const storedRealCosts = osId ? (JSON.parse(localStorage.getItem('ctaRealCosts') || '{}')[osId] || {}) : {};
         setRealCostInputs(storedRealCosts);
 
@@ -168,6 +169,7 @@ export default function CprControlExplotacionPage() {
     }, [dateRange, router]);
 
     const dataCalculada = useMemo(() => {
+        console.log("--- STARTING CALCULATION ---");
         if (!isMounted || !dateRange?.from) return null;
 
         const rangeStart = startOfDay(dateRange.from);
@@ -213,22 +215,29 @@ export default function CprControlExplotacionPage() {
             }, 0);
             return sum + orderTotal;
         }, 0);
+        
+        console.log("[DEBUG] Raw cesionesPersonal data:", allCesionesPersonal);
+        console.log("[DEBUG] personalMap size:", personalMap.size);
 
         const cesionesEnRango = allCesionesPersonal.filter(c => {
             if (!c.fecha) return false;
             try {
-                const fechaCesion = parseISO(c.fecha);
+                // Corrected date parsing
+                const fechaCesion = new Date(c.fecha);
                 return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
             } catch (e) {
                 return false;
             }
         });
+        
+        console.log("[DEBUG] Cesiones in date range:", cesionesEnRango);
 
         let ingresosCesionPersonalPlanificado = 0, ingresosCesionPersonalCierre = 0;
         let gastosCesionPersonalPlanificado = 0, gastosCesionPersonalCierre = 0;
         
         cesionesEnRango.forEach(c => {
             const personalInfo = personalMap.get(c.nombre);
+             console.log(`[DEBUG] Processing cesion for ${c.nombre}. Found in map:`, !!personalInfo, 'Dept:', personalInfo?.departamento);
             if (!personalInfo) return;
 
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
@@ -242,6 +251,10 @@ export default function CprControlExplotacionPage() {
                 gastosCesionPersonalCierre += costeReal;
             }
         });
+        
+        console.log("[DEBUG] Final Ingresos Cesion Cierre:", ingresosCesionPersonalCierre);
+        console.log("[DEBUG] Final Gastos Cesion Cierre:", gastosCesionPersonalCierre);
+
 
         const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
         const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
@@ -285,9 +298,13 @@ export default function CprControlExplotacionPage() {
     }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes, allCesionesPersonal, personalMap]);
 
     const dataAcumulada = useMemo(() => {
+        console.log("--- STARTING ACCUMULATED CALCULATION ---");
         if (!isMounted) return [];
         const mesesDelAno = eachMonthOfInterval({ start: startOfYear(new Date()), end: endOfYear(new Date())});
-        const localPersonalMap = new Map((personalInterno || []).map(p => [p.nombreCompleto, p]));
+        
+        const personalMapLocal = new Map((JSON.parse(localStorage.getItem('personal') || '[]') as Personal[]).map(p => [p.nombreCompleto, p]));
+        console.log("[DEBUG] personalMapLocal for dataAcumulada:", personalMapLocal);
+
 
         return mesesDelAno.map(month => {
             const rangeStart = startOfMonth(month);
@@ -317,16 +334,17 @@ export default function CprControlExplotacionPage() {
             }, 0);
             
              const cesionesEnRango = allCesionesPersonal.filter(c => {
-                if (!c.fecha) return false;
+                 if (!c.fecha) return false;
                 try {
-                    const fechaCesion = parseISO(c.fecha);
+                    const fechaCesion = new Date(c.fecha);
                     return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
                 } catch(e) { return false; }
             });
+            console.log(`[DEBUG] Cesiones in date range for ${format(month, 'MMM')}:`, cesionesEnRango);
 
 
-            const ingresosCesionPersonal = cesionesEnRango.filter(c => localPersonalMap.get(c.nombre)?.departamento === 'CPR' && c.centroCoste !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
-            const gastosCesionPersonal = cesionesEnRango.filter(c => c.centroCoste === 'CPR' && localPersonalMap.get(c.nombre)?.departamento !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
+            const ingresosCesionPersonal = cesionesEnRango.filter(c => personalMapLocal.get(c.nombre)?.departamento === 'CPR' && c.centroCoste !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
+            const gastosCesionPersonal = cesionesEnRango.filter(c => c.centroCoste === 'CPR' && personalMapLocal.get(c.nombre)?.departamento !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
             
             const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
                  try {
@@ -422,20 +440,38 @@ export default function CprControlExplotacionPage() {
 
     const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonalPlanificado, ingresosCesionPersonalCierre, gastosCesionPersonalPlanificado, gastosCesionPersonalCierre, costesFijosPeriodo, facturacionNeta, costePersonalSolicitadoPlanificado, costePersonalSolicitadoCierre } = dataCalculada;
     
-    const tablaExplotacion: CostRow[] = [
-        { label: "Venta Gastronomía", presupuesto: ingresosVenta, cierre: ingresosVenta, real: realCostInputs['Venta Gastronomía'] ?? ingresosVenta, objetivo: facturacionNeta * ((objetivo.presupuestoVentas || 0) / 100), objetivo_pct: (objetivo.presupuestoVentas || 0) / 100, comentario: comentarios['Venta Gastronomía'], detailType: 'ventaGastronomia' },
-        { label: "Cesión de Personal", presupuesto: ingresosCesionPersonalPlanificado, cierre: ingresosCesionPersonalCierre, real: realCostInputs['Cesión de Personal'] ?? ingresosCesionPersonalCierre, objetivo: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), objetivo_pct: (objetivo.presupuestoCesionPersonal || 0) / 100, comentario: comentarios['Cesión de Personal'] },
-        { label: GASTO_LABELS.gastronomia, presupuesto: costeEscandallo, cierre: costeEscandallo, real: realCostInputs[GASTO_LABELS.gastronomia] ?? costeEscandallo, objetivo: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosMP || 0) / 100, comentario: comentarios[GASTO_LABELS.gastronomia], detailType: 'costeMP' },
-        { label: "Personal Cedido a CPR", presupuesto: gastosCesionPersonalPlanificado, cierre: gastosCesionPersonalCierre, real: realCostInputs["Personal Cedido a CPR"] ?? gastosCesionPersonalCierre, objetivo: 0, objetivo_pct: 0, comentario: comentarios["Personal Cedido a CPR"]},
-        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitadoPlanificado, cierre: costePersonalSolicitadoCierre, real: realCostInputs[GASTO_LABELS.personalSolicitadoCpr] ?? costePersonalSolicitadoCierre, objetivo: facturacionNeta * ((objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100), objetivo_pct: (objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100, comentario: comentarios[GASTO_LABELS.personalSolicitadoCpr], detailType: 'personalApoyo' },
-        { label: "Otros Gastos", presupuesto: costesFijosPeriodo, cierre: costesFijosPeriodo, real: realCostInputs['Otros Gastos'] ?? costesFijosPeriodo, objetivo: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), objetivo_pct: (objetivo.presupuestoOtrosGastos || 0) / 100, comentario: comentarios['Otros Gastos'] },
-    ];
-    const ingresos = tablaExplotacion.filter(r => ["Venta Gastronomía", "Cesión de Personal"].includes(r.label));
-    const gastos = tablaExplotacion.filter(r => !["Venta Gastronomía", "Cesión de Personal"].includes(r.label));
+    const processedCostes: CostRow[] = useMemo(() => {
+    if (!ctaData) return [];
+    return ctaData.costes.map(coste => {
+        const keyMap: {[key: string]: keyof Omit<ObjetivosGasto, 'id' | 'name'>} = {
+            [GASTO_LABELS.gastronomia]: 'gastronomia', [GASTO_LABELS.bodega]: 'bodega', [GASTO_LABELS.consumibles]: 'consumibles', [GASTO_LABELS.hielo]: 'hielo',
+            [GASTO_LABELS.almacen]: 'almacen', [GASTO_LABELS.alquiler]: 'alquiler', [GASTO_LABELS.transporte]: 'transporte', [GASTO_LABELS.decoracion]: 'decoracion',
+            [GASTO_LABELS.atipicos]: 'atipicos', [GASTO_LABELS.personalMice]: 'personalMice', [GASTO_LABELS.personalExterno]: 'personalExterno',
+            [GASTO_LABELS.costePruebaMenu]: 'costePruebaMenu', [GASTO_LABELS.personalSolicitadoCpr]: 'personalSolicitadoCpr'
+        }
+        const objKey = keyMap[coste.label];
+        const objetivo_pct = (objKey && ctaData.objetivos?.[objKey] / 100) || 0;
+        const realValue = realCostInputs[coste.label] ?? coste.cierre;
+        return {
+            ...coste,
+            real: realValue,
+            objetivo: ctaData.facturacionNeta * objetivo_pct,
+            objetivo_pct: objetivo_pct,
+            comentario: comentarios[coste.label] || '',
+        }
+    });
+  }, [ctaData, realCostInputs, comentarios]);
 
-    const totalRealIngresos = ingresos.reduce((sum, r) => sum + r.real, 0);
-    const totalRealGastos = gastos.reduce((sum, r) => sum + r.real, 0);
-    const rentabilidadReal = totalRealIngresos - totalRealGastos;
+  const totals = useMemo(() => {
+    const totalPresupuesto = processedCostes.reduce((sum, row) => sum + row.presupuesto, 0);
+    const totalCierre = processedCostes.reduce((sum, row) => sum + row.cierre, 0);
+    const totalReal = processedCostes.reduce((sum, row) => sum + (row.real ?? row.cierre), 0);
+    return { totalPresupuesto, totalCierre, totalReal };
+  }, [processedCostes]);
+
+    const gastos = processedCostes;
+    const totalRealGastos = totals.totalReal;
+    const rentabilidadReal = facturacionNeta - totalRealGastos;
 
     const renderCostRow = (row: CostRow, index: number) => {
         const pctSFactPresupuesto = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
@@ -590,10 +626,10 @@ export default function CprControlExplotacionPage() {
                                             </TableRow>
                                         </TableHeader>
                                          <TableBody>
-                                            {renderSummaryRow('INGRESOS', totalRealIngresos, true)}
-                                            {ingresos.map(renderCostRow)}
+                                            {renderSummaryRow('INGRESOS', totalReal, true)}
+                                            {gastos.filter(g => ['Venta Gastronomía', 'Cesión de Personal'].includes(g.label)).map(renderCostRow)}
                                             {renderSummaryRow('GASTOS', totalRealGastos, true)}
-                                            {gastos.map(renderCostRow)}
+                                            {gastos.filter(g => !['Venta Gastronomía', 'Cesión de Personal'].includes(g.label)).map(renderCostRow)}
                                             {renderFinalRow('RESULTADO', rentabilidadReal)}
                                         </TableBody>
                                     </Table>
