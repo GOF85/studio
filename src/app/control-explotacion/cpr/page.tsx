@@ -218,7 +218,8 @@ export default function CprControlExplotacionPage() {
         const cesionesEnRango = allCesionesPersonal.filter(c => {
             if (!c.fecha) return false;
             try {
-                const fechaCesion = parseISO(c.fecha);
+                const [year, month, day] = c.fecha.split('-').map(Number);
+                const fechaCesion = new Date(year, month - 1, day);
                 return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
             } catch (e) {
                 return false;
@@ -232,7 +233,6 @@ export default function CprControlExplotacionPage() {
         
         cesionesEnRango.forEach(c => {
             const personalInfo = personalInterno.find(p => p.nombreCompleto === c.nombre);
-             console.log(`[DEBUG] Processing cesion for ${c.nombre}. Found in map:`, !!personalInfo, 'Dept:', personalInfo?.departamento);
             if (!personalInfo) return;
 
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
@@ -297,7 +297,7 @@ export default function CprControlExplotacionPage() {
         if (!isMounted) return [];
         const mesesDelAno = eachMonthOfInterval({ start: startOfYear(new Date()), end: endOfYear(new Date())});
         
-        const localPersonalMap = new Map((JSON.parse(localStorage.getItem('personal') || '[]') as Personal[]).map(p => [p.nombreCompleto, p]));
+        const localPersonalMap = new Map(personalInterno.map(p => [p.nombreCompleto, p]));
         console.log("[DEBUG] personalMapLocal for dataAcumulada:", localPersonalMap);
 
 
@@ -328,10 +328,11 @@ export default function CprControlExplotacionPage() {
                 }, 0);
             }, 0);
             
-             const cesionesEnRango = allCesionesPersonal.filter(c => {
-                 if (!c.fecha) return false;
+            const cesionesEnRango = allCesionesPersonal.filter(c => {
+                if (!c.fecha) return false;
                 try {
-                    const fechaCesion = new Date(c.fecha);
+                    const [year, month, day] = c.fecha.split('-').map(Number);
+                    const fechaCesion = new Date(year, month - 1, day);
                     return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
                 } catch(e) { return false; }
             });
@@ -380,6 +381,48 @@ export default function CprControlExplotacionPage() {
         });
 
     }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal, personalInterno]);
+
+    const processedCostes: CostRow[] = useMemo(() => {
+        if (!dataCalculada) return [];
+        const { facturacionNeta, objetivo } = dataCalculada;
+        const gastos = [
+            { label: 'Venta Gastronomía', presupuesto: dataCalculada.ingresosVenta, cierre: dataCalculada.ingresosVenta },
+            { label: 'Cesión de Personal', presupuesto: dataCalculada.ingresosCesionPersonalPlanificado, cierre: dataCalculada.ingresosCesionPersonalCierre },
+            { label: GASTO_LABELS.gastronomia, presupuesto: dataCalculada.costeEscandallo, cierre: dataCalculada.costeEscandallo, detailType: 'costeMP' },
+            { label: 'Personal Cedido a CPR', presupuesto: dataCalculada.gastosCesionPersonalPlanificado, cierre: dataCalculada.gastosCesionPersonalCierre },
+            { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: dataCalculada.costePersonalSolicitadoPlanificado, cierre: dataCalculada.costePersonalSolicitadoCierre, detailType: 'personalApoyo' },
+            { label: 'Otros Gastos (Fijos)', presupuesto: dataCalculada.costesFijosPeriodo, cierre: dataCalculada.costesFijosPeriodo },
+        ];
+
+        return gastos.map(g => {
+            const keyMap: {[key: string]: keyof Omit<ObjetivoMensualCPR, 'mes'>} = {
+                'Venta Gastronomía': 'presupuestoVentas',
+                'Cesión de Personal': 'presupuestoCesionPersonal',
+                [GASTO_LABELS.gastronomia]: 'presupuestoGastosMP',
+                [GASTO_LABELS.personalSolicitadoCpr]: 'presupuestoGastosPersonalExterno',
+                'Otros Gastos (Fijos)': 'presupuestoOtrosGastos',
+            };
+            const objKey = keyMap[g.label];
+            const objetivo_pct = (objKey && objetivo?.[objKey] / 100) || 0;
+            const realValue = realCostInputs[g.label] ?? g.cierre;
+            return {
+                ...g,
+                real: realValue,
+                objetivo: facturacionNeta * objetivo_pct,
+                objetivo_pct: objetivo_pct,
+                comentario: comentarios[g.label] || '',
+            }
+        });
+    }, [dataCalculada, realCostInputs, comentarios]);
+
+    const { totalPresupuesto, totalCierre, totalReal, totalObjetivo } = useMemo(() => {
+        if (!processedCostes) return { totalPresupuesto: 0, totalCierre: 0, totalReal: 0, totalObjetivo: 0 };
+        const totalPresupuesto = processedCostes.reduce((sum, row) => sum + row.presupuesto, 0);
+        const totalCierre = processedCostes.reduce((sum, row) => sum + row.cierre, 0);
+        const totalReal = processedCostes.reduce((sum, row) => sum + (row.real ?? row.cierre), 0);
+        const totalObjetivo = processedCostes.reduce((sum, row) => sum + row.objetivo, 0);
+        return { totalPresupuesto, totalCierre, totalReal, totalObjetivo };
+    }, [processedCostes]);
 
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -433,36 +476,8 @@ export default function CprControlExplotacionPage() {
         return <LoadingSkeleton title="Calculando rentabilidad del CPR..." />;
     }
 
-    const { kpis, objetivo, costeEscandallo, ingresosVenta, ingresosCesionPersonalPlanificado, ingresosCesionPersonalCierre, gastosCesionPersonalPlanificado, gastosCesionPersonalCierre, costesFijosPeriodo, facturacionNeta, costePersonalSolicitadoPlanificado, costePersonalSolicitadoCierre } = dataCalculada;
+    const { kpis, facturacionNeta } = dataCalculada;
     
-    const gastos: Omit<CostRow, 'objetivo' | 'objetivo_pct' | 'real'| 'comentario'>[] = [
-        { label: 'Venta Gastronomía', presupuesto: ingresosVenta, cierre: ingresosVenta },
-        { label: 'Cesión de Personal', presupuesto: ingresosCesionPersonalPlanificado, cierre: ingresosCesionPersonalCierre },
-        { label: GASTO_LABELS.gastronomia, presupuesto: costeEscandallo, cierre: costeEscandallo, detailType: 'costeMP' },
-        { label: 'Personal Cedido a CPR', presupuesto: gastosCesionPersonalPlanificado, cierre: gastosCesionPersonalCierre },
-        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitadoPlanificado, cierre: costePersonalSolicitadoCierre, detailType: 'personalApoyo' },
-        { label: 'Otros Gastos (Fijos)', presupuesto: costesFijosPeriodo, cierre: costesFijosPeriodo },
-    ]
-    
-    const processedCostes = gastos.map(g => {
-        const keyMap: {[key: string]: keyof Omit<ObjetivoMensualCPR, 'mes'>} = {
-            'Venta Gastronomía': 'presupuestoVentas',
-            'Cesión de Personal': 'presupuestoCesionPersonal',
-            [GASTO_LABELS.gastronomia]: 'presupuestoGastosMP',
-            [GASTO_LABELS.personalSolicitadoCpr]: 'presupuestoGastosPersonalExterno',
-            'Otros Gastos (Fijos)': 'presupuestoOtrosGastos',
-        };
-        const objKey = keyMap[g.label];
-        const objetivo_pct = (objKey && objetivo?.[objKey] / 100) || 0;
-        return {
-            ...g,
-            real: realCostInputs[g.label] ?? g.cierre,
-            objetivo: facturacionNeta * objetivo_pct,
-            objetivo_pct: objetivo_pct,
-            comentario: comentarios[g.label] || '',
-        }
-    })
-
     const totalRealIngresos = processedCostes.filter(g => ['Venta Gastronomía', 'Cesión de Personal'].includes(g.label)).reduce((s, r) => s + r.real, 0);
     const totalRealGastos = processedCostes.filter(g => !['Venta Gastronomía', 'Cesión de Personal'].includes(g.label)).reduce((s, r) => s + r.real, 0);
     const rentabilidadReal = totalRealIngresos - totalRealGastos;
