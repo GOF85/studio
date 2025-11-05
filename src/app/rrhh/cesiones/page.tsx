@@ -1,42 +1,26 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Trash2, Save, Loader2, Pencil, Shuffle } from 'lucide-react';
-import type { PersonalMiceOrder, ServiceOrder, Personal } from '@/types';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { PlusCircle, Shuffle, Save, Loader2, Trash2, Pencil } from 'lucide-react';
+import type { PersonalMiceOrder, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { cn } from '@/lib/utils';
 import { calculateHours, formatCurrency } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'ALMACEN', 'COMERCIAL', 'DIRECCION', 'MARKETING', 'PASE', 'CPR'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga', 'Limpieza', 'Apoyo Oficina'] as const;
@@ -134,7 +118,6 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
         </Dialog>
     );
 }
-
 
 export default function CesionesPersonalPage() {
   const [cesiones, setCesiones] = useState<CesionFormValues[]>([]);
@@ -243,9 +226,9 @@ export default function CesionesPersonalPage() {
                 <TableBody>
                     {filteredCesiones.length > 0 ? filteredCesiones.map((cesion) => {
                         const horasPlan = calculateHours(cesion.horaEntrada, cesion.horaSalida);
-                        const costePlanificado = horasPlan * (cesion.precioHora || 0);
+                        const costePlanificado = horasPlan * cesion.precioHora;
                         const horasReal = calculateHours(cesion.horaEntradaReal, cesion.horaSalidaReal);
-                        const costeReal = (horasReal || horasPlan) * (cesion.precioHora || 0);
+                        const costeReal = (horasReal || horasPlan) * cesion.precioHora;
                         const dptoOrigen = personalMap.get(cesion.nombre)?.departamento || 'N/A';
 
                         return (
