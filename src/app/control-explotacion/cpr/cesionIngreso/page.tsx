@@ -12,9 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { formatCurrency, formatNumber, calculateHours } from '@/lib/utils';
 import Link from 'next/link';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type DetalleIngreso = CesionStorage & {
     costeReal: number;
@@ -24,6 +26,8 @@ type DetalleIngreso = CesionStorage & {
 export default function CesionIngresoPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [detalles, setDetalles] = useState<DetalleIngreso[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [departmentFilter, setDepartmentFilter] = useState('all');
     const searchParams = useSearchParams();
 
     const from = searchParams.get('from');
@@ -39,7 +43,14 @@ export default function CesionIngresoPage() {
         const rangeEnd = endOfDay(parseISO(to));
         
         const allCesiones = (JSON.parse(localStorage.getItem('cesionesPersonal') || '[]') as CesionStorage[])
-            .filter(c => c.fecha && isWithinInterval(new Date(c.fecha), { start: rangeStart, end: rangeEnd }));
+            .filter(c => {
+                if (!c.fecha) return false;
+                try {
+                    const [year, month, day] = c.fecha.split('-').map(Number);
+                    const fechaCesion = new Date(year, month - 1, day);
+                    return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
+                } catch(e) { return false; }
+            });
             
         const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
         const personalMap = new Map(allPersonal.map(p => [p.nombreCompleto, p]));
@@ -63,18 +74,33 @@ export default function CesionIngresoPage() {
         setIsMounted(true);
     }, [from, to]);
     
+    const uniqueDepartments = useMemo(() => {
+        const departments = new Set<string>();
+        detalles.forEach(d => departments.add(d.centroCoste));
+        return ['all', ...Array.from(departments).sort()];
+    }, [detalles]);
+
+    const filteredDetails = useMemo(() => {
+        return detalles.filter(item => {
+            const term = searchTerm.toLowerCase();
+            const searchMatch = item.nombre.toLowerCase().includes(term);
+            const departmentMatch = departmentFilter === 'all' || item.centroCoste === departmentFilter;
+            return searchMatch && departmentMatch;
+        });
+    }, [detalles, searchTerm, departmentFilter]);
+    
     const dateRangeDisplay = useMemo(() => {
         if (!from || !to) return "Rango de fechas no especificado";
         return `${format(parseISO(from), 'dd/MM/yyyy')} - ${format(parseISO(to), 'dd/MM/yyyy')}`;
     }, [from, to]);
     
     const { totalCosteReal, totalCostePlanificado } = useMemo(() => {
-        return detalles.reduce((acc, item) => {
+        return filteredDetails.reduce((acc, item) => {
             acc.totalCosteReal += item.costeReal;
             acc.totalCostePlanificado += item.costePlanificado;
             return acc;
         }, { totalCosteReal: 0, totalCostePlanificado: 0 });
-    }, [detalles]);
+    }, [filteredDetails]);
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando detalle de ingresos por cesión..." />;
@@ -91,6 +117,27 @@ export default function CesionIngresoPage() {
                     <CardDescription>Desglose de los ingresos generados por personal de CPR que ha trabajado para otros departamentos.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                    <div className="flex gap-4 mb-4">
+                        <div className="relative flex-grow max-w-sm">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Buscar por empleado..."
+                                className="pl-8 w-full"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                            <SelectTrigger className="w-[240px]">
+                                <SelectValue placeholder="Filtrar por dpto. destino" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {uniqueDepartments.map(d => <SelectItem key={d} value={d}>{d === 'all' ? 'Todos los Dptos.' : d}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Button variant="secondary" onClick={() => { setSearchTerm(''); setDepartmentFilter('all'); }}>Limpiar</Button>
+                    </div>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -105,7 +152,7 @@ export default function CesionIngresoPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {detalles.length > 0 ? detalles.map((item, i) => (
+                            {filteredDetails.length > 0 ? filteredDetails.map((item, i) => (
                                 <TableRow key={item.id}>
                                     <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
                                     <TableCell>{item.nombre}</TableCell>
