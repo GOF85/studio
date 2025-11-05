@@ -232,18 +232,23 @@ export default function CprControlExplotacionPage() {
             }, 0);
         
         const personalExternoEnRango = allPersonalExterno.filter(p => osIdsEnRango.has(p.osId));
-        const costePersonalExternoPlanificado = personalExternoEnRango.reduce((sum, p) => {
-            const ajustes = allAjustesPersonal[p.osId] || [];
-            return sum + calculatePersonalExternoTotal(p, ajustes, 'planned');
-        }, 0);
-
-        const costePersonalExternoCierre = personalExternoEnRango.reduce((sum, p) => {
-            const ajustes = allAjustesPersonal[p.osId] || [];
-            return sum + calculatePersonalExternoTotal(p, ajustes, 'real');
-        }, 0);
+        
+        const calculatePersonalExternoTotal = (personalExterno: PersonalExterno | null, ajustes: PersonalExternoAjuste[], type: 'planned' | 'real') => {
+            if (!personalExterno) return 0;
+            const costeTurnos = personalExterno.turnos.reduce((sum, turno) => {
+                const hoursToUse = type === 'real' ? (calculateHours(turno.asignaciones?.[0]?.horaEntradaReal, turno.asignaciones?.[0]?.horaSalidaReal) || calculateHours(turno.horaEntrada, turno.horaSalida)) : calculateHours(turno.horaEntrada, turno.horaSalida);
+                const quantity = (turno.asignaciones || []).length > 0 ? turno.asignaciones.length : 1;
+                return sum + (hoursToUse * (turno.precioHora || 0) * quantity);
+            }, 0);
+            const costeAjustes = ajustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
+            return costeTurnos + costeAjustes;
+        };
+        const costePersonalExternoPlanificado = personalExternoEnRango.reduce((sum, p) => sum + calculatePersonalExternoTotal(p, allAjustesPersonal[p.osId] || [], 'planned'), 0);
+        const costePersonalExternoCierre = personalExternoEnRango.reduce((sum, p) => sum + calculatePersonalExternoTotal(p, allAjustesPersonal[p.osId] || [], 'real'), 0);
 
         const costesFijosPeriodo = allCostesFijos.reduce((sum, fijo) => sum + (fijo.importeMensual || 0), 0);
         
+        const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
         const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
             try {
                 const fechaServicio = new Date(solicitud.fechaServicio);
@@ -251,8 +256,6 @@ export default function CprControlExplotacionPage() {
             } catch(e) { return false; }
         });
         
-        const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
-
         const costePersonalSolicitadoPlanificado = solicitudesPersonalEnRango.reduce((sum, s) => {
             const horas = calculateHours(s.horaInicio, s.horaFin);
             const tipo = tiposPersonalMap.get(s.proveedorId || '');
@@ -263,12 +266,10 @@ export default function CprControlExplotacionPage() {
         const costePersonalSolicitadoCierre = solicitudesPersonalEnRango.reduce((sum, s) => {
             const tipo = tiposPersonalMap.get(s.proveedorId || '');
             const precioHora = tipo?.precioHora || 0;
-            if (s.personalAsignado && s.personalAsignado.length > 0) {
-                 const horasReales = s.personalAsignado.reduce((hSum, pa) => hSum + calculateHours(pa.horaEntradaReal, pa.horaSalidaReal), 0);
-                 return sum + (horasReales * precioHora);
-            }
-            // If not assigned or no real hours, use planned
-            return sum + (calculateHours(s.horaInicio, s.horaFin) * precioHora * s.cantidad);
+            const horasReales = s.personalAsignado && s.personalAsignado.length > 0
+                ? s.personalAsignado.reduce((hSum, pa) => hSum + calculateHours(pa.horaEntradaReal, pa.horaSalidaReal), 0)
+                : calculateHours(s.horaInicio, s.horaFin) * s.cantidad;
+            return sum + (horasReales * precioHora);
         }, 0);
 
 
@@ -326,10 +327,15 @@ export default function CprControlExplotacionPage() {
                 const fechaServicio = new Date(solicitud.fechaServicio);
                 return solicitud.estado === 'Cerrado' && isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
             });
+            const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
             const costePersonalSolicitado = solicitudesPersonalEnRango.reduce((sum, s) => {
-                const horas = calculateHours(s.personalAsignado?.[0]?.horaEntradaReal, s.personalAsignado?.[0]?.horaSalidaReal);
-                const precioHora = s.costeImputado ? s.costeImputado / calculateHours(s.horaInicio, s.horaFin) : 0;
-                return sum + (horas * precioHora);
+                const tipo = tiposPersonalMap.get(s.proveedorId || '');
+                const precioHora = tipo?.precioHora || 0;
+                if (s.personalAsignado && s.personalAsignado.length > 0) {
+                     const horasReales = s.personalAsignado.reduce((hSum, pa) => hSum + calculateHours(pa.horaEntradaReal, pa.horaSalidaReal), 0);
+                     return sum + (horasReales * precioHora);
+                }
+                return sum + (calculateHours(s.horaInicio, s.horaFin) * precioHora * s.cantidad);
             }, 0);
 
 
@@ -418,7 +424,7 @@ export default function CprControlExplotacionPage() {
         { label: GASTO_LABELS.gastronomia, presupuesto: costeEscandallo, cierre: costeEscandallo, real: realCostInputs[GASTO_LABELS.gastronomia] ?? costeEscandallo, objetivo: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosMP || 0) / 100, comentario: comentarios[GASTO_LABELS.gastronomia], detailType: 'costeMP' },
         { label: GASTO_LABELS.personalMice, presupuesto: costePersonalMicePlanificado, cierre: costePersonalMiceCierre, real: realCostInputs[GASTO_LABELS.personalMice] ?? costePersonalMiceCierre, objetivo: facturacionNeta * ((objetivo.presupuestoGastosPersonalMice || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosPersonalMice || 0) / 100, comentario: comentarios[GASTO_LABELS.personalMice] },
         { label: GASTO_LABELS.personalExterno, presupuesto: costePersonalExternoPlanificado, cierre: costePersonalExternoCierre, real: realCostInputs[GASTO_LABELS.personalExterno] ?? costePersonalExternoCierre, objetivo: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosPersonalExterno || 0) / 100, comentario: comentarios[GASTO_LABELS.personalExterno] },
-        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitadoPlanificado, cierre: costePersonalSolicitadoCierre, real: realCostInputs[GASTO_LABELS.personalSolicitadoCpr] ?? costePersonalSolicitadoCierre, objetivo: facturacionNeta * ((objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100), objetivo_pct: (objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100, comentario: comentarios[GASTO_LABELS.personalSolicitadoCpr], detailType: 'personal' },
+        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitadoPlanificado, cierre: costePersonalSolicitadoCierre, real: realCostInputs[GASTO_LABELS.personalSolicitadoCpr] ?? costePersonalSolicitadoCierre, objetivo: facturacionNeta * ((objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100), objetivo_pct: (objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100, comentario: comentarios[GASTO_LABELS.personalSolicitadoCpr], detailType: 'personalApoyo' },
         { label: "Otros Gastos", presupuesto: otrosGastos, cierre: otrosGastos, real: realCostInputs['Otros Gastos'] ?? otrosGastos, objetivo: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), objetivo_pct: (objetivo.presupuestoOtrosGastos || 0) / 100, comentario: comentarios['Otros Gastos'] },
     ];
     const ingresos = tablaExplotacion.filter(r => ["Venta Gastronomía", "Cesión de Personal"].includes(r.label));
