@@ -164,8 +164,6 @@ export default function CprControlExplotacionPage() {
     const dataCalculada = useMemo(() => {
         if (!isMounted || !dateRange?.from) return null;
 
-        console.log("--- STARTING CALCULATION ---");
-
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
         
@@ -210,49 +208,35 @@ export default function CprControlExplotacionPage() {
             return sum + orderTotal;
         }, 0);
         
-        console.log("[DEBUG] Raw cesionesPersonal data:", allCesionesPersonal);
-        console.log("[DEBUG] personalMap size:", personalMap.size);
-
         const cesionesEnRango = allCesionesPersonal.filter(c => {
              try {
-                const fechaCesion = new Date(c.fecha);
+                 // The date string from localStorage might not have a timezone.
+                 // Appending 'T00:00:00' treats it as local time but avoids timezone shifts with new Date().
+                 const fechaCesion = new Date(`${c.fecha}T00:00:00`);
                 return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
             } catch(e) { return false; }
         });
-        
-        console.log("[DEBUG] Cesiones in date range:", cesionesEnRango);
 
         let ingresosCesionPersonalPlanificado = 0, ingresosCesionPersonalCierre = 0;
         let gastosCesionPersonalPlanificado = 0, gastosCesionPersonalCierre = 0;
         
         cesionesEnRango.forEach(c => {
-            // Find person by trying both 'nombre' and 'nombreCompleto' for robustness
-            const personalInfo = personalMap.get(c.nombre) || Array.from(personalMap.values()).find(p => p.nombre === c.nombre);
-            console.log(`[DEBUG] Processing cesion for: ${c.nombre}. Found personalInfo:`, personalInfo);
+            const personalInfo = Array.from(personalMap.values()).find(p => p.nombreCompleto === c.nombre);
 
-            if (!personalInfo) {
-                console.warn(`[DEBUG] Could not find employee data for: ${c.nombre}`);
-                return;
-            };
+            if (!personalInfo) return;
 
-            const origenDpto = personalInfo.departamento;
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
             const costeReal = (calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora;
 
-            console.log(`[DEBUG] Cesion for ${c.nombre} from ${origenDpto} to ${c.centroCoste}. Plan: ${costePlanificado}, Real: ${costeReal}`);
-
-            if (origenDpto === 'CPR' && c.centroCoste !== 'CPR') {
+            if (personalInfo.departamento === 'CPR' && c.centroCoste !== 'CPR') {
                 ingresosCesionPersonalPlanificado += costePlanificado;
                 ingresosCesionPersonalCierre += costeReal;
-            } else if (origenDpto !== 'CPR' && c.centroCoste === 'CPR') {
+            } else if (personalInfo.departamento !== 'CPR' && c.centroCoste === 'CPR') {
                 gastosCesionPersonalPlanificado += costePlanificado;
                 gastosCesionPersonalCierre += costeReal;
             }
         });
-
-        console.log(`[DEBUG] Final Ingresos Cesion Cierre: ${ingresosCesionPersonalCierre}`);
-        console.log(`[DEBUG] Final Gastos Cesion Cierre: ${gastosCesionPersonalCierre}`);
-
+        
         const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
         const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
             try {
@@ -298,6 +282,8 @@ export default function CprControlExplotacionPage() {
         if (!isMounted) return [];
         const mesesDelAno = eachMonthOfInterval({ start: startOfYear(new Date()), end: endOfYear(new Date())});
         
+        const personalMapLocal = new Map((JSON.parse(localStorage.getItem('personal') || '[]') as Personal[]).map(p => [p.nombreCompleto, p]));
+
         return mesesDelAno.map(month => {
             const rangeStart = startOfMonth(month);
             const rangeEnd = endOfMonth(month);
@@ -325,9 +311,9 @@ export default function CprControlExplotacionPage() {
                 }, 0);
             }, 0);
             
-            const cesionesEnRango = allCesionesPersonal.filter(c => isWithinInterval(new Date(c.fecha), { start: rangeStart, end: rangeEnd }));
-            const ingresosCesionPersonal = cesionesEnRango.filter(c => personalMap.get(c.nombre)?.departamento === 'CPR' && c.centroCoste !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
-            const gastosCesionPersonal = cesionesEnRango.filter(c => c.centroCoste === 'CPR' && personalMap.get(c.nombre)?.departamento !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
+            const cesionesEnRango = allCesionesPersonal.filter(c => isWithinInterval(new Date(`${c.fecha}T00:00:00`), { start: rangeStart, end: rangeEnd }));
+            const ingresosCesionPersonal = cesionesEnRango.filter(c => personalMapLocal.get(c.nombre)?.departamento === 'CPR' && c.centroCoste !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
+            const gastosCesionPersonal = cesionesEnRango.filter(c => c.centroCoste === 'CPR' && personalMapLocal.get(c.nombre)?.departamento !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
             
             const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
                 const fechaServicio = new Date(solicitud.fechaServicio);
@@ -363,7 +349,7 @@ export default function CprControlExplotacionPage() {
             }
         });
 
-    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal, personalMap]);
+    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal]);
 
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -437,6 +423,8 @@ export default function CprControlExplotacionPage() {
     const totalReal = gastos.reduce((sum, r) => sum + r.real, 0);
     const totalObjetivo = gastos.reduce((sum, r) => sum + r.objetivo, 0);
 
+    const rentabilidadReal = facturacionNeta - totals.totalReal;
+
     const renderCostRow = (row: CostRow, index: number) => {
         const pctSFactPresupuesto = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
         const pctSFactCierre = facturacionNeta > 0 ? row.cierre / facturacionNeta : 0;
@@ -456,7 +444,7 @@ export default function CprControlExplotacionPage() {
                     </div>
                 </TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
-                <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
+                <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
                 
                 <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(pctSFactCierre)}</TableCell>
@@ -563,7 +551,7 @@ export default function CprControlExplotacionPage() {
                         <TabsTrigger value="acumulado-mensual">Acumulado Mensual</TabsTrigger>
                     </TabsList>
                     <TabsContent value="control-explotacion" className="mt-4">
-                        <div className="grid gap-2 md:grid-cols-4">
+                        <div className="grid gap-2 md:grid-cols-4 lg:grid-cols-7 mb-6">
                             <KpiCard title="Ingresos Totales" value={formatCurrency(kpis.ingresos)} icon={Euro} className="bg-green-100/60" />
                             <KpiCard title="Gastos Totales" value={formatCurrency(kpis.gastos)} icon={TrendingDown} className="bg-red-100/60"/>
                             <KpiCard title="RESULTADO" value={formatCurrency(kpis.resultado)} icon={kpis.resultado >= 0 ? TrendingUp : TrendingDown} className={cn(kpis.resultado >= 0 ? "bg-green-100/60 text-green-800" : "bg-red-100/60 text-red-800")} />
@@ -594,7 +582,7 @@ export default function CprControlExplotacionPage() {
                                             {ingresos.map(renderCostRow)}
                                             {renderSummaryRow('GASTOS', totalGastos, true)}
                                             {gastos.map(renderCostRow)}
-                                            {renderFinalRow('RESULTADO', kpis.resultado)}
+                                            {renderFinalRow('RESULTADO', rentabilidadReal)}
                                         </TableBody>
                                     </Table>
                                 </div>
@@ -686,5 +674,3 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
-
-    
