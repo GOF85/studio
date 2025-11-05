@@ -1,11 +1,14 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Shuffle, Search, Calendar as CalendarIcon, Users } from 'lucide-react';
+import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Shuffle, Search, Calendar as CalendarIcon, Users, PlusCircle, Save, Trash2, Loader2 } from 'lucide-react';
 import type { PersonalMiceOrder, ServiceOrder, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,44 +26,122 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn, calculateHours, formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+
+const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
+const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
+
+
+const personalMiceSchema = z.object({
+  id: z.string(),
+  osId: z.string().min(1, 'La OS es obligatoria.'),
+  centroCoste: z.enum(centroCosteOptions),
+  nombre: z.string().min(1, 'El nombre es obligatorio'),
+  dni: z.string().optional().default(''),
+  tipoServicio: z.enum(tipoServicioOptions),
+  horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
+  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+});
+
+const formSchema = z.object({
+    cesiones: z.array(personalMiceSchema)
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
 
 export default function CesionesPersonalPage() {
-  const [cesiones, setCesiones] = useState<PersonalMiceOrder[]>([]);
   const [serviceOrdersMap, setServiceOrdersMap] = useState<Map<string, ServiceOrder>>(new Map());
   const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const router = useRouter();
+  const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { cesiones: [] }
+  });
+
+  const { control, getValues, setValue, handleSubmit, reset, formState } = form;
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "cesiones",
+  });
+
+  const loadData = useCallback(() => {
+    let storedOrders = localStorage.getItem('personalMiceOrders');
+    const allCesiones = storedOrders ? JSON.parse(storedOrders) : [];
+
+    let storedServiceOrders = localStorage.getItem('serviceOrders');
+    const osMap = new Map<string, ServiceOrder>();
+    if (storedServiceOrders) {
+        (JSON.parse(storedServiceOrders) as ServiceOrder[]).forEach(os => osMap.set(os.id, os));
+    }
+    setServiceOrdersMap(osMap);
+
+    let storedPersonal = localStorage.getItem('personal');
+    const pMap = new Map<string, Personal>();
+     if (storedPersonal) {
+        (JSON.parse(storedPersonal) as Personal[]).forEach(p => pMap.set(p.nombre, p));
+    }
+    setPersonalMap(pMap);
+    
+    reset({ cesiones: allCesiones });
+    setIsMounted(true);
+  }, [reset]);
 
   useEffect(() => {
-    const allCesiones = (JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[]);
-    setCesiones(allCesiones);
-    
-    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]);
-    setServiceOrdersMap(new Map(allServiceOrders.map(os => [os.id, os])));
-
-    const allPersonal = (JSON.parse(localStorage.getItem('personal') || '[]') as Personal[]);
-    setPersonalMap(new Map(allPersonal.map(p => [p.nombre, p])));
-
-    setIsMounted(true);
-  }, []);
+    loadData();
+  }, [loadData]);
   
   const getDepartment = (nombre: string) => {
     return personalMap.get(nombre)?.departamento || 'N/A';
   }
+  
+  const handlePersonalChange = useCallback((index: number, name: string) => {
+    const person = personalMap.get(name);
+    if (person) {
+      setValue(`cesiones.${index}.nombre`, person.nombre, { shouldDirty: true });
+      setValue(`cesiones.${index}.dni`, person.dni || '', { shouldDirty: true });
+      setValue(`cesiones.${index}.precioHora`, person.precioHora || 0, { shouldDirty: true });
+    }
+  }, [personalMap, setValue]);
+
 
   const filteredCesiones = useMemo(() => {
-    return cesiones.filter(c => {
-      const os = serviceOrdersMap.get(c.osId);
+    return fields.map((field, index) => ({ field, index })).filter(({ field }) => {
+      const os = serviceOrdersMap.get(field.osId);
       const searchMatch = searchTerm === '' ||
-        c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        field.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (field.dni || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        field.centroCoste.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (os && os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()));
 
       let dateMatch = true;
       if (dateRange?.from && os) {
           const osDate = new Date(os.startDate);
-          if (dateRange.to) {
+          if(dateRange.to) {
               dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
           } else {
               dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
@@ -68,82 +149,177 @@ export default function CesionesPersonalPage() {
       }
       return searchMatch && dateMatch;
     }).sort((a,b) => {
-        const osA = serviceOrdersMap.get(a.osId);
-        const osB = serviceOrdersMap.get(b.osId);
+        const osA = serviceOrdersMap.get(a.field.osId);
+        const osB = serviceOrdersMap.get(b.field.osId);
         if(!osA || !osB) return 0;
         return new Date(osA.startDate).getTime() - new Date(osB.startDate).getTime();
     });
-  }, [cesiones, searchTerm, dateRange, serviceOrdersMap]);
+  }, [fields, searchTerm, dateRange, serviceOrdersMap]);
+  
+  const personalOptions = useMemo(() => Array.from(personalMap.keys()).map(p => ({ label: p, value: p})), [personalMap]);
+  const osOptions = useMemo(() => Array.from(serviceOrdersMap.values()).map(os => ({ label: `${os.serviceNumber} - ${os.client}`, value: os.id })), [serviceOrdersMap]);
+
+  const addRow = () => {
+    const newId = Date.now().toString();
+    append({
+        id: newId,
+        osId: '',
+        centroCoste: 'SALA',
+        nombre: '',
+        dni: '',
+        tipoServicio: 'Servicio',
+        horaEntrada: '09:00',
+        horaSalida: '17:00',
+        precioHora: 0,
+        horaEntradaReal: '',
+        horaSalidaReal: '',
+    });
+  };
+
+  const onSubmit = (data: FormValues) => {
+    setIsLoading(true);
+    localStorage.setItem('personalMiceOrders', JSON.stringify(data.cesiones));
+    setTimeout(() => {
+        setIsLoading(false);
+        toast({ title: "Guardado", description: "Las cesiones de personal han sido guardadas." });
+        reset(data);
+    }, 500);
+  }
+
+  const handleDeleteRow = () => {
+    if (rowToDelete !== null) {
+        remove(rowToDelete);
+        setRowToDelete(null);
+        toast({ title: 'Fila eliminada', description: 'La fila se ha eliminado. Guarda los cambios para hacerlo permanente.' });
+    }
+  }
+
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Cesiones de Personal..." />;
+  }
 
   return (
     <main>
-        <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Shuffle />Cesiones de Personal Interno</h1>
-        </div>
-
-        <div className="flex gap-4 mb-4">
-            <Input 
-              placeholder="Buscar por empleado, OS..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "PPP", { locale: es })} - {format(dateRange.to, "PPP", { locale: es })} </>) : (format(dateRange.from, "PPP", { locale: es }))) : (<span>Filtrar por fecha de evento...</span>)}
+        <FormProvider {...form}>
+            <form onSubmit={handleSubmit(onSubmit)}>
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Shuffle />Cesiones de Personal Interno</h1>
+                <div className="flex gap-2">
+                    <Button onClick={addRow}><PlusCircle className="mr-2"/>Añadir Cesión</Button>
+                    <Button type="submit" disabled={isLoading || !formState.isDirty}>
+                        {isLoading ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2"/>}
+                        Guardar Cambios
                     </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
-                </PopoverContent>
-            </Popover>
-            <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateRange(undefined); }}>Limpiar</Button>
-        </div>
-        
-        <div className="border rounded-lg">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>OS</TableHead>
-                        <TableHead>Empleado</TableHead>
-                        <TableHead>Departamento Origen</TableHead>
-                        <TableHead>Centro de Coste Destino</TableHead>
-                        <TableHead>Horas Plan.</TableHead>
-                        <TableHead>Horas Reales</TableHead>
-                        <TableHead>Coste Plan.</TableHead>
-                        <TableHead>Coste Real</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {filteredCesiones.length > 0 ? filteredCesiones.map(cesion => {
-                        const os = serviceOrdersMap.get(cesion.osId);
-                        const horasPlan = calculateHours(cesion.horaEntrada, cesion.horaSalida);
-                        const horasReal = calculateHours(cesion.horaEntradaReal, cesion.horaSalidaReal);
-                        const costePlan = horasPlan * cesion.precioHora;
-                        const costeReal = horasReal > 0 ? horasReal * cesion.precioHora : costePlan;
+                </div>
+            </div>
 
-                        return (
-                            <TableRow key={cesion.id} className="cursor-pointer" onClick={() => router.push(`/os/${cesion.osId}/personal-mice`)}>
-                                <TableCell><Badge variant="outline">{os?.serviceNumber}</Badge></TableCell>
-                                <TableCell className="font-semibold">{cesion.nombre}</TableCell>
-                                <TableCell>{getDepartment(cesion.nombre)}</TableCell>
-                                <TableCell>{cesion.centroCoste}</TableCell>
-                                <TableCell className="font-mono">{horasPlan.toFixed(2)}h</TableCell>
-                                <TableCell className="font-mono">{horasReal > 0 ? `${horasReal.toFixed(2)}h` : '-'}</TableCell>
-                                <TableCell className="font-mono">{formatCurrency(costePlan)}</TableCell>
-                                <TableCell className="font-mono font-bold">{formatCurrency(costeReal)}</TableCell>
-                            </TableRow>
-                        );
-                    }) : (
+            <div className="flex gap-4 mb-4">
+                <Input 
+                placeholder="Buscar por empleado, OS..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+                />
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "PPP", { locale: es })} - {format(dateRange.to, "PPP", { locale: es })} </>) : (format(dateRange.from, "PPP", { locale: es }))) : (<span>Filtrar por fecha de evento...</span>)}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+                    </PopoverContent>
+                </Popover>
+                <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateRange(undefined); }}>Limpiar</Button>
+            </div>
+            
+            <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                    <TableHeader>
                         <TableRow>
-                            <TableCell colSpan={8} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
+                            <TableHead className="p-2 min-w-48">OS</TableHead>
+                            <TableHead className="p-2 min-w-48">Empleado</TableHead>
+                            <TableHead className="p-2">Dpto. Origen</TableHead>
+                            <TableHead className="p-2">Destino</TableHead>
+                            <TableHead className="p-2 w-24">H. Entrada</TableHead>
+                            <TableHead className="p-2 w-24">H. Salida</TableHead>
+                            <TableHead className="p-2 w-24">H. Entrada Real</TableHead>
+                            <TableHead className="p-2 w-24">H. Salida Real</TableHead>
+                            <TableHead className="p-2 w-20">€/h</TableHead>
+                            <TableHead className="p-2">Coste Real</TableHead>
+                            <TableHead className="p-2 text-right">Acción</TableHead>
                         </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </div>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredCesiones.length > 0 ? filteredCesiones.map(({ field, index }) => {
+                            const os = serviceOrdersMap.get(field.osId);
+                            const horasPlan = calculateHours(field.horaEntrada, field.horaSalida);
+                            const horasReal = calculateHours(field.horaEntradaReal, field.horaSalidaReal);
+                            const costeReal = (horasReal || horasPlan) * field.precioHora;
+
+                            return (
+                                <TableRow key={field.id}>
+                                    <TableCell className="p-1">
+                                        <FormField control={control} name={`cesiones.${index}.osId`} render={({field}) => (
+                                            <Combobox options={osOptions} value={field.value} onChange={field.onChange} placeholder="Seleccionar OS..."/>
+                                        )}/>
+                                    </TableCell>
+                                    <TableCell className="p-1">
+                                         <FormField control={control} name={`cesiones.${index}.nombre`} render={({field}) => (
+                                            <Combobox options={personalOptions} value={field.value} onChange={(value) => handlePersonalChange(index, value)} placeholder="Seleccionar empleado..."/>
+                                        )}/>
+                                    </TableCell>
+                                    <TableCell className="p-2">{getDepartment(field.nombre)}</TableCell>
+                                    <TableCell className="p-1">
+                                        <FormField control={control} name={`cesiones.${index}.centroCoste`} render={({field}) => (
+                                            <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl><SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                        )}/>
+                                    </TableCell>
+                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaEntrada`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
+                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaSalida`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
+                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaEntradaReal`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
+                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.horaSalidaReal`} render={({field}) => <Input type="time" {...field} className="h-9"/>}/></TableCell>
+                                    <TableCell className="p-1"><FormField control={control} name={`cesiones.${index}.precioHora`} render={({field}) => <Input type="number" step="0.01" {...field} className="h-9 text-right" readOnly/>}/></TableCell>
+                                    <TableCell className="p-2 font-mono font-semibold text-right">{formatCurrency(costeReal)}</TableCell>
+                                    <TableCell className="p-1 text-right">
+                                        <Button variant="ghost" size="icon" className="text-destructive h-9" type="button" onClick={() => setRowToDelete(index)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        }) : (
+                            <TableRow>
+                                <TableCell colSpan={11} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+            </form>
+       </FormProvider>
+       <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                Se eliminará esta fila de la planificación. Para que el cambio sea permanente, recuerda guardar los cambios.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={handleDeleteRow}
+                >
+                Eliminar Fila
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </main>
   );
 }
+
+    
