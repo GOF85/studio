@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 type DetalleGasto = CesionStorage & {
     costeReal: number;
+    costePlanificado: number;
     os?: ServiceOrder;
 };
 
@@ -56,10 +57,11 @@ export default function CesionGastoPage() {
             })
             .map(c => {
                 const horasReales = calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida);
-                // The osId is not stored in CesionStorage, so we can't link back directly. This is a limitation.
+                const horasPlanificadas = calculateHours(c.horaEntrada, c.horaSalida);
                 return {
                     ...c,
                     costeReal: horasReales * c.precioHora,
+                    costePlanificado: horasPlanificadas * c.precioHora,
                 }
             });
         
@@ -72,8 +74,12 @@ export default function CesionGastoPage() {
         return `${format(parseISO(from), 'dd/MM/yyyy')} - ${format(parseISO(to), 'dd/MM/yyyy')}`;
     }, [from, to]);
     
-    const totalCosteReal = useMemo(() => {
-        return detalles.reduce((sum, item) => sum + item.costeReal, 0);
+    const { totalCosteReal, totalCostePlanificado } = useMemo(() => {
+        return detalles.reduce((acc, item) => {
+            acc.totalCosteReal += item.costeReal;
+            acc.totalCostePlanificado += item.costePlanificado;
+            return acc;
+        }, { totalCosteReal: 0, totalCostePlanificado: 0});
     }, [detalles]);
 
     if (!isMounted) {
@@ -97,7 +103,9 @@ export default function CesionGastoPage() {
                                 <TableHead>Fecha</TableHead>
                                 <TableHead>Empleado</TableHead>
                                 <TableHead>Dpto. Origen</TableHead>
-                                <TableHead>Horas Reales</TableHead>
+                                <TableHead>Horario Plan.</TableHead>
+                                <TableHead>Horario Real</TableHead>
+                                <TableHead className="text-right">Coste Plan.</TableHead>
                                 <TableHead className="text-right">Coste Real</TableHead>
                                 <TableHead className="text-center w-24">Comentarios</TableHead>
                             </TableRow>
@@ -108,7 +116,9 @@ export default function CesionGastoPage() {
                                     <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
                                     <TableCell>{item.nombre}</TableCell>
                                     <TableCell>{personalMap.get(item.nombre)?.departamento || 'N/A'}</TableCell>
-                                    <TableCell>{formatNumber(calculateHours(item.horaEntradaReal, item.horaSalidaReal) || calculateHours(item.horaEntrada, item.horaSalida), 2)}h</TableCell>
+                                    <TableCell>{item.horaEntrada}-{item.horaSalida} ({formatNumber(calculateHours(item.horaEntrada, item.horaSalida), 2)}h)</TableCell>
+                                    <TableCell>{item.horaEntradaReal}-{item.horaSalidaReal} ({formatNumber(calculateHours(item.horaEntradaReal, item.horaSalidaReal), 2)}h)</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(item.costePlanificado)}</TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency(item.costeReal)}</TableCell>
                                     <TableCell className="text-center">
                                         {item.comentarios && (
@@ -131,12 +141,13 @@ export default function CesionGastoPage() {
                                     </TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={6} className="text-center h-24">No se encontraron datos para este periodo.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={8} className="text-center h-24">No se encontraron datos para este periodo.</TableCell></TableRow>
                             )}
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={4} className="text-right font-bold">TOTAL</TableCell>
+                                <TableCell colSpan={5} className="text-right font-bold">TOTALES</TableCell>
+                                <TableCell className="text-right font-bold">{formatCurrency(totalCostePlanificado)}</TableCell>
                                 <TableCell className="text-right font-bold">{formatCurrency(totalCosteReal)}</TableCell>
                                 <TableCell></TableCell>
                             </TableRow>
