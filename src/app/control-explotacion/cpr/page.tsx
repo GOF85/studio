@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from "react"
@@ -168,6 +167,7 @@ export default function CprControlExplotacionPage() {
     }, [dateRange, router]);
 
     const dataCalculada = useMemo(() => {
+        console.log('--- STARTING CALCULATION ---');
         if (!isMounted || !dateRange?.from) return null;
 
         const rangeStart = startOfDay(dateRange.from);
@@ -213,36 +213,48 @@ export default function CprControlExplotacionPage() {
             }, 0);
             return sum + orderTotal;
         }, 0);
-        
+
+        console.log('[DEBUG] Raw cesionesPersonal data:', allCesionesPersonal);
+        console.log('[DEBUG] personalMap size:', personalMap.size);
+
         const cesionesEnRango = allCesionesPersonal.filter(c => {
-          if (!c.fecha) return false;
-          try {
-            const fechaCesion = new Date(c.fecha.replace(/-/g, '/'));
-            return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
-          } catch(e) {
-            return false;
-          }
+            if (!c.fecha) return false;
+            try {
+                // Correctly parse YYYY-MM-DD format
+                const fechaCesion = parseISO(c.fecha);
+                return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
+            } catch (e) {
+                console.error("Error parsing cesion date:", c.fecha, e);
+                return false;
+            }
         });
+        console.log('[DEBUG] Cesiones in date range:', cesionesEnRango);
 
         let ingresosCesionPersonalPlanificado = 0, ingresosCesionPersonalCierre = 0;
         let gastosCesionPersonalPlanificado = 0, gastosCesionPersonalCierre = 0;
         
         cesionesEnRango.forEach(c => {
             const personalInfo = personalMap.get(c.nombre);
+             console.log(`[DEBUG] Processing cesion for ${c.nombre}. Found personalInfo:`, personalInfo);
             if (!personalInfo) return;
 
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
             const costeReal = (calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora;
 
             if (personalInfo.departamento === 'CPR' && c.centroCoste !== 'CPR') {
+                 console.log(`[DEBUG] INGRESO: ${c.nombre} cedido desde CPR a ${c.centroCoste}. Coste: ${costeReal}`);
                 ingresosCesionPersonalPlanificado += costePlanificado;
                 ingresosCesionPersonalCierre += costeReal;
             } else if (personalInfo.departamento !== 'CPR' && c.centroCoste === 'CPR') {
+                 console.log(`[DEBUG] GASTO: ${c.nombre} cedido desde ${personalInfo.departamento} a CPR. Coste: ${costeReal}`);
                 gastosCesionPersonalPlanificado += costePlanificado;
                 gastosCesionPersonalCierre += costeReal;
             }
         });
-        
+
+        console.log('[DEBUG] Final Ingresos Cesion Cierre:', ingresosCesionPersonalCierre);
+        console.log('[DEBUG] Final Gastos Cesion Cierre:', gastosCesionPersonalCierre);
+
         const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
         const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
             try {
@@ -285,9 +297,11 @@ export default function CprControlExplotacionPage() {
     }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes, allCesionesPersonal, personalMap]);
 
     const dataAcumulada = useMemo(() => {
+        console.log("--- STARTING ACCUMULATED CALCULATION ---");
         if (!isMounted) return [];
         const mesesDelAno = eachMonthOfInterval({ start: startOfYear(new Date()), end: endOfYear(new Date())});
         const personalMapLocal = new Map((personalInterno || []).map(p => [p.nombreCompleto, p]));
+        console.log("[DEBUG] personalMapLocal for dataAcumulada:", personalMapLocal);
 
         return mesesDelAno.map(month => {
             const rangeStart = startOfMonth(month);
@@ -316,15 +330,15 @@ export default function CprControlExplotacionPage() {
                 }, 0);
             }, 0);
             
-            const cesionesEnRango = allCesionesPersonal.filter(c => {
+             const cesionesEnRango = allCesionesPersonal.filter(c => {
                 if (!c.fecha) return false;
                 try {
-                    const fechaCesion = new Date(c.fecha.replace(/-/g, '/'));
+                    const fechaCesion = parseISO(c.fecha);
                     return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
-                } catch(e) {
-                    return false;
-                }
+                } catch(e) { return false; }
             });
+            console.log(`[DEBUG] Cesiones in date range for ${format(month, 'MMM')}:`, cesionesEnRango);
+
 
             const ingresosCesionPersonal = cesionesEnRango.filter(c => personalMapLocal.get(c.nombre)?.departamento === 'CPR' && c.centroCoste !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
             const gastosCesionPersonal = cesionesEnRango.filter(c => c.centroCoste === 'CPR' && personalMapLocal.get(c.nombre)?.departamento !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
@@ -688,8 +702,3 @@ export default function CprControlExplotacionPage() {
     );
 }
 
-    
-
-    
-
-    
