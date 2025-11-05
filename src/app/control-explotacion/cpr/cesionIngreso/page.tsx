@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -11,6 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { formatCurrency, formatNumber, calculateHours } from '@/lib/utils';
 import Link from 'next/link';
+import { MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 type DetalleIngreso = CesionStorage & {
     costeReal: number;
@@ -88,6 +92,7 @@ export default function CesionIngresoPage() {
                                 <TableHead>Dpto. Destino</TableHead>
                                 <TableHead>Horas Reales</TableHead>
                                 <TableHead className="text-right">Coste / Ingreso</TableHead>
+                                <TableHead className="text-center w-24">Comentarios</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -98,15 +103,35 @@ export default function CesionIngresoPage() {
                                     <TableCell>{item.centroCoste}</TableCell>
                                     <TableCell>{formatNumber(calculateHours(item.horaEntradaReal, item.horaSalidaReal) || calculateHours(item.horaEntrada, item.horaSalida), 2)}h</TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency(item.costeReal)}</TableCell>
+                                    <TableCell className="text-center">
+                                        {item.comentarios && (
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon">
+                                                        <MessageSquare className="h-5 w-5" />
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Comentario de la Cesión</DialogTitle>
+                                                    </DialogHeader>
+                                                    <div className="py-4">
+                                                        <p className="text-sm text-muted-foreground bg-secondary p-4 rounded-md">{item.comentarios}</p>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                        )}
+                                    </TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={5} className="text-center h-24">No se encontraron datos para este periodo.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="text-center h-24">No se encontraron datos para este periodo.</TableCell></TableRow>
                             )}
                         </TableBody>
                         <TableFooter>
                             <TableRow>
                                 <TableCell colSpan={4} className="text-right font-bold">TOTAL</TableCell>
                                 <TableCell className="text-right font-bold">{formatCurrency(totalCosteReal)}</TableCell>
+                                <TableCell></TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>

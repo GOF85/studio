@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -11,6 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { formatCurrency, formatNumber, calculateHours } from '@/lib/utils';
 import Link from 'next/link';
+import { MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 type DetalleGasto = CesionStorage & {
     costeReal: number;
@@ -20,6 +24,7 @@ type DetalleGasto = CesionStorage & {
 export default function CesionGastoPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [detalles, setDetalles] = useState<DetalleGasto[]>([]);
+    const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
     const searchParams = useSearchParams();
 
     const from = searchParams.get('from');
@@ -38,14 +43,15 @@ export default function CesionGastoPage() {
             .filter(c => c.fecha && isWithinInterval(new Date(c.fecha), { start: rangeStart, end: rangeEnd }));
             
         const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        const personalMap = new Map(allPersonal.map(p => [p.nombreCompleto, p]));
+        const pMap = new Map(allPersonal.map(p => [p.nombreCompleto, p]));
+        setPersonalMap(pMap);
         
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
 
         const gastosDetallados: DetalleGasto[] = allCesiones
             .filter(c => {
-                const p = personalMap.get(c.nombre);
+                const p = pMap.get(c.nombre);
                 return p && p.departamento !== 'CPR' && c.centroCoste === 'CPR';
             })
             .map(c => {
@@ -93,6 +99,7 @@ export default function CesionGastoPage() {
                                 <TableHead>Dpto. Origen</TableHead>
                                 <TableHead>Horas Reales</TableHead>
                                 <TableHead className="text-right">Coste Real</TableHead>
+                                <TableHead className="text-center w-24">Comentarios</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -100,18 +107,38 @@ export default function CesionGastoPage() {
                                 <TableRow key={item.id}>
                                     <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
                                     <TableCell>{item.nombre}</TableCell>
-                                    <TableCell>{(personalMap.get(item.nombre) as Personal)?.departamento || 'N/A'}</TableCell>
+                                    <TableCell>{personalMap.get(item.nombre)?.departamento || 'N/A'}</TableCell>
                                     <TableCell>{formatNumber(calculateHours(item.horaEntradaReal, item.horaSalidaReal) || calculateHours(item.horaEntrada, item.horaSalida), 2)}h</TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency(item.costeReal)}</TableCell>
+                                    <TableCell className="text-center">
+                                        {item.comentarios && (
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon">
+                                                        <MessageSquare className="h-5 w-5" />
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Comentario de la Cesión</DialogTitle>
+                                                    </DialogHeader>
+                                                    <div className="py-4">
+                                                        <p className="text-sm text-muted-foreground bg-secondary p-4 rounded-md">{item.comentarios}</p>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                        )}
+                                    </TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={5} className="text-center h-24">No se encontraron datos para este periodo.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="text-center h-24">No se encontraron datos para este periodo.</TableCell></TableRow>
                             )}
                         </TableBody>
                         <TableFooter>
                             <TableRow>
                                 <TableCell colSpan={4} className="text-right font-bold">TOTAL</TableCell>
                                 <TableCell className="text-right font-bold">{formatCurrency(totalCosteReal)}</TableCell>
+                                <TableCell></TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>
