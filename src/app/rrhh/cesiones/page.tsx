@@ -17,7 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { calculateHours, formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -27,10 +27,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 
-
 const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'ALMACEN', 'COMERCIAL', 'DIRECCION', 'MARKETING', 'PASE', 'CPR'] as const;
 
-const cesionSchema = z.object({
+// Schema for the form inside the modal
+const cesionFormSchema = z.object({
   id: z.string(),
   fecha: z.date({ required_error: 'La fecha es obligatoria.' }),
   centroCoste: z.enum(centroCosteOptions),
@@ -44,33 +44,62 @@ const cesionSchema = z.object({
   comentarios: z.string().optional().default(''),
 });
 
-type CesionFormValues = z.infer<typeof cesionSchema>;
+type CesionFormValues = z.infer<typeof cesionFormSchema>;
 
-function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDelete }: { open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: CesionFormValues) => void; personalDB: Personal[]; initialData?: Partial<CesionFormValues>; onDelete?: (id: string) => void; }) {
+// The type for data stored in localStorage and state, where date is a string
+type CesionStorage = Omit<CesionFormValues, 'fecha'> & { fecha: string };
+
+function CommentDialog({ comment, onSave }: { comment: string, onSave: (text: string) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [text, setText] = useState(comment);
+    
+    useEffect(() => {
+        setText(comment);
+    }, [comment, isOpen]);
+
+    return (
+         <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
+                    <Pencil className={cn("h-4 w-4", comment && "text-primary")} />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Comentarios de la Cesión</DialogTitle>
+                </DialogHeader>
+                <Textarea 
+                    value={text} 
+                    onChange={(e) => setText(e.target.value)}
+                    rows={4}
+                    placeholder="Añade aquí comentarios..."
+                />
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={() => { onSave(text); setIsOpen(false); }}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDelete }: { open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: CesionStorage) => void; personalDB: Personal[]; initialData?: Partial<CesionStorage> | null; onDelete?: (id: string) => void; }) {
     const form = useForm<CesionFormValues>({
-        resolver: zodResolver(cesionSchema),
-        defaultValues: {
-            id: Date.now().toString(),
-            centroCoste: 'CPR',
-            horaEntrada: '09:00',
-            horaSalida: '17:00',
-            fecha: new Date(),
-            ...initialData,
-        },
+        resolver: zodResolver(cesionFormSchema),
     });
 
     useEffect(() => {
-        form.reset({
+        const defaults: Partial<CesionFormValues> = {
             id: Date.now().toString(),
             centroCoste: 'CPR',
             horaEntrada: '09:00',
             horaSalida: '17:00',
             fecha: new Date(),
             ...initialData,
-            // Ensure date is a Date object if it comes from storage as a string
             fecha: initialData?.fecha ? new Date(initialData.fecha) : new Date(),
-        });
-    }, [initialData, form]);
+        };
+        form.reset(defaults);
+    }, [initialData, open, form]);
 
     const handlePersonalChange = (name: string) => {
         const person = personalDB.find(p => p.nombreCompleto === name);
@@ -86,7 +115,11 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
     }, [personalDB]);
 
     const onSubmit = (data: CesionFormValues) => {
-        onSave(data);
+        const dataToSave: CesionStorage = {
+            ...data,
+            fecha: format(data.fecha, 'yyyy-MM-dd'),
+        };
+        onSave(dataToSave);
         onOpenChange(false);
     };
 
@@ -121,14 +154,12 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
                                 </FormItem>
                             )} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                             <FormField control={form.control} name="centroCoste" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Dpto. Destino</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
-                                </FormItem>
-                            )} />
-                        </div>
+                        <FormField control={form.control} name="centroCoste" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Dpto. Destino</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                            </FormItem>
+                        )} />
                         <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="horaEntrada" render={({ field }) => <FormItem><FormLabel>H. Entrada Planificada</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>} />
                             <FormField control={form.control} name="horaSalida" render={({ field }) => <FormItem><FormLabel>H. Salida Planificada</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>} />
@@ -155,15 +186,15 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
     );
 }
 
+
 export default function CesionesPersonalPage() {
-  const [cesiones, setCesiones] = useState<CesionFormValues[]>([]);
+  const [cesiones, setCesiones] = useState<CesionStorage[]>([]);
   const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCesion, setEditingCesion] = useState<Partial<CesionFormValues> | null>(null);
+  const [editingCesion, setEditingCesion] = useState<Partial<CesionStorage> | null>(null);
 
   const loadData = useCallback(() => {
     let storedPersonal = localStorage.getItem('personal');
@@ -182,7 +213,7 @@ export default function CesionesPersonalPage() {
     loadData();
   }, [loadData]);
   
-  const handleSave = (data: CesionFormValues) => {
+  const handleSave = (data: CesionStorage) => {
     let allCesiones = [...cesiones];
     const index = allCesiones.findIndex(c => c.id === data.id);
 
@@ -205,7 +236,7 @@ export default function CesionesPersonalPage() {
     toast({ title: 'Cesión eliminada' });
   };
   
-  const handleRowClick = (cesion: CesionFormValues) => {
+  const handleRowClick = (cesion: CesionStorage) => {
     setEditingCesion(cesion);
     setIsModalOpen(true);
   }
@@ -300,3 +331,4 @@ export default function CesionesPersonalPage() {
     </main>
   );
 }
+
