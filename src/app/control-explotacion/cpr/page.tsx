@@ -399,7 +399,7 @@ export default function CprControlExplotacionPage() {
                     </div>
                 </TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
-                <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pptoPct)}</TableCell>
+                <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
                 
                 <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(facturacionNeta > 0 ? row.cierre / facturacionNeta : 0)}</TableCell>
@@ -644,7 +644,3 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
-
-    
-
-    
