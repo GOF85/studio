@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Shuffle, Save, Loader2, Trash2, Pencil, Calendar as CalendarIcon } from 'lucide-react';
+import { PlusCircle, Shuffle, Save, Loader2, Trash2, Pencil, Calendar as CalendarIcon, MessageSquare } from 'lucide-react';
 import type { Personal, CesionStorage, EstadoCesionPersonal, CentroCoste } from '@/types';
 import { ESTADO_CESION_PERSONAL, CENTRO_COSTE_OPCIONES } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,8 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 const cesionFormSchema = z.object({
   id: z.string(),
@@ -238,58 +240,73 @@ export default function CesionesPersonalPage() {
 
   return (
     <main>
-        <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Shuffle />Cesiones de Personal Interno</h1>
-            <Button onClick={handleNewClick}><PlusCircle className="mr-2"/>Añadir Cesión</Button>
-        </div>
+        <TooltipProvider>
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Shuffle />Cesiones de Personal Interno</h1>
+                <Button onClick={handleNewClick}><PlusCircle className="mr-2"/>Añadir Cesión</Button>
+            </div>
 
-        <div className="flex gap-4 mb-4">
-            <Input 
-            placeholder="Buscar por empleado, departamento, comentario..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-            />
-        </div>
-        
-        <div className="border rounded-lg overflow-x-auto">
-            <Table className="text-xs">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="p-2">Fecha</TableHead>
-                        <TableHead className="p-2">Empleado</TableHead>
-                        <TableHead className="p-2">Dpto. Origen</TableHead>
-                        <TableHead className="p-2">Dpto. Destino</TableHead>
-                        <TableHead className="p-2">Horario</TableHead>
-                        <TableHead className="p-2">Coste</TableHead>
-                        <TableHead className="p-2">Estado</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {filteredCesiones.length > 0 ? filteredCesiones.map((cesion) => {
-                        const horasPlan = calculateHours(cesion.horaEntrada, cesion.horaSalida);
-                        const coste = horasPlan * cesion.precioHora;
-                        const dptoOrigen = personalMap.get(cesion.nombre)?.departamento || 'N/A';
-
-                        return (
-                            <TableRow key={cesion.id} onClick={() => handleRowClick(cesion)} className="cursor-pointer">
-                                <TableCell className="p-2 font-semibold">{cesion.fecha ? format(new Date(cesion.fecha), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                                <TableCell className="p-2 font-semibold">{cesion.nombre}</TableCell>
-                                <TableCell className="p-2">{dptoOrigen}</TableCell>
-                                <TableCell className="p-2"><Badge variant="outline">{cesion.centroCoste}</Badge></TableCell>
-                                <TableCell className="p-2">{cesion.horaEntrada} - {cesion.horaSalida} ({horasPlan.toFixed(2)}h)</TableCell>
-                                <TableCell className="p-2 font-mono font-semibold text-right">{formatCurrency(coste)}</TableCell>
-                                <TableCell className="p-2"><Badge variant={statusVariant[cesion.estado]}>{cesion.estado}</Badge></TableCell>
-                            </TableRow>
-                        );
-                    }) : (
+            <div className="flex gap-4 mb-4">
+                <Input 
+                placeholder="Buscar por empleado, departamento, comentario..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+                />
+            </div>
+            
+            <div className="border rounded-lg overflow-x-auto">
+                <Table className="text-xs">
+                    <TableHeader>
                         <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
+                            <TableHead className="p-2">Fecha</TableHead>
+                            <TableHead className="p-2">Empleado</TableHead>
+                            <TableHead className="p-2">Dpto. Origen</TableHead>
+                            <TableHead className="p-2">Dpto. Destino</TableHead>
+                            <TableHead className="p-2">Horario</TableHead>
+                            <TableHead className="p-2">Coste</TableHead>
+                            <TableHead className="p-2">Estado</TableHead>
+                            <TableHead className="p-2 text-center">Comentarios</TableHead>
                         </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </div>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredCesiones.length > 0 ? filteredCesiones.map((cesion) => {
+                            const horasPlan = calculateHours(cesion.horaEntrada, cesion.horaSalida);
+                            const coste = horasPlan * cesion.precioHora;
+                            const dptoOrigen = personalMap.get(cesion.nombre)?.departamento || 'N/A';
+
+                            return (
+                                <TableRow key={cesion.id} onClick={() => handleRowClick(cesion)} className="cursor-pointer">
+                                    <TableCell className="p-2 font-semibold">{cesion.fecha ? format(new Date(cesion.fecha), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                                    <TableCell className="p-2 font-semibold">{cesion.nombre}</TableCell>
+                                    <TableCell className="p-2">{dptoOrigen}</TableCell>
+                                    <TableCell className="p-2"><Badge variant="outline">{cesion.centroCoste}</Badge></TableCell>
+                                    <TableCell className="p-2">{cesion.horaEntrada} - {cesion.horaSalida} ({horasPlan.toFixed(2)}h)</TableCell>
+                                    <TableCell className="p-2 font-mono font-semibold text-right">{formatCurrency(coste)}</TableCell>
+                                    <TableCell className="p-2"><Badge variant={statusVariant[cesion.estado]}>{cesion.estado}</Badge></TableCell>
+                                    <TableCell className="p-2 text-center">
+                                        {cesion.comentarios && (
+                                             <Tooltip>
+                                                <TooltipTrigger>
+                                                    <MessageSquare className="h-4 w-4 text-primary" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p className="max-w-sm">{cesion.comentarios}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        }) : (
+                            <TableRow>
+                                <TableCell colSpan={8} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+        </TooltipProvider>
 
         <CesionModal
             open={isModalOpen}
