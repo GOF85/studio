@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Shuffle, Save, Loader2, Trash2, Pencil } from 'lucide-react';
-import type { PersonalMiceOrder, Personal } from '@/types';
+import { PlusCircle, Shuffle, Save, Loader2, Trash2, Pencil, Calendar as CalendarIcon } from 'lucide-react';
+import type { Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -17,21 +17,25 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { calculateHours, formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+
 
 const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'ALMACEN', 'COMERCIAL', 'DIRECCION', 'MARKETING', 'PASE', 'CPR'] as const;
-const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga', 'Limpieza', 'Apoyo Oficina'] as const;
 
 const cesionSchema = z.object({
   id: z.string(),
-  osId: z.string().optional(),
+  fecha: z.date({ required_error: 'La fecha es obligatoria.' }),
   centroCoste: z.enum(centroCosteOptions),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   dni: z.string().optional().default(''),
-  tipoServicio: z.enum(tipoServicioOptions),
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
@@ -45,11 +49,27 @@ type CesionFormValues = z.infer<typeof cesionSchema>;
 function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDelete }: { open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: CesionFormValues) => void; personalDB: Personal[]; initialData?: Partial<CesionFormValues>; onDelete?: (id: string) => void; }) {
     const form = useForm<CesionFormValues>({
         resolver: zodResolver(cesionSchema),
-        defaultValues: initialData || { id: Date.now().toString(), centroCoste: 'CPR', tipoServicio: 'Producción', horaEntrada: '09:00', horaSalida: '17:00' },
+        defaultValues: {
+            id: Date.now().toString(),
+            centroCoste: 'CPR',
+            horaEntrada: '09:00',
+            horaSalida: '17:00',
+            fecha: new Date(),
+            ...initialData,
+        },
     });
-    
+
     useEffect(() => {
-        form.reset(initialData || { id: Date.now().toString(), centroCoste: 'CPR', tipoServicio: 'Producción', horaEntrada: '09:00', horaSalida: '17:00' });
+        form.reset({
+            id: Date.now().toString(),
+            centroCoste: 'CPR',
+            horaEntrada: '09:00',
+            horaSalida: '17:00',
+            fecha: new Date(),
+            ...initialData,
+            // Ensure date is a Date object if it comes from storage as a string
+            fecha: initialData?.fecha ? new Date(initialData.fecha) : new Date(),
+        });
     }, [initialData, form]);
 
     const handlePersonalChange = (name: string) => {
@@ -79,6 +99,20 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
+                           <FormField control={form.control} name="fecha" render={({ field }) => (
+                                <FormItem className="flex flex-col"><FormLabel>Fecha</FormLabel>
+                                    <Popover><PopoverTrigger asChild>
+                                        <FormControl>
+                                        <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                            {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige una fecha</span>}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                                    </Popover><FormMessage />
+                                </FormItem>
+                            )} />
                             <FormField control={form.control} name="nombre" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Empleado</FormLabel>
@@ -86,7 +120,9 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
                                     <FormMessage />
                                 </FormItem>
                             )} />
-                            <FormField control={form.control} name="centroCoste" render={({ field }) => (
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                             <FormField control={form.control} name="centroCoste" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Dpto. Destino</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
@@ -187,7 +223,7 @@ export default function CesionesPersonalPage() {
         centroCoste.toLowerCase().includes(term) ||
         (comentarios || '').toLowerCase().includes(term)
       );
-    }).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }).sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime() || a.nombre.localeCompare(b.nombre));
   }, [cesiones, searchTerm]);
 
   if (!isMounted) {
@@ -214,6 +250,7 @@ export default function CesionesPersonalPage() {
             <Table className="text-xs">
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="p-2">Fecha</TableHead>
                         <TableHead className="p-2">Empleado</TableHead>
                         <TableHead className="p-2">Dpto. Origen</TableHead>
                         <TableHead className="p-2">Dpto. Destino</TableHead>
@@ -233,6 +270,7 @@ export default function CesionesPersonalPage() {
 
                         return (
                             <TableRow key={cesion.id} onClick={() => handleRowClick(cesion)} className="cursor-pointer">
+                                <TableCell className="p-2 font-semibold">{format(new Date(cesion.fecha), 'dd/MM/yyyy')}</TableCell>
                                 <TableCell className="p-2 font-semibold">{cesion.nombre}</TableCell>
                                 <TableCell className="p-2">{dptoOrigen}</TableCell>
                                 <TableCell className="p-2"><Badge variant="outline">{cesion.centroCoste}</Badge></TableCell>
@@ -244,7 +282,7 @@ export default function CesionesPersonalPage() {
                         );
                     }) : (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
+                            <TableCell colSpan={8} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
