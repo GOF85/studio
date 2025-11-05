@@ -14,7 +14,7 @@ export default function RrhhDashboardPage() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rrhhNav.map(item => (
+            {rrhhNav.filter(item => item.href !== '/rrhh').map(item => (
                 <Link href={item.href} key={item.href}>
                     <Card className="hover:border-primary hover:shadow-lg transition-all h-full flex flex-col">
                         <CardHeader>
