@@ -162,7 +162,7 @@ export default function CprControlExplotacionPage() {
     }, [dateRange, router]);
 
     const dataCalculada = useMemo(() => {
-        if (!isMounted || !dateRange?.from) return null;
+        if (!isMounted || !dateRange?.from || personalMap.size === 0) return null;
 
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
@@ -220,7 +220,9 @@ export default function CprControlExplotacionPage() {
         
         cesionesEnRango.forEach(c => {
             const personalInfo = personalMap.get(c.nombre);
-            const origenDpto = personalInfo?.departamento;
+            if (!personalInfo) return;
+
+            const origenDpto = personalInfo.departamento;
             const costePlanificado = calculateHours(c.horaEntrada, c.horaSalida) * c.precioHora;
             const costeReal = (calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora;
 
@@ -662,3 +664,5 @@ export default function CprControlExplotacionPage() {
         </div>
     );
 }
+
+    
