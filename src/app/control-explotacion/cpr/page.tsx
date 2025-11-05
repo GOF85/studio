@@ -96,18 +96,18 @@ export default function CprControlExplotacionPage() {
 
     // Estados para datos maestros
     const [allServiceOrders, setAllServiceOrders] = useState<ServiceOrder[]>([]);
-    const [allGastroOrders, setAllGastroOrders] = useState<GastronomyOrder[]>([]);
-    const [allRecetas, setAllRecetas] = useState<Receta[]>([]);
-    const [allPersonalMiceOrders, setAllPersonalMiceOrders] = useState<PersonalMiceOrder[]>([]);
-    const [allCostesFijos, setAllCostesFijos] = useState<CosteFijoCPR[]>([]);
-    const [allObjetivos, setAllObjetivos] = useState<ObjetivoMensualCPR[]>([]);
-    const [allSolicitudesPersonalCPR, setAllSolicitudesPersonalCPR] = useState<SolicitudPersonalCPR[]>([]);
+    const [allGastroOrders, setAllGastroOrders = useState<GastronomyOrder[]>([]);
+    const [allRecetas, setAllRecetas = useState<Receta[]>([]);
+    const [allPersonalMiceOrders, setAllPersonalMiceOrders = useState<PersonalMiceOrder[]>([]);
+    const [allCostesFijos, setAllCostesFijos = useState<CosteFijoCPR[]>([]);
+    const [allObjetivos, setAllObjetivos = useState<ObjetivoMensualCPR[]>([]);
+    const [allSolicitudesPersonalCPR, setAllSolicitudesPersonalCPR = useState<SolicitudPersonalCPR[]>([]);
     
     // Estados para valores manuales
-    const [costePersonalEtt, setCostePersonalEtt] = useState(0);
-    const [realCostInputs, setRealCostInputs] = useState<Record<string, number | undefined>>({});
-    const [comentarios, setComentarios] = useState<Record<string, string>>({});
-    const [editingComment, setEditingComment] = useState<{label: string, text: string} | null>(null);
+    const [costePersonalEtt, setCostePersonalEtt = useState(0);
+    const [realCostInputs, setRealCostInputs = useState<Record<string, number | undefined>>({});
+    const [comentarios, setComentarios = useState<Record<string, string>>({});
+    const [editingComment, setEditingComment = useState<{label: string, text: string} | null>(null);
 
     const osId = searchParams.get('osId');
 
@@ -230,7 +230,7 @@ export default function CprControlExplotacionPage() {
         const costePersonalSolicitado = solicitudesPersonalEnRango.reduce((sum, s) => sum + (s.costeImputado || 0), 0);
 
         const mesObjetivoKey = format(objetivoMes, 'yyyy-MM');
-        const objetivo = allObjetivos.find(o => o.mes === mesObjetivoKey) || { presupuestoVentas: 0, presupuestoCesionPersonal: 0, presupuestoGastosMP: 0, presupuestoGastosPersonalMice: 0, presupuestoGastosPersonalExterno: 0, presupuestoOtrosGastos: 0 };
+        const objetivo = allObjetivos.find(o => o.mes === mesObjetivoKey) || { presupuestoVentas: 0, presupuestoCesionPersonal: 0, presupuestoGastosMP: 0, presupuestoGastosPersonalMice: 0, presupuestoGastosPersonalExterno: 0, presupuestoOtrosGastos: 0, presupuestoPersonalSolicitadoCpr: 0 };
         
         const ingresosTotales = ingresosVenta + ingresosCesionPersonal;
         const otrosGastos = costesFijosPeriodo;
@@ -323,12 +323,14 @@ export default function CprControlExplotacionPage() {
         switch(preset) {
             case 'month': fromDate = startOfMonth(now); toDate = endOfMonth(now); break;
             case 'year': fromDate = startOfYear(now); toDate = endOfYear(now); break;
-            case 'q1': fromDate = startOfQuarter(new Date(now.getFullYear(), 0, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 2, 31)); break;
-            case 'q2': fromDate = startOfQuarter(new Date(now.getFullYear(), 3, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 5, 30)); break;
-            case 'q3': fromDate = startOfQuarter(new Date(now.getFullYear(), 6, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 8, 30)); break;
-            case 'q4': fromDate = startOfQuarter(new Date(now.getFullYear(), 9, 1)); toDate = endOfQuarter(new Date(now.getFullYear(), 11, 31)); break;
+            case 'q1': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 0, 1)), to: endOfQuarter(new Date(now.getFullYear(), 2, 31)) }); break;
+            case 'q2': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 3, 1)), to: endOfQuarter(new Date(now.getFullYear(), 5, 30)) }); break;
+            case 'q3': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 6, 1)), to: endOfQuarter(new Date(now.getFullYear(), 8, 30)) }); break;
+            case 'q4': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 9, 1)), to: endOfQuarter(new Date(now.getFullYear(), 11, 31)) }); break;
         }
-        setDateRange({ from: fromDate, to: toDate });
+        if (fromDate && toDate) {
+            setDateRange({ from: fromDate, to: toDate });
+        }
         setIsDatePickerOpen(false);
     };
 
@@ -373,7 +375,8 @@ export default function CprControlExplotacionPage() {
         { label: "Cesión de Personal", presupuesto: ingresosCesionPersonal, cierre: ingresosCesionPersonal, real: ingresosCesionPersonal, objetivo: facturacionNeta * ((objetivo.presupuestoCesionPersonal || 0) / 100), objetivo_pct: (objetivo.presupuestoCesionPersonal || 0) / 100, comentario: comentarios['Cesión de Personal'] },
         { label: GASTO_LABELS.gastronomia, presupuesto: costeEscandallo, cierre: costeEscandallo, real: realCostInputs[GASTO_LABELS.gastronomia] ?? costeEscandallo, objetivo: facturacionNeta * ((objetivo.presupuestoGastosMP || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosMP || 0) / 100, comentario: comentarios[GASTO_LABELS.gastronomia], detailType: 'costeMP' },
         { label: GASTO_LABELS.personalMice, presupuesto: costePersonalMice, cierre: costePersonalMice, real: realCostInputs[GASTO_LABELS.personalMice] ?? costePersonalMice, objetivo: facturacionNeta * ((objetivo.presupuestoGastosPersonalMice || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosPersonalMice || 0) / 100, comentario: comentarios[GASTO_LABELS.personalMice] },
-        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitado, cierre: costePersonalSolicitado, real: realCostInputs[GASTO_LABELS.personalSolicitadoCpr] ?? costePersonalSolicitado, objetivo: 0, objetivo_pct: 0, comentario: comentarios[GASTO_LABELS.personalSolicitadoCpr] },
+        { label: GASTO_LABELS.personalExterno, presupuesto: costePersonalEtt, cierre: costePersonalEtt, real: realCostInputs[GASTO_LABELS.personalExterno] ?? costePersonalEtt, objetivo: facturacionNeta * ((objetivo.presupuestoGastosPersonalExterno || 0) / 100), objetivo_pct: (objetivo.presupuestoGastosPersonalExterno || 0) / 100, comentario: comentarios[GASTO_LABELS.personalExterno] },
+        { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: costePersonalSolicitado, cierre: costePersonalSolicitado, real: realCostInputs[GASTO_LABELS.personalSolicitadoCpr] ?? costePersonalSolicitado, objetivo: facturacionNeta * ((objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100), objetivo_pct: (objetivo.presupuestoPersonalSolicitadoCpr || 0) / 100, comentario: comentarios[GASTO_LABELS.personalSolicitadoCpr] },
         { label: "Otros Gastos", presupuesto: otrosGastos, cierre: otrosGastos, real: realCostInputs['Otros Gastos'] ?? otrosGastos, objetivo: facturacionNeta * ((objetivo.presupuestoOtrosGastos || 0) / 100), objetivo_pct: (objetivo.presupuestoOtrosGastos || 0) / 100, comentario: comentarios['Otros Gastos'] },
     ];
     const ingresos = tablaExplotacion.filter(r => ["Venta Gastronomía", "Cesión de Personal"].includes(r.label));
@@ -401,28 +404,19 @@ export default function CprControlExplotacionPage() {
         return (
              <TableRow key={`${row.label}-${index}`}>
                 <TableCell className="p-0 font-medium sticky left-0 bg-background z-10 w-48">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className={cn("flex items-center gap-2 h-full w-full px-2 py-1", row.comentario && 'bg-amber-100')}>
-                                    <MessageSquare
-                                        className={cn("h-4 w-4 text-muted-foreground cursor-pointer hover:text-primary", row.comentario && "text-amber-600 font-bold")}
-                                        onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}
-                                    />
-                                {row.detailType ? (
-                                    <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
-                                        {row.label} <Info size={14}/>
-                                    </Link>
-                                ): row.label}
-                            </div>
-                        </TooltipTrigger>
-                        {row.comentario && <TooltipContent><p>{row.comentario}</p></TooltipContent>}
-                    </Tooltip>
+                    <div className="flex items-center gap-2 h-full w-full px-2 py-1">
+                        {row.detailType ? (
+                            <Link href={`/control-explotacion/cpr/${row.detailType}?from=${dateRange?.from?.toISOString()}&to=${dateRange?.to?.toISOString()}`} className="text-primary hover:underline flex items-center gap-2">
+                                {row.label} <Info size={14}/>
+                            </Link>
+                        ): row.label}
+                    </div>
                 </TableCell>
                 <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
                 <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pptoPct)}</TableCell>
                 
                 <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
-                <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(facturacionNeta > 0 ? row.cierre / facturacionNeta : 0)}</TableCell>
+                <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(facturacionNeta > 0 ? row.cierre / facturacionNeta : 0)}</TableCell>
 
                 <TableCell className="py-1 px-2 text-right border-l bg-green-50/50">
                     <Input
@@ -435,15 +429,15 @@ export default function CprControlExplotacionPage() {
                         className="h-7 text-right w-28 ml-auto"
                     />
                 </TableCell>
-                <TableCell className={cn("py-1 px-2 text-left font-mono border-r bg-green-50/50", pctSFactReal > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactReal)}</TableCell>
+                <TableCell className={cn("py-1 px-2 text-right font-mono border-r bg-green-50/50", pctSFactReal > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactReal)}</TableCell>
                 
                 <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-l">{formatCurrency(row.objetivo)}</TableCell>
-                <TableCell className="py-1 px-2 text-left font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
+                <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
                 
                 <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion !== undefined && desviacion < 0 && "text-destructive font-bold", desviacion !== undefined && desviacion > 0 && "text-green-600 font-bold")}>
                     {desviacion !== undefined ? formatCurrency(desviacion) : ''}
                 </TableCell>
-                <TableCell className={cn("py-1 px-2 text-left font-mono border-r", desviacion !== undefined && desviacion < 0 && "text-destructive font-bold", desviacion !== undefined && desviacion > 0 && "text-green-600 font-bold")}>
+                <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion !== undefined && desviacion < 0 && "text-destructive font-bold", desviacion !== undefined && desviacion > 0 && "text-green-600 font-bold")}>
                      {desviacionPct !== undefined ? formatPercentage(desviacionPct) : ''}
                 </TableCell>
             </TableRow>
@@ -687,3 +681,4 @@ export default function CprControlExplotacionPage() {
     );
 }
 
+    
