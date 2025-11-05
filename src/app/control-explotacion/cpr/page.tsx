@@ -125,7 +125,7 @@ export default function CprControlExplotacionPage() {
         const personalData = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
         const pMap = new Map<string, Personal>();
         personalData.forEach(p => {
-            pMap.set(p.nombre, p); // Compatibility with older data
+            pMap.set(p.nombre, p); 
             pMap.set(p.nombreCompleto, p);
         });
         setPersonalMap(pMap);
@@ -173,7 +173,6 @@ export default function CprControlExplotacionPage() {
     }, [dateRange, router]);
 
     const dataCalculada = useMemo(() => {
-        console.log("--- STARTING CALCULATION ---");
         if (!isMounted || !dateRange?.from) return null;
 
         const rangeStart = startOfDay(dateRange.from);
@@ -217,20 +216,14 @@ export default function CprControlExplotacionPage() {
             return sum + orderTotal;
         }, 0);
         
-        console.log("[DEBUG] Raw cesionesPersonal data:", allCesionesPersonal);
-        console.log("[DEBUG] personalMap size:", personalMap.size);
-
         const cesionesEnRango = allCesionesPersonal.filter(c => {
              if (!c.fecha) return false;
              try {
-                // Robust date parsing for YYYY-MM-DD
                 const parts = c.fecha.split('-').map(Number);
                 const fechaCesion = new Date(parts[0], parts[1] - 1, parts[2]);
                 return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
             } catch(e) { return false; }
         });
-        
-        console.log("[DEBUG] Cesiones in date range:", cesionesEnRango);
 
         let ingresosCesionPersonalPlanificado = 0, ingresosCesionPersonalCierre = 0;
         let gastosCesionPersonalPlanificado = 0, gastosCesionPersonalCierre = 0;
@@ -250,10 +243,6 @@ export default function CprControlExplotacionPage() {
                 gastosCesionPersonalCierre += costeReal;
             }
         });
-        
-        console.log("[DEBUG] Final Ingresos Cesion Cierre:", ingresosCesionPersonalCierre);
-        console.log("[DEBUG] Final Gastos Cesion Cierre:", gastosCesionPersonalCierre);
-
 
         const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
         const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
@@ -297,13 +286,10 @@ export default function CprControlExplotacionPage() {
     }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes, allCesionesPersonal, personalMap, personalInterno]);
 
     const dataAcumulada = useMemo(() => {
-        console.log("--- STARTING ACCUMULATED CALCULATION ---");
         if (!isMounted) return [];
         const mesesDelAno = eachMonthOfInterval({ start: startOfYear(new Date()), end: endOfYear(new Date())});
         
         const localPersonalMap = new Map(personalInterno.map(p => [p.nombreCompleto, p]));
-        console.log("[DEBUG] personalMapLocal for dataAcumulada:", localPersonalMap);
-
 
         return mesesDelAno.map(month => {
             const rangeStart = startOfMonth(month);
@@ -333,15 +319,13 @@ export default function CprControlExplotacionPage() {
             }, 0);
             
             const cesionesEnRango = allCesionesPersonal.filter(c => {
-                if (!c.fecha) return false;
-                try {
+                 if (!c.fecha) return false;
+                 try {
                     const parts = c.fecha.split('-').map(Number);
                     const fechaCesion = new Date(parts[0], parts[1] - 1, parts[2]);
                     return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
                 } catch(e) { return false; }
             });
-            console.log(`[DEBUG] Cesiones in date range for ${format(month, 'MMM')}:`, cesionesEnRango);
-
 
             const ingresosCesionPersonal = cesionesEnRango.filter(c => localPersonalMap.get(c.nombre)?.departamento === 'CPR' && c.centroCoste !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
             const gastosCesionPersonal = cesionesEnRango.filter(c => c.centroCoste === 'CPR' && localPersonalMap.get(c.nombre)?.departamento !== 'CPR').reduce((sum, c) => sum + ((calculateHours(c.horaEntradaReal, c.horaSalidaReal) || calculateHours(c.horaEntrada, c.horaSalida)) * c.precioHora), 0);
@@ -390,10 +374,10 @@ export default function CprControlExplotacionPage() {
         if (!dataCalculada) return [];
         const { facturacionNeta, objetivo } = dataCalculada;
         const gastos = [
-            { label: 'Venta Gastronomía', presupuesto: dataCalculada.ingresosVenta, cierre: dataCalculada.ingresosVenta },
-            { label: 'Cesión de Personal', presupuesto: dataCalculada.ingresosCesionPersonalPlanificado, cierre: dataCalculada.ingresosCesionPersonalCierre },
+            { label: 'Venta Gastronomía', presupuesto: dataCalculada.ingresosVenta, cierre: dataCalculada.ingresosVenta, detailType: 'ventaGastronomia' },
+            { label: 'Cesión de Personal', presupuesto: dataCalculada.ingresosCesionPersonalPlanificado, cierre: dataCalculada.ingresosCesionPersonalCierre, detailType: 'cesionIngreso' },
             { label: GASTO_LABELS.gastronomia, presupuesto: dataCalculada.costeEscandallo, cierre: dataCalculada.costeEscandallo, detailType: 'costeMP' },
-            { label: 'Personal Cedido a CPR', presupuesto: dataCalculada.gastosCesionPersonalPlanificado, cierre: dataCalculada.gastosCesionPersonalCierre },
+            { label: 'Personal Cedido a CPR', presupuesto: dataCalculada.gastosCesionPersonalPlanificado, cierre: dataCalculada.gastosCesionPersonalCierre, detailType: 'cesionGasto' },
             { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: dataCalculada.costePersonalSolicitadoPlanificado, cierre: dataCalculada.costePersonalSolicitadoCierre, detailType: 'personalApoyo' },
             { label: 'Otros Gastos (Fijos)', presupuesto: dataCalculada.costesFijosPeriodo, cierre: dataCalculada.costesFijosPeriodo },
         ];
@@ -403,6 +387,7 @@ export default function CprControlExplotacionPage() {
                 'Venta Gastronomía': 'presupuestoVentas',
                 'Cesión de Personal': 'presupuestoCesionPersonal',
                 [GASTO_LABELS.gastronomia]: 'presupuestoGastosMP',
+                [GASTO_LABELS.personalMice]: 'presupuestoGastosPersonalMice',
                 [GASTO_LABELS.personalSolicitadoCpr]: 'presupuestoGastosPersonalExterno',
                 'Otros Gastos (Fijos)': 'presupuestoOtrosGastos',
             };
@@ -419,7 +404,7 @@ export default function CprControlExplotacionPage() {
         });
     }, [dataCalculada, realCostInputs, comentarios]);
     
-    const { totalPresupuesto, totalCierre, totalReal, totalObjetivo } = useMemo(() => {
+    const totals = useMemo(() => {
         if (!processedCostes) return { totalPresupuesto: 0, totalCierre: 0, totalReal: 0, totalObjetivo: 0 };
         const totalPresupuesto = processedCostes.reduce((sum, row) => sum + row.presupuesto, 0);
         const totalCierre = processedCostes.reduce((sum, row) => sum + row.cierre, 0);

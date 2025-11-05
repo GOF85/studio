@@ -3,25 +3,29 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { AreaChart, ChevronRight, Factory } from 'lucide-react';
+import { AreaChart, ChevronRight, Factory, Users, Euro } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const breadcrumbNameMap: Record<string, { name: string; icon: React.ElementType }> = {
+    'cpr': { name: 'CPR', icon: Factory },
+    'ventaGastronomia': { name: 'Venta Gastronomía', icon: Euro },
+    'costeMP': { name: 'Coste Materia Prima', icon: Euro },
+    'cesionIngreso': { name: 'Ingreso por Cesión', icon: Users },
+    'cesionGasto': { name: 'Gasto por Cesión', icon: Users },
+    'personalApoyo': { name: 'Personal de Apoyo', icon: Users },
+}
 
 
 export default function ControlExplotacionLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const isCprPage = pathname.startsWith('/control-explotacion/cpr');
     
-    const isDetailPage = pathname.includes('/ventaGastronomia') || pathname.includes('/costeMP') || pathname.includes('/personalApoyo');
+    const pathSegments = pathname.split('/').filter(Boolean);
+    const cprIndex = pathSegments.indexOf('cpr');
+    const hasCpr = cprIndex !== -1;
+    const detailSegment = hasCpr && pathSegments.length > cprIndex + 1 ? pathSegments[cprIndex + 1] : null;
 
-    let detailPageTitle = '';
-    if (pathname.includes('/ventaGastronomia')) {
-        detailPageTitle = 'Detalle de Venta';
-    } else if (pathname.includes('/costeMP')) {
-        detailPageTitle = 'Detalle de Coste MP';
-    } else if (pathname.includes('/personalApoyo')) {
-        detailPageTitle = 'Detalle Personal Apoyo';
-    }
+    const detailInfo = detailSegment ? breadcrumbNameMap[detailSegment] : null;
     
     const from = searchParams.get('from');
     const to = searchParams.get('to');
@@ -36,19 +40,22 @@ export default function ControlExplotacionLayout({ children }: { children: React
                             <AreaChart className="h-5 w-5"/>
                             <span>Control de Explotación</span>
                         </Link>
-                        {isCprPage && (
+                        {hasCpr && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <Link href={cprHref} className={cn("flex items-center gap-2", isDetailPage ? "text-muted-foreground hover:text-primary" : "text-primary font-bold")}>
+                                <Link href={cprHref} className={cn("flex items-center gap-2", detailInfo ? "text-muted-foreground hover:text-primary" : "text-primary font-bold")}>
                                     <Factory className="h-5 w-5"/>
                                     <span>CPR</span>
                                 </Link>
                             </>
                         )}
-                         {isDetailPage && (
+                         {detailInfo && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <span className="text-primary font-bold">{detailPageTitle}</span>
+                                <span className="flex items-center gap-2 font-bold text-primary">
+                                    <detailInfo.icon className="h-5 w-5"/>
+                                    <span>{detailInfo.name}</span>
+                                </span>
                             </>
                          )}
                     </div>
