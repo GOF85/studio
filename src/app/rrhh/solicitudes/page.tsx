@@ -18,18 +18,18 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { calculateHours, formatNumber, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
-const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
+const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' } = {
   'Solicitado': 'secondary',
   'Aprobada': 'outline',
   'Rechazada': 'destructive',
   'Asignada': 'default',
-  'Confirmado': 'default',
+  'Confirmado': 'success',
   'Solicitada Cancelacion': 'destructive',
   'Cerrado': 'secondary'
 };
@@ -62,8 +62,6 @@ function CommentModal({ comment, trigger }: { comment: string, trigger: React.Re
 export default function SolicitudesCprPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
-  const [personalExternoDB, setPersonalExternoDB] = useState<Map<string, { nombre: string; proveedorId: string; }>>(new Map());
-  const [personalInternoDB, setPersonalInternoDB] = useState<Map<string, { nombre: string }>>(new Map());
   const [tiposPersonal, setTiposPersonal] = useState<CategoriaPersonal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,12 +83,6 @@ export default function SolicitudesCprPage() {
     
     const storedTiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
     setTiposPersonal(storedTiposPersonal);
-
-    const storedPersonalExterno = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as {id: string, nombreCompleto: string, proveedorId: string}[];
-    setPersonalExternoDB(new Map(storedPersonalExterno.map(p => [p.id, {nombre: p.nombreCompleto, proveedorId: p.proveedorId}])));
-
-    const storedPersonalInterno = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-    setPersonalInternoDB(new Map(storedPersonalInterno.map(p => [p.id, {nombre: `${p.nombre} ${p.apellidos}`}])));
 
     setIsMounted(true);
   }, []);
@@ -164,9 +156,9 @@ export default function SolicitudesCprPage() {
   return (
     <div>
         <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Mis Solicitudes de Personal</h1>
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Solicitudes de Personal de Apoyo</h1>
             <Button onClick={() => router.push('/cpr/solicitud-personal/nueva')}>
-                <PlusCircle className="mr-2" /> Nueva Solicitud
+                <PlusCircle className="mr-2" /> Nueva Solicitud (CPR)
             </Button>
         </div>
 
@@ -205,7 +197,7 @@ export default function SolicitudesCprPage() {
                         <TableHead>Horario (Horas)</TableHead>
                         <TableHead>Partida</TableHead>
                         <TableHead>Categoría</TableHead>
-                        <TableHead>Comentarios</TableHead>
+                        <TableHead>Solicitante</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Asignado a</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
@@ -215,12 +207,6 @@ export default function SolicitudesCprPage() {
                     {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => {
                         const tipoPersonalAsignado = tiposPersonal.find(t => t.id === s.proveedorId);
                         const proveedorNombre = tipoPersonalAsignado ? proveedoresMap.get(tipoPersonalAsignado.proveedorId) : null;
-                        const asignado = s.personalAsignado?.[0];
-                        
-                        let personalInfo = null;
-                        if(asignado?.idPersonal) {
-                            personalInfo = personalExternoDB.get(asignado.idPersonal) || personalInternoDB.get(asignado.idPersonal);
-                        }
                         const horas = calculateHours(s.horaInicio, s.horaFin);
 
                         return (
@@ -229,35 +215,18 @@ export default function SolicitudesCprPage() {
                             <TableCell>{s.horaInicio} - {s.horaFin} ({formatNumber(horas, 2)}h)</TableCell>
                             <TableCell><Badge variant="outline" className={cn(partidaColorClasses[s.partida])}>{s.partida}</Badge></TableCell>
                             <TableCell className="font-semibold">{s.categoria}</TableCell>
-                            <TableCell>{s.motivo}</TableCell>
+                            <TableCell>{s.solicitadoPor}</TableCell>
                             <TableCell><Badge variant={statusVariant[s.estado] || 'secondary'}>{s.estado}</Badge></TableCell>
-                            <TableCell>
-                                {proveedorNombre && (
-                                    <div className="flex items-center">
-                                        <span>{proveedorNombre}</span>
-                                        {personalInfo && <span className="text-muted-foreground ml-1">({personalInfo.nombre})</span>}
-                                        {asignado?.comentarios && (
-                                            <CommentModal
-                                                comment={asignado.comentarios}
-                                                trigger={
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 ml-1">
-                                                        <MessageSquare className="h-4 w-4 text-primary" />
-                                                    </Button>
-                                                }
-                                            />
-                                        )}
-                                    </div>
-                                )}
-                            </TableCell>
+                            <TableCell>{proveedorNombre || '-'}</TableCell>
                             <TableCell className="text-right">
-                                {(s.estado === 'Solicitado' || s.estado === 'Aprobada') && <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); handleAction('delete') }}><Trash2 className="mr-2 h-4 w-4"/>Borrar</Button>}
-                                {s.estado === 'Asignada' && !isBefore(new Date(s.fechaServicio), startOfToday()) && <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); handleAction('cancel') }}><Trash2 className="mr-2 h-4 w-4"/>Solicitar Cancelación</Button>}
+                                {(s.estado === 'Solicitado' || s.estado === 'Aprobada') && <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); setManagementAction('delete'); setSolicitudToManage(s); }}><Trash2 className="mr-2 h-4 w-4"/>Borrar</Button>}
+                                {s.estado === 'Asignada' && !isBefore(new Date(s.fechaServicio), startOfToday()) && <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); setManagementAction('cancel'); setSolicitudToManage(s); }}><Trash2 className="mr-2 h-4 w-4"/>Solicitar Cancelación</Button>}
                                 {s.estado === 'Solicitada Cancelacion' && <Badge variant="destructive">Pendiente RRHH</Badge>}
                             </TableCell>
                         </TableRow>
                     )}) : (
                         <TableRow>
-                            <TableCell colSpan={8} className="h-24 text-center">No has realizado ninguna solicitud.</TableCell>
+                            <TableCell colSpan={8} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
