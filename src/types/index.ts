@@ -363,8 +363,8 @@ export type GastronomyOrderItem = {
     type: 'item' | 'separator';
     nombre: string;
     categoria?: string;
-    costeMateriaPrima?: number;
-    precioVenta?: number;
+    costeMateriaPrima?: number; // Snapshot of the cost at the time of adding
+    precioVenta?: number; // Snapshot of the price at the time of adding
     quantity?: number;
     comentarios?: string;
 }

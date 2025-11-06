@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -10,10 +9,10 @@ import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from '
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2 } from 'lucide-react';
-import { format, differenceInMinutes, parse } from 'date-fns';
+import { format, differenceInMinutes, parse, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus, GastronomyOrder } from '@/types';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus, GastronomyOrder, HistoricoPreciosERP, ArticuloERP, IngredienteInterno, Elaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -49,6 +48,8 @@ const gastroItemSchema = z.object({
   id: z.string(), // Receta ID
   type: z.enum(['item', 'separator']),
   nombre: z.string(),
+  costeMateriaPrimaSnapshot: z.number().optional(),
+  precioVentaSnapshot: z.number().optional(),
   costeMateriaPrima: z.number().optional(),
   precioVenta: z.number().optional(),
   quantity: z.coerce.number().optional(),
@@ -73,6 +74,11 @@ function PedidoGastronomiaForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [editingComment, setEditingComment] = useState<{ index: number; text: string } | null>(null);
+  const [historicoPrecios, setHistoricoPrecios] = useState<HistoricoPreciosERP[]>([]);
+  const [ingredientesInternos, setIngredientesInternos] = useState<IngredienteInterno[]>([]);
+  const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]);
+  const [elaboraciones, setElaboraciones] = useState<Elaboracion[]>([]);
+
 
   const router = useRouter();
   const { toast } = useToast();
@@ -90,6 +96,57 @@ function PedidoGastronomiaForm() {
   
   const watchedItems = watch('items');
   
+  useEffect(() => {
+    setHistoricoPrecios(JSON.parse(localStorage.getItem('historicoPreciosERP') || '[]'));
+    setIngredientesInternos(JSON.parse(localStorage.getItem('ingredientesInternos') || '[]'));
+    setArticulosERP(JSON.parse(localStorage.getItem('articulosERP') || '[]'));
+    setElaboraciones(JSON.parse(localStorage.getItem('elaboraciones') || '[]'));
+  }, []);
+  
+  const calculateHistoricalCost = useCallback((receta: Receta, eventDate: Date): { coste: number, pvp: number } => {
+    const articulosErpMap = new Map(articulosERP.map(a => [a.idreferenciaerp, a]));
+    const ingredientesMap = new Map(ingredientesInternos.map(i => [i.id, i]));
+    const elaboracionesMap = new Map(elaboraciones.map(e => [e.id, e]));
+
+    const getHistoricalPrice = (erpId: string): number => {
+      const relevantPrices = historicoPrecios
+        .filter(h => h.articuloErpId === erpId && new Date(h.fecha) <= startOfDay(eventDate))
+        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+      return relevantPrices.length > 0 ? relevantPrices[0].precioCalculado : 0;
+    };
+    
+    const calculateElabCost = (elabId: string): number => {
+        const elab = elaboracionesMap.get(elabId);
+        if (!elab) return 0;
+        
+        const elabCost = (elab.componentes || []).reduce((sum, comp) => {
+            let componentCost = 0;
+            if (comp.tipo === 'ingrediente') {
+                const ingrediente = ingredientesMap.get(comp.componenteId);
+                const erpItem = ingrediente ? articulosErpMap.get(ingrediente.productoERPlinkId) : undefined;
+                if(erpItem) {
+                    const price = getHistoricalPrice(erpItem.idreferenciaerp);
+                    componentCost = price * comp.cantidad;
+                }
+            } else { // It's a sub-elaboration
+                componentCost = calculateElabCost(comp.componenteId) * comp.cantidad;
+            }
+            return sum + (componentCost * (1 + (comp.merma / 100)));
+        }, 0);
+
+        return elab.produccionTotal > 0 ? elabCost / elab.produccionTotal : 0;
+    }
+
+    const costeMateriaPrima = (receta.elaboraciones || []).reduce((sum, elabEnReceta) => {
+        const elabCost = calculateElabCost(elabEnReceta.elaboracionId);
+        return sum + (elabCost * elabEnReceta.cantidad);
+    }, 0);
+    
+    const pvp = costeMateriaPrima * (1 + (receta.porcentajeCosteProduccion / 100));
+
+    return { coste: costeMateriaPrima, pvp };
+  }, [historicoPrecios, ingredientesInternos, articulosERP, elaboraciones]);
+
   const { totalPedido, costeTotalMateriaPrima, ratioUnidadesPorPax } = useMemo(() => {
     let total = 0;
     let coste = 0;
@@ -97,8 +154,11 @@ function PedidoGastronomiaForm() {
     
     (watchedItems || []).forEach(item => {
         if (item.type === 'item') {
-            total += (item.precioVenta || 0) * (item.quantity || 0);
-            coste += (item.costeMateriaPrima || 0) * (item.quantity || 0);
+            const priceToUse = item.precioVentaSnapshot ?? item.precioVenta ?? 0;
+            const costToUse = item.costeMateriaPrimaSnapshot ?? item.costeMateriaPrima ?? 0;
+            
+            total += priceToUse * (item.quantity || 0);
+            coste += costToUse * (item.quantity || 0);
             totalUnits += item.quantity || 0;
         }
     });
@@ -139,12 +199,16 @@ function PedidoGastronomiaForm() {
   }, [osId, briefingItemId, reset]);
 
   const onAddReceta = (receta: Receta) => {
+    const { coste, pvp } = calculateHistoricalCost(receta, serviceOrder ? new Date(serviceOrder.startDate) : new Date());
+
     append({
         id: receta.id,
         type: 'item',
         nombre: receta.nombre,
-        costeMateriaPrima: receta.costeMateriaPrima,
-        precioVenta: receta.precioVenta,
+        costeMateriaPrima: coste,
+        precioVenta: pvp,
+        costeMateriaPrimaSnapshot: coste,
+        precioVentaSnapshot: pvp,
         quantity: briefingItem?.asistentes || 1,
         comentarios: '',
     });
@@ -290,8 +354,8 @@ function PedidoGastronomiaForm() {
                                             )}
                                         />
                                     </TableCell>
-                                    <TableCell>{formatCurrency(field.precioVenta || 0)}</TableCell>
-                                    <TableCell className="text-right font-semibold">{formatCurrency((field.precioVenta || 0) * (field.quantity || 0))}</TableCell>
+                                    <TableCell>{formatCurrency(field.precioVentaSnapshot || field.precioVenta || 0)}</TableCell>
+                                    <TableCell className="text-right font-semibold">{formatCurrency(((field.precioVentaSnapshot || field.precioVenta) || 0) * (field.quantity || 0))}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end">
                                             <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setEditingComment({ index, text: field.comentarios || '' })}>

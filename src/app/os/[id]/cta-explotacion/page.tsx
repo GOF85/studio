@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from "react"
@@ -8,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Euro, Target, Settings, TrendingUp, TrendingDown, RefreshCw, Info, MessageSquare, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -141,7 +140,15 @@ export default function CtaExplotacionPage() {
     const getModuleTotal = (orders: {total?: number, precio?: number}[]) => orders.reduce((sum, order) => sum + (order.total ?? order.precio ?? 0), 0);
     
     const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-    const gastronomyCost = getModuleTotal(allGastroOrders.filter(o => o.osId === osId));
+    const gastronomyCost = allGastroOrders.filter(o => o.osId === osId).reduce((sum, order) => {
+        const orderCost = (order.items || []).reduce((itemSum, item) => {
+            if (item.type === 'item') {
+                return itemSum + (item.costeMateriaPrima || 0) * (item.quantity || 0);
+            }
+            return itemSum;
+        }, 0);
+        return sum + orderCost;
+    }, 0);
 
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];

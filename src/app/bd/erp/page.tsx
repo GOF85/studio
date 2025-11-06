@@ -167,7 +167,7 @@ function ArticulosERPPageContent() {
   const calculatePrice = (item: any) => {
     const precioCompra = parseCurrency(item.precioCompra);
     const descuento = parseCurrency(item.descuento);
-    const unidadConversion = parseCurrency(item.unidadConversion);
+    const unidadConversion = parseCurrency(item.unidadConversion) || 1;
     const precioConDescuento = precioCompra * (1 - (descuento / 100));
     return unidadConversion > 0 ? precioConDescuento / unidadConversion : 0;
   }
@@ -222,6 +222,15 @@ function ArticulosERPPageContent() {
                         proveedorId: item.idProveedor,
                     });
                 }
+            } else {
+                // If it's a new item, add it to the history
+                historicoPrecios.push({
+                    id: `${idreferenciaerp}-${today.toISOString()}`,
+                    articuloErpId: idreferenciaerp,
+                    fecha: today.toISOString(),
+                    precioCalculado: newPrice,
+                    proveedorId: item.idProveedor,
+                });
             }
         });
         localStorage.setItem('historicoPreciosERP', JSON.stringify(historicoPrecios));
@@ -233,6 +242,7 @@ function ArticulosERPPageContent() {
         
         const importedData: ArticuloERP[] = results.data.map((item: any) => {
             const familiaInfo = familiasMap.get(item.familiaCategoria || '');
+            const precioCalculado = calculatePrice(item);
             return {
                 id: item.id || Date.now().toString() + Math.random(),
                 idreferenciaerp: item.idreferenciaerp || '',
@@ -244,6 +254,7 @@ function ArticulosERPPageContent() {
                 precioCompra: parseCurrency(item.precioCompra),
                 descuento: parseCurrency(item.descuento),
                 unidadConversion: parseCurrency(item.unidadConversion) || 1,
+                precio: precioCalculado,
                 precioAlquiler: parseCurrency(item.precioAlquiler),
                 unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UD',
                 tipo: familiaInfo?.tipo || item.tipo || '',
@@ -344,19 +355,15 @@ function ArticulosERPPageContent() {
               <TableBody>
                   {paginatedItems.length > 0 ? (
                       paginatedItems.map(item => {
-                          const precioCompra = item.precioCompra || 0;
-                          const descuento = item.descuento || 0;
-                          const unidadConversion = item.unidadConversion || 1;
-                          const precioConDescuento = precioCompra * (1 - (descuento / 100));
-                          const precioCalculado = unidadConversion > 0 ? precioConDescuento / unidadConversion : 0;
+                          const precioCalculado = item.precio || 0;
                           return (
                               <TableRow key={item.id}>
                                   <TableCell className="p-2 text-xs font-medium">{item.nombreProductoERP}</TableCell>
                                   <TableCell className="p-2 text-xs">{item.idreferenciaerp}</TableCell>
                                   <TableCell className="p-2 text-xs">{item.nombreProveedor}</TableCell>
-                                  <TableCell className="p-2 text-xs text-right">{formatCurrency(precioCompra)}</TableCell>
-                                  <TableCell className="p-2 text-xs text-right">{descuento}%</TableCell>
-                                  <TableCell className="p-2 text-xs text-right">{unidadConversion}</TableCell>
+                                  <TableCell className="p-2 text-xs text-right">{formatCurrency(item.precioCompra)}</TableCell>
+                                  <TableCell className="p-2 text-xs text-right">{item.descuento}%</TableCell>
+                                  <TableCell className="p-2 text-xs text-right">{item.unidadConversion}</TableCell>
                                   <TableCell className="p-2 text-xs text-right font-semibold">{formatCurrency(precioCalculado)}</TableCell>
                                   <TableCell className="p-2 text-xs">{formatUnit(item.unidad)}</TableCell>
                                   <TableCell className="p-2 text-xs">{item.tipo}</TableCell>
