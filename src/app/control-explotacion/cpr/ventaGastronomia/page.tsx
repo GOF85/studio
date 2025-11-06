@@ -12,7 +12,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatNumber, formatPercentage, formatUnit } from '@/lib/utils';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -71,7 +71,7 @@ export default function VentaGastronomiaPage() {
             
             const ventasDetalladas: VentaDetalle[] = [];
             gastroOrdersEnRango.forEach(order => {
-                if (!order.fecha) return; // FIX: Skip orders without a date
+                if (!order.fecha) return; 
                 const os = allServiceOrders.find(o => o.id === order.osId);
                 (order.items || []).forEach(item => {
                     if (item.type === 'item') {
