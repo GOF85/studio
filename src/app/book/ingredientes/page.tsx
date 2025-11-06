@@ -7,7 +7,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil, Check, CircleX } from 'lucide-react';
-import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta, FamiliaERP, ServiceOrder, GastronomyOrder } from '@/types';
+import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta, FamiliaERP, ServiceOrder, GastronomyOrder, Proveedor } from '@/types';
 import { ALERGENOS } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -32,8 +32,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as React from 'react';
-import { isBefore, subMonths, startOfToday, addYears, isWithinInterval, addDays } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { isBefore, subMonths, startOfToday, addYears, isWithinInterval, addDays, format } from 'date-fns';
+import { cn, formatCurrency } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { Combobox } from '@/components/ui/combobox';
@@ -52,10 +52,18 @@ type IngredienteConERP = IngredienteInterno & {
     erp?: ArticuloERP;
     alergenos: Alergeno[];
     urgency?: 'high' | 'medium' | 'low';
+    precioCalculado?: number;
 };
 
 const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "alergenosPresentes", "alergenosTrazas", "historialRevisiones"];
 const ITEMS_PER_PAGE = 20;
+
+const calculateErpPrice = (p?: ArticuloERP): number => {
+    if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
+    const basePrice = p.precioCompra / (p.unidadConversion || 1);
+    const discount = p.descuento || 0;
+    return basePrice * (1 - discount / 100);
+}
 
 
 function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, initialData: Partial<IngredienteInterno> | null, onSave: (data: IngredienteFormValues) => void }) {
@@ -138,13 +146,6 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
         </div>
     );
     const alergenosColumns = React.useMemo(() => [ALERGENOS.slice(0, 7), ALERGENOS.slice(7)], []);
-
-    const calculatePrice = (p: ArticuloERP) => {
-        if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
-        const basePrice = p.precioCompra / (p.unidadConversion || 1);
-        const discount = p.descuento || 0;
-        return basePrice * (1 - discount / 100);
-    }
     
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -172,7 +173,7 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
                                                         </div>
                                                         <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" type="button" onClick={() => form.setValue('productoERPlinkId', '', {shouldDirty: true})}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
                                                     </div>
-                                                     <p className="font-bold text-primary text-sm">{calculatePrice(selectedErpProduct).toLocaleString('es-ES',{style:'currency', currency:'EUR'})} / {selectedErpProduct.unidad}</p>
+                                                     <p className="font-bold text-primary text-sm">{formatCurrency(calculateErpPrice(selectedErpProduct))} / {selectedErpProduct.unidad}</p>
                                                 </div>
                                             ) : (
                                                 <Dialog>
@@ -223,13 +224,6 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
         );
     }, [articulosERP, searchTerm]);
 
-    const calculatePrice = (p: ArticuloERP) => {
-        if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
-        const basePrice = p.precioCompra / (p.unidadConversion || 1);
-        const discount = p.descuento || 0;
-        return basePrice * (1 - discount / 100);
-    }
-    
     return (
         <DialogContent className="max-w-3xl">
             <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
@@ -241,7 +235,7 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
                         <TableRow key={p.idreferenciaerp || p.id}>
                             <TableCell>{p.nombreProductoERP}</TableCell>
                             <TableCell>{p.nombreProveedor}</TableCell>
-                            <TableCell>{calculatePrice(p).toLocaleString('es-ES',{style:'currency', currency:'EUR'})}/{p.unidad}</TableCell>
+                            <TableCell>{formatCurrency(calculateErpPrice(p))}/{p.unidad}</TableCell>
                             <TableCell>
                                 <DialogClose asChild>
                                     <Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}><Check className="mr-2"/>Seleccionar</Button>
@@ -350,6 +344,7 @@ function IngredientesPageContent() {
             erp: erpItem,
             alergenos: [...new Set([...presentes, ...trazas])] as Alergeno[],
             urgency,
+            precioCalculado: calculateErpPrice(erpItem)
         }
     });
 
@@ -550,13 +545,32 @@ function IngredientesPageContent() {
     setEditingIngredient(null);
     loadIngredients();
   };
+  
+  const handleValidate = (item: IngredienteConERP) => {
+      handleSave({
+        id: item.id,
+        nombreIngrediente: item.nombreIngrediente,
+        productoERPlinkId: item.productoERPlinkId,
+        alergenosPresentes: item.alergenosPresentes || [],
+        alergenosTrazas: item.alergenosTrazas || [],
+      });
+  }
+
+  const getInitials = (name: string) => {
+    if (!name) return '';
+    const nameParts = name.split(' ');
+    if (nameParts.length > 1) {
+        return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
 
   if (!isMounted) return <LoadingSkeleton title="Cargando Ingredientes..." />;
 
   return (
     <>
       <div className="flex items-center justify-end mb-4">
-          {headerActions}
+        <Button onClick={() => setEditingIngredient({})}><PlusCircle className="mr-2" />Nuevo Ingrediente</Button>
       </div>
         
         <div className="flex items-center justify-between gap-4 mb-4">
@@ -576,9 +590,9 @@ function IngredientesPageContent() {
           <Table>
             <TableHeader><TableRow>
                 <TableHead>Ingrediente</TableHead>
-                <TableHead>Producto ERP Vinculado</TableHead>
-                <TableHead>Categoría MICE</TableHead>
+                <TableHead>Producto ERP</TableHead>
                 <TableHead>Categoría ERP</TableHead>
+                <TableHead className="text-right">Precio/Ud.</TableHead>
                 <TableHead>Última Revisión</TableHead>
                 <TableHead>Responsable</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
@@ -592,16 +606,16 @@ function IngredientesPageContent() {
                                        : needsReview && item.urgency === 'medium' ? 'bg-amber-100/50'
                                        : '';
                     return (
-                        <TableRow key={item.id} className={cn(needsReview && !urgencyClass && 'bg-amber-50', urgencyClass)}>
+                        <TableRow key={item.id} className={cn(needsReview && 'bg-amber-50', urgencyClass)}>
                             <TableCell className="font-medium">{item.nombreIngrediente}</TableCell>
                             <TableCell>{item.erp?.nombreProductoERP || <span className="text-destructive">No Vinculado</span>}</TableCell>
-                            <TableCell>{item.erp?.categoriaMice || '-'}</TableCell>
                             <TableCell>{item.erp?.tipo || '-'}</TableCell>
+                            <TableCell className="font-mono text-right">{formatCurrency(item.precioCalculado || 0)}</TableCell>
                             <TableCell className={cn(needsReview && 'text-destructive font-bold')}>
                                 {latestRevision ? format(new Date(latestRevision.fecha), 'dd/MM/yyyy') : 'Nunca'}
                                 {needsReview && <AlertTriangle className="inline ml-2 h-4 w-4" />}
                             </TableCell>
-                            <TableCell>{latestRevision?.responsable || '-'}</TableCell>
+                            <TableCell>{latestRevision ? getInitials(latestRevision.responsable) : '-'}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex gap-2 justify-end">
                                 <Button size="sm" variant="secondary" onClick={() => handleValidate(item)}><Check className="mr-2 h-4 w-4" />Validar</Button>
@@ -666,3 +680,6 @@ export default function IngredientesPageWrapper() {
         </Suspense>
     )
 }
+
+```
+```
