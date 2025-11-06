@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -12,7 +13,7 @@ import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users
 import { format, differenceInMinutes, parse, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus, GastronomyOrder, HistoricoPreciosERP, ArticuloERP, IngredienteInterno, Elaboracion } from '@/types';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, GastronomyOrderStatus, GastronomyOrder, HistoricoPreciosERP, ArticuloERP, IngredienteInterno, Elaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -112,7 +113,10 @@ function PedidoGastronomiaForm() {
       const relevantPrices = historicoPrecios
         .filter(h => h.articuloErpId === erpId && new Date(h.fecha) <= startOfDay(eventDate))
         .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-      return relevantPrices.length > 0 ? relevantPrices[0].precioCalculado : 0;
+      
+      const latestPrice = articulosErpMap.get(erpId)?.precio || 0;
+
+      return relevantPrices.length > 0 ? relevantPrices[0].precioCalculado : latestPrice;
     };
     
     const calculateElabCost = (elabId: string): number => {
@@ -131,7 +135,7 @@ function PedidoGastronomiaForm() {
             } else { // It's a sub-elaboration
                 componentCost = calculateElabCost(comp.componenteId) * comp.cantidad;
             }
-            return sum + (componentCost * (1 + (comp.merma / 100)));
+            return sum + (componentCost * (1 + (comp.merma || 0) / 100));
         }, 0);
 
         return elab.produccionTotal > 0 ? elabCost / elab.produccionTotal : 0;
@@ -200,7 +204,7 @@ function PedidoGastronomiaForm() {
 
   const onAddReceta = (receta: Receta) => {
     const { coste, pvp } = calculateHistoricalCost(receta, serviceOrder ? new Date(serviceOrder.startDate) : new Date());
-
+    
     append({
         id: receta.id,
         type: 'item',
@@ -236,7 +240,8 @@ function PedidoGastronomiaForm() {
         osId: osId,
         status: data.status,
         items: data.items,
-        total: totalPedido
+        total: totalPedido,
+        fecha: briefingItem.fecha, // Add fecha from briefingItem
     };
     
     if (orderIndex > -1) {
@@ -254,7 +259,7 @@ function PedidoGastronomiaForm() {
   
   const handleSaveComment = () => {
     if (editingComment) {
-        const currentItems = getValues('gastro_items');
+        const currentItems = getValues('items');
         currentItems[editingComment.index].comentarios = editingComment.text;
         update(editingComment.index, currentItems[editingComment.index]);
         setEditingComment(null);
