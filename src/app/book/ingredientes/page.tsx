@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -224,6 +225,13 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
         );
     }, [articulosERP, searchTerm]);
 
+    const calculatePrice = (p: ArticuloERP) => {
+        if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
+        const basePrice = p.precioCompra / (p.unidadConversion || 1);
+        const discount = p.descuento || 0;
+        return basePrice * (1 - discount / 100);
+    }
+    
     return (
         <DialogContent className="max-w-3xl">
             <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
@@ -235,7 +243,7 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
                         <TableRow key={p.idreferenciaerp || p.id}>
                             <TableCell>{p.nombreProductoERP}</TableCell>
                             <TableCell>{p.nombreProveedor}</TableCell>
-                            <TableCell>{formatCurrency(calculateErpPrice(p))}/{p.unidad}</TableCell>
+                            <TableCell>{calculatePrice(p).toLocaleString('es-ES',{style:'currency', currency:'EUR'})}/{p.unidad}</TableCell>
                             <TableCell>
                                 <DialogClose asChild>
                                     <Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}><Check className="mr-2"/>Seleccionar</Button>
@@ -680,6 +688,3 @@ export default function IngredientesPageWrapper() {
         </Suspense>
     )
 }
-
-```
-```
