@@ -71,6 +71,7 @@ export default function VentaGastronomiaPage() {
             
             const ventasDetalladas: VentaDetalle[] = [];
             gastroOrdersEnRango.forEach(order => {
+                if (!order.fecha) return; // FIX: Skip orders without a date
                 const os = allServiceOrders.find(o => o.id === order.osId);
                 (order.items || []).forEach(item => {
                     if (item.type === 'item') {
