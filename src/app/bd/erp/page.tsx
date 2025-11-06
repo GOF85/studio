@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Save, Trash2, Loader2, Menu, FileUp, FileDown, Database, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, Save, Trash2, Loader2, Menu, FileUp, FileDown, Database, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import type { ArticuloERP, UnidadMedida, Proveedor, FamiliaERP, HistoricoPreciosERP } from '@/types';
 import { UNIDADES_MEDIDA, articuloErpSchema } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,7 @@ function ArticulosERPPageContent() {
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,6 +141,28 @@ function ArticulosERPPageContent() {
 
   const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
   const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  
+  const handleEditRow = (itemId: string) => {
+    setEditingRowId(itemId);
+  };
+  
+  const handleUpdateItem = (itemId: string, field: keyof ArticuloERP, value: any) => {
+    const updatedItems = items.map(item => {
+      if (item.id === itemId) {
+        return { ...item, [field]: value };
+      }
+      return item;
+    });
+    const itemToUpdate = updatedItems.find(i => i.id === itemId);
+    if (itemToUpdate) {
+        itemToUpdate.precio = calculatePrice(itemToUpdate);
+    }
+    
+    setItems(updatedItems);
+    localStorage.setItem('articulosERP', JSON.stringify(updatedItems));
+    toast({ title: 'Artículo actualizado', description: `Se ha guardado el nuevo valor para ${field}.`});
+    setEditingRowId(null);
+  };
 
 
   const handleExportCSV = () => {
@@ -351,30 +374,46 @@ function ArticulosERPPageContent() {
                       <TableHead className="p-2">Unidad</TableHead>
                       <TableHead className="p-2">Tipo (Familia)</TableHead>
                       <TableHead className="p-2">Categoría MICE</TableHead>
+                      <TableHead className="p-2 text-right">Acción</TableHead>
                   </TableRow>
               </TableHeader>
               <TableBody>
                   {paginatedItems.length > 0 ? (
                       paginatedItems.map(item => {
-                          const precioCalculado = item.precio || 0;
+                          const isEditing = editingRowId === item.id;
                           return (
                               <TableRow key={item.id}>
                                   <TableCell className="p-2 text-xs font-medium">{item.nombreProductoERP}</TableCell>
                                   <TableCell className="p-2 text-xs">{item.idreferenciaerp}</TableCell>
                                   <TableCell className="p-2 text-xs">{item.nombreProveedor}</TableCell>
-                                  <TableCell className="p-2 text-xs text-right">{formatCurrency(item.precioCompra)}</TableCell>
-                                  <TableCell className="p-2 text-xs text-right">{item.descuento}%</TableCell>
-                                  <TableCell className="p-2 text-xs text-right">{item.unidadConversion}</TableCell>
-                                  <TableCell className="p-2 text-xs text-right font-semibold">{formatCurrency(precioCalculado)}</TableCell>
+                                  <TableCell className="p-2 text-xs text-right">
+                                    {isEditing ? (
+                                        <Input type="number" step="0.01" defaultValue={item.precioCompra} onBlur={(e) => handleUpdateItem(item.id, 'precioCompra', parseFloat(e.target.value) || 0)} className="h-7 w-20 text-right"/>
+                                    ) : formatCurrency(item.precioCompra)}
+                                  </TableCell>
+                                  <TableCell className="p-2 text-xs text-right">
+                                     {isEditing ? (
+                                        <Input type="number" step="0.01" defaultValue={item.descuento} onBlur={(e) => handleUpdateItem(item.id, 'descuento', parseFloat(e.target.value) || 0)} className="h-7 w-16 text-right"/>
+                                    ) : `${item.descuento || 0}%`}
+                                  </TableCell>
+                                  <TableCell className="p-2 text-xs text-right">
+                                     {isEditing ? (
+                                        <Input type="number" step="0.01" defaultValue={item.unidadConversion} onBlur={(e) => handleUpdateItem(item.id, 'unidadConversion', parseFloat(e.target.value) || 1)} className="h-7 w-16 text-right"/>
+                                    ) : item.unidadConversion}
+                                  </TableCell>
+                                  <TableCell className="p-2 text-xs text-right font-semibold">{formatCurrency(item.precio)}</TableCell>
                                   <TableCell className="p-2 text-xs">{formatUnit(item.unidad)}</TableCell>
                                   <TableCell className="p-2 text-xs">{item.tipo}</TableCell>
                                   <TableCell className="p-2 text-xs">{item.categoriaMice}</TableCell>
+                                  <TableCell className="p-2 text-right">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditRow(item.id)}><Pencil className="h-4 w-4"/></Button>
+                                  </TableCell>
                               </TableRow>
                           );
                       })
                   ) : (
                       <TableRow>
-                          <TableCell colSpan={10} className="h-24 text-center">No se encontraron artículos que coincidan con la búsqueda.</TableCell>
+                          <TableCell colSpan={11} className="h-24 text-center">No se encontraron artículos que coincidan con la búsqueda.</TableCell>
                       </TableRow>
                   )}
               </TableBody>
