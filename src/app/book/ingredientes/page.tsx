@@ -225,13 +225,6 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
         );
     }, [articulosERP, searchTerm]);
 
-    const calculatePrice = (p: ArticuloERP) => {
-        if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
-        const basePrice = p.precioCompra / (p.unidadConversion || 1);
-        const discount = p.descuento || 0;
-        return basePrice * (1 - discount / 100);
-    }
-    
     return (
         <DialogContent className="max-w-3xl">
             <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
@@ -243,10 +236,12 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
                         <TableRow key={p.idreferenciaerp || p.id}>
                             <TableCell>{p.nombreProductoERP}</TableCell>
                             <TableCell>{p.nombreProveedor}</TableCell>
-                            <TableCell>{calculatePrice(p).toLocaleString('es-ES',{style:'currency', currency:'EUR'})}/{p.unidad}</TableCell>
+                            <TableCell>{formatCurrency(calculateErpPrice(p))}/{p.unidad}</TableCell>
                             <TableCell>
                                 <DialogClose asChild>
-                                    <Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}><Check className="mr-2"/>Seleccionar</Button>
+                                    <Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}>
+                                        <Check className="mr-2"/>Seleccionar
+                                    </Button>
                                 </DialogClose>
                             </TableCell>
                         </TableRow>
@@ -266,7 +261,6 @@ function IngredientesPageContent() {
   const [affectedElaboraciones, setAffectedElaboraciones] = useState<Elaboracion[]>([]);
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Partial<IngredienteInterno> | null>(null);
-  const [headerActions, setHeaderActions] = useState<React.ReactNode>(null);
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -373,21 +367,7 @@ function IngredientesPageContent() {
     setIsMounted(true);
   }, [loadIngredients]);
   
-  useEffect(() => {
-    setHeaderActions(
-      <div className="flex gap-2">
-        <Button onClick={() => setEditingIngredient({})}><PlusCircle className="mr-2" />Nuevo Ingrediente</Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><Menu /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}><FileUp size={16} className="mr-2"/>Importar CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportCSV}><FileDown size={16} className="mr-2"/>Exportar CSV</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    );
-  }, []);
-  
+
   const handleExportCSV = () => {
     const dataToExport = ingredientes.map(item => {
         const { erp, alergenos, ...rest } = item;
