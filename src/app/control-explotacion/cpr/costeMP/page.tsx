@@ -11,7 +11,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatNumber, formatPercentage, formatUnit } from '@/lib/utils';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -68,6 +68,7 @@ export default function CosteMPPage() {
         const costesMPDetallados: CosteMPDetalle[] = [];
         gastroOrdersEnRango.forEach(order => {
             const os = allServiceOrders.find(o => o.id === order.osId);
+            if (!order.fecha) return;
             (order.items || []).forEach(item => {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
@@ -121,7 +122,7 @@ export default function CosteMPPage() {
         
         const grouped: Record<string, { totalCoste: number, details: { osNumber: string, referencia: string, cantidad: number }[] }> = {};
         detalleCostes.forEach(coste => {
-            const dayKey = format(new Date(coste.fecha), 'yyyy-MM-dd');
+            const dayKey = format(parseISO(coste.fecha), 'yyyy-MM-dd');
             if (!grouped[dayKey]) {
                 grouped[dayKey] = { totalCoste: 0, details: [] };
             }
