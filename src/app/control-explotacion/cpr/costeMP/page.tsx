@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -24,6 +25,7 @@ type CosteMPDetalle = {
     osNumber: string;
     referencia: string;
     cantidad: number;
+    costeUnitario: number;
     costeMPTotal: number;
 };
 
@@ -67,19 +69,21 @@ export default function CosteMPPage() {
         
         const costesMPDetallados: CosteMPDetalle[] = [];
         gastroOrdersEnRango.forEach(order => {
-            const os = allServiceOrders.find(o => o.id === order.osId);
             if (!order.fecha) return;
+            const os = allServiceOrders.find(o => o.id === order.osId);
             (order.items || []).forEach(item => {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
                     if (receta) {
-                        const costeTotalItem = (receta.costeMateriaPrima || 0) * (item.quantity || 0);
+                        const costeUnitario = receta.costeMateriaPrima || 0;
+                        const costeTotalItem = costeUnitario * (item.quantity || 0);
                         costesMPDetallados.push({
                             fecha: order.fecha,
                             osId: os?.id || 'N/A',
                             osNumber: os?.serviceNumber || 'N/A',
                             referencia: receta.nombre,
                             cantidad: item.quantity || 0,
+                            costeUnitario: costeUnitario,
                             costeMPTotal: costeTotalItem,
                         });
                     }
@@ -122,6 +126,7 @@ export default function CosteMPPage() {
         
         const grouped: Record<string, { totalCoste: number, details: { osNumber: string, referencia: string, cantidad: number }[] }> = {};
         detalleCostes.forEach(coste => {
+            if(!coste.fecha) return;
             const dayKey = format(parseISO(coste.fecha), 'yyyy-MM-dd');
             if (!grouped[dayKey]) {
                 grouped[dayKey] = { totalCoste: 0, details: [] };
@@ -164,20 +169,22 @@ export default function CosteMPPage() {
                                         <TableHead>OS</TableHead>
                                         <TableHead>Referencia</TableHead>
                                         <TableHead className="text-right">Cantidad</TableHead>
+                                        <TableHead className="text-right">Coste Ud.</TableHead>
                                         <TableHead className="text-right">Coste MP Total</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {detalleCostes.length > 0 ? detalleCostes.map((coste, i) => (
                                         <TableRow key={`${coste.osId}-${coste.referencia}-${i}`}>
-                                            <TableCell>{format(new Date(coste.fecha), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>{coste.fecha ? format(new Date(coste.fecha), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                             <TableCell><Link href={`/os/${coste.osId}/gastronomia`} className="text-primary hover:underline">{coste.osNumber}</Link></TableCell>
                                             <TableCell>{coste.referencia}</TableCell>
                                             <TableCell className="text-right">{coste.cantidad}</TableCell>
+                                            <TableCell className="text-right font-mono">{formatCurrency(coste.costeUnitario)}</TableCell>
                                             <TableCell className="text-right font-semibold">{formatCurrency(coste.costeMPTotal)}</TableCell>
                                         </TableRow>
                                     )) : (
-                                        <TableRow><TableCell colSpan={5} className="text-center h-24">No se encontraron datos de costes para este periodo.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={6} className="text-center h-24">No se encontraron datos de costes para este periodo.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
