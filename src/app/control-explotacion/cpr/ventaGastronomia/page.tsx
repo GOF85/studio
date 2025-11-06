@@ -1,24 +1,23 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AreaChart, Calendar as CalendarIcon, Info } from 'lucide-react';
-import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachDayOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { TrendingDown, ArrowLeft } from 'lucide-react';
+import { format, isWithinInterval, startOfDay, endOfDay, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ServiceOrder, GastronomyOrder, Receta } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { formatCurrency, formatPercentage, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
-
-const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 type VentaDetalle = {
     fecha: string;
@@ -30,6 +29,8 @@ type VentaDetalle = {
     costeMPTotal: number;
     margenBruto: number;
 };
+
+const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 export default function VentaGastronomiaPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -118,8 +119,8 @@ export default function VentaGastronomiaPage() {
         }, { cantidad: 0, pvpTotal: 0, costeMPTotal: 0, margenBruto: 0 });
     }, [detalleVentas]);
     
-     const { calendarDays, eventsByDay, monthStart } = useMemo(() => {
-        if (!from || !to) return { calendarDays: [], eventsByDay: {}, monthStart: new Date() };
+     const { calendarDays, eventsByDay } = useMemo(() => {
+        if (!from || !to) return { calendarDays: [], eventsByDay: {} };
 
         const rangeStart = new Date(from);
         const rangeEnd = new Date(to);
@@ -132,7 +133,7 @@ export default function VentaGastronomiaPage() {
         
         const grouped: Record<string, { totalPVP: number, details: { osNumber: string, referencia: string, cantidad: number }[] }> = {};
         detalleVentas.forEach(venta => {
-            const dayKey = format(new Date(venta.fecha), 'yyyy-MM-dd');
+            const dayKey = format(parseISO(venta.fecha), 'yyyy-MM-dd');
             if (!grouped[dayKey]) {
                 grouped[dayKey] = { totalPVP: 0, details: [] };
             }
@@ -140,9 +141,8 @@ export default function VentaGastronomiaPage() {
             grouped[dayKey].details.push({ osNumber: venta.osNumber, referencia: venta.referencia, cantidad: venta.cantidad });
         });
 
-        return { calendarDays: days, eventsByDay: grouped, monthStart: rangeStart };
+        return { calendarDays: days, eventsByDay: grouped };
     }, [from, to, detalleVentas]);
-
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando detalle de ventas..." />;
@@ -221,7 +221,7 @@ export default function VentaGastronomiaPage() {
                                         {calendarDays.map((day) => {
                                         const dayKey = format(day, 'yyyy-MM-dd');
                                         const dayEvent = eventsByDay[dayKey];
-                                        const isCurrentMonth = isWithinInterval(day, { start: startOfDay(new Date(from!)), end: endOfDay(new Date(to!)) });
+                                        const isCurrentMonth = isWithinInterval(day, { start: new Date(from!), end: new Date(to!) });
 
                                         return (
                                             <div
@@ -231,7 +231,7 @@ export default function VentaGastronomiaPage() {
                                                 {dayEvent && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <div className="mt-1 flex-grow flex items-center justify-center bg-primary/10 rounded-md p-1">
+                                                            <div className="mt-1 flex-grow flex items-center justify-center bg-primary/10 rounded-md p-1 cursor-default">
                                                                 <p className="text-sm font-bold text-primary text-center">{formatCurrency(dayEvent.totalPVP)}</p>
                                                             </div>
                                                         </TooltipTrigger>

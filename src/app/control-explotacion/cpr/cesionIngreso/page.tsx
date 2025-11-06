@@ -46,8 +46,7 @@ export default function CesionIngresoPage() {
             .filter(c => {
                 if (!c.fecha) return false;
                 try {
-                    const [year, month, day] = c.fecha.split('-').map(Number);
-                    const fechaCesion = new Date(year, month - 1, day);
+                    const fechaCesion = parseISO(c.fecha);
                     return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
                 } catch(e) { return false; }
             });
