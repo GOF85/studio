@@ -53,6 +53,24 @@ function ArticulosERPPageContent() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const parseCurrency = (value: string | number) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
+        const number = parseFloat(cleaned);
+        return isNaN(number) ? 0 : number;
+    }
+    return 0;
+  };
+  
+  const calculatePrice = (item: any): number => {
+    const precioCompra = parseCurrency(item.precioCompra);
+    const descuento = parseCurrency(item.descuento);
+    const unidadConversion = parseCurrency(item.unidadConversion) || 1;
+    const precioConDescuento = precioCompra * (1 - (descuento / 100));
+    return unidadConversion > 0 ? precioConDescuento / unidadConversion : 0;
+  }
+
   useEffect(() => {
     const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
     const pMap = new Map<string, string>();
@@ -71,6 +89,7 @@ function ArticulosERPPageContent() {
       const familiaInfo = familiasMap.get(item.familiaCategoria || '');
       return {
         ...item,
+        precio: calculatePrice(item), // Recalculate price for display
         nombreProveedor: pMap.get(item.idProveedor || '') || item.nombreProveedor || 'Proveedor no identificado',
         tipo: familiaInfo?.tipo || item.tipo,
         categoriaMice: familiaInfo?.categoriaMice || item.categoriaMice,
@@ -149,29 +168,11 @@ function ArticulosERPPageContent() {
     toast({ title: 'Exportación completada' });
   };
   
-  const parseCurrency = (value: string | number) => {
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string') {
-        const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
-        const number = parseFloat(cleaned);
-        return isNaN(number) ? 0 : number;
-    }
-    return 0;
-  };
-  
   const parseBoolean = (value: any) => {
     const s = String(value).toLowerCase().trim();
     return s === 'true' || s === '1';
   }
   
-  const calculatePrice = (item: any) => {
-    const precioCompra = parseCurrency(item.precioCompra);
-    const descuento = parseCurrency(item.descuento);
-    const unidadConversion = parseCurrency(item.unidadConversion) || 1;
-    const precioConDescuento = precioCompra * (1 - (descuento / 100));
-    return unidadConversion > 0 ? precioConDescuento / unidadConversion : 0;
-  }
-
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
     if (!file) {
