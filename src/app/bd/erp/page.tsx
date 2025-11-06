@@ -147,19 +147,37 @@ function ArticulosERPPageContent() {
   };
   
   const handleUpdateItem = (itemId: string, field: keyof ArticuloERP, value: any) => {
-    const updatedItems = items.map(item => {
-      if (item.id === itemId) {
-        return { ...item, [field]: value };
-      }
-      return item;
-    });
-    const itemToUpdate = updatedItems.find(i => i.id === itemId);
-    if (itemToUpdate) {
-        itemToUpdate.precio = calculatePrice(itemToUpdate);
-    }
+    let updatedItems = [...items];
+    const itemIndex = updatedItems.findIndex(i => i.id === itemId);
+
+    if (itemIndex === -1) return;
+
+    // Create a new object for the updated item
+    const updatedItem = { ...updatedItems[itemIndex], [field]: value };
+    const newPrice = calculatePrice(updatedItem);
+    updatedItem.precio = newPrice;
     
+    // Replace the old item with the updated one
+    updatedItems[itemIndex] = updatedItem;
+
+    // Save the entire updated list to state and localStorage
     setItems(updatedItems);
     localStorage.setItem('articulosERP', JSON.stringify(updatedItems));
+
+    // --- LOGICA DEL HISTÓRICO ---
+    const historicoPrecios: HistoricoPreciosERP[] = JSON.parse(localStorage.getItem('historicoPreciosERP') || '[]') as HistoricoPreciosERP[];
+    const today = new Date();
+    
+    historicoPrecios.push({
+      id: `${updatedItem.idreferenciaerp}-${today.toISOString()}`,
+      articuloErpId: updatedItem.idreferenciaerp,
+      fecha: today.toISOString(),
+      precioCalculado: newPrice,
+      proveedorId: updatedItem.idProveedor,
+    });
+    localStorage.setItem('historicoPreciosERP', JSON.stringify(historicoPrecios));
+    // --- FIN LOGICA DEL HISTÓRICO ---
+    
     toast({ title: 'Artículo actualizado', description: `Se ha guardado el nuevo valor para ${field}.`});
     setEditingRowId(null);
   };
