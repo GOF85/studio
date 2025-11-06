@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -91,13 +92,22 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
 
     useEffect(() => {
         if (open) {
-            form.reset(initialData ? { ...initialData } : defaultFormValues);
+            let dataToReset = initialData ? { ...defaultFormValues, ...initialData } : { ...defaultFormValues };
+            form.reset(dataToReset);
         }
     }, [initialData, open, form]);
 
 
     const selectedErpId = form.watch('productoERPlinkId');
-    const selectedErpProduct = useMemo(() => articulosERP.find(p => p.idreferenciaerp === selectedErpId), [articulosERP, selectedErpId]);
+    const selectedErpProduct = useMemo(() => {
+        if (!selectedErpId) return null;
+        const product = articulosERP.find(p => p.idreferenciaerp === selectedErpId);
+        if (product) {
+            // Recalculate price on selection/open
+            return { ...product, precio: calculateErpPrice(product) };
+        }
+        return null;
+    }, [articulosERP, selectedErpId]);
 
     const handleErpSelect = (erpId: string) => {
         form.setValue('productoERPlinkId', erpId, { shouldDirty: true });
@@ -174,7 +184,7 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
                                                         </div>
                                                         <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" type="button" onClick={() => form.setValue('productoERPlinkId', '', {shouldDirty: true})}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
                                                     </div>
-                                                     <p className="font-bold text-primary text-sm">{formatCurrency(calculateErpPrice(selectedErpProduct))} / {selectedErpProduct.unidad}</p>
+                                                     <p className="font-bold text-primary text-sm">{formatCurrency(selectedErpProduct.precio)} / {selectedErpProduct.unidad}</p>
                                                 </div>
                                             ) : (
                                                 <Dialog>
@@ -224,7 +234,7 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
             )
         );
     }, [articulosERP, searchTerm]);
-
+    
     return (
         <DialogContent className="max-w-3xl">
             <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
@@ -578,8 +588,8 @@ function IngredientesPageContent() {
           <Table>
             <TableHeader><TableRow>
                 <TableHead>Ingrediente</TableHead>
-                <TableHead>Producto ERP</TableHead>
-                <TableHead>Categoría ERP</TableHead>
+                <TableHead>Producto ERP Vinculado</TableHead>
+                <TableHead>Proveedor</TableHead>
                 <TableHead className="text-right">Precio/Ud.</TableHead>
                 <TableHead>Última Revisión</TableHead>
                 <TableHead>Responsable</TableHead>
@@ -597,7 +607,7 @@ function IngredientesPageContent() {
                         <TableRow key={item.id} className={cn(needsReview && 'bg-amber-50', urgencyClass)}>
                             <TableCell className="font-medium">{item.nombreIngrediente}</TableCell>
                             <TableCell>{item.erp?.nombreProductoERP || <span className="text-destructive">No Vinculado</span>}</TableCell>
-                            <TableCell>{item.erp?.tipo || '-'}</TableCell>
+                            <TableCell>{item.erp?.nombreProveedor}</TableCell>
                             <TableCell className="font-mono text-right">{formatCurrency(item.precioCalculado || 0)}</TableCell>
                             <TableCell className={cn(needsReview && 'text-destructive font-bold')}>
                                 {latestRevision ? format(new Date(latestRevision.fecha), 'dd/MM/yyyy') : 'Nunca'}
@@ -668,3 +678,151 @@ export default function IngredientesPageWrapper() {
         </Suspense>
     )
 }
+
+```
+- src/lib/fonts.ts:
+```ts
+import { Open_Sans, Roboto } from 'next/font/google';
+
+export const openSans = Open_Sans({
+  subsets: ['latin'],
+  variable: '--font-headline',
+});
+
+export const roboto = Roboto({
+  weight: ['400', '500'],
+  subsets: ['latin'],
+  variable: '--font-body',
+});
+
+```
+- tailwind.config.ts:
+```ts
+/** @type {import('tailwindcss').Config} */
+import {fontFamily} from 'tailwindcss/defaultTheme';
+
+module.exports = {
+  darkMode: ["class"],
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  prefix: "",
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+       fontFamily: {
+        body: ['var(--font-body)', ...fontFamily.sans],
+        headline: ['var(--font-headline)', ...fontFamily.sans],
+      },
+       typography: (theme: any) => ({
+        DEFAULT: {
+          css: {
+            h1: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            h2: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            h3: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            '--tw-prose-bullets': theme('colors.primary.DEFAULT'),
+          },
+        },
+      }),
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate"), require('@tailwindcss/typography')],
+}
+
+```
+- src/lib/fonts.ts:
+```ts
+import { Open_Sans, Roboto, Roboto_Mono } from 'next/font/google';
+
+export const openSans = Open_Sans({
+  subsets: ['latin'],
+  variable: '--font-headline',
+});
+
+export const roboto = Roboto({
+  weight: ['400', '500'],
+  subsets: ['latin'],
+  variable: '--font-body',
+});
+
+export const robotoMono = Roboto_Mono({
+  subsets: ['latin'],
+  variable: '--font-code',
+});
+
+```
