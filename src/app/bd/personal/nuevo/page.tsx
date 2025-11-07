@@ -41,9 +41,16 @@ export default function NuevoPersonalPage() {
   const form = useForm<PersonalFormValues>({
     resolver: zodResolver(personalFormSchema),
     defaultValues: {
-      precioHora: 0,
+      id: '',
+      nombre: '',
+      apellido1: '',
       apellido2: '',
+      iniciales: '',
+      departamento: '',
+      categoria: '',
       telefono: '',
+      email: '',
+      precioHora: 0,
     },
   });
 
