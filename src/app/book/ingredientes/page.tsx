@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil, Check, CircleX } from 'lucide-react';
-import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta, FamiliaERP, ServiceOrder, GastronomyOrder } from '@/types';
+import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta, FamiliaERP, ServiceOrder, GastronomyOrder, Proveedor } from '@/types';
 import { ALERGENOS } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as React from 'react';
-import { isBefore, subMonths, startOfToday, addYears, isWithinInterval, addDays } from 'date-fns';
+import { isBefore, subMonths, startOfToday, addYears, isWithinInterval, addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
@@ -279,6 +279,10 @@ function IngredientesPageContent() {
     const articulosERP = JSON.parse(storedErp) as ArticuloERP[];
     const erpMap = new Map(articulosERP.map(item => [item.idreferenciaerp, item]));
 
+    const storedProveedores = localStorage.getItem('proveedores') || '[]';
+    const proveedoresMap = new Map((JSON.parse(storedProveedores) as Proveedor[]).map(p => [p.IdERP, p.nombreComercial]));
+
+
     let storedIngredientes = localStorage.getItem('ingredientesInternos') || '[]';
     const ingredientesInternos = JSON.parse(storedIngredientes) as IngredienteInterno[];
     
@@ -333,6 +337,7 @@ function IngredientesPageContent() {
                 erpItem.categoriaMice = familia.Categoria;
                 erpItem.tipo = familia.Familia;
             }
+            erpItem.nombreProveedor = proveedoresMap.get(erpItem.idProveedor || '') || erpItem.nombreProveedor || 'N/A';
         }
         
         const presentes = ing.alergenosPresentes || [];
@@ -345,11 +350,19 @@ function IngredientesPageContent() {
             else if (isBefore(usageDate, next30days)) urgency = 'medium';
         }
 
+        const calculatePrice = (p?: ArticuloERP) => {
+            if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
+            const basePrice = p.precioCompra / (p.unidadConversion || 1);
+            const discount = p.descuento || 0;
+            return basePrice * (1 - discount / 100);
+        }
+
         return {
             ...ing,
             erp: erpItem,
             alergenos: [...new Set([...presentes, ...trazas])] as Alergeno[],
             urgency,
+            precioCalculado: calculatePrice(erpItem)
         }
     });
 
@@ -550,6 +563,25 @@ function IngredientesPageContent() {
     setEditingIngredient(null);
     loadIngredients();
   };
+  
+  const handleValidate = (item: IngredienteConERP) => {
+      handleSave({
+        id: item.id,
+        nombreIngrediente: item.nombreIngrediente,
+        productoERPlinkId: item.productoERPlinkId,
+        alergenosPresentes: item.alergenosPresentes || [],
+        alergenosTrazas: item.alergenosTrazas || [],
+      });
+  }
+
+  const getInitials = (name: string) => {
+    if (!name) return '';
+    const nameParts = name.split(' ');
+    if (nameParts.length > 1) {
+        return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
 
   if (!isMounted) return <LoadingSkeleton title="Cargando Ingredientes..." />;
 
@@ -592,7 +624,7 @@ function IngredientesPageContent() {
                                        : needsReview && item.urgency === 'medium' ? 'bg-amber-100/50'
                                        : '';
                     return (
-                        <TableRow key={item.id} className={cn(needsReview && !urgencyClass && 'bg-amber-50', urgencyClass)}>
+                        <TableRow key={item.id} className={cn(needsReview && 'bg-amber-50', urgencyClass)}>
                             <TableCell className="font-medium">{item.nombreIngrediente}</TableCell>
                             <TableCell>{item.erp?.nombreProductoERP || <span className="text-destructive">No Vinculado</span>}</TableCell>
                             <TableCell>{item.erp?.categoriaMice || '-'}</TableCell>
