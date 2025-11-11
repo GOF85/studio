@@ -40,7 +40,7 @@ export default function EvolucionCostesPage() {
         setAllArticulosERP(erpMap);
 
         const ingredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const ingredientesConErp = ingredients.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
+        const ingredientesConErp = ingredientes.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
         setAllIngredientes(new Map(ingredientesConErp.map(i => [i.id, i])));
 
         setAllHistorico(JSON.parse(localStorage.getItem('historicoPreciosERP') || '[]'));
@@ -236,4 +236,3 @@ export default function EvolucionCostesPage() {
         </div>
     );
 }
-
