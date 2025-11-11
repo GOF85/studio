@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -41,6 +40,7 @@ import { ElaborationForm, type ElaborationFormValues } from '@/components/book/e
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { isBefore, subMonths, startOfToday } from 'date-fns';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -110,7 +110,7 @@ type RecetaFormValues = z.infer<typeof recetaFormSchema>;
 type ElaboracionConCoste = Elaboracion & { costePorUnidad?: number; alergenos?: Alergeno[] };
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
-function SortableTableRow({ field, index, remove, form }: { field: ElaboracionEnReceta & { key: string }, index: number, remove: (index: number) => void, form: any }) {
+function SortableTableRow({ field, index, remove, form, hasOutdatedIngredients }: { field: ElaboracionEnReceta & { key: string }, index: number, remove: (index: number) => void, form: any, hasOutdatedIngredients: boolean }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -128,7 +128,17 @@ function SortableTableRow({ field, index, remove, form }: { field: ElaboracionEn
                     <GripVertical />
                 </div>
             </TableCell>
-            <TableCell className="font-semibold py-1 px-3">{field.nombre}</TableCell>
+            <TableCell className="font-semibold py-1 px-3">
+                 <div className="flex items-center gap-2">
+                    {hasOutdatedIngredients && (
+                        <Tooltip>
+                            <TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger>
+                            <TooltipContent><p className="text-amber-600 font-semibold">Contiene ingredientes pendientes de revisión.</p></TooltipContent>
+                        </Tooltip>
+                    )}
+                    {field.nombre}
+                </div>
+            </TableCell>
              <TableCell className="text-right font-mono py-1 px-3">{formatCurrency(field.coste)}</TableCell>
             <TableCell className="py-1 px-3">
                 <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
@@ -373,10 +383,10 @@ function RecetaFormPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const { toast } = useToast();
-  const [dbElaboraciones, setDbElaboraciones] = useState<ElaborationConCoste[]>([]);
+  const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
-  const [ingredientesMap, setIngredientesMap] = useState<Map<string, IngredienteConERP>>(new Map());
+  const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
 
 
   const form = useForm<RecetaFormValues>({
@@ -394,7 +404,7 @@ function RecetaFormPage() {
     const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
     const ingMap = new Map(storedInternos.map(ing => [ing.id, { ...ing, erp: erpMap.get(ing.productoERPlinkId) }]));
-    setIngredientesMap(ingMap);
+    setIngredientesData(ingMap);
 
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     
@@ -537,7 +547,7 @@ function RecetaFormPage() {
         const elabWithData: ElaboracionConCoste = {
             ...newElab,
             costePorUnidad: newElab.costePorUnidad || 0,
-            alergenos: calculateElabAlergenos(newElab, ingredientesMap),
+            alergenos: calculateElabAlergenos(newElab, ingredientesData),
         };
         onAddElab(elabWithData);
         // After adding, trigger save for the main recipe form
@@ -610,6 +620,32 @@ function RecetaFormPage() {
     toast({ title: 'Receta eliminada' });
     router.push('/book/recetas');
   }
+
+  const sixMonthsAgo = useMemo(() => subMonths(startOfToday(), 6), []);
+  const checkElaborationForOutdatedIngredients = useCallback((elabId: string, checkedElabs: Set<string> = new Set()): boolean => {
+    if (checkedElabs.has(elabId)) return false; // Prevent infinite loops
+    checkedElabs.add(elabId);
+
+    const elaboracion = dbElaboraciones.find(e => e.id === elabId);
+    if (!elaboracion) return false;
+
+    for (const componente of (elaboracion.componentes || [])) {
+      if (componente.tipo === 'ingrediente') {
+        const ingrediente = ingredientesData.get(componente.componenteId);
+        if (ingrediente) {
+          const latestRevision = ingrediente.historialRevisiones?.[ingrediente.historialRevisiones.length - 1];
+          if (!latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo)) {
+            return true; 
+          }
+        }
+      } else if (componente.tipo === 'elaboracion') {
+        if (checkElaborationForOutdatedIngredients(componente.componenteId, checkedElabs)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }, [dbElaboraciones, ingredientesData, sixMonthsAgo]);
   
   if (!isDataLoaded) {
     return <LoadingSkeleton title="Cargando receta..." />;
@@ -776,9 +812,12 @@ function RecetaFormPage() {
                                     </TableHeader>
                                     <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                         <TableBody>
-                                        {(elabFields || []).map((field, index) => (
-                                            <SortableTableRow key={field.key} field={{...field, key: field.key}} index={index} remove={removeElab} form={form} />
-                                        ))}
+                                        {(elabFields || []).map((field, index) => {
+                                            const hasOutdated = checkElaborationForOutdatedIngredients(field.elaboracionId);
+                                            return (
+                                                <SortableTableRow key={field.key} field={{...field, key: field.key}} index={index} remove={removeElab} form={form} hasOutdatedIngredients={hasOutdated} />
+                                            )
+                                        })}
                                         </TableBody>
                                     </SortableContext>
                                 </Table>
@@ -912,5 +951,3 @@ export default function RecetaPage() {
 
     return <RecetaFormPage />;
 }
-
-    
