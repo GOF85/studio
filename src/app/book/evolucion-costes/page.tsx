@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -81,15 +82,15 @@ export default function EvolucionCostesPage() {
 
         const getPrecioHistorico = (erpId: string, fecha: Date): number => {
             const relevantPrices = allHistorico
-                .filter(h => h.articuloErpId === erpId && new Date(h.fecha) <= fecha)
-                .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+                .filter(h => h.articuloErpId === erpId && parseISO(h.fecha) <= fecha)
+                .sort((a, b) => parseISO(b.fecha).getTime() - parseISO(a.fecha).getTime());
             return relevantPrices[0]?.precioCalculado ?? allArticulosERP.get(erpId)?.precio ?? 0;
         };
-
+        
         const calculateElabCost = (elabId: string, fecha: Date): number => {
             const elab = allElaboraciones.get(elabId);
             if (!elab) return 0;
-
+        
             const elabCost = (elab.componentes || []).reduce((sum, comp) => {
                 let componentCost = 0;
                 if (comp.tipo === 'ingrediente') {
@@ -145,12 +146,8 @@ export default function EvolucionCostesPage() {
         let previousCost = initialCost;
 
         fechasDeCambio.forEach((fechaISO) => {
-            const fecha = new Date(fechaISO);
+            const fecha = parseISO(fechaISO);
             const costeActual = calculateRecetaCost(selectedReceta, fecha);
-            
-            if (Math.abs(costeActual - previousCost) < 0.001 && dataPoints.length > 1) {
-                return; 
-            }
             
             const fechaAnterior = new Date(fecha.getTime() - 1);
             
@@ -163,9 +160,12 @@ export default function EvolucionCostesPage() {
                 return null;
             }).filter((i): i is NonNullable<typeof i> => i !== null);
             
-            if (ingredientesModificados.length > 0) {
-                 dataPoints.push({ fecha: fechaISO, coste: costeActual, ingredientesModificados });
-                 previousCost = costeActual;
+             if (ingredientesModificados.length > 0) {
+                 const lastDataPoint = dataPoints[dataPoints.length - 1];
+                 if(Math.abs(costeActual - lastDataPoint.coste) > 0.001){
+                    dataPoints.push({ fecha: fechaISO, coste: costeActual, ingredientesModificados });
+                    previousCost = costeActual;
+                 }
             }
         });
         
@@ -242,158 +242,160 @@ export default function EvolucionCostesPage() {
     }, [dateRange, allHistorico, allArticulosERP, allIngredientes, allElaboraciones, allRecetas]);
     
     return (
-        <div>
-            <h1 className="text-3xl font-headline font-bold mb-6">Evolución de Costes</h1>
-            <Tabs defaultValue="receta">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="receta">Evolución por Receta</TabsTrigger>
-                    <TabsTrigger value="ingrediente">Evolución por Ingrediente</TabsTrigger>
-                </TabsList>
-                <TabsContent value="receta" className="mt-4">
-                    <div className="max-w-md mb-8">
-                        <Combobox 
-                            options={recetaOptions}
-                            value={selectedRecetaId || ''}
-                            onChange={setSelectedRecetaId}
-                            placeholder="Selecciona una receta para analizar..."
-                        />
-                    </div>
-                    {selectedReceta && historicalData && (
-                        <div className="space-y-8">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Evolución del Coste de Materia Prima para: {selectedReceta.nombre}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {chartData && chartData.length > 1 ? (
-                                        <ResponsiveContainer width="100%" height={300}>
-                                            <AreaChart data={chartData}>
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis dataKey="fecha" />
-                                                <YAxis tickFormatter={(value) => formatCurrency(value)} />
-                                                <Tooltip formatter={(value: number) => [formatCurrency(value), "Coste"]} />
-                                                <Legend />
-                                                <Area type="step" dataKey="coste" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.1)" />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <p className="text-center text-muted-foreground py-10">No hay suficientes datos históricos para generar un gráfico para esta receta.</p>
-                                    )}
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Desglose de Cambios de Precio</CardTitle>
-                                    <CardDescription>Eventos de cambio de precio que afectaron el coste de esta receta.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Fecha</TableHead>
-                                                <TableHead className="text-right">Coste Total Receta</TableHead>
-                                                <TableHead className="text-right">Variación</TableHead>
-                                                <TableHead>Ingredientes Modificados</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {historicalData.length > 1 ? historicalData.slice(1).map((data, index) => {
-                                                const prevCoste = historicalData[index].coste;
-                                                const variacion = data.coste - prevCoste;
-                                                const variacionPct = prevCoste > 0 ? variacion / prevCoste : 0;
-                                                
-                                                return (
-                                                    <TableRow key={data.fecha}>
-                                                        <TableCell>{format(new Date(data.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
-                                                        <TableCell className="text-right font-semibold">{formatCurrency(data.coste)}</TableCell>
-                                                        <TableCell className={cn("text-right font-mono", variacion > 0 ? 'text-destructive' : 'text-green-600')}>
-                                                                <div className="flex items-center justify-end gap-1">
-                                                                {variacion !== 0 && (variacion > 0 ? <TrendingUp size={16}/> : <TrendingDown size={16}/>)}
-                                                                {formatCurrency(variacion)} ({formatPercentage(variacionPct)})
-                                                                </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <ul className="text-xs space-y-1">
-                                                                {data.ingredientesModificados.map((ing, i) => (
-                                                                    <li key={i}>{ing.nombre}: {formatCurrency(ing.precioAntiguo)} &rarr; {formatCurrency(ing.precioNuevo)}</li>
-                                                                ))}
-                                                            </ul>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )
-                                            }) : (
-                                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay datos históricos de precios para los ingredientes de esta receta.</TableCell></TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
+        <TooltipProvider>
+            <div>
+                <h1 className="text-3xl font-headline font-bold mb-6">Evolución de Costes</h1>
+                <Tabs defaultValue="receta">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="receta">Evolución por Receta</TabsTrigger>
+                        <TabsTrigger value="ingrediente">Evolución por Ingrediente</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="receta" className="mt-4">
+                        <div className="max-w-md mb-8">
+                            <Combobox 
+                                options={recetaOptions}
+                                value={selectedRecetaId || ''}
+                                onChange={setSelectedRecetaId}
+                                placeholder="Selecciona una receta para analizar..."
+                            />
                         </div>
-                    )}
-                </TabsContent>
-                <TabsContent value="ingrediente" className="mt-4">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Variación de Precios por Ingrediente</CardTitle>
-                            <div className="flex items-center gap-4 pt-4">
-                                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
-                                    </PopoverContent>
-                                </Popover>
+                        {selectedReceta && historicalData && (
+                            <div className="space-y-8">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Evolución del Coste de Materia Prima para: {selectedReceta.nombre}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {chartData && chartData.length > 1 ? (
+                                            <ResponsiveContainer width="100%" height={300}>
+                                                <AreaChart data={chartData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis dataKey="fecha" />
+                                                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                                                    <Tooltip formatter={(value: number) => [formatCurrency(value), "Coste"]} />
+                                                    <Legend />
+                                                    <Area type="step" dataKey="coste" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.1)" />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <p className="text-center text-muted-foreground py-10">No hay suficientes datos históricos para generar un gráfico para esta receta.</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Desglose de Cambios de Precio</CardTitle>
+                                        <CardDescription>Eventos de cambio de precio que afectaron el coste de esta receta.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Fecha</TableHead>
+                                                    <TableHead className="text-right">Coste Total Receta</TableHead>
+                                                    <TableHead className="text-right">Variación</TableHead>
+                                                    <TableHead>Ingredientes Modificados</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {historicalData.length > 1 ? historicalData.slice(1).map((data, index) => {
+                                                    const prevCoste = historicalData[index].coste;
+                                                    const variacion = data.coste - prevCoste;
+                                                    const variacionPct = prevCoste > 0 ? variacion / prevCoste : 0;
+                                                    
+                                                    return (
+                                                        <TableRow key={data.fecha}>
+                                                            <TableCell>{format(parseISO(data.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                                                            <TableCell className="text-right font-semibold">{formatCurrency(data.coste)}</TableCell>
+                                                            <TableCell className={cn("text-right font-mono", variacion > 0 ? 'text-destructive' : 'text-green-600')}>
+                                                                    <div className="flex items-center justify-end gap-1">
+                                                                    {variacion !== 0 && (variacion > 0 ? <TrendingUp size={16}/> : <TrendingDown size={16}/>)}
+                                                                    {formatCurrency(variacion)} ({formatPercentage(variacionPct)})
+                                                                    </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <ul className="text-xs space-y-1">
+                                                                    {data.ingredientesModificados.map((ing, i) => (
+                                                                        <li key={i}>{ing.nombre}: {formatCurrency(ing.precioAntiguo)} &rarr; {formatCurrency(ing.precioNuevo)}</li>
+                                                                    ))}
+                                                                </ul>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                }) : (
+                                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay datos históricos de precios para los ingredientes de esta receta.</TableCell></TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
                             </div>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Ingrediente ERP</TableHead>
-                                        <TableHead>Fecha</TableHead>
-                                        <TableHead className="text-right">Precio Anterior</TableHead>
-                                        <TableHead className="text-right">Precio Nuevo</TableHead>
-                                        <TableHead className="text-right">Variación</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {variacionesIngredientes.length > 0 ? variacionesIngredientes.map(v => (
-                                        <TableRow key={v.id}>
-                                            <TableCell>
-                                                 <ShadTooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <span className="font-semibold cursor-help flex items-center gap-2">{v.ingredienteNombre} <Info className="h-4 w-4 text-muted-foreground"/></span>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p className="font-bold">Recetas Afectadas:</p>
-                                                        {v.recetasAfectadas.length > 0 ? (
-                                                            <ul className="list-disc list-inside text-xs">
-                                                                {v.recetasAfectadas.map(r => <li key={r}>{r}</li>)}
-                                                            </ul>
-                                                        ) : <p className="text-xs italic">No se usa en recetas.</p>}
-                                                    </TooltipContent>
-                                                </ShadTooltip>
-                                            </TableCell>
-                                            <TableCell>{format(new Date(v.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
-                                            <TableCell className="text-right font-mono">{formatCurrency(v.precioAnterior)}</TableCell>
-                                            <TableCell className="text-right font-mono">{formatCurrency(v.precioNuevo)}</TableCell>
-                                            <TableCell className={cn("text-right font-mono font-bold", v.variacion > 0 ? 'text-destructive' : 'text-green-600')}>
-                                                {v.variacion > 0 ? '+' : ''}{formatCurrency(v.variacion)} ({formatPercentage(v.variacionPct)})
-                                            </TableCell>
+                        )}
+                    </TabsContent>
+                    <TabsContent value="ingrediente" className="mt-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Variación de Precios por Ingrediente</CardTitle>
+                                <div className="flex items-center gap-4 pt-4">
+                                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Ingrediente ERP</TableHead>
+                                            <TableHead>Fecha</TableHead>
+                                            <TableHead className="text-right">Precio Anterior</TableHead>
+                                            <TableHead className="text-right">Precio Nuevo</TableHead>
+                                            <TableHead className="text-right">Variación</TableHead>
                                         </TableRow>
-                                    )) : (
-                                        <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay variaciones de precio en el periodo seleccionado.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                     </Card>
-                </TabsContent>
-            </Tabs>
-        </div>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {variacionesIngredientes.length > 0 ? variacionesIngredientes.map(v => (
+                                            <TableRow key={v.id}>
+                                                <TableCell>
+                                                    <ShadTooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span className="font-semibold cursor-help flex items-center gap-2">{v.ingredienteNombre} <Info className="h-4 w-4 text-muted-foreground"/></span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p className="font-bold">Recetas Afectadas:</p>
+                                                            {v.recetasAfectadas.length > 0 ? (
+                                                                <ul className="list-disc list-inside text-xs">
+                                                                    {v.recetasAfectadas.map(r => <li key={r}>{r}</li>)}
+                                                                </ul>
+                                                            ) : <p className="text-xs italic">No se usa en recetas.</p>}
+                                                        </TooltipContent>
+                                                    </ShadTooltip>
+                                                </TableCell>
+                                                <TableCell>{format(new Date(v.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                                                <TableCell className="text-right font-mono">{formatCurrency(v.precioAnterior)}</TableCell>
+                                                <TableCell className="text-right font-mono">{formatCurrency(v.precioNuevo)}</TableCell>
+                                                <TableCell className={cn("text-right font-mono font-bold", v.variacion > 0 ? 'text-destructive' : 'text-green-600')}>
+                                                    {v.variacion > 0 ? '+' : ''}{formatCurrency(v.variacion)} ({formatPercentage(v.variacionPct)})
+                                                </TableCell>
+                                            </TableRow>
+                                        )) : (
+                                            <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay variaciones de precio en el periodo seleccionado.</TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            </div>
+        </TooltipProvider>
     );
 }
