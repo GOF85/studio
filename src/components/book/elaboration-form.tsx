@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
@@ -26,6 +27,9 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { AllergenBadge } from '../icons/allergen-badge';
 import { ComponenteSelector } from '@/components/book/componente-selector';
 import { Switch } from '../ui/switch';
+import { isBefore, subMonths, startOfToday } from 'date-fns';
+import { cn } from '@/lib/utils';
+
 
 const componenteSchema = z.object({
     id: z.string(),
@@ -359,18 +363,24 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                             if(erpData?.referenciaProveedor) tooltipText += ` (Ref: ${erpData.referenciaProveedor})`;
                                         }
 
+                                        const sixMonthsAgo = subMonths(startOfToday(), 6);
+                                        const needsReview = field.tipo === 'ingrediente' && 
+                                            (!componenteData?.historialRevisiones?.length || isBefore(new Date(componenteData.historialRevisiones[componenteData.historialRevisiones.length - 1].fecha), sixMonthsAgo));
+                                        
                                         return (
                                             <TableRow key={field.id}>
                                                 <TableCell className="font-medium py-1 px-3">
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <div className="flex items-center gap-2">
+                                                                {needsReview && <AlertTriangle className="h-4 w-4 text-amber-500" />}
                                                                 {field.tipo === 'ingrediente' ? <ChefHat size={16} className="text-muted-foreground"/> : <SubElabIcon size={16} className="text-muted-foreground"/>}
                                                                 {field.nombre}
                                                             </div>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
                                                             <p className="max-w-sm">{tooltipText}</p>
+                                                            {needsReview && <p className="text-amber-600 font-bold mt-2">Este ingrediente necesita revisión de alérgenos/coste.</p>}
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 </TableCell>
