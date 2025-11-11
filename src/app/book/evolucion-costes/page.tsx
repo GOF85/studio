@@ -3,11 +3,11 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Bar } from 'recharts';
-import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, HistoricoPreciosERP } from '@/types';
+import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, HistoricoPreciosERP, Alergeno } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Combobox } from '@/components/ui/combobox';
-import { formatCurrency, formatPercentage } from '@/lib/utils';
+import { formatCurrency, formatPercentage, formatNumber } from '@/lib/utils';
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TrendingUp, TrendingDown, Calendar as CalendarIcon, Info } from 'lucide-react';
@@ -130,22 +130,29 @@ export default function EvolucionCostesPage() {
         
         const fechasDeCambio = [...new Set(allHistorico
             .filter(h => allRelevantIngERPIds.includes(h.articuloErpId))
-            .map(h => h.fecha))];
+            .map(h => h.fecha))].sort((a,b) => new Date(a).getTime() - new Date(b).getTime());
             
         const dataPoints: CosteHistoricoPunto[] = [];
         
-        // Add initial state
-        const initialCost = calculateRecetaCost(selectedReceta, new Date(fechasDeCambio[0] || '1970-01-01'));
+        const initialDate = fechasDeCambio.length > 0 ? new Date(fechasDeCambio[0]) : new Date('1970-01-01');
+        const initialCost = calculateRecetaCost(selectedReceta, initialDate);
         dataPoints.push({
-            fecha: fechasDeCambio[0] || new Date().toISOString(),
+            fecha: fechasDeCambio.length > 0 ? fechasDeCambio[0] : new Date().toISOString(),
             coste: initialCost,
-            ingredientesModificados: [], // No previous change to compare to
+            ingredientesModificados: [],
         });
         
+        let previousCost = initialCost;
+
         fechasDeCambio.forEach((fechaISO) => {
             const fecha = new Date(fechaISO);
             const costeActual = calculateRecetaCost(selectedReceta, fecha);
-            const fechaAnterior = new Date(fecha.getTime() - 1); // 1 millisecond before
+            
+            if (Math.abs(costeActual - previousCost) < 0.001 && dataPoints.length > 1) {
+                return; 
+            }
+            
+            const fechaAnterior = new Date(fecha.getTime() - 1);
             
             const ingredientesModificados = allRelevantIngERPIds.map(erpId => {
                 const precioNuevo = getPrecioHistorico(erpId, fecha);
@@ -157,16 +164,12 @@ export default function EvolucionCostesPage() {
             }).filter((i): i is NonNullable<typeof i> => i !== null);
             
             if (ingredientesModificados.length > 0) {
-                 const lastDataPoint = dataPoints[dataPoints.length - 1];
-                 if (!lastDataPoint || Math.abs(costeActual - lastDataPoint.coste) > 0.001) {
-                    dataPoints.push({ fecha: fechaISO, coste: costeActual, ingredientesModificados });
-                 } else {
-                    lastDataPoint.ingredientesModificados.push(...ingredientesModificados);
-                 }
+                 dataPoints.push({ fecha: fechaISO, coste: costeActual, ingredientesModificados });
+                 previousCost = costeActual;
             }
         });
         
-        return dataPoints.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+        return dataPoints;
 
     }, [selectedReceta, allHistorico, allElaboraciones, allIngredientes, allArticulosERP]);
 
@@ -294,23 +297,20 @@ export default function EvolucionCostesPage() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {historicalData.length > 0 ? historicalData.map((data, index) => {
-                                                const prevCoste = index > 0 ? historicalData[index - 1].coste : data.coste; // Compare to itself if first
+                                            {historicalData.length > 1 ? historicalData.slice(1).map((data, index) => {
+                                                const prevCoste = historicalData[index].coste;
                                                 const variacion = data.coste - prevCoste;
                                                 const variacionPct = prevCoste > 0 ? variacion / prevCoste : 0;
-                                                if (index === 0 && historicalData.length > 1) return null; // Don't show the initial state if there are changes
-
+                                                
                                                 return (
                                                     <TableRow key={data.fecha}>
                                                         <TableCell>{format(new Date(data.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
                                                         <TableCell className="text-right font-semibold">{formatCurrency(data.coste)}</TableCell>
                                                         <TableCell className={cn("text-right font-mono", variacion > 0 ? 'text-destructive' : 'text-green-600')}>
-                                                            {index > 0 && (
                                                                 <div className="flex items-center justify-end gap-1">
                                                                 {variacion !== 0 && (variacion > 0 ? <TrendingUp size={16}/> : <TrendingDown size={16}/>)}
                                                                 {formatCurrency(variacion)} ({formatPercentage(variacionPct)})
                                                                 </div>
-                                                            )}
                                                         </TableCell>
                                                         <TableCell>
                                                             <ul className="text-xs space-y-1">
@@ -396,5 +396,4 @@ export default function EvolucionCostesPage() {
             </Tabs>
         </div>
     );
-
-    
+}
