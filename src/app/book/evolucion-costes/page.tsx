@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Combobox } from '@/components/ui/combobox';
 import { formatCurrency, formatPercentage } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -105,14 +105,14 @@ export default function EvolucionCostesPage() {
         
         const fechasDeCambio = [...new Set(allHistorico
             .filter(h => allRelevantIngERPIds.includes(h.articuloErpId))
-            .map(h => h.fecha.split('T')[0]))]
-            .sort();
+            .map(h => h.fecha))] // Use full timestamp
+            .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
-        let previousCost = 0;
+        let previousCost = calculateRecetaCost(selectedReceta, new Date('1970-01-01'));
         const dataPoints: CosteHistoricoPunto[] = [];
 
-        fechasDeCambio.forEach((fechaStr, index) => {
-            const fecha = new Date(fechaStr);
+        fechasDeCambio.forEach((fechaISO, index) => {
+            const fecha = new Date(fechaISO);
             const costeActual = calculateRecetaCost(selectedReceta, fecha);
             
             const prevFecha = index > 0 ? new Date(fechasDeCambio[index - 1]) : new Date('1970-01-01');
@@ -126,9 +126,9 @@ export default function EvolucionCostesPage() {
             }).filter((i): i is NonNullable<typeof i> => i !== null);
 
 
-            if(index === 0 || Math.abs(costeActual - previousCost) > 0.001) {
-                dataPoints.push({
-                    fecha: fechaStr,
+            if(ingredientesModificados.length > 0 || index === 0) {
+                 dataPoints.push({
+                    fecha: fechaISO,
                     coste: costeActual,
                     ingredientesModificados,
                 });
@@ -136,15 +136,50 @@ export default function EvolucionCostesPage() {
             }
         });
 
+        // Add a final point for the current price if it's not already the last one
+        const costeFinal = calculateRecetaCost(selectedReceta, new Date());
+        if (dataPoints.length === 0 || Math.abs(costeFinal - dataPoints[dataPoints.length - 1].coste) > 0.001) {
+            const lastHistoricalDate = fechasDeCambio.length > 0 ? new Date(fechasDeCambio[fechasDeCambio.length - 1]) : new Date('1970-01-01');
+             const ingredientesModificados = allRelevantIngERPIds.map(erpId => {
+                const precioNuevo = getPrecioHistorico(erpId, new Date());
+                const precioAntiguo = getPrecioHistorico(erpId, lastHistoricalDate);
+                if (Math.abs(precioNuevo - precioAntiguo) > 0.001) {
+                    return { nombre: allArticulosERP.get(erpId)?.nombreProductoERP || erpId, precioAntiguo, precioNuevo };
+                }
+                return null;
+            }).filter((i): i is NonNullable<typeof i> => i !== null);
+            
+            if(ingredientesModificados.length > 0 || dataPoints.length === 0) {
+                 dataPoints.push({
+                    fecha: new Date().toISOString(),
+                    coste: costeFinal,
+                    ingredientesModificados,
+                });
+            }
+        }
+
         return dataPoints;
 
     }, [selectedReceta, allHistorico, allElaboraciones, allIngredientes, allArticulosERP]);
 
     const chartData = useMemo(() => {
-        return historicalData?.map(d => ({
-            fecha: format(new Date(d.fecha), 'dd MMM yy', { locale: es }),
+        if (!historicalData || historicalData.length < 1) return [];
+
+        const dataForChart = historicalData.map(d => ({
+            fecha: format(parseISO(d.fecha), 'dd MMM yy', { locale: es }),
             coste: d.coste,
         }));
+        
+        // Ensure there is at least one point to draw a line from if there's only one price change
+        if (dataForChart.length === 1) {
+             return [
+                {...dataForChart[0], fecha: format(new Date(), 'dd MMM yy', { locale: es }) }, // Show it as today's price
+                dataForChart[0]
+            ];
+        }
+        
+        return dataForChart;
+
     }, [historicalData]);
 
     return (
@@ -174,7 +209,7 @@ export default function EvolucionCostesPage() {
                                         <YAxis tickFormatter={(value) => formatCurrency(value)} />
                                         <Tooltip formatter={(value: number) => [formatCurrency(value), "Coste"]} />
                                         <Legend />
-                                        <Area type="monotone" dataKey="coste" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.1)" />
+                                        <Area type="step" dataKey="coste" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.1)" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             ) : (
@@ -205,12 +240,12 @@ export default function EvolucionCostesPage() {
                                         const variacionPct = prevCoste > 0 ? variacion / prevCoste : 0;
                                         return (
                                             <TableRow key={data.fecha}>
-                                                <TableCell>{format(new Date(data.fecha), 'dd/MM/yyyy')}</TableCell>
+                                                <TableCell>{format(new Date(data.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
                                                 <TableCell className="text-right font-semibold">{formatCurrency(data.coste)}</TableCell>
                                                 <TableCell className={cn("text-right font-mono", variacion > 0 ? 'text-destructive' : 'text-green-600')}>
                                                     {index > 0 && (
                                                         <div className="flex items-center justify-end gap-1">
-                                                          {variacion > 0 ? <TrendingUp size={16}/> : <TrendingDown size={16}/>}
+                                                          {variacion !== 0 && (variacion > 0 ? <TrendingUp size={16}/> : <TrendingDown size={16}/>)}
                                                           {formatCurrency(variacion)} ({formatPercentage(variacionPct)})
                                                         </div>
                                                     )}
