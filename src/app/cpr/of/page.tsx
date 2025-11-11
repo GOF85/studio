@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -351,7 +350,7 @@ export default function OfPage() {
     if (!orderToDelete) return;
     const updatedOFs = ordenes.filter(of => of.id !== orderToDelete);
     localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
-    loadData();
+    loadAllData();
     toast({ title: 'Orden de Fabricación Eliminada' });
     setOrderToDelete(null);
   };
@@ -404,7 +403,7 @@ export default function OfPage() {
     toast({ title: 'Órdenes de Fabricación Creadas', description: `${nuevasOFs.length} OFs se han añadido a la lista.` });
     
     setSelectedNecesidades(new Set());
-    loadData();
+    loadAllData();
   };
   
   const handleAssignResponsable = (ofId: string, responsable: string) => {
@@ -415,7 +414,7 @@ export default function OfPage() {
         allOFs[index].estado = 'Asignada';
         allOFs[index].fechaAsignacion = new Date().toISOString();
         localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-        loadData();
+        loadAllData();
         toast({ title: 'Responsable Asignado', description: `Se ha asignado a ${responsable}.`});
     }
   }
@@ -808,7 +807,7 @@ export default function OfPage() {
                 <CardHeader className="flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
                     <div className="flex items-center gap-2">
-                         <Button onClick={loadData} variant="outline" size="sm">
+                         <Button onClick={loadAllData} variant="outline" size="sm">
                            <RefreshCw className="mr-2 h-4 w-4" />
                            Recalcular Necesidades
                        </Button>
@@ -1191,6 +1190,7 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
