@@ -399,6 +399,7 @@ export type GastronomyOrder = {
     status: GastronomyOrderStatus;
     items: GastronomyOrderItem[];
     total: number;
+    fecha: string;
 }
 
 export type TransporteOrder = {

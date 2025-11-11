@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { TrendingDown, ArrowLeft } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { ServiceOrder, GastronomyOrder, Receta } from '@/types';
+import type { ServiceOrder, GastronomyOrder, Receta, IngredienteInterno, ArticuloERP, Elaboracion, HistoricoPreciosERP } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ type CosteMPDetalle = {
     osNumber: string;
     referencia: string;
     cantidad: number;
+    costeMPUnitario: number;
     costeMPTotal: number;
 };
 
@@ -52,6 +53,50 @@ export default function CosteMPPage() {
         const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
         const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
 
+        // Dependencias para cálculo de costes históricos
+        const historicoPrecios = JSON.parse(localStorage.getItem('historicoPreciosERP') || '[]') as HistoricoPreciosERP[];
+        const ingredientesInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+        const articulosERP = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+        const elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        
+        const articulosErpMap = new Map(articulosERP.map(a => [a.idreferenciaerp, a]));
+        const ingredientesMap = new Map(ingredientesInternos.map(i => [i.id, i]));
+        const elaboracionesMap = new Map(elaboraciones.map(e => [e.id, e]));
+
+        const calculateHistoricalCost = (receta: Receta, eventDate: Date): number => {
+            const getPrecioHistorico = (erpId: string): number => {
+                const relevantPrices = historicoPrecios
+                    .filter(h => h.articuloErpId === erpId && new Date(h.fecha) <= startOfDay(eventDate))
+                    .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+                const latestPrice = articulosErpMap.get(erpId)?.precio || 0;
+                return relevantPrices.length > 0 ? relevantPrices[0].precioCalculado : latestPrice;
+            };
+            
+            const calculateElabCost = (elabId: string): number => {
+                const elab = elaboracionesMap.get(elabId);
+                if (!elab) return 0;
+                
+                return (elab.componentes || []).reduce((sum, comp) => {
+                    let componentCost = 0;
+                    if (comp.tipo === 'ingrediente') {
+                        const ingrediente = ingredientesMap.get(comp.componenteId);
+                        const erpItem = ingrediente ? articulosErpMap.get(ingrediente.productoERPlinkId) : undefined;
+                        if(erpItem) {
+                            componentCost = getPrecioHistorico(erpItem.idreferenciaerp) * comp.cantidad;
+                        }
+                    } else {
+                        componentCost = calculateElabCost(comp.componenteId) * comp.cantidad;
+                    }
+                    return sum + (componentCost * (1 + (comp.merma || 0) / 100));
+                }, 0) / (elab.produccionTotal > 0 ? elab.produccionTotal : 1);
+            }
+
+            return (receta.elaboraciones || []).reduce((sum, elabEnReceta) => {
+                return sum + (calculateElabCost(elabEnReceta.elaboracionId) * elabEnReceta.cantidad);
+            }, 0);
+        };
+        
+
         const osIdsEnRango = new Set(
             allServiceOrders
                 .filter(os => {
@@ -63,22 +108,27 @@ export default function CosteMPPage() {
                 .map(os => os.id)
         );
 
-        const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
+        const gastroOrdersEnRango = allGastroOrders.filter(go => go.osId && osIdsEnRango.has(go.osId));
         
         const costesMPDetallados: CosteMPDetalle[] = [];
         gastroOrdersEnRango.forEach(order => {
+             if (!order.fecha) return;
+
             const os = allServiceOrders.find(o => o.id === order.osId);
             (order.items || []).forEach(item => {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
                     if (receta) {
-                        const costeTotalItem = (receta.costeMateriaPrima || 0) * (item.quantity || 0);
+                        const costeUnitarioHistorico = calculateHistoricalCost(receta, new Date(order.fecha));
+                        const costeTotalItem = costeUnitarioHistorico * (item.quantity || 0);
+
                         costesMPDetallados.push({
                             fecha: order.fecha,
                             osId: os?.id || 'N/A',
                             osNumber: os?.serviceNumber || 'N/A',
                             referencia: receta.nombre,
                             cantidad: item.quantity || 0,
+                            costeMPUnitario: costeUnitarioHistorico,
                             costeMPTotal: costeTotalItem,
                         });
                     }
@@ -121,7 +171,7 @@ export default function CosteMPPage() {
         
         const grouped: Record<string, { totalCoste: number, details: { osNumber: string, referencia: string, cantidad: number }[] }> = {};
         detalleCostes.forEach(coste => {
-            const dayKey = format(new Date(coste.fecha), 'yyyy-MM-dd');
+            const dayKey = format(parseISO(coste.fecha), 'yyyy-MM-dd');
             if (!grouped[dayKey]) {
                 grouped[dayKey] = { totalCoste: 0, details: [] };
             }
@@ -163,6 +213,7 @@ export default function CosteMPPage() {
                                         <TableHead>OS</TableHead>
                                         <TableHead>Referencia</TableHead>
                                         <TableHead className="text-right">Cantidad</TableHead>
+                                        <TableHead className="text-right">Coste Ud.</TableHead>
                                         <TableHead className="text-right">Coste MP Total</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -173,10 +224,11 @@ export default function CosteMPPage() {
                                             <TableCell><Link href={`/os/${coste.osId}/gastronomia`} className="text-primary hover:underline">{coste.osNumber}</Link></TableCell>
                                             <TableCell>{coste.referencia}</TableCell>
                                             <TableCell className="text-right">{coste.cantidad}</TableCell>
+                                            <TableCell className="text-right font-mono text-muted-foreground">{formatCurrency(coste.costeMPUnitario)}</TableCell>
                                             <TableCell className="text-right font-semibold">{formatCurrency(coste.costeMPTotal)}</TableCell>
                                         </TableRow>
                                     )) : (
-                                        <TableRow><TableCell colSpan={5} className="text-center h-24">No se encontraron datos de costes para este periodo.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={6} className="text-center h-24">No se encontraron datos de costes para este periodo.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
