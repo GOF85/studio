@@ -1,4 +1,5 @@
 
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -363,8 +364,10 @@ export type GastronomyOrderItem = {
     type: 'item' | 'separator';
     nombre: string;
     categoria?: string;
-    costeMateriaPrima?: number; // Snapshot of the cost at the time of adding
-    precioVenta?: number; // Snapshot of the price at the time of adding
+    costeMateriaPrimaSnapshot?: number;
+    precioVentaSnapshot?: number;
+    costeMateriaPrima?: number;
+    precioVenta?: number;
     quantity?: number;
     comentarios?: string;
 }
