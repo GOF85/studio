@@ -9,11 +9,11 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2 } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2, GripVertical } from 'lucide-react';
 import { format, differenceInMinutes, parse, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, GastronomyOrderStatus, GastronomyOrder, HistoricoPreciosERP, ArticuloERP, IngredienteInterno, Elaboracion } from '@/types';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, GastronomyOrderStatus, GastronomyOrder, HistoricoPreciosERP, ArticuloERP, IngredienteInterno, Elaboracion, Receta } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -45,6 +45,11 @@ import { formatCurrency, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { RecetaSelector } from '@/components/os/gastronomia/receta-selector';
 
+import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+
 const gastroItemSchema = z.object({
   id: z.string(), // Receta ID
   type: z.enum(['item', 'separator']),
@@ -63,6 +68,74 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+function SortableTableRow({ field, index, remove, control }: { field: FormValues['items'][0] & { key: string }, index: number, remove: (index: number) => void, control: any }) {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
+    const style = { transform: CSS.Transform.toString(transform), transition };
+
+    const { getValues } = useFormContext();
+    
+    if (field.type === 'separator') {
+        return (
+            <TableRow ref={setNodeRef} style={style} className="bg-muted/50 hover:bg-muted/80">
+                <TableCell className="w-12 p-2" {...attributes}>
+                    <div {...listeners} className="cursor-grab text-muted-foreground p-2">
+                        <GripVertical />
+                    </div>
+                </TableCell>
+                <TableCell colSpan={3}>
+                    <FormField
+                        control={control}
+                        name={`items.${index}.nombre`}
+                        render={({ field: separatorField }) => (
+                            <Input {...separatorField} className="border-none bg-transparent font-bold text-lg focus-visible:ring-1" />
+                        )}
+                    />
+                </TableCell>
+                <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                        <Trash2 className="h-4 w-4"/>
+                    </Button>
+                </TableCell>
+            </TableRow>
+        );
+    }
+    
+    return (
+        <TableRow ref={setNodeRef} style={style} {...attributes}>
+             <TableCell className="w-12 p-2">
+                <div {...listeners} className="cursor-grab text-muted-foreground p-2">
+                    <GripVertical />
+                </div>
+            </TableCell>
+            <TableCell>{field.nombre}</TableCell>
+            <TableCell>
+                <FormField
+                    control={control}
+                    name={`items.${index}.quantity`}
+                    render={({ field: quantityField }) => (
+                        <Input
+                            type="number"
+                            {...quantityField}
+                            onChange={(e) => quantityField.onChange(parseInt(e.target.value, 10) || 0)}
+                            className="w-24 h-8"
+                        />
+                    )}
+                />
+            </TableCell>
+            <TableCell>{formatCurrency(field.precioVentaSnapshot || field.precioVenta || 0)}</TableCell>
+            <TableCell className="text-right font-semibold">{formatCurrency(((field.precioVentaSnapshot || field.precioVenta) || 0) * (getValues(`items.${index}.quantity`) || 0))}</TableCell>
+            <TableCell className="text-right">
+                <div className="flex items-center justify-end">
+                    {/* Placeholder for comment button */}
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                        <Trash2 className="h-4 w-4"/>
+                    </Button>
+                </div>
+            </TableCell>
+        </TableRow>
+    );
+}
 
 function PedidoGastronomiaForm() {
   const params = useParams();
@@ -93,7 +166,7 @@ function PedidoGastronomiaForm() {
   });
 
   const { control, handleSubmit, reset, watch, setValue, getValues, formState } = form;
-  const { fields, append, remove, update } = useFieldArray({ control, name: "items" });
+  const { fields, append, remove, update, move } = useFieldArray({ control, name: "items" });
   
   const watchedItems = watch('items');
   
@@ -148,7 +221,7 @@ function PedidoGastronomiaForm() {
     
     const pvp = costeMateriaPrima * (1 + (receta.porcentajeCosteProduccion / 100));
 
-    return { coste: costeMateriaPrima, pvp };
+    return { coste: costeMateriaPrima, pvp: pvp };
   }, [historicoPrecios, ingredientesInternos, articulosERP, elaboraciones]);
 
   const { totalPedido, costeTotalMateriaPrima, ratioUnidadesPorPax } = useMemo(() => {
@@ -216,7 +289,6 @@ function PedidoGastronomiaForm() {
         quantity: briefingItem?.asistentes || 1,
         comentarios: '',
     });
-    setIsSelectorOpen(false);
     toast({title: "Receta añadida"});
   }
   
@@ -267,6 +339,17 @@ function PedidoGastronomiaForm() {
     }
   };
 
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+        const oldIndex = fields.findIndex(f => f.id === active.id);
+        const newIndex = fields.findIndex(f => f.id === over.id);
+        move(oldIndex, newIndex);
+    }
+  }
+
 
   if (!isMounted || !briefingItem) {
     return <LoadingSkeleton title="Cargando pedido de gastronomía..." />;
@@ -313,9 +396,11 @@ function PedidoGastronomiaForm() {
                 </div>
             </CardHeader>
             <CardContent className="pt-0">
+                <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-12 p-2"></TableHead>
                             <TableHead>Referencia</TableHead>
                             <TableHead className="w-48">Cantidad</TableHead>
                             <TableHead className="w-32">PVP</TableHead>
@@ -323,61 +408,17 @@ function PedidoGastronomiaForm() {
                             <TableHead className="w-28 text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
-                    <TableBody>
-                        {fields.length > 0 ? fields.map((field, index) => (
-                            field.type === 'separator' ? (
-                                <TableRow key={field.id} className="bg-muted/50 hover:bg-muted/80">
-                                    <TableCell colSpan={4}>
-                                        <FormField
-                                            control={control}
-                                            name={`items.${index}.nombre`}
-                                            render={({ field: separatorField }) => (
-                                                <Input {...separatorField} className="border-none bg-transparent font-bold text-lg focus-visible:ring-1" />
-                                            )}
-                                        />
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
-                                            <Trash2 className="h-4 w-4"/>
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                <TableRow key={field.id}>
-                                    <TableCell>{field.nombre}</TableCell>
-                                     <TableCell>
-                                        <FormField
-                                            control={control}
-                                            name={`items.${index}.quantity`}
-                                            render={({ field: quantityField }) => (
-                                                <Input
-                                                    type="number"
-                                                    {...quantityField}
-                                                    onChange={(e) => quantityField.onChange(parseInt(e.target.value, 10) || 0)}
-                                                    className="w-24 h-8"
-                                                />
-                                            )}
-                                        />
-                                    </TableCell>
-                                    <TableCell>{formatCurrency(field.precioVentaSnapshot || field.precioVenta || 0)}</TableCell>
-                                    <TableCell className="text-right font-semibold">{formatCurrency(((field.precioVentaSnapshot || field.precioVenta) || 0) * (field.quantity || 0))}</TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex items-center justify-end">
-                                            <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setEditingComment({ index, text: field.comentarios || '' })}>
-                                                <MessageSquare className={`h-4 w-4 ${field.comentarios ? 'text-primary' : ''}`} />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
-                                                <Trash2 className="h-4 w-4"/>
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            )
-                        )) : (
-                            <TableRow><TableCell colSpan={5} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
-                        )}
-                    </TableBody>
+                    <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                        <TableBody>
+                            {fields.length > 0 ? fields.map((field, index) => (
+                                <SortableTableRow key={field.id} field={{...field, key: field.id }} index={index} remove={remove} control={control} />
+                            )) : (
+                                <TableRow><TableCell colSpan={6} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </SortableContext>
                 </Table>
+                </DndContext>
             </CardContent>
           </Card>
         </form>
