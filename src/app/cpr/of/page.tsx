@@ -1208,7 +1208,7 @@ function OfPageContent() {
                             {ordenes.filter(o => o.estado === 'Pendiente').length > 0 ? (
                                 ordenes.filter(o => o.estado === 'Pendiente').map(of => (
                                     <TableRow key={of.id} className="hover:bg-muted/30">
-                                        <TableCell><Badge variant="outline">{of.id}</TableCell>
+                                        <TableCell><Badge variant="outline">{of.id}</Badge></TableCell>
                                         <TableCell className="font-medium">{of.elaboracionNombre}</TableCell>
                                         <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
                                         <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
