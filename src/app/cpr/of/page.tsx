@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat, Printer } from 'lucide-react';
@@ -165,7 +165,7 @@ const partidaColorCircles: Record<PartidaProduccion, string> = {
 const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
 const statusOptions = Object.keys(statusVariant) as OrdenFabricacion['estado'][];
 
-export default function OfPage() {
+function OfPageContent() {
     const { data, isLoaded, loadAllData } = useDataStore();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -471,272 +471,271 @@ export default function OfPage() {
             elaboraciones: Array.from(allElaboracionesNecesarias.values()),
         });
 
-    }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas]);
+    }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas, data.comercialBriefings, data.gastronomyOrders]);
 
+    const listaDeLaCompraPorProveedor = useMemo(() => {
+        if (!isLoaded || !necesidades) return [];
 
-  const filteredAndSortedItems = useMemo(() => {
-    return ordenes
-      .filter(item => {
-        const searchMatch = searchTerm === '' || 
-                            item.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (item.responsable || '').toLowerCase().includes(searchTerm.toLowerCase());
-        const statusMatch = statusFilter === 'all' || item.estado === statusFilter;
-        const partidaMatch = partidaFilter === 'all' || item.partidaAsignada === partidaFilter;
-        
-        let dateMatch = true;
-        if (dateRange?.from) {
-            try {
-                const itemDate = (item.estado === 'Pendiente' || item.estado === 'Asignada') 
-                    ? parseISO(item.fechaProduccionPrevista)
-                    : item.fechaFinalizacion ? parseISO(item.fechaFinalizacion) : parseISO(item.fechaProduccionPrevista);
-                
-                if (dateRange.to) {
-                    dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
-                } else {
-                    dateMatch = isSameDay(itemDate, dateRange.from);
+        const elabMap = new Map(data.elaboraciones.map(e => [e.id, e]));
+        const ingMap = new Map(data.ingredientesInternos.map(i => [i.id, i]));
+        const erpMap = new Map(data.ingredientesERP.map(a => [a.idreferenciaerp, a]));
+        const proveedoresMap = new Map(data.proveedores.map(p => [p.IdERP, p]));
+
+        const ingredientesNecesarios = new Map<string, { cantidad: number, desgloseUso: { receta: string, elaboracion: string, cantidad: number }[] }>();
+
+        function getIngredientesRecursivo(elabId: string, cantidadRequerida: number, recetaNombre: string) {
+            const elaboracion = elabMap.get(elabId);
+            if (!elaboracion) return;
+
+            const ratio = cantidadRequerida / (elaboracion.produccionTotal > 0 ? elaboracion.produccionTotal : 1);
+            
+            (elaboracion.componentes || []).forEach(comp => {
+                const cantidadComponente = comp.cantidad * ratio;
+                if (comp.tipo === 'ingrediente') {
+                    let ingData = ingredientesNecesarios.get(comp.componenteId);
+                    if (!ingData) {
+                        ingData = { cantidad: 0, desgloseUso: [] };
+                        ingredientesNecesarios.set(comp.componenteId, ingData);
+                    }
+                    ingData.cantidad += cantidadComponente;
+                    ingData.desgloseUso.push({ receta: recetaNombre, elaboracion: elaboracion.nombre, cantidad: cantidadComponente });
+                } else if (comp.tipo === 'elaboracion') {
+                    getIngredientesRecursivo(comp.componenteId, cantidadComponente, recetaNombre);
                 }
-            } catch(e) {
-                dateMatch = false;
-            }
+            });
         }
-        
-        return searchMatch && statusMatch && partidaMatch && dateMatch;
-      })
-      .sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
-  }, [ordenes, searchTerm, statusFilter, partidaFilter, dateRange]);
-  
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('all');
-    setPartidaFilter('all');
-    setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) });
-  };
 
-  const handleDeleteOrder = () => {
-    if (!orderToDelete) return;
-    const updatedOFs = ordenes.filter(of => of.id !== orderToDelete);
-    localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
-    loadAllData();
-    toast({ title: 'Orden de Fabricación Eliminada' });
-    setOrderToDelete(null);
-  };
-  
-  const handleGenerateOFs = () => {
-    if (!dateRange?.from || selectedNecesidades.size === 0) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No hay necesidades seleccionadas para generar OFs.' });
-      return;
-    }
-    
-    let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-    const lastIdNumber = allOFs.reduce((max, of) => {
-      const numPart = of.id.split('-')[2];
-      const num = numPart ? parseInt(numPart) : 0;
-      return isNaN(num) ? max : Math.max(max, num);
-    }, 0);
-    
-    let currentIdCounter = lastIdNumber;
-    
-    const nuevasOFs: OrdenFabricacion[] = [];
-    const fechaProduccion = format(dateRange.from, 'yyyy-MM-dd');
-    
-    selectedNecesidades.forEach(elabId => {
-      const necesidad = necesidades.find(n => n.id === elabId);
-      if (!necesidad || necesidad.cantidadNeta <= 0) return;
-      
-      currentIdCounter++;
-      
-      const newOF: OrdenFabricacion = {
-        id: `OF-${new Date().getFullYear()}-${(currentIdCounter).toString().padStart(3, '0')}`,
-        fechaCreacion: new Date().toISOString(),
-        fechaProduccionPrevista: fechaProduccion,
-        elaboracionId: necesidad.id,
-        elaboracionNombre: necesidad.nombre,
-        cantidadTotal: necesidad.cantidadNeta,
-        unidad: necesidad.unidad as any,
-        partidaAsignada: necesidad.partida,
-        tipoExpedicion: necesidad.tipoExpedicion,
-        estado: 'Pendiente',
-        osIDs: Array.from(necesidad.osIDs),
-        incidencia: false,
-        okCalidad: false,
-      };
-      nuevasOFs.push(newOF);
-    });
-
-    const updatedOFs = [...allOFs, ...nuevasOFs];
-    localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
-    
-    toast({ title: 'Órdenes de Fabricación Creadas', description: `${nuevasOFs.length} OFs se han añadido a la lista.` });
-    
-    setSelectedNecesidades(new Set());
-    loadAllData();
-  };
-  
-  const handleAssignResponsable = (ofId: string, responsable: string) => {
-    let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-    const index = allOFs.findIndex(of => of.id === ofId);
-    if(index > -1 && allOFs[index].estado === 'Pendiente') {
-        allOFs[index].responsable = responsable;
-        allOFs[index].estado = 'Asignada';
-        allOFs[index].fechaAsignacion = new Date().toISOString();
-        localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-        loadAllData();
-        toast({ title: 'Responsable Asignado', description: `Se ha asignado a ${responsable}.`});
-    }
-  }
-
-  const handleSelectNecesidad = (elabId: string, checked: boolean) => {
-    setSelectedNecesidades(prev => {
-      const newSelection = new Set(prev);
-      if (checked) newSelection.add(elabId);
-      else newSelection.delete(elabId);
-      return newSelection;
-    });
-  };
-
-  const getPickingInfo = (ofId: string): { osId: string; containerId: string } | null => {
-      for (const osId in pickingStates) {
-          const state = pickingStates[osId];
-          const found = state.itemStates.find(item => item.ofId === ofId);
-          if (found) {
-              return { osId, containerId: found.containerId };
-          }
-      }
-      return null;
-  };
-  
-  const listaDeLaCompra = useMemo(() => {
-    if (!necesidades || necesidades.length === 0) return [];
-    
-    const elabMap = new Map(data.elaboraciones.map(e => [e.id, e]));
-    const ingMap = new Map(data.ingredientesInternos.map(i => [i.id, i]));
-    const erpMap = new Map(data.ingredientesERP.map(a => [a.idreferenciaerp, a]));
-    const proveedoresMap = new Map(data.proveedores.map(p => [p.IdERP, p]));
-
-    const ingredientesNecesarios = new Map<string, { cantidad: number, desgloseUso: { receta: string, elaboracion: string, cantidad: number }[] }>();
-
-    function getIngredientesRecursivo(elabId: string, cantidadRequerida: number, recetaNombre: string) {
-        const elaboracion = elabMap.get(elabId);
-        if (!elaboracion) return;
-
-        const ratio = cantidadRequerida / elaboracion.produccionTotal;
-        
-        (elaboracion.componentes || []).forEach(comp => {
-            const cantidadComponente = comp.cantidad * ratio;
-            if (comp.tipo === 'ingrediente') {
-                let ingData = ingredientesNecesarios.get(comp.componenteId);
-                if (!ingData) {
-                    ingData = { cantidad: 0, desgloseUso: [] };
-                    ingredientesNecesarios.set(comp.componenteId, ingData);
-                }
-                ingData.cantidad += cantidadComponente;
-                ingData.desgloseUso.push({ receta: recetaNombre, elaboracion: elaboracion.nombre, cantidad: cantidadComponente });
-            } else if (comp.tipo === 'elaboracion') {
-                getIngredientesRecursivo(comp.componenteId, cantidadComponente, recetaNombre);
+        necesidades.forEach(necesidad => {
+            if(necesidad.cantidadNeta > 0) {
+                getIngredientesRecursivo(necesidad.id, necesidad.cantidadNeta, necesidad.recetas.join(', '));
             }
         });
-    }
-
-    necesidades.forEach(necesidad => {
-        if(necesidad.cantidadNeta > 0) {
-            getIngredientesRecursivo(necesidad.id, necesidad.cantidadNeta, necesidad.recetas.join(', '));
-        }
-    });
-    
-    const compraPorProveedor = new Map<string, ProveedorConLista>();
-
-    ingredientesNecesarios.forEach((data, ingId) => {
-        const ingredienteInterno = ingMap.get(ingId);
-        if (!ingredienteInterno) return;
-
-        const articuloERP = erpMap.get(ingredienteInterno.productoERPlinkId);
-        if (!articuloERP) return;
-
-        const proveedor = proveedoresMap.get(articuloERP.idProveedor);
-        if (!proveedor) return;
-
-        let proveedorData = compraPorProveedor.get(proveedor.id);
-        if (!proveedorData) {
-            proveedorData = { ...proveedor, listaCompra: [] };
-            compraPorProveedor.set(proveedor.id, proveedorData);
-        }
-
-        const ingCompra: IngredienteDeCompra = {
-            erpId: articuloERP.idreferenciaerp,
-            nombreProducto: articuloERP.nombreProductoERP,
-            refProveedor: articuloERP.referenciaProveedor || '',
-            formatoCompra: `${articuloERP.unidadConversion} ${formatUnit(articuloERP.unidad)}`,
-            necesidadNeta: data.cantidad,
-            unidadNeta: articuloERP.unidad,
-            unidadConversion: articuloERP.unidadConversion,
-            precioCompra: articuloERP.precioCompra,
-            descuento: articuloERP.descuento || 0,
-            desgloseUso: data.desgloseUso.sort((a,b) => b.cantidad - a.cantidad),
-        };
         
-        const existingItemIndex = proveedorData.listaCompra.findIndex(item => item.erpId === articuloERP.idreferenciaerp);
-        if (existingItemIndex > -1) {
-            proveedorData.listaCompra[existingItemIndex].necesidadNeta += data.cantidad;
-             proveedorData.listaCompra[existingItemIndex].desgloseUso.push(...data.desgloseUso);
-        } else {
-            proveedorData.listaCompra.push(ingCompra);
-        }
-    });
+        const compraPorProveedor = new Map<string, ProveedorConLista>();
 
-    return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
+        ingredientesNecesarios.forEach((data, ingId) => {
+            const ingredienteInterno = ingMap.get(ingId);
+            if (!ingredienteInterno) return;
 
-  }, [necesidades, data]);
+            const articuloERP = erpMap.get(ingredienteInterno.productoERPlinkId);
+            if (!articuloERP) return;
 
-  const flatCompraList = useMemo(() => {
-    return listaDeLaCompra.flatMap(proveedor => 
-        proveedor.listaCompra.map(item => ({
-            ...item,
-            proveedorNombre: proveedor.nombreComercial,
-        }))
-    ).sort((a,b) => a.proveedorNombre.localeCompare(b.proveedorNombre) || a.nombreProducto.localeCompare(b.nombreProducto));
-  }, [listaDeLaCompra]);
-  
-  const handlePrintReport = () => {
-    const doc = new jsPDF();
-    const tableColumn = ["Proveedor", "Producto (Ref.)", "Cant. a Comprar", "Formato", "Necesidad Neta"];
-    const tableRows: (string | number)[][] = [];
+            const proveedor = proveedoresMap.get(articuloERP.idProveedor);
+            if (!proveedor) return;
 
-    flatCompraList.forEach(item => {
-        const cantidadAComprar = redondearCompra 
-            ? Math.ceil(item.necesidadNeta / item.unidadConversion) 
-            : (item.necesidadNeta / item.unidadConversion);
+            let proveedorData = compraPorProveedor.get(proveedor.id);
+            if (!proveedorData) {
+                proveedorData = { ...proveedor, listaCompra: [] };
+                compraPorProveedor.set(proveedor.id, proveedorData);
+            }
+
+            const ingCompra: IngredienteDeCompra = {
+                erpId: articuloERP.idreferenciaerp,
+                nombreProducto: articuloERP.nombreProductoERP,
+                refProveedor: articuloERP.referenciaProveedor || '',
+                formatoCompra: `${articuloERP.unidadConversion} ${formatUnit(articuloERP.unidad)}`,
+                necesidadNeta: data.cantidad,
+                unidadNeta: articuloERP.unidad,
+                unidadConversion: articuloERP.unidadConversion,
+                precioCompra: articuloERP.precioCompra,
+                descuento: articuloERP.descuento || 0,
+                desgloseUso: data.desgloseUso.sort((a,b) => b.cantidad - a.cantidad),
+            };
             
-        const row = [
-            item.proveedorNombre,
-            `${item.nombreProducto} (${item.refProveedor})`,
-            redondearCompra ? cantidadAComprar : formatNumber(cantidadAComprar, 2),
-            item.formatoCompra,
-            `${formatNumber(item.necesidadNeta, 3)} ${formatUnit(item.unidadNeta)}`
-        ];
-        tableRows.push(row);
-    });
+            const existingItemIndex = proveedorData.listaCompra.findIndex(item => item.erpId === articuloERP.idreferenciaerp);
+            if (existingItemIndex > -1) {
+                proveedorData.listaCompra[existingItemIndex].necesidadNeta += data.cantidad;
+                proveedorData.listaCompra[existingItemIndex].desgloseUso.push(...data.desgloseUso);
+            } else {
+                proveedorData.listaCompra.push(ingCompra);
+            }
+        });
 
-    const dateTitle = dateRange?.from ? format(dateRange.from, 'dd/MM/yyyy') : '';
-    const dateTitleEnd = dateRange?.to ? ` - ${format(dateRange.to, 'dd/MM/yyyy')}` : '';
+        return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
+    }, [isLoaded, necesidades, data]);
 
-    doc.setFontSize(18);
-    doc.text(`Informe de Compra Consolidado`, 14, 22);
-    doc.setFontSize(11);
-    doc.text(`Periodo: ${dateTitle}${dateTitleEnd}`, 14, 30);
+    const flatCompraList = useMemo(() => 
+        listaDeLaCompraPorProveedor.flatMap(proveedor => 
+            proveedor.listaCompra.map(item => ({
+                ...item,
+                proveedorNombre: proveedor.nombreComercial,
+            }))
+        ).sort((a,b) => a.proveedorNombre.localeCompare(b.proveedorNombre) || a.nombreProducto.localeCompare(b.nombreProducto)),
+    [listaDeLaCompraPorProveedor]);
+
+
+    const filteredAndSortedItems = useMemo(() => {
+        return ordenes
+        .filter(item => {
+            const searchMatch = searchTerm === '' || 
+                                item.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                (item.responsable || '').toLowerCase().includes(searchTerm.toLowerCase());
+            const statusMatch = statusFilter === 'all' || item.estado === statusFilter;
+            const partidaMatch = partidaFilter === 'all' || item.partidaAsignada === partidaFilter;
+            
+            let dateMatch = true;
+            if (dateRange?.from) {
+                try {
+                    const itemDate = (item.estado === 'Pendiente' || item.estado === 'Asignada') 
+                        ? parseISO(item.fechaProduccionPrevista)
+                        : item.fechaFinalizacion ? parseISO(item.fechaFinalizacion) : parseISO(item.fechaProduccionPrevista);
+                    
+                    if (dateRange.to) {
+                        dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+                    } else {
+                        dateMatch = isSameDay(itemDate, dateRange.from);
+                    }
+                } catch(e) {
+                    dateMatch = false;
+                }
+            }
+            
+            return searchMatch && statusMatch && partidaMatch && dateMatch;
+        })
+        .sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
+    }, [ordenes, searchTerm, statusFilter, partidaFilter, dateRange]);
     
-    autoTable(doc, {
-        head: [tableColumn],
-        body: tableRows,
-        startY: 35,
-        headStyles: { fillColor: [0, 112, 60] }
-    });
+    const handleClearFilters = () => {
+        setSearchTerm('');
+        setStatusFilter('all');
+        setPartidaFilter('all');
+        setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) });
+    };
 
-    doc.save(`Informe_Compra_${dateTitle}.pdf`);
-  };
+    const handleDeleteOrder = () => {
+        if (!orderToDelete) return;
+        const updatedOFs = ordenes.filter(of => of.id !== orderToDelete);
+        localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
+        loadAllData();
+        toast({ title: 'Orden de Fabricación Eliminada' });
+        setOrderToDelete(null);
+    };
+    
+    const handleGenerateOFs = () => {
+        if (!dateRange?.from || selectedNecesidades.size === 0) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No hay necesidades seleccionadas para generar OFs.' });
+        return;
+        }
+        
+        let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        const lastIdNumber = allOFs.reduce((max, of) => {
+        const numPart = of.id.split('-')[2];
+        const num = numPart ? parseInt(numPart) : 0;
+        return isNaN(num) ? max : Math.max(max, num);
+        }, 0);
+        
+        let currentIdCounter = lastIdNumber;
+        
+        const nuevasOFs: OrdenFabricacion[] = [];
+        const fechaProduccion = format(dateRange.from, 'yyyy-MM-dd');
+        
+        selectedNecesidades.forEach(elabId => {
+        const necesidad = necesidades.find(n => n.id === elabId);
+        if (!necesidad || necesidad.cantidadNeta <= 0) return;
+        
+        currentIdCounter++;
+        
+        const newOF: OrdenFabricacion = {
+            id: `OF-${new Date().getFullYear()}-${(currentIdCounter).toString().padStart(3, '0')}`,
+            fechaCreacion: new Date().toISOString(),
+            fechaProduccionPrevista: fechaProduccion,
+            elaboracionId: necesidad.id,
+            elaboracionNombre: necesidad.nombre,
+            cantidadTotal: necesidad.cantidadNeta,
+            unidad: necesidad.unidad as any,
+            partidaAsignada: necesidad.partida,
+            tipoExpedicion: necesidad.tipoExpedicion,
+            estado: 'Pendiente',
+            osIDs: Array.from(necesidad.osIDs),
+            incidencia: false,
+            okCalidad: false,
+        };
+        nuevasOFs.push(newOF);
+        });
+
+        const updatedOFs = [...allOFs, ...nuevasOFs];
+        localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
+        
+        toast({ title: 'Órdenes de Fabricación Creadas', description: `${nuevasOFs.length} OFs se han añadido a la lista.` });
+        
+        setSelectedNecesidades(new Set());
+        loadAllData();
+    };
+    
+    const handleAssignResponsable = (ofId: string, responsable: string) => {
+        let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        const index = allOFs.findIndex(of => of.id === ofId);
+        if(index > -1 && allOFs[index].estado === 'Pendiente') {
+            allOFs[index].responsable = responsable;
+            allOFs[index].estado = 'Asignada';
+            allOFs[index].fechaAsignacion = new Date().toISOString();
+            localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
+            loadAllData();
+            toast({ title: 'Responsable Asignado', description: `Se ha asignado a ${responsable}.`});
+        }
+    };
+
+    const handleSelectNecesidad = (elabId: string, checked: boolean) => {
+        setSelectedNecesidades(prev => {
+        const newSelection = new Set(prev);
+        if (checked) newSelection.add(elabId);
+        else newSelection.delete(elabId);
+        return newSelection;
+        });
+    };
+
+    const getPickingInfo = (ofId: string): { osId: string; containerId: string } | null => {
+        for (const osId in pickingStates) {
+            const state = pickingStates[osId];
+            const found = state.itemStates.find(item => item.ofId === ofId);
+            if (found) {
+                return { osId, containerId: found.containerId };
+            }
+        }
+        return null;
+    };
+    
+    const handlePrintReport = () => {
+        const doc = new jsPDF();
+        const tableColumn = ["Proveedor", "Producto (Ref.)", "Cant. a Comprar", "Formato", "Necesidad Neta"];
+        const tableRows: (string | number)[][] = [];
+
+        flatCompraList.forEach(item => {
+            const cantidadAComprar = redondearCompra 
+                ? Math.ceil(item.necesidadNeta / item.unidadConversion) 
+                : (item.necesidadNeta / item.unidadConversion);
+                
+            const row = [
+                item.proveedorNombre,
+                `${item.nombreProducto} (${item.refProveedor})`,
+                redondearCompra ? cantidadAComprar : formatNumber(cantidadAComprar, 2),
+                item.formatoCompra,
+                `${formatNumber(item.necesidadNeta, 3)} ${formatUnit(item.unidadNeta)}`
+            ];
+            tableRows.push(row);
+        });
+
+        const dateTitle = dateRange?.from ? format(dateRange.from, 'dd/MM/yyyy') : '';
+        const dateTitleEnd = dateRange?.to ? ` - ${format(dateRange.to, 'dd/MM/yyyy')}` : '';
+
+        doc.setFontSize(18);
+        doc.text(`Informe de Compra Consolidado`, 14, 22);
+        doc.setFontSize(11);
+        doc.text(`Periodo: ${dateTitle}${dateTitleEnd}`, 14, 30);
+        
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 35,
+            headStyles: { fillColor: [0, 112, 60] }
+        });
+
+        doc.save(`Informe_Compra_${dateTitle}.pdf`);
+    };
 
   if (!isLoaded) {
-    return <LoadingSkeleton title="Cargando Órdenes de Fabricación..." />;
+    return <LoadingSkeleton title="Cargando Planificación y OFs..." />;
   }
 
   return (
@@ -908,7 +907,7 @@ export default function OfPage() {
                     <CardDescription>Materias primas necesarias para cubrir las necesidades de producción del periodo.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {listaDeLaCompra.length > 0 ? listaDeLaCompra.map(proveedor => (
+                    {listaDeLaCompraPorProveedor.length > 0 ? listaDeLaCompraPorProveedor.map(proveedor => (
                         <Card key={proveedor.id} className="w-full">
                             <CardHeader className="flex-row items-start justify-between pb-2">
                                 <div>
@@ -974,10 +973,6 @@ export default function OfPage() {
                 <CardHeader className="flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
                     <div className="flex items-center gap-2">
-                         <Button onClick={loadData} variant="outline" size="sm">
-                           <RefreshCw className="mr-2 h-4 w-4" />
-                           Recalcular Necesidades
-                       </Button>
                         <Button size="sm" onClick={handleGenerateOFs} disabled={selectedNecesidades.size === 0}>
                             Generar OF para la selección ({selectedNecesidades.size})
                         </Button>
@@ -1211,7 +1206,7 @@ export default function OfPage() {
                             {ordenes.filter(o => o.estado === 'Pendiente').length > 0 ? (
                                 ordenes.filter(o => o.estado === 'Pendiente').map(of => (
                                     <TableRow key={of.id} className="hover:bg-muted/30">
-                                        <TableCell><Badge variant="outline">{of.id}</Badge></TableCell>
+                                        <TableCell><Badge variant="outline">{of.id}</TableCell>
                                         <TableCell className="font-medium">{of.elaboracionNombre}</TableCell>
                                         <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
                                         <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
@@ -1259,6 +1254,47 @@ export default function OfPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Informe Consolidado de Compra</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-[70vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Proveedor</TableHead>
+                                <TableHead>Producto ERP (Ref.)</TableHead>
+                                <TableHead className="text-right">Cant. a Comprar</TableHead>
+                                <TableHead>Formato Compra</TableHead>
+                                <TableHead className="text-right">Necesidad Neta</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {flatCompraList.map(item => {
+                                 const cantidadAComprar = redondearCompra 
+                                    ? Math.ceil(item.necesidadNeta / item.unidadConversion) 
+                                    : (item.necesidadNeta / item.unidadConversion);
+                                return (
+                                <TableRow key={`${item.proveedorNombre}-${item.erpId}`}>
+                                    <TableCell>{item.proveedorNombre}</TableCell>
+                                    <TableCell>
+                                        {item.nombreProducto} <span className="text-xs text-muted-foreground">({item.refProveedor})</span>
+                                    </TableCell>
+                                    <TableCell className="text-right font-bold text-primary">{redondearCompra ? cantidadAComprar : formatNumber(cantidadAComprar, 2)}</TableCell>
+                                    <TableCell>{item.formatoCompra}</TableCell>
+                                    <TableCell className="text-right font-mono">{formatNumber(item.necesidadNeta, 3)} {formatUnit(item.unidadNeta)}</TableCell>
+                                </TableRow>
+                            )})}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsReportDialogOpen(false)}>Cerrar</Button>
+                    <Button onClick={handlePrintReport}><Printer className="mr-2 h-4 w-4"/>Descargar PDF</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
         <Dialog open={!!pedidoParaImprimir} onOpenChange={(open) => !open && setPedidoParaImprimir(null)}>
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
@@ -1312,50 +1348,14 @@ export default function OfPage() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-        <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle>Informe Consolidado de Compra</DialogTitle>
-                </DialogHeader>
-                <div className="max-h-[70vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Proveedor</TableHead>
-                                <TableHead>Producto ERP (Ref.)</TableHead>
-                                <TableHead className="text-right">Cant. a Comprar</TableHead>
-                                <TableHead>Formato Compra</TableHead>
-                                <TableHead className="text-right">Necesidad Neta</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {flatCompraList.map(item => {
-                                 const cantidadAComprar = redondearCompra 
-                                    ? Math.ceil(item.necesidadNeta / item.unidadConversion) 
-                                    : (item.necesidadNeta / item.unidadConversion);
-                                return (
-                                <TableRow key={`${item.proveedorNombre}-${item.erpId}`}>
-                                    <TableCell>{item.proveedorNombre}</TableCell>
-                                    <TableCell>
-                                        {item.nombreProducto} <span className="text-xs text-muted-foreground">({item.refProveedor})</span>
-                                    </TableCell>
-                                    <TableCell className="text-right font-bold text-primary">{redondearCompra ? cantidadAComprar : formatNumber(cantidadAComprar, 2)}</TableCell>
-                                    <TableCell>{item.formatoCompra}</TableCell>
-                                    <TableCell className="text-right font-mono">{formatNumber(item.necesidadNeta, 3)} {formatUnit(item.unidadNeta)}</TableCell>
-                                </TableRow>
-                            )})}
-                        </TableBody>
-                    </Table>
-                </div>
-                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsReportDialogOpen(false)}>Cerrar</Button>
-                    <Button onClick={handlePrintReport}><Printer className="mr-2 h-4 w-4"/>Descargar PDF</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
     </TooltipProvider>
   );
 }
 
-```
+export default function OFPage() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando Planificación y OFs..." />}>
+            <OfPageContent />
+        </Suspense>
+    )
+}
