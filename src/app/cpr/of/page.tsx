@@ -471,8 +471,8 @@ function OfPageContent() {
             elaboraciones: Array.from(allElaboracionesNecesarias.values()),
         });
 
-    }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas, data.comercialBriefings, data.gastronomyOrders]);
-
+    }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas]);
+    
     const listaDeLaCompraPorProveedor = useMemo(() => {
         if (!isLoaded || !necesidades) return [];
 
@@ -697,6 +697,7 @@ function OfPageContent() {
     };
     
     const handlePrintReport = () => {
+        if (!reporteData) return;
         const doc = new jsPDF();
         const tableColumn = ["Proveedor", "Producto (Ref.)", "Cant. a Comprar", "Formato", "Necesidad Neta"];
         const tableRows: (string | number)[][] = [];
@@ -737,6 +738,8 @@ function OfPageContent() {
   if (!isLoaded) {
     return <LoadingSkeleton title="Cargando Planificación y OFs..." />;
   }
+  
+  const numSelected = selectedNecesidades.size;
 
   return (
     <TooltipProvider>
