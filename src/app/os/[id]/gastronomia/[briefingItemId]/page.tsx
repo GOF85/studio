@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch, useFormContext } from 'react-hook-form';
@@ -12,11 +11,11 @@ import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
-import { format, differenceInMinutes, parse } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 
+import { format, differenceInMinutes, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, MoreHorizontal, Copy, Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw, Pencil, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, PartidaProduccion, ElaboracionEnReceta, ComponenteElaboracion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder } from '@/types';
 import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, PARTIDAS_PRODUCCION, TECNICAS_COCCION } from '@/types';
@@ -74,7 +73,7 @@ type FormValues = z.infer<typeof formSchema>;
 type GastronomyOrderItem = FormValues['items'][0];
 
 
-function SortableTableRow({ field, index, remove, control, onQuantityChange }: { field: GastronomyOrderItem, index: number, remove: (index: number) => void, control: any, onQuantityChange: (index: number, quantity: number) => void }) {
+function SortableTableRow({ field, index, remove, control, onBlur }: { field: GastronomyOrderItem, index: number, remove: (index: number) => void, control: any, onBlur: () => void }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.keyId });
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -97,7 +96,7 @@ function SortableTableRow({ field, index, remove, control, onQuantityChange }: {
                         control={control}
                         name={`items.${index}.nombre`}
                         render={({ field: separatorField }) => (
-                            <Input {...separatorField} className="border-none bg-transparent font-bold text-lg focus-visible:ring-1" />
+                            <Input {...separatorField} className="border-none bg-transparent font-bold text-lg focus-visible:ring-1" onBlur={onBlur} />
                         )}
                     />
                 </TableCell>
@@ -127,7 +126,8 @@ function SortableTableRow({ field, index, remove, control, onQuantityChange }: {
                             type="number"
                             {...quantityField}
                             value={quantityField.value ?? ''}
-                            onChange={(e) => onQuantityChange(index, parseInt(e.target.value, 10) || 0)}
+                             onChange={(e) => quantityField.onChange(parseInt(e.target.value, 10) || 0)}
+                            onBlur={onBlur}
                             className="w-24 h-8"
                         />
                     )}
@@ -181,10 +181,11 @@ function PedidoGastronomiaForm() {
   const { fields, append, remove, update, move } = useFieldArray({ control, name: "items", keyName: "keyId" });
   
   const watchedItems = watch('items');
-  
-  const recalculateTotals = useCallback((items: GastronomyOrderItem[]) => {
+
+  const recalculateTotals = useCallback(() => {
     let total = 0;
     let totalUnits = 0;
+    const items = getValues('items');
     
     (items || []).forEach(item => {
         if (item.type === 'item') {
@@ -198,12 +199,7 @@ function PedidoGastronomiaForm() {
     
     setTotalPedido(total);
     setRatioUnidadesPorPax(ratio);
-  }, [briefingItem?.asistentes]);
-
-  useEffect(() => {
-    recalculateTotals(watchedItems);
-  }, [watchedItems, recalculateTotals]);
-
+  }, [briefingItem?.asistentes, getValues]);
 
   const calculateHistoricalCost = useCallback((receta: Receta, eventDate: Date): { coste: number, pvp: number } => {
     const articulosErpMap = new Map(articulosERP.map(a => [a.idreferenciaerp, a]));
@@ -276,13 +272,14 @@ function PedidoGastronomiaForm() {
                 items: (currentGastroOrder.items || []).map(item => ({...item, keyId: item.id + Math.random()})),
                 status: currentGastroOrder.status || 'Pendiente',
             });
+            recalculateTotals(currentGastroOrder.items);
         }
       }
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       setServiceOrder(allServiceOrders.find(os => os.id === osId) || null);
     }
     setIsMounted(true);
-  }, [osId, briefingItemId, reset]);
+  }, [osId, briefingItemId, reset, recalculateTotals]);
 
   const onAddReceta = (receta: Receta) => {
     const { coste, pvp } = calculateHistoricalCost(receta, serviceOrder ? new Date(serviceOrder.startDate) : new Date());
@@ -299,6 +296,7 @@ function PedidoGastronomiaForm() {
         quantity: briefingItem?.asistentes || 1,
         comentarios: '',
     });
+    recalculateTotals([...getValues('items'), { quantity: briefingItem?.asistentes || 1, precioVenta: pvp, type: 'item' } as GastronomyOrderItem]);
     toast({title: "Receta añadida"});
   }
   
@@ -310,14 +308,6 @@ function PedidoGastronomiaForm() {
       nombre: name,
     });
   };
-  
-    const handleQuantityChange = (index: number, quantity: number) => {
-        const currentItems = getValues('items');
-        const updatedItems = [...currentItems];
-        updatedItems[index] = { ...updatedItems[index], quantity };
-        setValue('items', updatedItems, { shouldDirty: true });
-        recalculateTotals(updatedItems);
-    };
 
   const onSubmit = (data: FormValues) => {
     if (!briefingItem) return;
@@ -366,6 +356,7 @@ function PedidoGastronomiaForm() {
         const oldIndex = fields.findIndex(f => f.keyId === active.id);
         const newIndex = fields.findIndex(f => f.keyId === over.id);
         move(oldIndex, newIndex);
+        recalculateTotals(getValues('items'));
     }
   }
 
@@ -430,7 +421,7 @@ function PedidoGastronomiaForm() {
                     <SortableContext items={fields.map(f => f.keyId)} strategy={verticalListSortingStrategy}>
                         <TableBody>
                             {fields.length > 0 ? fields.map((field, index) => (
-                                <SortableTableRow key={field.keyId} field={field} index={index} remove={remove} control={control} onQuantityChange={handleQuantityChange} />
+                                <SortableTableRow key={field.keyId} field={field} index={index} remove={remove} control={control} onBlur={recalculateTotals} />
                             )) : (
                                 <TableRow><TableCell colSpan={6} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
                             )}
@@ -473,3 +464,5 @@ function PedidoGastronomiaPage() {
 }
 
 export default PedidoGastronomiaPage;
+
+    
