@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import Papa from 'papaparse';
 
 import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, MoreHorizontal, Copy, Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw, Pencil, ChevronLeft, ChevronRight, Users } from 'lucide-react';
-import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, PartidaProduccion, ElaboracionEnReceta, ComponenteElaboracion } from '@/types';
+import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, PartidaProduccion, ElaboracionEnReceta, ComponenteElaboracion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder } from '@/types';
 import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, PARTIDAS_PRODUCCION, TECNICAS_COCCION } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -80,6 +80,8 @@ function SortableTableRow({ field, index, remove, control }: { field: Gastronomy
     };
     
     const quantity = useWatch({ control, name: `items.${index}.quantity` });
+    const total = (field.precioVentaSnapshot || field.precioVenta || 0) * (quantity || 0);
+
     
     if (field.type === 'separator') {
         return (
@@ -107,11 +109,9 @@ function SortableTableRow({ field, index, remove, control }: { field: Gastronomy
         );
     }
     
-    const total = (field.precioVentaSnapshot || field.precioVenta || 0) * (quantity || 0);
-
     return (
         <TableRow ref={setNodeRef} style={style} {...attributes}>
-             <TableCell className="w-12 p-2">
+             <TableCell className="w-12 p-2" {...attributes}>
                 <div {...listeners} className="cursor-grab text-muted-foreground p-2">
                     <GripVertical />
                 </div>
@@ -160,6 +160,9 @@ function PedidoGastronomiaForm() {
   const [ingredientesInternos, setIngredientesInternos] = useState<IngredienteInterno[]>([]);
   const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]);
   const [elaboraciones, setElaboraciones] = useState<Elaboracion[]>([]);
+  
+  const [totalPedido, setTotalPedido] = useState(0);
+  const [ratioUnidadesPorPax, setRatioUnidadesPorPax] = useState(0);
 
 
   const router = useRouter();
@@ -174,10 +177,29 @@ function PedidoGastronomiaForm() {
   });
 
   const { control, handleSubmit, reset, watch, setValue, getValues, formState } = form;
-  const { fields, append, remove, update, move } = useFieldArray({ control, name: "items" });
+  const { fields, append, remove, update, move } = useFieldArray({ control, name: "items", keyName: "keyId" });
   
   const watchedItems = watch('items');
   
+  useEffect(() => {
+    let total = 0;
+    let totalUnits = 0;
+    
+    (watchedItems || []).forEach(item => {
+        if (item.type === 'item') {
+            const priceToUse = item.precioVentaSnapshot ?? item.precioVenta ?? 0;
+            total += priceToUse * (item.quantity || 0);
+            totalUnits += item.quantity || 0;
+        }
+    });
+
+    const ratio = briefingItem?.asistentes && briefingItem.asistentes > 0 ? totalUnits / briefingItem.asistentes : 0;
+    
+    setTotalPedido(total);
+    setRatioUnidadesPorPax(ratio);
+  }, [watchedItems, briefingItem?.asistentes]);
+
+
   const calculateHistoricalCost = useCallback((receta: Receta, eventDate: Date): { coste: number, pvp: number } => {
     const articulosErpMap = new Map(articulosERP.map(a => [a.idreferenciaerp, a]));
     const ingredientesMap = new Map(ingredientesInternos.map(i => [i.id, i]));
@@ -224,32 +246,6 @@ function PedidoGastronomiaForm() {
 
     return { coste: costeMateriaPrima, pvp: pvp };
   }, [historicoPrecios, ingredientesInternos, articulosERP, elaboraciones]);
-
-  const { totalPedido, costeTotalMateriaPrima, ratioUnidadesPorPax } = useMemo(() => {
-    let total = 0;
-    let coste = 0;
-    let totalUnits = 0;
-    
-    (watchedItems || []).forEach(item => {
-        if (item.type === 'item') {
-            const priceToUse = item.precioVentaSnapshot ?? item.precioVenta ?? 0;
-            const costToUse = item.costeMateriaPrimaSnapshot ?? item.costeMateriaPrima ?? 0;
-            
-            total += priceToUse * (item.quantity || 0);
-            coste += costToUse * (item.quantity || 0);
-            totalUnits += item.quantity || 0;
-        }
-    });
-
-    const ratio = briefingItem?.asistentes && briefingItem.asistentes > 0 ? totalUnits / briefingItem.asistentes : 0;
-    
-    return {
-        totalPedido: total,
-        costeTotalMateriaPrima: coste,
-        ratioUnidadesPorPax: ratio,
-    }
-  }, [watchedItems, briefingItem?.asistentes]);
-
 
   useEffect(() => {
     setHistoricoPrecios(JSON.parse(localStorage.getItem('historicoPreciosERP') || '[]'));
@@ -298,7 +294,6 @@ function PedidoGastronomiaForm() {
         comentarios: '',
     });
     toast({title: "Receta añadida"});
-    setIsSelectorOpen(false);
   }
   
   const addSeparator = (name: string) => {
@@ -456,7 +451,9 @@ function PedidoGastronomiaForm() {
 
 function PedidoGastronomiaPage() {
     return (
-        <React.Suspense fallback={<LoadingSkeleton title="Cargando..." />}><PedidoGastronomiaForm /></React.Suspense>
+        <React.Suspense fallback={<LoadingSkeleton title="Cargando..." />}>
+            <PedidoGastronomiaForm />
+        </React.Suspense>
     );
 }
 
