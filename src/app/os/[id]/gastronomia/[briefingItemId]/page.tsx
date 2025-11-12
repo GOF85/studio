@@ -9,45 +9,41 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2, GripVertical } from 'lucide-react';
-import { format, differenceInMinutes, parse, startOfDay } from 'date-fns';
-import { es } from 'date-fns/locale';
-
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, GastronomyOrderStatus, GastronomyOrder, HistoricoPreciosERP, ArticuloERP, IngredienteInterno, Elaboracion, Receta } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableFooter,
-} from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { formatCurrency, formatNumber } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { RecetaSelector } from '@/components/os/gastronomia/receta-selector';
-
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
+
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive, BrainCircuit, AlertTriangle } from 'lucide-react';
+import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, PartidaProduccion, ElaboracionEnReceta, TecnicaCoccion } from '@/types';
+import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, PARTIDAS_PRODUCCION, TECNICAS_COCCION } from '@/types';
+
+import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { formatCurrency, formatUnit, cn } from '@/lib/utils';
+import Image from 'next/image';
+import { AllergenBadge } from '@/components/icons/allergen-badge';
+import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { isBefore, subMonths, startOfToday } from 'date-fns';
+import { RecetaSelector } from '@/components/os/gastronomia/receta-selector';
 
 
 const gastroItemSchema = z.object({
@@ -68,12 +64,12 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+type GastronomyOrderItem = FormValues['items'][0];
 
-function SortableTableRow({ field, index, remove, control }: { field: FormValues['items'][0] & { key: string }, index: number, remove: (index: number) => void, control: any }) {
+
+function SortableTableRow({ field, index, remove, control }: { field: GastronomyOrderItem & { key: string }, index: number, remove: (index: number) => void, control: any }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
     const style = { transform: CSS.Transform.toString(transform), transition };
-
-    const { getValues } = useFormContext();
     
     if (field.type === 'separator') {
         return (
@@ -92,8 +88,8 @@ function SortableTableRow({ field, index, remove, control }: { field: FormValues
                         )}
                     />
                 </TableCell>
-                <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                 <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}>
                         <Trash2 className="h-4 w-4"/>
                     </Button>
                 </TableCell>
@@ -101,6 +97,8 @@ function SortableTableRow({ field, index, remove, control }: { field: FormValues
         );
     }
     
+    const total = (field.precioVentaSnapshot || field.precioVenta || 0) * (field.quantity || 0);
+
     return (
         <TableRow ref={setNodeRef} style={style} {...attributes}>
              <TableCell className="w-12 p-2">
@@ -124,7 +122,7 @@ function SortableTableRow({ field, index, remove, control }: { field: FormValues
                 />
             </TableCell>
             <TableCell>{formatCurrency(field.precioVentaSnapshot || field.precioVenta || 0)}</TableCell>
-            <TableCell className="text-right font-semibold">{formatCurrency(((field.precioVentaSnapshot || field.precioVenta) || 0) * (getValues(`items.${index}.quantity`) || 0))}</TableCell>
+            <TableCell className="text-right font-semibold">{formatCurrency(total)}</TableCell>
             <TableCell className="text-right">
                 <div className="flex items-center justify-end">
                     {/* Placeholder for comment button */}
@@ -169,13 +167,6 @@ function PedidoGastronomiaForm() {
   const { fields, append, remove, update, move } = useFieldArray({ control, name: "items" });
   
   const watchedItems = watch('items');
-  
-  useEffect(() => {
-    setHistoricoPrecios(JSON.parse(localStorage.getItem('historicoPreciosERP') || '[]'));
-    setIngredientesInternos(JSON.parse(localStorage.getItem('ingredientesInternos') || '[]'));
-    setArticulosERP(JSON.parse(localStorage.getItem('articulosERP') || '[]'));
-    setElaboraciones(JSON.parse(localStorage.getItem('elaboraciones') || '[]'));
-  }, []);
   
   const calculateHistoricalCost = useCallback((receta: Receta, eventDate: Date): { coste: number, pvp: number } => {
     const articulosErpMap = new Map(articulosERP.map(a => [a.idreferenciaerp, a]));
@@ -250,6 +241,13 @@ function PedidoGastronomiaForm() {
   }, [watchedItems, briefingItem?.asistentes]);
 
 
+  useEffect(() => {
+    setHistoricoPrecios(JSON.parse(localStorage.getItem('historicoPreciosERP') || '[]'));
+    setIngredientesInternos(JSON.parse(localStorage.getItem('ingredientesInternos') || '[]'));
+    setArticulosERP(JSON.parse(localStorage.getItem('articulosERP') || '[]'));
+    setElaboraciones(JSON.parse(localStorage.getItem('elaboraciones') || '[]'));
+  }, []);
+  
   useEffect(() => {
     if (osId && briefingItemId) {
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -411,7 +409,7 @@ function PedidoGastronomiaForm() {
                     <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                         <TableBody>
                             {fields.length > 0 ? fields.map((field, index) => (
-                                <SortableTableRow key={field.id} field={{...field, key: field.id }} index={index} remove={remove} control={control} />
+                                <SortableTableRow key={field.key} field={{...field, key: field.id }} index={index} remove={remove} control={control} />
                             )) : (
                                 <TableRow><TableCell colSpan={6} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
                             )}
