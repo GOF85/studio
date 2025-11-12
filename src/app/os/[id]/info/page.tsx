@@ -266,15 +266,15 @@ export default function InfoPage() {
     return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
   }, [briefingItems]);
 
-  const getFullName = (p: Personal) => `${p.nombre} ${p.apellidos}`;
+  const getFullName = (p: Personal) => `${p.nombre} ${p.apellido1} ${p.apellido2 || ''}`.trim();
 
-  const personalSala = useMemo(() => personal.filter(p => p.departamento === 'Sala' && p.nombre && p.apellidos), [personal]);
-  const personalPase = useMemo(() => personal.filter(p => p.departamento === 'Pase' && p.nombre && p.apellidos), [personal]);
-  const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre && p.apellidos), [personal]);
-  const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'Comercial' && p.nombre && p.apellidos), [personal]);
-  const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre && p.apellidos), [personal]);
-  const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre && p.apellidos), [personal]);
-  const personalOperaciones = useMemo(() => personal.filter(p => p.departamento === 'Operaciones' && p.nombre && p.apellidos), [personal]);
+  const personalSala = useMemo(() => personal.filter(p => p.departamento === 'Sala' && p.nombre && p.apellido1), [personal]);
+  const personalPase = useMemo(() => personal.filter(p => p.departamento === 'Pase' && p.nombre && p.apellido1), [personal]);
+  const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre && p.apellido1), [personal]);
+  const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'Comercial' && p.nombre && p.apellido1), [personal]);
+  const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre && p.apellido1), [personal]);
+  const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre && p.apellido1), [personal]);
+  const personalOperaciones = useMemo(() => personal.filter(p => p.departamento === 'Operaciones' && p.nombre && p.apellido1), [personal]);
   const validEspacios = useMemo(() => espacios.filter(e => e.identificacion.nombreEspacio), [espacios]);
   const espacioOptions = useMemo(() => validEspacios.map(e => ({label: e.identificacion.nombreEspacio, value: e.identificacion.nombreEspacio})), [validEspacios]);
 
@@ -289,7 +289,7 @@ export default function InfoPage() {
   const handlePersonalChange = (name: string, phoneField: keyof OsFormValues, mailField: keyof OsFormValues) => {
     const person = personal.find(p => getFullName(p) === name);
     setValue(phoneField, person?.telefono || '', { shouldDirty: true });
-    setValue(mailField, person?.mail || '', { shouldDirty: true });
+    setValue(mailField, person?.email || '', { shouldDirty: true });
   }
 
   const handleEspacioChange = (name: string) => {
@@ -327,7 +327,7 @@ export default function InfoPage() {
   useEffect(() => {
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-    setPersonal(allPersonal.filter(p => p.nombre && p.apellidos));
+    setPersonal(allPersonal.filter(p => p.nombre && p.apellido1));
     setEspacios(allEspacios.filter(e => e.identificacion.nombreEspacio));
 
     let currentOS: ServiceOrder | null = null;
@@ -487,10 +487,8 @@ export default function InfoPage() {
                     <div className="flex items-center gap-4">
                         <CardTitle className="text-xl">Datos del Servicio</CardTitle>
                         <FormField control={form.control} name="isVip" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-2">
-                                <FormControl>
-                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} id="vip-check" />
-                                </FormControl>
+                            <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-2">
+                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="vip-check" /></FormControl>
                                 <FormLabel htmlFor="vip-check" className="flex items-center gap-2 !mt-0 font-bold"><Star className="h-4 w-4 text-amber-500 fill-amber-500" /> Evento VIP</FormLabel>
                             </FormItem>
                         )} />
@@ -778,3 +776,4 @@ export default function InfoPage() {
     </>
   );
 }
+```
