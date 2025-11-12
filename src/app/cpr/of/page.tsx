@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat, Printer } from 'lucide-react';
-import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState, LoteAsignado, ArticuloERP, IngredienteInterno, Proveedor } from '@/types';
+import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState, LoteAsignado, ArticuloERP, IngredienteInterno, Proveedor, PedidoEntrega, Entrega, ProductoVenta } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -202,9 +203,12 @@ export default function OfPage() {
         
         const necesidadesAgregadas: Map<string, NecesidadItem> = new Map();
 
-        const rangeStart = startOfDay(dateRange?.from || new Date());
-        const rangeEnd = endOfDay(dateRange?.to || dateRange?.from || new Date());
+        if (!dateRange?.from) return { ordenes: allOFs, personalCPR: allPersonal, elaboracionesMap: elabMap, serviceOrdersMap: osMap, necesidades: [], necesidadesCubiertas: [], pickingStates: allPickingStatesData };
 
+        const rangeStart = startOfDay(dateRange.from);
+        const rangeEnd = endOfDay(dateRange.to || dateRange.from);
+
+        // --- CATERING ---
         const gastroOrdersInRange = data.gastronomyOrders.filter(order => {
             try {
                 const hitoDate = startOfDay(new Date(order.fecha));
@@ -217,7 +221,7 @@ export default function OfPage() {
                 const fechaKey = format(new Date(gastroOrder.fecha), 'yyyy-MM-dd');
                 const os = osMap.get(gastroOrder.osId);
                 const briefing = data.comercialBriefings.find(b => b.osId === gastroOrder.osId);
-                if (!os || !briefing) return;
+                if (!os || !briefing || os.status !== 'Confirmado') return;
 
                 (gastroOrder.items || []).forEach(item => {
                     if (item.type !== 'item') return;
@@ -261,6 +265,66 @@ export default function OfPage() {
                 });
             } catch (e) {}
         });
+
+        // --- ENTREGAS ---
+        const pedidosEntregaInRange = data.pedidosEntrega.filter(pedido => {
+             const os = data.entregas.find(e => e.id === pedido.osId);
+             if (!os || os.status !== 'Confirmado') return false;
+             return (pedido.hitos || []).some(h => isWithinInterval(new Date(h.fecha), { start: rangeStart, end: rangeEnd }));
+        });
+
+        pedidosEntregaInRange.forEach(pedido => {
+            const os = data.entregas.find(e => e.id === pedido.osId);
+            if (!os) return;
+
+            (pedido.hitos || []).forEach(hito => {
+                if (!isWithinInterval(new Date(hito.fecha), { start: rangeStart, end: rangeEnd })) return;
+                const fechaKey = format(new Date(hito.fecha), 'yyyy-MM-dd');
+
+                (hito.items || []).forEach(item => {
+                    const productoVenta = data.productosVenta.find(p => p.id === item.id);
+                    if (productoVenta && productoVenta.recetaId) {
+                        const receta = data.recetas.find(r => r.id === productoVenta.recetaId);
+                        if (!receta || !receta.elaboraciones) return;
+
+                        receta.elaboraciones.forEach(elabEnReceta => {
+                            const elab = elabMap.get(elabEnReceta.elaboracionId);
+                            if (!elab) return;
+
+                            const id = elab.id;
+                            let necesidad = necesidadesAgregadas.get(id);
+
+                            if (!necesidad) {
+                                necesidad = {
+                                    id, nombre: elab.nombre, cantidadNecesariaTotal: 0, unidad: elab.unidadProduccion,
+                                    osIDs: new Set(), partida: elab.partidaProduccion, tipoExpedicion: elab.tipoExpedicion,
+                                    stockDisponible: 0, cantidadPlanificada: 0, desgloseDiario: [], cantidadNeta: 0,
+                                    recetas: [], desgloseCompleto: [],
+                                };
+                                necesidadesAgregadas.set(id, necesidad);
+                            }
+                            
+                            const cantidadNecesaria = (item.quantity || 1) * elabEnReceta.cantidad;
+                            necesidad.cantidadNecesariaTotal += cantidadNecesaria;
+                            necesidad.osIDs.add(pedido.osId);
+                            
+                            if (!necesidad.recetas.includes(receta.nombre)) necesidad.recetas.push(receta.nombre);
+                            
+                            const desglose = necesidad.desgloseDiario.find(d => d.fecha === fechaKey);
+                            if (desglose) desglose.cantidad += cantidadNecesaria;
+                            else necesidad.desgloseDiario.push({ fecha: fechaKey, cantidad: cantidadNecesaria });
+                            
+                            necesidad.desgloseCompleto.push({
+                                osId: os.id, osNumber: os.serviceNumber, osSpace: hito.lugarEntrega, hitoId: hito.id,
+                                hitoDescripcion: `Entrega ${hito.hora}`, fechaHito: hito.fecha, recetaId: receta.id,
+                                recetaNombre: receta.nombre, cantidadReceta: item.quantity || 1, cantidadNecesaria: cantidadNecesaria
+                            });
+                        });
+                    }
+                });
+            });
+        });
+
 
         const stockAsignadoGlobal: Record<string, number> = {};
         Object.values(allPickingStatesData).forEach(state => {
@@ -616,15 +680,15 @@ export default function OfPage() {
             <Button variant="secondary" onClick={handleClearFilters}>Limpiar Filtros</Button>
         </div>
       </div>
-      <Tabs defaultValue="planificacion">
+      <Tabs defaultValue="generacion-of">
         <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="tabla-necesidades">Tabla Necesidades</TabsTrigger>
-            <TabsTrigger value="lista-compra">Lista de Compra</TabsTrigger>
-            <TabsTrigger value="planificacion">Planificación</TabsTrigger>
+            <TabsTrigger value="informe-produccion">Informe de Producción</TabsTrigger>
+            <TabsTrigger value="lista-compra">Lista de la Compra</TabsTrigger>
+            <TabsTrigger value="generacion-of">Generación de OF</TabsTrigger>
             <TabsTrigger value="creadas">OF Creadas</TabsTrigger>
             <TabsTrigger value="asignacion">Asignación de Órdenes</TabsTrigger>
         </TabsList>
-        <TabsContent value="tabla-necesidades" className="mt-4">
+         <TabsContent value="informe-produccion" className="mt-4">
           <Card>
             <CardHeader className="flex-row items-center justify-between">
                 <div>
@@ -802,7 +866,7 @@ export default function OfPage() {
                 </CardContent>
             </Card>
         </TabsContent>
-        <TabsContent value="planificacion" className="mt-4 space-y-4">
+        <TabsContent value="generacion-of" className="mt-4 space-y-4">
             <Card>
                 <CardHeader className="flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
@@ -1190,6 +1254,7 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
