@@ -72,11 +72,14 @@ type FormValues = z.infer<typeof formSchema>;
 type GastronomyOrderItem = FormValues['items'][0];
 
 
-function SortableTableRow({ field, index, remove, control }: { field: GastronomyOrderItem & { key: string }, index: number, remove: (index: number) => void, control: any }) {
+function SortableTableRow({ field, index, remove, control }: { field: GastronomyOrderItem, index: number, remove: (index: number) => void, control: any }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
-    const style = { transform: CSS.Transform.toString(transform), transition };
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+    
     const quantity = useWatch({ control, name: `items.${index}.quantity` });
-    const total = (field.precioVentaSnapshot || field.precioVenta || 0) * (quantity || 0);
     
     if (field.type === 'separator') {
         return (
@@ -103,6 +106,8 @@ function SortableTableRow({ field, index, remove, control }: { field: Gastronomy
             </TableRow>
         );
     }
+    
+    const total = (field.precioVentaSnapshot || field.precioVenta || 0) * (quantity || 0);
 
     return (
         <TableRow ref={setNodeRef} style={style} {...attributes}>
@@ -293,6 +298,7 @@ function PedidoGastronomiaForm() {
         comentarios: '',
     });
     toast({title: "Receta añadida"});
+    setIsSelectorOpen(false);
   }
   
   const addSeparator = (name: string) => {
@@ -414,7 +420,7 @@ function PedidoGastronomiaForm() {
                     <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                         <TableBody>
                             {fields.length > 0 ? fields.map((field, index) => (
-                                <SortableTableRow key={field.key} field={{...field, key: field.id }} index={index} remove={remove} control={control} />
+                                <SortableTableRow key={field.id} field={field} index={index} remove={remove} control={control} />
                             )) : (
                                 <TableRow><TableCell colSpan={6} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
                             )}
@@ -450,9 +456,7 @@ function PedidoGastronomiaForm() {
 
 function PedidoGastronomiaPage() {
     return (
-        <React.Suspense fallback={<LoadingSkeleton title="Cargando..." />}>
-            <PedidoGastronomiaForm />
-        </React.Suspense>
+        <React.Suspense fallback={<LoadingSkeleton title="Cargando..." />}><PedidoGastronomiaForm /></React.Suspense>
     );
 }
 
