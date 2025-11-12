@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -434,7 +433,7 @@ export default function InfoPage() {
     // Delete related data from other localStorage items
     const keysToDeleteFrom: (keyof Window['localStorage'])[] = [
       'materialOrders', 'comercialBriefings', 'gastronomyOrders', 'transporteOrders', 'hieloOrders', 
-      'decoracionOrders', 'atipicosOrders', 'personalMiceOrders', 'personalExternoOrders', 'pruebasMenu', 'pedidosEntrega'
+      'decoracionOrders', 'atipicosOrders', 'personalMiceOrders', 'personalExternoOrders', 'pruebasMenu'
     ];
 
     keysToDeleteFrom.forEach(key => {
@@ -484,15 +483,7 @@ export default function InfoPage() {
               <form id="os-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                 <Card>
                   <CardHeader className="py-3 flex-row items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <CardTitle className="text-xl">Datos del Servicio</CardTitle>
-                        <FormField control={form.control} name="isVip" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-end gap-3 rounded-lg border p-2">
-                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="vip-check" /></FormControl>
-                                <FormLabel htmlFor="vip-check" className="flex items-center gap-2 !mt-0 font-bold"><Star className="h-4 w-4 text-amber-500 fill-amber-500" /> Evento VIP</FormLabel>
-                            </FormItem>
-                        )} />
-                    </div>
+                    <CardTitle className="text-xl">Datos del Servicio</CardTitle>
                     <div className="flex items-center gap-2">
                         <FormField control={form.control} name="status" render={({ field }) => (
                             <FormItem>
@@ -609,7 +600,7 @@ export default function InfoPage() {
                                 {[
                                     ['respMetre', 'respMetrePhone', 'respMetreMail', 'Resp. Metre', personalSala], 
                                     ['respPase', 'respPasePhone', 'respPaseMail', 'Resp. Pase', personalPase], 
-                                    ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalPase], 
+                                    ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalCocina], 
                                     ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR],
                                     ['respProjectManager', 'respProjectManagerPhone', 'respProjectManagerMail', 'Resp. Project Manager', personalOperaciones],
                                 ].map(([name, phone, mail, label, personalList]) => (
@@ -776,4 +767,3 @@ export default function InfoPage() {
     </>
   );
 }
-```
