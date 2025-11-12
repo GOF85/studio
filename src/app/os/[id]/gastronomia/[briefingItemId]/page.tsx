@@ -3,18 +3,22 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
+import { format, differenceInMinutes, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import Papa from 'papaparse';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw, Euro, Archive, BrainCircuit, AlertTriangle } from 'lucide-react';
-import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, CategoriaReceta, SaborPrincipal, PartidaProduccion, ElaboracionEnReceta, TecnicaCoccion } from '@/types';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, MoreHorizontal, Copy, Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
+import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta, ComponenteElaboracion } from '@/types';
 import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, PARTIDAS_PRODUCCION, TECNICAS_COCCION } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -33,16 +37,18 @@ import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Combobox } from '@/components/ui/combobox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Slider } from '@/components/ui/slider';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatUnit, cn } from '@/lib/utils';
 import Image from 'next/image';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { ComponenteSelector } from '@/components/book/componente-selector';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { isBefore, subMonths, startOfToday } from 'date-fns';
 import { RecetaSelector } from '@/components/os/gastronomia/receta-selector';
 
 
@@ -70,6 +76,8 @@ type GastronomyOrderItem = FormValues['items'][0];
 function SortableTableRow({ field, index, remove, control }: { field: GastronomyOrderItem & { key: string }, index: number, remove: (index: number) => void, control: any }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
     const style = { transform: CSS.Transform.toString(transform), transition };
+    const quantity = useWatch({ control, name: `items.${index}.quantity` });
+    const total = (field.precioVentaSnapshot || field.precioVenta || 0) * (quantity || 0);
     
     if (field.type === 'separator') {
         return (
@@ -79,7 +87,7 @@ function SortableTableRow({ field, index, remove, control }: { field: Gastronomy
                         <GripVertical />
                     </div>
                 </TableCell>
-                <TableCell colSpan={3}>
+                <TableCell colSpan={4}>
                     <FormField
                         control={control}
                         name={`items.${index}.nombre`}
@@ -96,8 +104,6 @@ function SortableTableRow({ field, index, remove, control }: { field: Gastronomy
             </TableRow>
         );
     }
-    
-    const total = (field.precioVentaSnapshot || field.precioVenta || 0) * (field.quantity || 0);
 
     return (
         <TableRow ref={setNodeRef} style={style} {...attributes}>
@@ -175,7 +181,7 @@ function PedidoGastronomiaForm() {
 
     const getHistoricalPrice = (erpId: string): number => {
       const relevantPrices = historicoPrecios
-        .filter(h => h.articuloErpId === erpId && new Date(h.fecha) <= startOfDay(eventDate))
+        .filter(h => h.articuloErpId === erpId && new Date(h.fecha) <= startOfToday(eventDate))
         .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
       
       const latestPrice = articulosErpMap.get(erpId)?.precio || 0;
