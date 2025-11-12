@@ -368,7 +368,110 @@ export default function OfPage() {
         });
 
         return { ordenes: allOFs, personalCPR: allPersonal, elaboracionesMap: elabMap, serviceOrdersMap: osMap, necesidades: necesidadesNetas, necesidadesCubiertas, pickingStates: allPickingStatesData };
-  }, [isLoaded, data, dateRange]);
+    }, [isLoaded, data, dateRange]);
+    
+    useEffect(() => {
+        if (!necesidades || !dateRange?.from || !dateRange?.to) {
+            setReporteData(null);
+            return;
+        }
+
+        const fechas = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+        const allRecetasNecesarias = new Map<string, ReporteProduccionItem>();
+        const allElaboracionesNecesarias = new Map<string, ReporteProduccionItem>();
+        
+        const osIds = new Set<string>();
+        const serviciosSet = new Set<string>();
+        let totalPax = 0;
+
+        necesidades.forEach(necesidad => {
+            const elab = elaboracionesMap.get(necesidad.id);
+            if (!elab) return;
+
+            // Para Resumen de Elaboraciones
+            let elabItem = allElaboracionesNecesarias.get(necesidad.id);
+            if (!elabItem) {
+                elabItem = { id: necesidad.id, nombre: necesidad.nombre, partida: elab.partidaProduccion, udTotales: 0, unidad: elab.unidadProduccion, necesidadesPorDia: {}, usadoEn: [] };
+                allElaboracionesNecesarias.set(necesidad.id, elabItem);
+            }
+            elabItem.udTotales += necesidad.cantidadNecesariaTotal;
+            necesidad.desgloseDiario.forEach(d => {
+                elabItem.necesidadesPorDia[d.fecha] = (elabItem.necesidadesPorDia[d.fecha] || 0) + d.cantidad;
+            });
+
+            // Para Resumen de Recetas (Referencias)
+            necesidad.desgloseCompleto.forEach(d => {
+                let recetaItem = allRecetasNecesarias.get(d.recetaId);
+                const recetaData = data.recetas.find(r => r.id === d.recetaId);
+                if (!recetaItem && recetaData) {
+                    recetaItem = {
+                        id: d.recetaId, nombre: d.recetaNombre, partida: recetaData.partidaProduccion || 'Varios', udTotales: 0,
+                        unidad: 'Uds', necesidadesPorDia: {}, componentes: []
+                    };
+                    allRecetasNecesarias.set(d.recetaId, recetaItem);
+                }
+                
+                if (recetaItem) {
+                    recetaItem.necesidadesPorDia[d.fechaHito] = (recetaItem.necesidadesPorDia[d.fechaHito] || 0) + d.cantidadReceta;
+                    
+                    if (elabItem) {
+                        const elabInReceta = recetaData?.elaboraciones.find(e => e.elaboracionId === elabItem!.id);
+                        if(elabInReceta && !elabItem.usadoEn?.some(u => u.nombre === recetaData.nombre)) {
+                            elabItem.usadoEn?.push({ nombre: recetaData.nombre, cantidad: elabInReceta.cantidad, unidad: elabInReceta.unidad });
+                        }
+                    }
+                }
+            });
+
+            // For summary
+            necesidad.osIDs.forEach(id => osIds.add(id));
+            necesidad.desgloseCompleto.forEach(d => {
+                serviciosSet.add(d.hitoId);
+                const os = serviceOrdersMap.get(d.osId);
+                totalPax += os?.asistentes || 0;
+            });
+        });
+        
+        allRecetasNecesarias.forEach(recetaItem => {
+             recetaItem.udTotales = Object.values(recetaItem.necesidadesPorDia).reduce((sum, qty) => sum + qty, 0);
+             const recetaData = data.recetas.find(r => r.id === recetaItem.id);
+             recetaData?.elaboraciones.forEach(e => {
+                const elab = elaboracionesMap.get(e.elaboracionId);
+                if (elab && !recetaItem.componentes?.some(c => c.nombre === elab.nombre)) {
+                    recetaItem.componentes?.push({ nombre: elab.nombre, cantidad: e.cantidad, unidad: elab.unidadProduccion, cantidadTotal: e.cantidad * recetaItem.udTotales });
+                }
+             });
+        });
+        
+        const resumenPorPartida: Record<string, ReporteResumenPartida> = {};
+        allRecetasNecesarias.forEach(item => {
+            if (!resumenPorPartida[item.partida]) resumenPorPartida[item.partida] = { referencias: 0, unidades: 0, elaboraciones: 0 };
+            resumenPorPartida[item.partida].referencias++;
+            resumenPorPartida[item.partida].unidades += item.udTotales;
+        });
+        allElaboracionesNecesarias.forEach(item => {
+            if (!resumenPorPartida[item.partida]) resumenPorPartida[item.partida] = { referencias: 0, unidades: 0, elaboraciones: 0 };
+            resumenPorPartida[item.partida].elaboraciones++;
+        });
+
+        setReporteData({
+            fechas,
+            resumen: {
+                contratos: osIds.size,
+                contratosDetalle: Array.from(osIds),
+                servicios: serviciosSet.size,
+                serviciosDetalle: Array.from(serviciosSet),
+                comensales: totalPax,
+                referencias: allRecetasNecesarias.size,
+                unidades: Array.from(allRecetasNecesarias.values()).reduce((sum, item) => sum + item.udTotales, 0),
+                elaboraciones: allElaboracionesNecesarias.size,
+                resumenPorPartida,
+            },
+            referencias: Array.from(allRecetasNecesarias.values()),
+            elaboraciones: Array.from(allElaboracionesNecesarias.values()),
+        });
+
+    }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas]);
 
 
   const filteredAndSortedItems = useMemo(() => {
@@ -536,9 +639,9 @@ export default function OfPage() {
     }
 
     necesidades.forEach(necesidad => {
-        necesidad.desgloseCompleto.forEach(desglose => {
-             getIngredientesRecursivo(necesidad.id, desglose.cantidadNecesaria, desglose.recetaNombre);
-        })
+        if(necesidad.cantidadNeta > 0) {
+            getIngredientesRecursivo(necesidad.id, necesidad.cantidadNeta, necesidad.recetas.join(', '));
+        }
     });
     
     const compraPorProveedor = new Map<string, ProveedorConLista>();
@@ -871,7 +974,7 @@ export default function OfPage() {
                 <CardHeader className="flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
                     <div className="flex items-center gap-2">
-                         <Button onClick={loadAllData} variant="outline" size="sm">
+                         <Button onClick={loadData} variant="outline" size="sm">
                            <RefreshCw className="mr-2 h-4 w-4" />
                            Recalcular Necesidades
                        </Button>
@@ -1255,8 +1358,4 @@ export default function OfPage() {
   );
 }
 
-
-
-
-
-
+```
