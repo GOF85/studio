@@ -123,7 +123,7 @@ function StockEntryDialog({ onSave }: { onSave: (data: any) => void }) {
                 )}
             </div>
             <DialogFooter>
-                <Button variant="secondary" onClick={() => (document.querySelector('[data-state="open"] [cmdk-dialog-close-button]') as HTMLElement)?.click()}>Cancelar</Button>
+                <DialogClose asChild><Button variant="secondary">Cancelar</Button></DialogClose>
                 <Button onClick={handleSave}>Añadir al Stock</Button>
             </DialogFooter>
         </DialogContent>
@@ -303,17 +303,53 @@ export default function InventarioPage() {
     };
     
      const handleUpdateRecuento = (itemId: string, cantidad: string) => {
-        setRecuentoItems(prev => prev.map(item => item.id === itemId ? { ...item, cantidadReal: cantidad, contado: true } : item));
+        setRecuentoItems(prev => prev.map(item => {
+            if (item.id === itemId) {
+                const qtyReal = parseFloat(cantidad);
+                const discrepancia = !isNaN(qtyReal) ? qtyReal - item.stockTeorico : undefined;
+                return { ...item, cantidadReal: cantidad, contado: true, discrepancia };
+            }
+            return item;
+        }));
     };
 
     const handleFinalizeRecuento = () => {
-        // Here we would implement the logic to save all changes and adjust stock.
-        console.log("Recuento finalizado", recuentoItems);
+        if (!selectedUbicacion) return;
+
+        const allStock = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}') as Record<string, StockArticuloUbicacion>;
+        
+        recuentoItems.forEach(item => {
+            if (item.contado && typeof item.cantidadReal === 'string') {
+                const stockKey = `${item.id}_${selectedUbicacion}`;
+                const cantidadRealNum = parseFloat(item.cantidadReal);
+                
+                if (allStock[stockKey]) {
+                    // TODO: Aquí iría la lógica para crear un StockMovimiento
+                    allStock[stockKey].stockTeorico = cantidadRealNum;
+                } else if (item.esNuevo) {
+                    allStock[stockKey] = {
+                        id: stockKey,
+                        articuloErpId: item.id,
+                        ubicacionId: selectedUbicacion,
+                        stockTeorico: cantidadRealNum,
+                        lotes: []
+                    };
+                }
+            }
+        });
+
+        localStorage.setItem('stockArticuloUbicacion', JSON.stringify(allStock));
         toast({ title: "Recuento Finalizado", description: "El stock teórico ha sido ajustado según el conteo."});
         setIsRecounting(false);
         setSelectedCentro('');
         setSelectedUbicacion('');
+        loadData();
     };
+
+    const filteredRecuentoItems = useMemo(() => {
+        if (!showOnlyDiscrepancies) return recuentoItems;
+        return recuentoItems.filter(item => item.contado && item.discrepancia !== 0);
+    }, [recuentoItems, showOnlyDiscrepancies]);
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Inventario de Materia Prima..." />;
@@ -397,7 +433,22 @@ export default function InventarioPage() {
                             </Select>
                             <Dialog open={isArticuloDialogOpen} onOpenChange={setIsArticuloDialogOpen}>
                                 <DialogTrigger asChild><Button variant="outline" size="sm" disabled={!selectedUbicacion}><PlusCircle className="mr-2"/>Añadir Artículo no Listado</Button></DialogTrigger>
-                                <StockEntryDialog onSave={(data) => { console.log('not implemented'); setIsArticuloDialogOpen(false); }} />
+                                <StockEntryDialog onSave={(data) => {
+                                     setRecuentoItems(prev => [
+                                        ...prev,
+                                        {
+                                            id: data.articulo.idreferenciaerp,
+                                            nombre: data.articulo.nombreProductoERP,
+                                            unidad: data.articulo.unidad,
+                                            stockTeorico: 0,
+                                            cantidadReal: data.cantidad,
+                                            contado: true,
+                                            esNuevo: true,
+                                            discrepancia: data.cantidad,
+                                        }
+                                    ]);
+                                    setIsArticuloDialogOpen(false);
+                                }} />
                             </Dialog>
                              <Dialog open={isIncidenciaDialogOpen} onOpenChange={setIsIncidenciaDialogOpen}>
                                 <DialogTrigger asChild><Button variant="outline" size="sm" disabled={!selectedUbicacion}>❓ Registrar Artículo no Identificado</Button></DialogTrigger>
@@ -420,7 +471,7 @@ export default function InventarioPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {recuentoItems.map(item => (
+                                {filteredRecuentoItems.map(item => (
                                     <TableRow key={item.id} className={item.contado ? 'bg-green-50/50' : ''}>
                                         <TableCell className="font-semibold">{item.nombre}</TableCell>
                                         <TableCell className="text-right font-mono">{formatNumber(item.stockTeorico, 2)} {formatUnit(item.unidad)}</TableCell>
