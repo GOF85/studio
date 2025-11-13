@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Archive, Search, SlidersHorizontal, FileDown, FileUp, PlusCircle, Activity } from 'lucide-react';
-import type { ArticuloERP, StockArticuloUbicacion } from '@/types';
+import type { ArticuloERP, StockArticuloUbicacion, Ubicacion, StockLote } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,6 +11,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Combobox } from '@/components/ui/combobox';
 
 type StockConsolidado = {
     articulo: ArticuloERP;
@@ -18,10 +22,104 @@ type StockConsolidado = {
     valoracion: number;
 };
 
+function StockEntryDialog({ onSave }: { onSave: (data: any) => void }) {
+    const [articulos, setArticulos] = useState<ArticuloERP[]>([]);
+    const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([]);
+    const [selectedArticuloId, setSelectedArticuloId] = useState<string | null>(null);
+    const [selectedUbicacionId, setSelectedUbicacionId] = useState<string | null>(null);
+    const [cantidad, setCantidad] = useState('');
+    const [precio, setPrecio] = useState('');
+    const [fechaCaducidad, setFechaCaducidad] = useState('');
+    const { toast } = useToast();
+
+    useEffect(() => {
+        setArticulos(JSON.parse(localStorage.getItem('articulosERP') || '[]'));
+        setUbicaciones(JSON.parse(localStorage.getItem('ubicaciones') || '[]'));
+    }, []);
+
+    const selectedArticulo = useMemo(() => {
+        return articulos.find(a => a.idreferenciaerp === selectedArticuloId);
+    }, [selectedArticuloId, articulos]);
+    
+    useEffect(() => {
+        if(selectedArticulo) {
+            setPrecio(String(selectedArticulo.precioCompra / (selectedArticulo.unidadConversion || 1)));
+        }
+    }, [selectedArticulo]);
+
+    const handleSave = () => {
+        if (!selectedArticulo || !selectedUbicacionId || !cantidad) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Debes completar todos los campos obligatorios.' });
+            return;
+        }
+
+        const data = {
+            articulo: selectedArticulo,
+            ubicacionId: selectedUbicacionId,
+            cantidad: parseFloat(cantidad),
+            precio: parseFloat(precio),
+            fechaCaducidad: fechaCaducidad || undefined,
+        };
+
+        onSave(data);
+    };
+    
+    const articuloOptions = useMemo(() => articulos.map(a => ({ label: a.nombreProductoERP, value: a.idreferenciaerp })), [articulos]);
+    const ubicacionOptions = useMemo(() => ubicaciones.map(u => ({ label: u.nombre, value: u.id })), [ubicaciones]);
+
+    return (
+        <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader><DialogTitle>Registrar Entrada de Mercancía</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                    <Label>Producto</Label>
+                    <Combobox
+                        options={articuloOptions}
+                        value={selectedArticuloId || ''}
+                        onChange={setSelectedArticuloId}
+                        placeholder="Buscar producto ERP..."
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label>Ubicación de Almacenamiento</Label>
+                    <Combobox
+                        options={ubicacionOptions}
+                        value={selectedUbicacionId || ''}
+                        onChange={setSelectedUbicacionId}
+                        placeholder="Seleccionar ubicación..."
+                    />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                        <Label>Cantidad Recibida ({selectedArticulo ? formatUnit(selectedArticulo.unidad) : 'Uds'})</Label>
+                        <Input type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label>Precio de Compra / {selectedArticulo ? formatUnit(selectedArticulo.unidad) : 'Ud'}</Label>
+                        <Input type="number" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} />
+                    </div>
+                </div>
+                {selectedArticulo?.gestionLote && (
+                    <div className="space-y-2">
+                        <Label>Fecha de Caducidad</Label>
+                        <Input type="date" value={fechaCaducidad} onChange={e => setFechaCaducidad(e.target.value)} />
+                    </div>
+                )}
+            </div>
+            <DialogFooter>
+                <Button variant="secondary" onClick={() => (document.querySelector('[data-state="open"] [cmdk-dialog-close-button]') as HTMLElement)?.click()}>Cancelar</Button>
+                <Button onClick={handleSave}>Añadir al Stock</Button>
+            </DialogFooter>
+        </DialogContent>
+    )
+}
+
+
 export default function InventarioPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [stock, setStock] = useState<StockConsolidado[]>([]);
+    const { toast } = useToast();
 
     const loadData = useCallback(() => {
         const allArticulos = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
@@ -37,7 +135,7 @@ export default function InventarioPage() {
             const stockTotal = stockMap.get(articulo.idreferenciaerp) || 0;
             const valoracion = stockTotal * (articulo.precio || 0);
             return { articulo, stockTotal, valoracion };
-        }).filter(item => item.stockTotal > 0.001); // Only show items with stock
+        }).filter(item => item.stockTotal > 0.001);
 
         setStock(stockConsolidado);
     }, []);
@@ -57,6 +155,41 @@ export default function InventarioPage() {
     const totalValoracion = useMemo(() => {
         return filteredStock.reduce((sum, item) => sum + item.valoracion, 0);
     }, [filteredStock]);
+    
+    const handleSaveStockEntry = (data: { articulo: ArticuloERP; ubicacionId: string; cantidad: number; precio: number; fechaCaducidad?: string }) => {
+        const allStock = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}') as Record<string, StockArticuloUbicacion>;
+        const stockKey = `${data.articulo.idreferenciaerp}_${data.ubicacionId}`;
+
+        if (!allStock[stockKey]) {
+            allStock[stockKey] = {
+                id: stockKey,
+                articuloErpId: data.articulo.idreferenciaerp,
+                ubicacionId: data.ubicacionId,
+                stockTeorico: 0,
+                lotes: []
+            };
+        }
+
+        allStock[stockKey].stockTeorico += data.cantidad;
+        
+        if (data.articulo.gestionLote && data.fechaCaducidad) {
+            const newLote: StockLote = {
+                id: `lote-${Date.now()}`,
+                cantidad: data.cantidad,
+                fechaEntrada: new Date().toISOString(),
+                fechaCaducidad: data.fechaCaducidad,
+                precioCompraUnitario: data.precio,
+            };
+            allStock[stockKey].lotes.push(newLote);
+        }
+
+        localStorage.setItem('stockArticuloUbicacion', JSON.stringify(allStock));
+        toast({ title: 'Entrada registrada', description: `${data.cantidad} ${formatUnit(data.articulo.unidad)} de ${data.articulo.nombreProductoERP} añadido al stock.` });
+        loadData(); // Recargar datos para reflejar el cambio
+        
+        // Close dialog - simulated by clicking a close button if one existed with a specific selector
+        (document.querySelector('[data-state="open"] [cmdk-dialog-close-button]') as HTMLElement)?.click();
+    };
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Inventario de Materia Prima..." />;
@@ -75,7 +208,12 @@ export default function InventarioPage() {
                     </p>
                 </div>
                  <div className="flex items-center gap-2">
-                    <Button variant="outline"><PlusCircle className="mr-2"/>Entrada Compra</Button>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline"><PlusCircle className="mr-2"/>Entrada Compra</Button>
+                        </DialogTrigger>
+                        <StockEntryDialog onSave={handleSaveStockEntry} />
+                    </Dialog>
                     <Button><SlidersHorizontal className="mr-2"/>Iniciar Recuento</Button>
                 </div>
              </div>
@@ -129,3 +267,4 @@ export default function InventarioPage() {
         </div>
     );
 }
+
