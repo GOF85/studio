@@ -28,7 +28,7 @@ import {
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
 
@@ -106,7 +106,7 @@ function IncidenciasProduccion() {
                         <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
                         <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
                         <TableCell>{of.responsable}</TableCell>
-                        <TableCell className="max-w-xs truncate">{of.incidenciaObservaciones}</TableCell>
+                        <TableCell className="max-w-xs truncate">{of.observacionesIncidencia}</TableCell>
                         </TableRow>
                     ))
                     ) : (
@@ -184,6 +184,12 @@ function IncidenciasInventario() {
                                     <Dialog>
                                         <DialogTrigger asChild><Button variant="outline" size="sm">Ver Foto</Button></DialogTrigger>
                                         <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Foto de la Incidencia</DialogTitle>
+                                                <DialogDescription>
+                                                    Imagen adjuntada para el artículo no identificado: {item.descripcionLibre}.
+                                                </DialogDescription>
+                                            </DialogHeader>
                                             <img src={item.fotoUrl} alt="Incidencia" className="max-w-full h-auto rounded-md" />
                                         </DialogContent>
                                     </Dialog>
