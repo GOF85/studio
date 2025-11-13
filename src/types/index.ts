@@ -1153,8 +1153,9 @@ export type IncidenciaInventario = {
     descripcionLibre: string;
     cantidadContada: string; // "3 cajas"
     fotoUrl?: string;
-    estado: 'PENDIENTE_IDENTIFICACION' | 'RESUELTA';
+    estado: 'PENDIENTE_IDENTIFICACION' | 'RESUELTA' | 'DESCARTADA';
     articuloErpVinculado?: string; // FK a ArticuloERP.id
+    valoracionMerma?: number;
 };
 
     

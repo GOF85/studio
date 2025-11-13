@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Search } from 'lucide-react';
-import type { OrdenFabricacion, PartidaProduccion, IncidenciaInventario } from '@/types';
+import type { OrdenFabricacion, PartidaProduccion, IncidenciaInventario, ArticuloERP, Ubicacion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -28,7 +28,12 @@ import {
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Combobox } from '@/components/ui/combobox';
+import { useToast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
+
 
 const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
 
@@ -126,12 +131,28 @@ function IncidenciasProduccion() {
 function IncidenciasInventario() {
     const [incidencias, setIncidencias] = useState<IncidenciaInventario[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [allArticulos, setAllArticulos] = useState<ArticuloERP[]>([]);
+    const [allUbicaciones, setAllUbicaciones] = useState<Ubicacion[]>([]);
+    const [resolvingIncident, setResolvingIncident] = useState<IncidenciaInventario | null>(null);
+    const [selectedArticuloId, setSelectedArticuloId] = useState<string | null>(null);
+    const [showMermaDialog, setShowMermaDialog] = useState(false);
+    const [mermaValor, setMermaValor] = useState('');
+    
+    const { toast } = useToast();
+
+    const loadData = () => {
+        const storedData = (JSON.parse(localStorage.getItem('incidenciasInventario') || '[]') as IncidenciaInventario[]).filter(i => i.estado === 'PENDIENTE_IDENTIFICACION');
+        setIncidencias(storedData);
+        
+        const storedArticulos = (JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[]);
+        setAllArticulos(storedArticulos);
+        
+        const storedUbicaciones = (JSON.parse(localStorage.getItem('ubicaciones') || '[]') as Ubicacion[]);
+        setAllUbicaciones(storedUbicaciones);
+    };
 
     useEffect(() => {
-        const storedData = localStorage.getItem('incidenciasInventario');
-        if (storedData) {
-            setIncidencias(JSON.parse(storedData));
-        }
+        loadData();
     }, []);
 
     const filteredItems = useMemo(() => {
@@ -141,6 +162,66 @@ function IncidenciasInventario() {
             item.zona.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [incidencias, searchTerm]);
+    
+    const ubicacionMap = useMemo(() => new Map(allUbicaciones.map(u => [u.id, u.nombre])), [allUbicaciones]);
+    const articuloOptions = useMemo(() => allArticulos.map(a => ({ label: a.nombreProductoERP, value: a.idreferenciaerp! })), [allArticulos]);
+
+    const handleAsignar = () => {
+        if (!resolvingIncident || !selectedArticuloId) {
+            toast({variant: 'destructive', title: 'Error', description: 'Selecciona un artículo para asignar.'});
+            return;
+        }
+
+        const allStock = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}');
+        const stockKey = `${selectedArticuloId}_${resolvingIncident.zona}`;
+
+        if (!allStock[stockKey]) {
+            allStock[stockKey] = {
+                id: stockKey, articuloErpId: selectedArticuloId, ubicacionId: resolvingIncident.zona,
+                stockTeorico: 0, lotes: []
+            };
+        }
+        
+        const cantidadNumerica = parseFloat(resolvingIncident.cantidadContada.replace(',', '.')) || 0;
+        allStock[stockKey].stockTeorico += cantidadNumerica;
+        
+        localStorage.setItem('stockArticuloUbicacion', JSON.stringify(allStock));
+
+        const allIncidencias = JSON.parse(localStorage.getItem('incidenciasInventario') || '[]') as IncidenciaInventario[];
+        const index = allIncidencias.findIndex(i => i.id === resolvingIncident.id);
+        if (index > -1) {
+            allIncidencias[index].estado = 'RESUELTA';
+            allIncidencias[index].articuloErpVinculado = selectedArticuloId;
+            localStorage.setItem('incidenciasInventario', JSON.stringify(allIncidencias));
+        }
+
+        toast({ title: 'Incidencia Resuelta', description: 'El stock ha sido actualizado.' });
+        setResolvingIncident(null);
+        setSelectedArticuloId(null);
+        loadData();
+    };
+
+    const handleDescartar = () => {
+        const valor = parseFloat(mermaValor);
+        if (!resolvingIncident || isNaN(valor) || valor <= 0) {
+            toast({variant: 'destructive', title: 'Error', description: 'Debes introducir una valoración económica válida.'});
+            return;
+        }
+        
+        const allIncidencias = JSON.parse(localStorage.getItem('incidenciasInventario') || '[]') as IncidenciaInventario[];
+        const index = allIncidencias.findIndex(i => i.id === resolvingIncident.id);
+        if (index > -1) {
+            allIncidencias[index].estado = 'DESCARTADA';
+            allIncidencias[index].valoracionMerma = valor;
+            localStorage.setItem('incidenciasInventario', JSON.stringify(allIncidencias));
+        }
+        
+        toast({ title: 'Incidencia Descartada', description: 'Se ha registrado la merma.' });
+        setResolvingIncident(null);
+        setShowMermaDialog(false);
+        setMermaValor('');
+        loadData();
+    };
 
     return (
         <div>
@@ -166,8 +247,7 @@ function IncidenciasInventario() {
                         <TableHead>Responsable</TableHead>
                         <TableHead>Descripción</TableHead>
                         <TableHead>Cantidad</TableHead>
-                        <TableHead>Foto</TableHead>
-                        <TableHead>Estado</TableHead>
+                        <TableHead className="text-center">Acción</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -175,43 +255,78 @@ function IncidenciasInventario() {
                     filteredItems.map(item => (
                         <TableRow key={item.id}>
                             <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
-                            <TableCell>{item.zona}</TableCell>
+                            <TableCell>{ubicacionMap.get(item.zona) || item.zona}</TableCell>
                             <TableCell>{item.responsable}</TableCell>
                             <TableCell>{item.descripcionLibre}</TableCell>
                             <TableCell>{item.cantidadContada}</TableCell>
-                            <TableCell>
-                                {item.fotoUrl && (
-                                    <Dialog>
-                                        <DialogTrigger asChild><Button variant="outline" size="sm">Ver Foto</Button></DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader>
-                                                <DialogTitle>Foto de la Incidencia</DialogTitle>
-                                                <DialogDescription>
-                                                    Imagen adjuntada para el artículo no identificado: {item.descripcionLibre}.
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <img src={item.fotoUrl} alt="Incidencia" className="max-w-full h-auto rounded-md" />
-                                        </DialogContent>
-                                    </Dialog>
-                                )}
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={item.estado === 'RESUELTA' ? 'default' : 'destructive'}>{item.estado}</Badge>
+                            <TableCell className="text-center">
+                                <Button size="sm" onClick={() => setResolvingIncident(item)}>Resolver</Button>
                             </TableCell>
                         </TableRow>
                     ))
                     ) : (
                     <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center">
-                        No hay incidencias de inventario registradas.
+                        <TableCell colSpan={6} className="h-24 text-center">
+                        No hay incidencias de inventario pendientes.
                         </TableCell>
                     </TableRow>
                     )}
                 </TableBody>
                 </Table>
             </div>
+            
+            <Dialog open={!!resolvingIncident} onOpenChange={() => setResolvingIncident(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Resolver Incidencia de Inventario</DialogTitle>
+                        <DialogDescription>
+                            Asigna este artículo no identificado a un producto del ERP o descártalo como merma.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        {resolvingIncident?.fotoUrl && (
+                            <img src={resolvingIncident.fotoUrl} alt="Incidencia" className="max-w-xs mx-auto rounded-md" />
+                        )}
+                        <p><strong>Descripción:</strong> {resolvingIncident?.descripcionLibre}</p>
+                        <p><strong>Cantidad Contada:</strong> {resolvingIncident?.cantidadContada}</p>
+                        <p><strong>Zona:</strong> {ubicacionMap.get(resolvingIncident?.zona || '')}</p>
+
+                        <div className="space-y-2 pt-4 border-t">
+                            <Label htmlFor="articulo-selector">Asignar a artículo ERP</Label>
+                            <Combobox
+                                options={articuloOptions}
+                                value={selectedArticuloId || ''}
+                                onChange={setSelectedArticuloId}
+                                placeholder="Buscar artículo..."
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="justify-between">
+                         <AlertDialog open={showMermaDialog} onOpenChange={setShowMermaDialog}>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive">Declarar Merma</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Valorar Merma</AlertDialogTitle>
+                                    <AlertDialogDescription>Introduce un valor económico estimado para este producto descartado.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <div className="py-4">
+                                    <Label htmlFor="valor-merma">Valoración de la merma (€)</Label>
+                                    <Input id="valor-merma" type="number" step="0.01" value={mermaValor} onChange={e => setMermaValor(e.target.value)} />
+                                </div>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDescartar}>Confirmar Merma</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                        <Button onClick={handleAsignar} disabled={!selectedArticuloId}>Asignar y Resolver</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
-    )
+    );
 }
 
 export default function IncidenciasPage() {
