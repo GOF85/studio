@@ -103,7 +103,7 @@ function StockEntryDialog({ onSave, defaultUbicacionId }: { onSave: (data: any) 
             <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
                 <div className="space-y-2">
                     <Label>Producto</Label>
-                    <Combobox
+                     <Combobox
                         options={articuloOptions}
                         value={selectedArticuloId || ''}
                         onChange={setSelectedArticuloId}
@@ -142,8 +142,8 @@ function StockEntryDialog({ onSave, defaultUbicacionId }: { onSave: (data: any) 
                     )}
                  </div>
             </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="secondary">Cancelar</Button></DialogClose>
+             <DialogFooter>
+                 <DialogClose asChild><Button variant="secondary">Cancelar</Button></DialogClose>
                 <Button onClick={handleSave}>Añadir al Stock</Button>
             </DialogFooter>
         </DialogContent>
@@ -335,14 +335,14 @@ function InventarioPage() {
         if (!selectedUbicacion) return;
 
         const allStock = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}') as Record<string, StockArticuloUbicacion>;
-        
+
         recuentoItems.forEach(item => {
-            if (item.contado && typeof item.cantidadReal === 'string') {
+            if (item.contado && item.cantidadReal !== '') {
                 const stockKey = `${item.id}_${selectedUbicacion}`;
-                const cantidadRealNum = parseFloat(item.cantidadReal);
+                const cantidadRealNum = parseFloat(String(item.cantidadReal));
                 
                 if (!isNaN(cantidadRealNum)) {
-                     if (allStock[stockKey]) {
+                    if (allStock[stockKey]) {
                         allStock[stockKey].stockTeorico = cantidadRealNum;
                     } else if (item.esNuevo) {
                         allStock[stockKey] = {
@@ -364,6 +364,7 @@ function InventarioPage() {
         setSelectedUbicacion('');
         setUpdateTrigger(Date.now());
     };
+
 
     const filteredRecuentoItems = useMemo(() => {
         if (!showOnlyDiscrepancies) return recuentoItems;
@@ -529,6 +530,6 @@ export default function InventarioPageWrapper() {
     
     
     
-    
+
 
 
