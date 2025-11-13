@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -339,10 +338,10 @@ function InventarioPage() {
         recuentoItems.forEach(item => {
             if (item.contado && item.cantidadReal !== '') {
                 const stockKey = `${item.id}_${selectedUbicacion}`;
-                const cantidadRealNum = parseFloat(String(item.cantidadReal));
+                const cantidadRealNum = parseFloat(String(item.cantidadReal).replace(',', '.'));
                 
                 if (!isNaN(cantidadRealNum)) {
-                    if (allStock[stockKey]) {
+                     if (allStock[stockKey]) {
                         allStock[stockKey].stockTeorico = cantidadRealNum;
                     } else if (item.esNuevo) {
                         allStock[stockKey] = {
@@ -432,7 +431,7 @@ function InventarioPage() {
                     <CardContent>
                         <div className="border rounded-lg max-h-[60vh] overflow-y-auto">
                             <Table><TableHeader className="sticky top-0 bg-secondary">
-                                <TableRow><TableHead>Producto</TableHead><TableHead>Categoría</TableHead><TableHead className="text-right">Stock Teórico</TableHead><TableHead className="text-right">Valoración</TableHead><TableHead className="text-right">Stock Mínimo</TableHead></TableRow>
+                                <TableRow><TableHead>Producto</TableHead><TableHead>Categoría</TableHead><TableHead className="text-right">Stock Teórico</TableHead><TableHead className="text-right">Valoración</TableHead></TableRow>
                             </TableHeader><TableBody>
                                 {filteredStock.map(item => {
                                     const porDebajoMinimo = item.stockTotal < (item.articulo.stockMinimo || 0);
@@ -442,7 +441,6 @@ function InventarioPage() {
                                         <TableCell><Badge variant="outline">{item.articulo.tipo}</Badge></TableCell>
                                         <TableCell className="text-right font-mono">{formatNumber(item.stockTotal, 2)} {formatUnit(item.articulo.unidad)}</TableCell>
                                         <TableCell className="text-right font-mono">{formatCurrency(item.valoracion)}</TableCell>
-                                        <TableCell className="text-right font-mono">{item.articulo.stockMinimo ? `${formatNumber(item.articulo.stockMinimo, 2)} ${formatUnit(item.articulo.unidad)}` : '-'}</TableCell>
                                     </TableRow>
                                 )})}
                             </TableBody></Table>
@@ -530,6 +528,7 @@ export default function InventarioPageWrapper() {
     
     
     
+
 
 
 
