@@ -28,7 +28,7 @@ import {
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Combobox } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -137,6 +137,9 @@ function IncidenciasInventario() {
     const [selectedArticuloId, setSelectedArticuloId] = useState<string | null>(null);
     const [showMermaDialog, setShowMermaDialog] = useState(false);
     const [mermaValor, setMermaValor] = useState('');
+    const [isAssigningDialogOpen, setIsAssigningDialogOpen] = useState(false);
+    const [assignmentData, setAssignmentData] = useState<{cantidadCompra: string, cantidadBase: string}>({cantidadCompra: '', cantidadBase: ''});
+
     
     const { toast } = useToast();
 
@@ -154,6 +157,22 @@ function IncidenciasInventario() {
     useEffect(() => {
         loadData();
     }, []);
+    
+    const selectedArticulo = useMemo(() => {
+        return allArticulos.find(a => a.idreferenciaerp === selectedArticuloId);
+    }, [selectedArticuloId, allArticulos]);
+
+    useEffect(() => {
+        if(selectedArticulo) {
+            const cantidadNum = parseFloat(assignmentData.cantidadCompra.replace(',', '.'));
+            if (!isNaN(cantidadNum)) {
+                setAssignmentData(prev => ({
+                    ...prev,
+                    cantidadBase: String(cantidadNum * (selectedArticulo.unidadConversion || 1))
+                }));
+            }
+        }
+    }, [selectedArticulo, assignmentData.cantidadCompra]);
 
     const filteredItems = useMemo(() => {
         return incidencias.filter(item =>
@@ -166,11 +185,14 @@ function IncidenciasInventario() {
     const ubicacionMap = useMemo(() => new Map(allUbicaciones.map(u => [u.id, u.nombre])), [allUbicaciones]);
     const articuloOptions = useMemo(() => allArticulos.map(a => ({ label: a.nombreProductoERP, value: a.idreferenciaerp! })), [allArticulos]);
 
+    const handleOpenAssignDialog = () => {
+        if (!resolvingIncident || !selectedArticuloId) return;
+        setAssignmentData({ cantidadCompra: '', cantidadBase: '' });
+        setIsAssigningDialogOpen(true);
+    };
+
     const handleAsignar = () => {
-        if (!resolvingIncident || !selectedArticuloId) {
-            toast({variant: 'destructive', title: 'Error', description: 'Selecciona un artículo para asignar.'});
-            return;
-        }
+        if (!resolvingIncident || !selectedArticuloId) return;
 
         const allStock = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}');
         const stockKey = `${selectedArticuloId}_${resolvingIncident.zona}`;
@@ -182,7 +204,7 @@ function IncidenciasInventario() {
             };
         }
         
-        const cantidadNumerica = parseFloat(resolvingIncident.cantidadContada.replace(',', '.')) || 0;
+        const cantidadNumerica = parseFloat(assignmentData.cantidadBase.replace(',', '.')) || 0;
         allStock[stockKey].stockTeorico += cantidadNumerica;
         
         localStorage.setItem('stockArticuloUbicacion', JSON.stringify(allStock));
@@ -198,6 +220,7 @@ function IncidenciasInventario() {
         toast({ title: 'Incidencia Resuelta', description: 'El stock ha sido actualizado.' });
         setResolvingIncident(null);
         setSelectedArticuloId(null);
+        setIsAssigningDialogOpen(false);
         loadData();
     };
 
@@ -247,6 +270,7 @@ function IncidenciasInventario() {
                         <TableHead>Responsable</TableHead>
                         <TableHead>Descripción</TableHead>
                         <TableHead>Cantidad</TableHead>
+                        <TableHead>Foto</TableHead>
                         <TableHead className="text-center">Acción</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -259,6 +283,19 @@ function IncidenciasInventario() {
                             <TableCell>{item.responsable}</TableCell>
                             <TableCell>{item.descripcionLibre}</TableCell>
                             <TableCell>{item.cantidadContada}</TableCell>
+                            <TableCell>
+                                {item.fotoUrl && (
+                                    <Dialog>
+                                        <DialogTrigger asChild><Button variant="outline" size="sm">Ver Foto</Button></DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Foto de la Incidencia</DialogTitle>
+                                            </DialogHeader>
+                                            <img src={item.fotoUrl} alt="Incidencia" className="max-w-full h-auto rounded-md" />
+                                        </DialogContent>
+                                    </Dialog>
+                                )}
+                            </TableCell>
                             <TableCell className="text-center">
                                 <Button size="sm" onClick={() => setResolvingIncident(item)}>Resolver</Button>
                             </TableCell>
@@ -266,7 +303,7 @@ function IncidenciasInventario() {
                     ))
                     ) : (
                     <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={7} className="h-24 text-center">
                         No hay incidencias de inventario pendientes.
                         </TableCell>
                     </TableRow>
@@ -275,7 +312,7 @@ function IncidenciasInventario() {
                 </Table>
             </div>
             
-            <Dialog open={!!resolvingIncident} onOpenChange={() => setResolvingIncident(null)}>
+            <Dialog open={!!resolvingIncident && !isAssigningDialogOpen} onOpenChange={() => setResolvingIncident(null)}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Resolver Incidencia de Inventario</DialogTitle>
@@ -321,7 +358,36 @@ function IncidenciasInventario() {
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
-                        <Button onClick={handleAsignar} disabled={!selectedArticuloId}>Asignar y Resolver</Button>
+                        <Button onClick={handleOpenAssignDialog} disabled={!selectedArticuloId}>Asignar y Resolver</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+             <Dialog open={isAssigningDialogOpen} onOpenChange={setIsAssigningDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirmar Cantidad a Añadir</DialogTitle>
+                        <DialogDescription>
+                            Introduce la cantidad en la unidad de compra (ej. cajas) o directamente en la unidad base.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <p><strong>Producto:</strong> {selectedArticulo?.nombreProductoERP}</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Cantidad Compra (ej. Cajas)</Label>
+                                <Input type="number" value={assignmentData.cantidadCompra} onChange={e => setAssignmentData(prev => ({...prev, cantidadCompra: e.target.value}))}/>
+                                <p className="text-xs text-muted-foreground">Formato compra: {selectedArticulo?.unidadConversion || 1} {selectedArticulo?.unidad}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Cantidad a Añadir ({selectedArticulo?.unidad})</Label>
+                                <Input type="number" value={assignmentData.cantidadBase} onChange={e => setAssignmentData(prev => ({...prev, cantidadBase: e.target.value}))} />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="secondary" onClick={() => setIsAssigningDialogOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleAsignar}>Confirmar y Añadir a Stock</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

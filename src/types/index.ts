@@ -389,6 +389,8 @@ export type ComercialBriefingItem = {
     matBebida?: string;
     materialGastro?: string;
     manteleria?: string;
+    gastro_items?: GastronomyOrderItem[];
+    gastro_total?: number;
 };
 
 export type ComercialBriefing = {
