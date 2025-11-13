@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -211,6 +212,7 @@ function InventarioPage() {
     const [isArticuloDialogOpen, setIsArticuloDialogOpen] = useState(false);
     const [isIncidenciaDialogOpen, setIsIncidenciaDialogOpen] = useState(false);
     const [showOnlyDiscrepancies, setShowOnlyDiscrepancies] = useState(false);
+    const [updateTrigger, setUpdateTrigger] = useState(0);
 
     const loadData = useCallback(() => {
         const storedArticulos = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
@@ -238,7 +240,7 @@ function InventarioPage() {
     useEffect(() => {
         loadData();
         setIsMounted(true);
-    }, [loadData]);
+    }, [loadData, updateTrigger]);
     
     useEffect(() => {
         if (!isRecounting || !selectedUbicacion) {
@@ -298,7 +300,7 @@ function InventarioPage() {
 
         localStorage.setItem('stockArticuloUbicacion', JSON.stringify(allStock));
         toast({ title: 'Entrada registrada', description: `${data.cantidad} ${formatUnit(data.articulo.unidad)} de ${data.articulo.nombreProductoERP} añadido al stock.` });
-        loadData();
+        setUpdateTrigger(Date.now());
     };
 
     const handleSaveIncidencia = ({ descripcion, cantidad, foto }: { descripcion: string; cantidad: string; foto?: string; }) => {
@@ -360,7 +362,7 @@ function InventarioPage() {
         setIsRecounting(false);
         setSelectedCentro('');
         setSelectedUbicacion('');
-        loadData();
+        setUpdateTrigger(Date.now());
     };
 
     const filteredRecuentoItems = useMemo(() => {
@@ -528,4 +530,5 @@ export default function InventarioPageWrapper() {
     
     
     
+
 
