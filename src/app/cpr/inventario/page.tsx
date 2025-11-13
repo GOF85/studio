@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -66,7 +67,7 @@ function StockEntryDialog({ onSave, defaultUbicacionId }: { onSave: (data: any) 
         if(selectedArticulo) {
             setPrecio(String((selectedArticulo.precioCompra || 0) / (selectedArticulo.unidadConversion || 1)));
             
-            const cantidadNum = parseFloat(cantidadCompra);
+            const cantidadNum = parseFloat(cantidadCompra.replace(',', '.'));
             if (!isNaN(cantidadNum)) {
                 setCantidad(String(cantidadNum * (selectedArticulo.unidadConversion || 1)));
             }
@@ -93,7 +94,7 @@ function StockEntryDialog({ onSave, defaultUbicacionId }: { onSave: (data: any) 
         onSave(data);
     };
     
-    const articuloOptions = useMemo(() => articulos.map(a => ({ label: a.nombreProductoERP, value: a.idreferenciaerp })), [articulos]);
+    const articuloOptions = useMemo(() => articulos.map(a => ({ label: a.nombreProductoERP, value: a.idreferenciaerp! })), [articulos]);
     const ubicacionOptions = useMemo(() => ubicaciones.map(u => ({ label: u.nombre, value: u.id })), [ubicaciones]);
 
     return (
@@ -124,7 +125,7 @@ function StockEntryDialog({ onSave, defaultUbicacionId }: { onSave: (data: any) 
                         <Input type="number" value={cantidadCompra} onChange={e => setCantidadCompra(e.target.value)} />
                     </div>
                      <div className="space-y-2">
-                        <Label>Cantidad Recibida ({selectedArticulo ? formatUnit(selectedArticulo.unidad) : 'Uds'})</Label>
+                        <Label>Cantidad a Añadir ({selectedArticulo ? formatUnit(selectedArticulo.unidad) : 'Uds'})</Label>
                         <Input type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} />
                     </div>
                 </div>
@@ -195,6 +196,7 @@ function IncidenciaDialog({ onSave, zonaActual }: { onSave: (data: { descripcion
 function InventarioPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('all');
     const [stock, setStock] = useState<StockConsolidado[]>([]);
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
@@ -267,11 +269,19 @@ function InventarioPage() {
     }, [isRecounting, selectedUbicacion, allArticulos, allStockUbicacion]);
 
     const filteredStock = useMemo(() => {
-        return stock.filter(item => 
-            item.articulo.nombreProductoERP.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (item.articulo.tipo || '').toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [stock, searchTerm]);
+        return stock.filter(item => {
+            const matchesSearch =
+                item.articulo.nombreProductoERP.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (item.articulo.tipo || '').toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesCategory = categoryFilter === 'all' || (item.articulo.categoriaMice === categoryFilter || item.articulo.tipo === categoryFilter);
+            return matchesSearch && matchesCategory;
+        });
+    }, [stock, searchTerm, categoryFilter]);
+
+    const categories = useMemo(() => {
+        const cats = new Set(allArticulos.map(item => item.categoriaMice || item.tipo).filter(Boolean) as string[]);
+        return ['all', ...Array.from(cats).sort()];
+    }, [allArticulos]);
     
     const totalValoracion = useMemo(() => {
         return filteredStock.reduce((sum, item) => sum + item.valoracion, 0);
@@ -393,16 +403,10 @@ function InventarioPage() {
 
     return (
         <div>
-            <div className="flex items-start justify-between mb-6">
-                <div>
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        <Archive />
-                        Inventario de Materia Prima (CPR)
-                    </h1>
-                    <p className="text-muted-foreground mt-2">
-                        Consulta el stock teórico, realiza recuentos físicos y gestiona el inventario.
-                    </p>
-                </div>
+             <div className="flex items-start justify-between mb-6">
+                <p className="text-muted-foreground mt-2">
+                    Consulta el stock teórico, realiza recuentos físicos y gestiona el inventario.
+                </p>
                  <div className="flex items-center gap-2">
                     <Dialog>
                         <DialogTrigger asChild>
@@ -419,9 +423,17 @@ function InventarioPage() {
                     <CardHeader>
                         <CardTitle>Stock Teórico Consolidado</CardTitle>
                         <div className="flex justify-between items-center">
-                            <Input 
-                                placeholder="Buscar producto o categoría..." className="max-w-sm"
-                                value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                            <div className="flex items-center gap-2">
+                                <Input 
+                                    placeholder="Buscar producto o categoría..." className="max-w-sm"
+                                    value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                    <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'Todas las Categorías' : c}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div className="text-right">
                                 <div className="text-sm font-semibold text-muted-foreground">Valoración Total del Stock</div>
                                 <div className="text-2xl font-bold text-primary">{formatCurrency(totalValoracion)}</div>
@@ -434,11 +446,10 @@ function InventarioPage() {
                                 <TableRow><TableHead>Producto</TableHead><TableHead>Categoría</TableHead><TableHead className="text-right">Stock Teórico</TableHead><TableHead className="text-right">Valoración</TableHead></TableRow>
                             </TableHeader><TableBody>
                                 {filteredStock.map(item => {
-                                    const porDebajoMinimo = item.stockTotal < (item.articulo.stockMinimo || 0);
                                     return (
-                                    <TableRow key={item.articulo.idreferenciaerp} className={porDebajoMinimo ? 'bg-amber-100/50' : ''}>
+                                    <TableRow key={item.articulo.idreferenciaerp}>
                                         <TableCell className="font-semibold">{item.articulo.nombreProductoERP}</TableCell>
-                                        <TableCell><Badge variant="outline">{item.articulo.tipo}</Badge></TableCell>
+                                        <TableCell><Badge variant="outline">{item.articulo.categoriaMice || item.articulo.tipo}</Badge></TableCell>
                                         <TableCell className="text-right font-mono">{formatNumber(item.stockTotal, 2)} {formatUnit(item.articulo.unidad)}</TableCell>
                                         <TableCell className="text-right font-mono">{formatCurrency(item.valoracion)}</TableCell>
                                     </TableRow>
@@ -528,7 +539,5 @@ export default function InventarioPageWrapper() {
     
     
     
-
-
 
 
