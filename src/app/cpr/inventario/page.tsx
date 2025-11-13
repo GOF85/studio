@@ -404,9 +404,7 @@ function InventarioPage() {
     return (
         <div>
              <div className="flex items-start justify-between mb-6">
-                <p className="text-muted-foreground mt-2">
-                    Consulta el stock teórico, realiza recuentos físicos y gestiona el inventario.
-                </p>
+                <h2 className="text-2xl font-semibold tracking-tight">Stock Teórico Consolidado</h2>
                  <div className="flex items-center gap-2">
                     <Dialog>
                         <DialogTrigger asChild>
@@ -421,7 +419,6 @@ function InventarioPage() {
             {!isRecounting ? (
                  <Card>
                     <CardHeader>
-                        <CardTitle>Stock Teórico Consolidado</CardTitle>
                         <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                                 <Input 
@@ -539,5 +536,6 @@ export default function InventarioPageWrapper() {
     
     
     
+
 
 
