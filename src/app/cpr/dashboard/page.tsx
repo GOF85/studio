@@ -1,32 +1,33 @@
 
+
 'use client';
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useState, useEffect, useMemo } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon, OrdenFabricacion } from 'lucide-react';
 import { cprNav } from '@/lib/cpr-nav';
 import { Separator } from '@/components/ui/separator';
 import { Factory, AlertTriangle, List, Clock, CheckCircle, UserCheck } from 'lucide-react';
 import { isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { OrdenFabricacion, SolicitudPersonalCPR } from '@/types';
+import type { SolicitudPersonalCPR } from '@/types';
 import { KpiCard } from '@/components/dashboard/kpi-card';
 
 
 const workflowSections = {
   planificar: {
     title: '1. Planificar',
-    modules: ['Planificación y OFs', 'Solicitudes de Personal', 'Validación de Horas']
+    modules: ['Planificación y OFs', 'Solicitudes de Personal']
   },
   ejecutar: {
     title: '2. Ejecutar',
-    modules: ['Taller de Producción', 'Picking y Logística', 'Control de Calidad']
+    modules: ['Taller de Producción', 'Inventario de Materia Prima', 'Picking y Logística', 'Control de Calidad']
   },
   analizar: {
     title: '3. Analizar y Supervisar',
-    modules: ['Stock Elaboraciones', 'Productividad', 'Informe de Picking', 'Trazabilidad', 'Incidencias']
+    modules: ['Validación de Horas', 'Stock Elaboraciones', 'Productividad', 'Informe de Picking', 'Trazabilidad', 'Incidencias']
   }
 };
 

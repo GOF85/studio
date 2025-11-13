@@ -35,7 +35,7 @@ export default function InfoIAPage() {
                 <ol>
                     <li><strong>Creación de Pedido de Entrega:</strong> Un formulario único y ágil centraliza toda la información.</li>
                     <li><strong>Confección del Pedido:</strong> Se utilizan "Packs de Venta" o productos individuales de un catálogo unificado.</li>
-                    <li>**Distribución Automática:** El sistema envía las necesidades de producción a CPR o a un Partner Externo, y las de material al Almacén.</li>
+                    <li>**Distribución Automática:** El sistema envía las necesidades de producción a CPR MICE o a un Partner Externo, y las de material al Almacén.</li>
                     <li>**Portales Externos:** Los partners (producción, transporte) gestionan sus tareas desde portales web simplificados.</li>
                     <li>**Entrega y Firma Digital:** El transportista completa la entrega y recoge la firma del cliente en su dispositivo móvil.</li>
                     <li>**Análisis:** Rentabilidad analizada en una Cta. de Explotación específica para la entrega.</li>
@@ -179,11 +179,15 @@ export default function InfoIAPage() {
                 </ul>
 
                 <h4>ArticuloERP</h4>
-                <p>Representa la materia prima tal como se compra al proveedor.</p>
-                <ul>
-                    <li><code>id</code>, <code>nombreProductoERP</code>, <code>idProveedor</code>: Identificación del producto y su proveedor.</li>
-                    <li><code>precioCompra</code>, <code>unidad</code>: Coste de adquisición y unidad de medida (KILO, LITRO, etc.).</li>
-                    <li><code>unidadConversion</code>: Factor de conversión para calcular el precio por unidad base (ej: un saco de 25kg tiene una `unidadConversion` de 25).</li>
+                <p>Representa la materia prima tal como se compra al proveedor. Esta es la fuente de verdad de los costes de ingredientes.</p>
+                 <ul>
+                    <li><code>idreferenciaerp</code>: El identificador único del producto en el ERP.</li>
+                    <li><code>nombreProductoERP</code>: Nombre oficial del producto.</li>
+                    <li><code>idProveedor</code>: FK al proveedor en el ERP.</li>
+                    <li><code>precioCompra</code>: Precio del formato de compra (ej. precio de un saco de 25kg).</li>
+                    <li><code>unidadConversion</code>: Factor clave. Es el número por el que se divide el `precioCompra` para obtener el coste por unidad base. (ej. 25 para un saco de 25kg).</li>
+                    <li><code>unidad</code>: La unidad base (KILO, LITRO, UNIDAD).</li>
+                    <li><code>gestionLote</code>: Booleano que activa el seguimiento por lote y caducidad para este artículo.</li>
                 </ul>
 
                 <h3 className="!mt-8">Entidades de Producción y Logística (CPR y Almacén)</h3>
@@ -194,7 +198,7 @@ export default function InfoIAPage() {
                     <li><code>id</code>: Identificador único del lote (ej. "OF-2024-001").</li>
                     <li><code>elaboracionId</code>, <code>elaboracionNombre</code>: Qué se va a producir.</li>
                     <li><code>cantidadTotal</code>, <code>cantidadReal</code>: Cantidad planificada vs. cantidad final producida.</li>
-                    <li><code>estado</code>: Ciclo de vida de la producción ('Pendiente', 'En Proceso', 'Finalizado', 'Validado', 'Incidencia').</li>
+                    <li><code>estado</code>: Ciclo de vida de la producción ('Pendiente', 'En Proceso', 'Finalizado', 'Validado', 'Incidencia'). Solo los lotes 'Validados' pueden ser usados en el picking logístico.</li>
                     <li><code>osIDs</code>: Array de IDs de las OS que necesitan esta producción.</li>
                     <li><code>responsable</code>, <code>responsableCalidad</code>: Personas asignadas.</li>
                 </ul>
@@ -224,6 +228,31 @@ export default function InfoIAPage() {
                     <li><code>id</code>: Coincide con el `osId`.</li>
                     <li><code>items</code>: Lista de artículos que se enviaron.</li>
                     <li><code>itemStates</code>: Registro de las cantidades devueltas y los comentarios de incidencias (roturas, pérdidas).</li>
+                </ul>
+
+                <h3 className="!mt-8">Nuevas Entidades para Inventario Avanzado</h3>
+
+                <h4>CentroProduccion</h4>
+                <p>Define los almacenes o cocinas principales.</p>
+                <ul>
+                    <li><code>id</code>: Identificador único (ej. "CPR_MAD").</li>
+                    <li><code>nombre</code>: "Centro de Producción Madrid".</li>
+                </ul>
+                
+                <h4>Ubicacion</h4>
+                <p>Define las zonas físicas dentro de un centro.</p>
+                <ul>
+                    <li><code>id</code>: Identificador único autogenerado.</li>
+                    <li><code>centroId</code>: FK a `CentroProduccion`.</li>
+                    <li><code>nombre</code>: Nombre descriptivo (ej. "Cámara Fría 1 - Congelados").</li>
+                </ul>
+                
+                <h4>StockArticuloUbicacion</h4>
+                <p>El corazón del nuevo inventario. Registra el stock de un artículo en una ubicación concreta.</p>
+                <ul>
+                    <li><code>id</code>: Clave compuesta `articuloErpId_ubicacionId`.</li>
+                    <li><code>stockTeorico</code>: Cantidad total del artículo en esa ubicación.</li>
+                    <li><code>lotes</code>: Si `ArticuloERP.gestionLote` es true, este array contiene objetos `StockLote` con cantidad y fecha de caducidad para un control FIFO.</li>
                 </ul>
 
                 <h3 className="!mt-8">Entidades de Vertical de Entregas</h3>
@@ -272,21 +301,6 @@ export default function InfoIAPage() {
                     <li><code>osId</code>: El pedido al que sirve.</li>
                     <li><code>hitosIds</code>: Array de FKs a `EntregaHito.id` si agrupa varias entregas.</li>
                     <li><code>firmaUrl</code>, <code>firmadoPor</code>: Datos de la firma digital del albarán.</li>
-                </ul>
-
-                <h3 className="!mt-8">Nuevas Entidades para Control de Explotación CPR</h3>
-                
-                <h4>CosteFijoCPR</h4>
-                <p>Define un gasto estructural recurrente del Centro de Producción.</p>
-                <ul>
-                    <li><code>id</code>, <code>concepto</code>, <code>importeMensual</code>: Campos para registrar gastos como "Alquiler Nave CPR", "Suministros", etc.</li>
-                </ul>
-
-                <h4>ObjetivoMensualCPR</h4>
-                <p>Define los presupuestos (objetivos) para un mes específico para el CPR.</p>
-                <ul>
-                    <li><code>mes</code>: En formato "YYYY-MM".</li>
-                    <li><code>presupuestoVentas</code>, <code>presupuestoGastosMP</code>, <code>presupuestoGastosPersonal</code>: Campos numéricos para la comparativa Real vs. Presupuesto.</li>
                 </ul>
             </section>
         </>

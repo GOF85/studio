@@ -1,3 +1,4 @@
+
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { parse, differenceInMinutes } from "date-fns";
@@ -27,7 +28,8 @@ export function formatUnit(unit: string) {
 }
 
 export function formatPercentage(value: number) {
-  return `${(value * 100).toFixed(2)}%`;
+  if (isNaN(value)) return '0,00%';
+  return `${(value * 100).toFixed(2)}%`.replace('.',',');
 }
 
 export function calculateHours(start?: string, end?: string): number {

@@ -35,7 +35,8 @@ const ALL_DATABASE_KEYS = [
     'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 'familiasERP',
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones', 'personalExternoDB', 'historicoPreciosERP',
-    'incidenciasRetorno', 'costesFijosCPR', 'objetivosCPR', 'solicitudesPersonalCPR', 'cesionesPersonal'
+    'incidenciasRetorno', 'costesFijosCPR', 'objetivosCPR', 'solicitudesPersonalCPR', 'cesionesPersonal',
+    'centros', 'ubicaciones', 'stockArticuloUbicacion', 'incidenciasInventario'
 ];
 
 
@@ -96,6 +97,10 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
     objetivosCPR: 'Presupuestos mensuales para la Cta. de Explotación del CPR.',
     solicitudesPersonalCPR: 'Solicitudes de personal de apoyo para el CPR.',
     cesionesPersonal: 'Registro de cesiones de personal interno entre departamentos.',
+    centros: 'NUEVO: Centros de Producción/Almacenes (ej. CPR_MAD).',
+    ubicaciones: 'NUEVO: Ubicaciones físicas dentro de cada centro (ej. Pasillo A).',
+    stockArticuloUbicacion: 'NUEVO: El inventario real. Mapea cada artículo a una ubicación y su stock.',
+    incidenciasInventario: 'NUEVO: Registro de artículos no identificados durante un recuento.'
 };
 
 
@@ -209,6 +214,7 @@ export default function DebugDbPage() {
 }
 
     
+
 
 
 
