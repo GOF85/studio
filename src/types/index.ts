@@ -608,6 +608,10 @@ export const articuloErpSchema = z.object({
   categoriaMice: z.string().optional(),
   alquiler: z.boolean().default(false),
   observaciones: z.string().optional(),
+  loc: z.string().optional(),
+  gestionLote: z.boolean().default(false),
+  stockMinimo: z.coerce.number().optional(),
+  proveedorPreferenteId: z.string().optional(),
 });
 
 export type ArticuloERP = z.infer<typeof articuloErpSchema>;
@@ -662,6 +666,8 @@ export type Elaboracion = {
     requiereRevision?: boolean;
     comentarioRevision?: string;
     fechaRevision?: string;
+    estadoEscandallo?: 'COMPLETO' | 'PROVISIONAL' | 'PENDIENTE';
+    costeMateriaPrimaEstimado?: number;
 }
 
 export type ElaboracionEnReceta = {
@@ -727,6 +733,7 @@ export type Receta = {
     requiereRevision?: boolean;
     comentarioRevision?: string;
     fechaRevision?: string;
+    estadoEscandallo?: 'COMPLETO' | 'PROVISIONAL' | 'PENDIENTE';
 }
 
 export type OrdenFabricacion = {
@@ -1098,4 +1105,78 @@ export type CesionStorage = {
   estado: EstadoCesionPersonal;
 };
 
+
+// --- NUEVAS ENTIDADES PARA GESTIÓN DE INVENTARIO ---
+
+export type CentroProduccion = {
+    id: string; // ej: "CPR_MAD"
+    nombre: string; // ej: "Centro de Producción Madrid"
+    direccion: string;
+    tipo: 'Central' | 'Satelite' | 'Evento Temporal';
+}
+
+export type Ubicacion = {
+    id: string; // ej: "CPR-MAD_SECOS_A1"
+    centroId: string; // FK a CentroProduccion.id
+    nombre: string; // ej: "Pasillo Secos A - Estantería 1"
+    descripcion?: string;
+    esZonaPicking: boolean;
+}
+
+export type StockLote = {
+    id: string; // ej: "compra-timestamp-lote"
+    cantidad: number;
+    fechaCaducidad: string; // ISO Date
+    fechaEntrada: string; // ISO Date
+    precioCompraUnitario: number;
+};
+
+export type StockArticuloUbicacion = {
+    id: string; // Composite key: articuloErpId + ubicacionId
+    articuloErpId: string; // FK a ArticuloERP.id
+    ubicacionId: string; // FK a Ubicacion.id
+    stockTeorico: number;
+    lotes: StockLote[];
+}
+
+export type StockMovimiento = {
+    id: string;
+    articuloErpId: string;
+    fecha: string;
+    tipo: 'ENTRADA_COMPRA' | 'ENTRADA_AJUSTE' | 'SALIDA_PRODUCCION' | 'SALIDA_MERMA' | 'MOVIMIENTO_SALIDA' | 'MOVIMIENTO_ENTRADA';
+    cantidad: number; // Positivo para entradas, negativo para salidas
+    concepto: string; // ej: "OF-2024-123", "Ajuste por rotura", "Movimiento a CPR_CALIENTE_PICK"
+    responsable: string;
+    ubicacionOrigenId?: string;
+    ubicacionDestinoId?: string;
+    valoracion: number;
+}
+
+export type CierreInventario = {
+    id: string; // ej: "CPR_2024-06"
+    centroId: string;
+    mes: string; // "YYYY-MM"
+    fechaInicio: string;
+    fechaCierre: string;
+    valorInventarioInicial: number;
+    valorInventarioFinal: number;
+    valorCompras: number;
+    valorConsumoTrazado: number;
+    valorConsumoEstimado: number;
+    valorMermaDesconocida: number;
+}
+
+export type IncidenciaInventario = {
+    id: string;
+    fecha: string;
+    zona: string;
+    responsable: string;
+    descripcionLibre: string;
+    cantidadContada: string;
+    fotoUrl?: string;
+    estado: 'PENDIENTE_IDENTIFICACION' | 'RESUELTA';
+    articuloErpVinculado?: string; // FK a ArticuloERP.id
+};
+
     
+

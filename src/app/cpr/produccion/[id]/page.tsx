@@ -101,7 +101,7 @@ export default function ProduccionDetallePage() {
     }, [orden]);
 
     const handleUpdateStatus = (newStatus: 'En Proceso' | 'Finalizado') => {
-        if (!orden) return;
+        if (!orden || !elaboracion) return;
         
         const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
         const index = allOFs.findIndex(of => of.id === id);
@@ -122,6 +122,38 @@ export default function ProduccionDetallePage() {
                 updatedOF.fechaFinalizacion = new Date().toISOString();
                 updatedOF.cantidadReal = finalQuantity;
                 updatedOF.consumosReales = consumosReales;
+
+                // --- LOGICA DE CONSUMO DE STOCK ---
+                const stock = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}');
+                const movimientos: any[] = [];
+                const now = new Date().toISOString();
+
+                if (elaboracion.estadoEscandallo === 'COMPLETO') {
+                    // Lógica para escandallos completos
+                    (elaboracion.componentes || []).forEach(comp => {
+                        const ing = ingredientesData.get(comp.componenteId);
+                        if (ing?.erp) {
+                            // Find all locations for this ERP item
+                            const locations = Object.values(stock).filter((s:any) => s.articuloErpId === ing.erp?.id);
+                            // This simplified logic just subtracts from the first location found. A real implementation would use FIFO across locations.
+                            if (locations.length > 0) {
+                                const stockKey = (locations[0] as any).id;
+                                const consumo = consumosReales.find(c => c.componenteId === comp.id)?.cantidadReal || (comp.cantidad * ratioProduccion);
+                                stock[stockKey].stockTeorico -= consumo;
+                            }
+                        }
+                    });
+                } else {
+                    // Lógica para escandallos incompletos
+                    const costeTotalEstimado = (elaboracion.costeMateriaPrimaEstimado || 0) * updatedOF.cantidadTotal;
+                     if (!stock['CONSUMO_GENERICO_CPR']) {
+                        stock['CONSUMO_GENERICO_CPR'] = { id: 'CONSUMO_GENERICO_CPR', articuloErpId: 'CONSUMO_GENERICO_CPR', ubicacionId: 'VIRTUAL', stockTeorico: 0, lotes: [] };
+                    }
+                    stock['CONSUMO_GENERICO_CPR'].stockTeorico -= costeTotalEstimado;
+                }
+                localStorage.setItem('stockArticuloUbicacion', JSON.stringify(stock));
+                 // --- FIN LÓGICA DE CONSUMO ---
+                 
                 setShowFinalizeDialog(false);
                 router.push('/cpr/produccion');
             }

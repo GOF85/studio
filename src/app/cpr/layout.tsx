@@ -10,7 +10,7 @@ import { cprNav } from '@/lib/cpr-nav';
 import { Factory, Menu, ChevronRight, UserPlus, FilePenLine } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
     const pathname = usePathname();
@@ -63,14 +63,15 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
         const isOfDetail = pathSegments.length > 2 && pathSegments[0] === 'cpr' && pathSegments[1] === 'of';
         const isPickingDetail = pathSegments.length > 2 && pathSegments[0] === 'cpr' && pathSegments[1] === 'picking';
         const isNewSolicitud = pathSegments.length > 2 && pathSegments[1] === 'solicitud-personal' && pathSegments[2] === 'nueva';
+        const isInventarioDetail = pathSegments.length > 2 && pathSegments[1] === 'inventario';
 
-        if (isOfDetail || isPickingDetail) {
+        if (isOfDetail || isPickingDetail || isInventarioDetail) {
             const page = cprNav.find(link => link.href.includes(pathSegments[1]));
              return {
                 currentPage: page,
                 isDetailPage: true,
                 detailId: pathSegments[2],
-                isSubPage: false
+                isSubPage: false,
             };
         }
         
@@ -125,7 +126,7 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
                          {isDetailPage && detailId && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <span className="flex items-center gap-2 text-primary font-bold">
+                                <span className="flex items-center gap-2 font-bold text-primary">
                                     <FilePenLine className="h-5 w-5"/>
                                     <span>{detailId}</span>
                                 </span>
