@@ -21,13 +21,6 @@ import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { MultiSelect } from '@/components/ui/multi-select';
 
-// We extend the base schema locally to include the location field for the form,
-// but the core ArticuloERP type in `types/index.ts` remains clean.
-const formSchemaWithLocation = articuloErpSchema.extend({
-    ubicaciones: z.array(z.string()).optional(),
-});
-type FormValuesWithLocation = z.infer<typeof formSchemaWithLocation>;
-
 
 export default function EditarArticuloERPPage() {
   const router = useRouter();
@@ -41,8 +34,8 @@ export default function EditarArticuloERPPage() {
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([]);
   const { toast } = useToast();
 
-  const form = useForm<FormValuesWithLocation>({
-    resolver: zodResolver(formSchemaWithLocation),
+  const form = useForm<z.infer<typeof articuloErpSchema>>({
+    resolver: zodResolver(articuloErpSchema),
   });
 
   useEffect(() => {
@@ -55,15 +48,8 @@ export default function EditarArticuloERPPage() {
     const allItems = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const item = allItems.find(p => p.id === id);
     if (item) {
-      // Find locations for this item from the StockArticuloUbicacion table
-      const stockLocations = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}');
-      const itemLocations = Object.values(stockLocations)
-        .filter((slu: any) => slu.articuloErpId === item.id)
-        .map((slu: any) => slu.ubicacionId);
-
       form.reset({
         ...item,
-        ubicaciones: Array.from(new Set(itemLocations)) // Ensure unique locations
       });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el artículo ERP.' });
@@ -71,47 +57,17 @@ export default function EditarArticuloERPPage() {
     }
   }, [id, form, router, toast]);
 
-  function onSubmit(data: FormValuesWithLocation) {
+  function onSubmit(data: z.infer<typeof articuloErpSchema>) {
     setIsLoading(true);
 
-    const { ubicaciones: formUbicaciones, ...erpData } = data;
-
-    // --- Save ArticuloERP data ---
     let allItems = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const index = allItems.findIndex(p => p.id === id);
 
     if (index !== -1) {
-      allItems[index] = erpData;
+      allItems[index] = data;
       localStorage.setItem('articulosERP', JSON.stringify(allItems));
     }
-
-    // --- Save StockArticuloUbicacion data ---
-    const allStockLocations = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}');
     
-    // Remove old locations not in the new list
-    Object.keys(allStockLocations).forEach(key => {
-        const slu = allStockLocations[key];
-        if (slu.articuloErpId === id && !(formUbicaciones || []).includes(slu.ubicacionId)) {
-            delete allStockLocations[key];
-        }
-    });
-
-    // Add new locations
-    (formUbicaciones || []).forEach(ubicacionId => {
-        const key = `${id}_${ubicacionId}`;
-        if (!allStockLocations[key]) {
-            allStockLocations[key] = {
-                id: key,
-                articuloErpId: id,
-                ubicacionId: ubicacionId,
-                stockTeorico: 0, // Default to 0 when assigning
-                lotes: []
-            };
-        }
-    });
-    localStorage.setItem('stockArticuloUbicacion', JSON.stringify(allStockLocations));
-
-
     toast({ description: 'Artículo actualizado correctamente.' });
     router.push('/bd/erp');
     setIsLoading(false);
@@ -121,16 +77,6 @@ export default function EditarArticuloERPPage() {
     let allItems = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const updatedItems = allItems.filter(p => p.id !== id);
     localStorage.setItem('articulosERP', JSON.stringify(updatedItems));
-
-     // Also remove from stock locations
-    const allStockLocations = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}');
-    Object.keys(allStockLocations).forEach(key => {
-        if (allStockLocations[key].articuloErpId === id) {
-            delete allStockLocations[key];
-        }
-    });
-    localStorage.setItem('stockArticuloUbicacion', JSON.stringify(allStockLocations));
-
     toast({ title: 'Artículo ERP eliminado' });
     router.push('/bd/erp');
   };
@@ -197,18 +143,6 @@ export default function EditarArticuloERPPage() {
                         </FormItem>
                     )} />
                 </div>
-                 <FormField control={form.control} name="ubicaciones" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="flex items-center gap-2"><MapPin/> Ubicaciones en Almacén</FormLabel>
-                        <MultiSelect 
-                            options={ubicacionOptions}
-                            selected={field.value || []}
-                            onChange={field.onChange}
-                            placeholder="Asignar a una o más ubicaciones..."
-                        />
-                        <FormMessage />
-                    </FormItem>
-                 )} />
               </CardContent>
             </Card>
 
@@ -236,9 +170,21 @@ export default function EditarArticuloERPPage() {
                             <FormMessage /></FormItem>
                         )} />
                      </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <FormField control={form.control} name="stockMinimo" render={({ field }) => (
                             <FormItem><FormLabel>Stock Mínimo de Seguridad</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="proveedorPreferenteId" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Proveedor Preferente</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {proveedores.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
                         )} />
                         <FormField control={form.control} name="gestionLote" render={({ field }) => (
                             <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">

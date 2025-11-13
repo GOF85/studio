@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, PlusCircle, Trash2, Pencil } from 'lucide-react';
+import { Factory, PlusCircle, Trash2, Pencil, MapPin } from 'lucide-react';
 import type { CentroProduccion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,7 +60,7 @@ function CentroModal({ open, onOpenChange, onSave, initialData }: { open: boolea
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{initialData ? 'Editar' : 'Nuevo'} Centro de Producción</DialogTitle>
+                    <DialogTitle>{initialData?.id ? 'Editar' : 'Nuevo'} Centro de Producción</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
@@ -104,6 +104,7 @@ export default function CentrosPage() {
     const [centroToDelete, setCentroToDelete] = useState<string | null>(null);
 
     const { toast } = useToast();
+    const router = useRouter();
 
     useEffect(() => {
         setCentros(JSON.parse(localStorage.getItem('centros') || '[]'));
@@ -169,6 +170,7 @@ export default function CentrosPage() {
                                 <TableCell>{item.direccion}</TableCell>
                                 <TableCell>{item.tipo}</TableCell>
                                 <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => router.push(`/bd/ubicaciones?centroId=${item.id}`)}><MapPin className="h-4 w-4"/></Button>
                                     <Button variant="ghost" size="icon" onClick={() => { setEditingCentro(item); setIsModalOpen(true); }}><Pencil className="h-4 w-4"/></Button>
                                     <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setCentroToDelete(item.id)}><Trash2 className="h-4 w-4"/></Button>
                                 </TableCell>
@@ -193,7 +195,7 @@ export default function CentrosPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/80">Eliminar</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

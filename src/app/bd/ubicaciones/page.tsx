@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { MapPin, PlusCircle, Trash2, Pencil, Menu, FileDown, FileUp } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { MapPin, PlusCircle, Trash2, Pencil } from 'lucide-react';
 import type { Ubicacion, CentroProduccion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -100,10 +100,13 @@ export default function UbicacionesPage() {
     const [centros, setCentros] = useState<CentroProduccion[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [centroFilter, setCentroFilter] = useState('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUbicacion, setEditingUbicacion] = useState<Partial<Ubicacion> | null>(null);
     const [ubicacionToDelete, setUbicacionToDelete] = useState<string | null>(null);
+
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const centroFilter = searchParams.get('centroId') || 'all';
 
     const { toast } = useToast();
 
@@ -161,7 +164,7 @@ export default function UbicacionesPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                 <Select value={centroFilter} onValueChange={setCentroFilter}>
+                 <Select value={centroFilter} onValueChange={(value) => router.push(value === 'all' ? '/bd/ubicaciones' : `/bd/ubicaciones?centroId=${value}`)}>
                     <SelectTrigger className="w-full md:w-[240px]">
                         <SelectValue placeholder="Filtrar por centro..." />
                     </SelectTrigger>
@@ -217,7 +220,7 @@ export default function UbicacionesPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/80">Eliminar</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

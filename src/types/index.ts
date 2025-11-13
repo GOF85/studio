@@ -841,17 +841,59 @@ export type FormatoExpedicion = {
 };
 
 export type StockLote = {
-    ofId: string;
+    id: string; // ej: "compra-timestamp-lote"
     cantidad: number;
-    fechaCaducidad: string;
+    fechaCaducidad: string; // ISO Date
+    fechaEntrada: string; // ISO Date
+    precioCompraUnitario: number;
 };
 
-export type StockElaboracion = {
-    elaboracionId: string;
-    cantidadTotal: number;
-    unidad: UnidadMedida;
+export type StockArticuloUbicacion = {
+    id: string; // Composite key: articuloErpId + ubicacionId
+    articuloErpId: string; // FK a ArticuloERP.id
+    ubicacionId: string; // FK a Ubicacion.id
+    stockTeorico: number;
     lotes: StockLote[];
 }
+
+export type StockMovimiento = {
+    id: string;
+    articuloErpId: string;
+    fecha: string;
+    tipo: 'ENTRADA' | 'SALIDA_PRODUCCION' | 'AJUSTE_POSITIVO' | 'AJUSTE_NEGATIVO' | 'MOVIMIENTO_SALIDA' | 'MOVIMIENTO_ENTRADA';
+    cantidad: number; // Positivo para entradas, negativo para salidas
+    concepto: string; // ej: "OF-2024-123", "Ajuste por rotura", "Movimiento a CPR_CALIENTE_PICK"
+    responsable: string;
+    ubicacionOrigenId?: string;
+    ubicacionDestinoId?: string;
+    valoracion: number;
+}
+
+export type CierreInventario = {
+    id: string; // ej: "CPR_2024-06"
+    centroId: string;
+    mes: string; // "YYYY-MM"
+    fechaInicio: string;
+    fechaCierre: string;
+    valorInventarioInicial: number;
+    valorInventarioFinal: number;
+    valorCompras: number;
+    valorConsumoTrazado: number;
+    valorConsumoEstimado: number;
+    valorMermaDesconocida: number;
+}
+
+export type IncidenciaInventario = {
+    id: string;
+    fecha: string;
+    zona: string;
+    responsable: string;
+    descripcionLibre: string;
+    cantidadContada: string; // "3 cajas"
+    fotoUrl?: string;
+    estado: 'PENDIENTE_IDENTIFICACION' | 'RESUELTA';
+    articuloErpVinculado?: string; // FK a ArticuloERP.id
+};
 
 export type ExcedenteProduccion = {
     ofId: string;
@@ -1172,11 +1214,10 @@ export type IncidenciaInventario = {
     zona: string;
     responsable: string;
     descripcionLibre: string;
-    cantidadContada: string;
+    cantidadContada: string; // "3 cajas"
     fotoUrl?: string;
     estado: 'PENDIENTE_IDENTIFICACION' | 'RESUELTA';
     articuloErpVinculado?: string; // FK a ArticuloERP.id
 };
 
     
-
