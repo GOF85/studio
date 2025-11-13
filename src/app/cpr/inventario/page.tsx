@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Archive, Search, SlidersHorizontal, FileDown, FileUp, PlusCircle, Activity, X } from 'lucide-react';
+import { Archive, Search, SlidersHorizontal, FileDown, FileUp, PlusCircle, Activity, X, Save, Loader2, Trash2 } from 'lucide-react';
 import type { ArticuloERP, StockArticuloUbicacion, Ubicacion, StockLote, CentroProduccion, IncidenciaInventario } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +12,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Combobox } from '@/components/ui/combobox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -446,4 +445,3 @@ export default function InventarioPage() {
         </div>
     );
 }
-
