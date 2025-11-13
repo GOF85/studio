@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Archive, Search, SlidersHorizontal, FileDown, FileUp, PlusCircle, Activity } from 'lucide-react';
 import type { ArticuloERP, StockArticuloUbicacion, Ubicacion, StockLote } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Combobox } from '@/components/ui/combobox';
 
