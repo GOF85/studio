@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 
-function CentroModal({ open, onOpenChange, onSave, initialData }: { open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: Omit<CentroProduccion, 'id'>) => void; initialData?: Partial<CentroProduccion> }) {
+function CentroModal({ open, onOpenChange, onSave, initialData }: { open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: Omit<CentroProduccion, 'id'> & {id: string}) => void; initialData?: Partial<CentroProduccion> }) {
     const [nombre, setNombre] = useState('');
     const [direccion, setDireccion] = useState('');
     const [tipo, setTipo] = useState<'Central' | 'Satelite' | 'Evento Temporal'>('Central');
@@ -65,7 +65,7 @@ function CentroModal({ open, onOpenChange, onSave, initialData }: { open: boolea
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="id-centro">ID (ej. CPR_MAD)</Label>
-                        <Input id="id-centro" value={id} onChange={e => setId(e.target.value.toUpperCase())} readOnly={!!initialData} />
+                        <Input id="id-centro" value={id} onChange={e => setId(e.target.value.toUpperCase())} readOnly={!!initialData?.id} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="nombre-centro">Nombre Descriptivo</Label>
@@ -110,7 +110,7 @@ export default function CentrosPage() {
         setIsMounted(true);
     }, []);
 
-    const handleSave = (data: Omit<CentroProduccion, 'id'> & {id?: string}) => {
+    const handleSave = (data: Omit<CentroProduccion, 'id'> & {id: string}) => {
         let updatedCentros = [...centros];
         if (editingCentro?.id) { // Editing
             const index = centros.findIndex(c => c.id === editingCentro.id);
@@ -123,8 +123,7 @@ export default function CentrosPage() {
                  toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un centro con ese ID.' });
                  return;
             }
-            const newCentro = { ...data, id: data.id || `C-${Date.now()}` };
-            updatedCentros.push(newCentro);
+            updatedCentros.push(data);
             toast({ title: 'Centro creado' });
         }
         
@@ -183,7 +182,6 @@ export default function CentrosPage() {
                 open={isModalOpen}
                 onOpenChange={setIsModalOpen}
                 onSave={handleSave}
-                centros={centros}
                 initialData={editingCentro}
             />
             
@@ -202,4 +200,3 @@ export default function CentrosPage() {
         </>
     );
 }
-
