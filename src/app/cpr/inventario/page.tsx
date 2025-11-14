@@ -46,11 +46,14 @@ type RecuentoItem = {
 
 function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item: StockUbicacionDetalle | null; isOpen: boolean; onClose: () => void; onSave: (data: any) => void; ubicaciones: Ubicacion[] }) {
     const [ajuste, setAjuste] = useState({ tipo: 'cantidad', cantidad: 0, ubicacionDestino: '', motivo: '' });
+    const [cantidadCompra, setCantidadCompra] = useState<number | string>('');
     const { impersonatedUser } = useImpersonatedUser();
 
     useEffect(() => {
         if (item) {
             setAjuste({ tipo: 'cantidad', cantidad: item.stock, ubicacionDestino: '', motivo: '' });
+            const conversionFactor = item.articulo.unidadConversion || 1;
+            setCantidadCompra(conversionFactor > 0 ? item.stock / conversionFactor : 0);
         }
     }, [item]);
 
@@ -94,6 +97,24 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
         onSave(movimiento);
     };
 
+    const handleCantidadCompraChange = (value: string) => {
+        const numValue = parseFloat(value.replace(',', '.')) || 0;
+        setCantidadCompra(value);
+        if (item) {
+            const conversionFactor = item.articulo.unidadConversion || 1;
+            setAjuste(prev => ({...prev, cantidad: numValue * conversionFactor}));
+        }
+    };
+    
+    const handleCantidadBaseChange = (value: number) => {
+        setAjuste(prev => ({...prev, cantidad: value}));
+        if(item) {
+            const conversionFactor = item.articulo.unidadConversion || 1;
+            setCantidadCompra(conversionFactor > 0 ? value / conversionFactor : 0);
+        }
+    }
+
+
     if (!item) return null;
     
     return (
@@ -110,12 +131,23 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                             <TabsTrigger value="cantidad">Ajustar Cantidad</TabsTrigger>
                             <TabsTrigger value="mover">Mover Stock</TabsTrigger>
                         </TabsList>
-                        <TabsContent value="cantidad" className="pt-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="nueva-cantidad">Nueva Cantidad Real</Label>
-                                <Input id="nueva-cantidad" type="number" value={ajuste.cantidad} onChange={e => setAjuste(prev => ({...prev, cantidad: parseFloat(e.target.value) || 0}))} />
-                                <p className="text-sm">Diferencia: <span className={cn("font-bold", (ajuste.cantidad - item.stock) < 0 ? 'text-destructive' : 'text-green-600')}>{formatNumber(ajuste.cantidad - item.stock, 3)}</span></p>
+                        <TabsContent value="cantidad" className="pt-4 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label>Nueva Cantidad (Formato Compra)</Label>
+                                    <Input 
+                                        type="number" 
+                                        value={cantidadCompra} 
+                                        onChange={(e) => handleCantidadCompraChange(e.target.value)}
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">Formato compra: {item.articulo.unidadConversion || 1} {formatUnit(item.articulo.unidad)}</p>
+                                </div>
+                                <div>
+                                    <Label htmlFor="nueva-cantidad">Nueva Cantidad Real ({formatUnit(item.articulo.unidad)})</Label>
+                                    <Input id="nueva-cantidad" type="number" value={ajuste.cantidad} onChange={e => handleCantidadBaseChange(parseFloat(e.target.value) || 0)} />
+                                </div>
                             </div>
+                            <p className="text-sm">Diferencia: <span className={cn("font-bold", (ajuste.cantidad - item.stock) < 0 ? 'text-destructive' : 'text-green-600')}>{formatNumber(ajuste.cantidad - item.stock, 3)}</span></p>
                         </TabsContent>
                          <TabsContent value="mover" className="pt-4">
                              <div className="grid grid-cols-2 gap-4">
@@ -537,8 +569,12 @@ function InventarioPage() {
         } else { // Ajuste de cantidad
             const stockKey = `${movimiento.articuloErpId}_${movimiento.ubicacionOrigenId}`;
              if(allStock[stockKey]) {
-                allStock[stockKey].stockTeorico += movimiento.cantidad;
+                allStock[stockKey].stockTeorico = movimiento.cantidad;
+             } else {
+                 allStock[stockKey] = { id: stockKey, articuloErpId: movimiento.articuloErpId, ubicacionId: movimiento.ubicacionOrigenId!, stockTeorico: movimiento.cantidad, lotes: []};
              }
+             const diferencia = movimiento.cantidad - (item?.stock || 0);
+             movimiento.cantidad = diferencia; // Log the difference
              allMovements.push({ ...movimiento, id: `mov-${Date.now()}` });
         }
         
@@ -548,6 +584,8 @@ function InventarioPage() {
         setIsAdjustmentModalOpen(false);
         setUpdateTrigger(Date.now());
     }
+    
+    const item = selectedStockItem;
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Inventario de Materia Prima..." />;
@@ -556,7 +594,7 @@ function InventarioPage() {
     return (
         <div>
             <div className="flex items-start justify-between mb-2">
-                <h2 className="text-2xl font-semibold tracking-tight">Stock Teórico Consolidado</h2>
+                <h2 className="text-2xl font-semibold tracking-tight">Stock Teórico por Ubicación</h2>
                 <div className="flex items-center gap-2">
                     <Dialog>
                         <DialogTrigger asChild>
@@ -707,3 +745,4 @@ export default function InventarioPageWrapper() {
     )
 }
     
+
