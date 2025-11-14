@@ -17,10 +17,10 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, ShieldAlert, Download, Loader2, Upload, Search } from 'lucide-react';
+import { Trash2, ShieldAlert, Download, Loader2, Upload, Search, History } from 'lucide-react';
 import Link from 'next/link';
 
-type DatabaseKey = 'personal' | 'espacios' | 'articulos' | 'tipoServicio' | 'tiposPersonal' | 'tiposTransporte' | 'atipicosDB' | 'decoracionDB' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores' | 'solicitudesPersonalCPR';
+type DatabaseKey = 'personal' | 'espacios' | 'articulos' | 'tipoServicio' | 'tiposPersonal' | 'tiposTransporte' | 'atipicosDB' | 'decoracionDB' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores' | 'solicitudesPersonalCPR' | 'stockMovimientos';
 
 const ALL_DATABASE_KEYS = [
     'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposPersonal', 'tiposTransporte',
@@ -33,7 +33,7 @@ const ALL_DATABASE_KEYS = [
     'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'ingredientesERP', 
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'personalExternoAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones',
-    'solicitudesPersonalCPR'
+    'solicitudesPersonalCPR', 'stockMovimientos'
 ];
 
 const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
@@ -237,7 +237,7 @@ export default function BorrarBdPage() {
                                 </CardDescription>
                             </div>
                         </CardHeader>
-                         <CardContent className="flex gap-4">
+                         <CardContent className="flex flex-wrap gap-4">
                             <Link href="/bd/borrar-os">
                                 <Button variant="destructive">
                                     Limpieza de Datos de Eventos <Trash2 className="ml-2 h-4 w-4" />
@@ -248,6 +248,25 @@ export default function BorrarBdPage() {
                                     Inspeccionar Datos <Search className="ml-2 h-4 w-4" />
                                 </Button>
                             </Link>
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" size="sm">
+                                        <History className="mr-2 h-4 w-4" /> Borrar Movimientos de Inventario
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Vaciar historial de movimientos?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta acción eliminará permanentemente **todos** los registros de movimientos del inventario de materia prima. El stock actual no se verá afectado.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => { localStorage.removeItem('stockMovimientos'); toast({ title: 'Historial de movimientos eliminado.' }); }}>Sí, vaciar historial</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </CardContent>
                     </Card>
 
