@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -124,8 +123,8 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                 <DialogHeader>
                     <DialogTitle>Ajuste de Stock</DialogTitle>
                     <DialogDescription>{item.articulo.nombreProductoERP}</DialogDescription>
+                    <Separator />
                 </DialogHeader>
-                <Separator />
                 <div className="py-4 space-y-4">
                     <div className="flex justify-around text-center">
                         <div>
@@ -143,19 +142,20 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                             <TabsTrigger value="mover">Mover Stock</TabsTrigger>
                         </TabsList>
                         <TabsContent value="cantidad" className="pt-4 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
+                             <div className="grid grid-cols-2 gap-4">
+                                <div>
                                     <Label>Nueva Cantidad (Formato Compra)</Label>
                                     <Input 
                                         type="number" 
                                         value={cantidadCompra} 
                                         onChange={(e) => handleCantidadCompraChange(e.target.value)}
+                                        className="mt-2"
                                     />
                                     <p className="text-xs text-muted-foreground mt-1">Formato compra: {item.articulo.unidadConversion || 1} {formatUnit(item.articulo.unidad)}</p>
                                 </div>
-                                <div className="space-y-2">
+                                <div>
                                     <Label htmlFor="nueva-cantidad">Nueva Cantidad Real ({formatUnit(item.articulo.unidad)})</Label>
-                                    <Input id="nueva-cantidad" type="number" value={ajuste.cantidad} onChange={e => handleCantidadBaseChange(parseFloat(e.target.value) || 0)} />
+                                    <Input id="nueva-cantidad" type="number" value={ajuste.cantidad} onChange={e => handleCantidadBaseChange(parseFloat(e.target.value) || 0)} className="mt-2"/>
                                 </div>
                             </div>
                             <p className="text-sm">Diferencia: <span className={cn("font-bold", (ajuste.cantidad - item.stock) < 0 ? 'text-destructive' : 'text-green-600')}>{formatNumber(ajuste.cantidad - item.stock, 3)}</span></p>
@@ -471,7 +471,7 @@ function InventarioPage() {
         }
 
         localStorage.setItem('stockArticuloUbicacion', JSON.stringify(allStock));
-        toast({ title: 'Entrada registrada', description: `${data.cantidad} ${formatUnit(data.articulo.unidad)} de ${data.articulo.nombreProductoERP} añadido al stock.` });
+        toast({ title: 'Entrada registrada', description: `${data.cantidad} ${formatUnit(data.articulo.unidad)} añadido al stock.` });
         setUpdateTrigger(Date.now());
     };
 
@@ -606,7 +606,7 @@ function InventarioPage() {
 
     return (
         <div>
-            <div className="flex items-start justify-between mb-2">
+            <div className="flex items-center justify-between mb-2">
                 <h2 className="text-2xl font-semibold tracking-tight">Stock Teórico Consolidado</h2>
                 <div className="flex items-center gap-2">
                     <Dialog>
@@ -635,7 +635,7 @@ function InventarioPage() {
                                     </SelectContent>
                                 </Select>
                                 <Select value={locationFilter} onValueChange={setLocationFilter}>
-                                    <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                                    <SelectTrigger className="w-[220px]"><SelectValue placeholder="Todas las Ubicaciones"/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Todas las Ubicaciones</SelectItem>
                                         {ubicaciones.map(u => <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>)}
@@ -759,36 +759,4 @@ export default function InventarioPageWrapper() {
 }
     
 
-
-```
-- src/hooks/use-navigation-store.ts:
-```ts
-import { create } from 'zustand';
-
-type NavigationState = {
-  isSidebarOpen: boolean;
-  toggleSidebar: () => void;
-};
-
-export const useNavigationStore = create<NavigationState>((set) => ({
-  isSidebarOpen: true,
-  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-}));
-
-```
-- src/hooks/useHydration.ts:
-```ts
-"use client"
-
-import { useState, useEffect } from 'react';
-
-export const useHydration = () => {
-    const [isHydrated, setIsHydrated] = useState(false);
-    useEffect(() => {
-        setIsHydrated(true);
-    }, []);
-    return isHydrated;
-};
-
-```
-```
+    
