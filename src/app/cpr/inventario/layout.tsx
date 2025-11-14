@@ -2,11 +2,10 @@
 
 import { Suspense } from 'react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Archive } from 'lucide-react';
+import { Archive, Activity } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Activity } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 
 export default function InventarioLayout({ children }: { children: React.ReactNode }) {
