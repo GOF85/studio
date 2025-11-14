@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Search } from 'lucide-react';
-import { format } from 'date-fns';
+import { Search } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { StockMovimiento, ArticuloERP, Ubicacion } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ export default function MovimientosStockPage() {
         setMovimientos(storedMovimientos);
 
         const storedArticulos = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-        setArticuloMap(new Map(storedArticulos.map(a => [a.idreferenciaerp, a])));
+        setArticuloMap(new Map(storedArticulos.map(a => [a.articuloErpId, a])));
         
         const storedUbicaciones = JSON.parse(localStorage.getItem('ubicaciones') || '[]') as Ubicacion[];
         setUbicacionMap(new Map(storedUbicaciones.map(u => [u.id, u])));
@@ -111,30 +111,32 @@ export default function MovimientosStockPage() {
                                     
                                     let ubicacionDisplay = ubicacionOrigen;
                                     if(m.tipo === 'MOVIMIENTO_SALIDA') ubicacionDisplay = `${ubicacionOrigen} → ${ubicacionDestino}`;
-                                    if(m.tipo === 'MOVIMIENTO_ENTRADA') ubicacionDisplay = ubicacionDestino;
+                                    if(m.tipo === 'MOVIMIENTO_ENTRADA') ubicacionDisplay = `${ubicacionDestino}`;
 
                                     return (
-                                        <Tooltip key={m.id}>
-                                            <TooltipTrigger asChild>
-                                                <TableRow>
-                                                    <TableCell className="text-xs">{format(new Date(m.fecha), 'dd/MM/yy')}</TableCell>
-                                                    <TableCell className="font-semibold">{articulo?.nombreProductoERP || 'Desconocido'}</TableCell>
-                                                    <TableCell>{renderTipoBadge(m.tipo)}</TableCell>
-                                                    <TableCell>{ubicacionDisplay}</TableCell>
-                                                    <TableCell className={cn("text-right font-mono", m.cantidad > 0 ? "text-green-600" : "text-destructive")}>
-                                                        {m.cantidad > 0 ? '+' : ''}{formatNumber(m.cantidad, 3)} {formatUnit(articulo?.unidad || '')}
-                                                    </TableCell>
-                                                    <TableCell>{m.concepto}</TableCell>
-                                                    <TableCell>{getShortName(m.responsable)}</TableCell>
-                                                </TableRow>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <div className="p-1 text-sm">
-                                                    <p>Stock inicial: <strong>{formatNumber(m.stockPrevio || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
-                                                    <p>Stock final: <strong>{formatNumber(m.stockFinal || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
-                                                </div>
-                                            </TooltipContent>
-                                        </Tooltip>
+                                        <TableRow key={m.id}>
+                                            <TableCell className="text-xs">{format(new Date(m.fecha), 'dd/MM/yy')}</TableCell>
+                                            <TableCell className="font-semibold">
+                                                 <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="cursor-help">{articulo?.nombreProductoERP || 'Desconocido'}</span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <div className="p-1 text-sm">
+                                                            <p>Stock previo: <strong>{formatNumber(m.stockPrevio || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
+                                                            <p>Stock final: <strong>{formatNumber(m.stockFinal || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
+                                                        </div>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TableCell>
+                                            <TableCell>{renderTipoBadge(m.tipo)}</TableCell>
+                                            <TableCell>{ubicacionDisplay}</TableCell>
+                                            <TableCell className={cn("text-right font-mono", m.cantidad > 0 ? "text-green-600" : "text-destructive")}>
+                                                {m.cantidad > 0 ? '+' : ''}{formatNumber(m.cantidad, 3)} {formatUnit(articulo?.unidad || '')}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">{m.concepto}</TableCell>
+                                            <TableCell>{getShortName(m.responsable)}</TableCell>
+                                        </TableRow>
                                     );
                                 }) : (
                                     <TableRow>
