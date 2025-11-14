@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Archive, Search, SlidersHorizontal, FileDown, FileUp, PlusCircle, Activity, X, Save, Loader2, Trash2, Edit, History } from 'lucide-react';
+import { Archive, Search, SlidersHorizontal, FileDown, FileUp, PlusCircle, Activity, X, Save, Loader2, Trash2, Edit, History, Menu } from 'lucide-react';
 import type { ArticuloERP, StockArticuloUbicacion, Ubicacion, CentroProduccion, IncidenciaInventario, Proveedor, StockMovimiento } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +23,13 @@ import { cn } from '@/lib/utils';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import Papa from 'papaparse';
 
 
 type StockUbicacionDetalle = {
@@ -363,6 +369,8 @@ function InventarioPage() {
     const [stock, setStock] = useState<StockUbicacionDetalle[]>([]);
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
     
     const [centros, setCentros] = useState<CentroProduccion[]>([]);
     const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([]);
@@ -438,6 +446,7 @@ function InventarioPage() {
                 stockTeorico: stockInfo?.stockTeorico || 0,
                 cantidadReal: '',
                 contado: false,
+                esNuevo: false,
             };
         }));
     }, [isRecounting, selectedUbicacion, allArticulos, allStockUbicacion]);
@@ -606,6 +615,67 @@ function InventarioPage() {
         setUpdateTrigger(Date.now());
     }
     
+    const handleExportCSV = () => {
+        const csvData = stock.map(item => ({
+            articuloErpId: item.articulo.idreferenciaerp,
+            ubicacionId: item.ubicacionId,
+            stockTeorico: item.stock,
+        }));
+        
+        const csv = Papa.unparse(csvData);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'inventario_stock.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Exportación completada' });
+    };
+
+    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                const currentStock = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}') as Record<string, StockArticuloUbicacion>;
+                (results.data as any[]).forEach(row => {
+                    const { articuloErpId, ubicacionId, stockTeorico } = row;
+                    if (articuloErpId && ubicacionId && stockTeorico !== undefined) {
+                        const stockKey = `${articuloErpId}_${ubicacionId}`;
+                        const stockValue = parseFloat(stockTeorico);
+                        if (!isNaN(stockValue)) {
+                            if (currentStock[stockKey]) {
+                                currentStock[stockKey].stockTeorico = stockValue;
+                            } else {
+                                currentStock[stockKey] = {
+                                    id: stockKey,
+                                    articuloErpId,
+                                    ubicacionId,
+                                    stockTeorico: stockValue,
+                                    lotes: []
+                                };
+                            }
+                        }
+                    }
+                });
+                localStorage.setItem('stockArticuloUbicacion', JSON.stringify(currentStock));
+                toast({ title: 'Importación completada', description: 'El stock ha sido actualizado.' });
+                setUpdateTrigger(Date.now()); // Forzar recarga de datos
+            },
+            error: (err) => {
+                toast({ variant: 'destructive', title: 'Error de importación', description: err.message });
+            }
+        });
+        if(event.target) event.target.value = '';
+    };
+
+    
     const item = selectedStockItem;
 
     if (!isMounted) {
@@ -624,6 +694,16 @@ function InventarioPage() {
                         <StockEntryDialog onSave={handleSaveStockEntry} />
                     </Dialog>
                     <Button onClick={() => setIsRecounting(true)}><SlidersHorizontal className="mr-2"/>Iniciar Recuento</Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon"><Menu /></Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={handleExportCSV}><FileDown className="mr-2"/>Exportar Stock a CSV</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}><FileUp className="mr-2"/>Importar Stock desde CSV</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleImportCSV} />
                 </div>
             </div>
             
@@ -768,6 +848,3 @@ export default function InventarioPageWrapper() {
     
 
     
-
-
-
