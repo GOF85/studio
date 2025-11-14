@@ -19,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 export default function MovimientosStockPage() {
     const [movimientos, setMovimientos] = useState<StockMovimiento[]>([]);
     const [articuloMap, setArticuloMap] = useState<Map<string, ArticuloERP>>(new Map());
-    const [ubicacionMap, setUbicacionMap] = useState<Map<string, Ubicacion>>(new Map());
+    const [ubicacionesMap, setUbicacionesMap] = useState<Map<string, Ubicacion>>(new Map());
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const router = useRouter();
@@ -58,7 +58,7 @@ export default function MovimientosStockPage() {
     const getShortName = (fullName: string) => {
         if (!fullName) return '';
         const parts = fullName.split(' ');
-        return `${parts[0]} ${parts[1] || ''}`.trim();
+        return `${parts[0]} ${parts.length > 1 ? parts[1] : ''}`.trim();
     }
 
     const renderTipoBadge = (tipo: StockMovimiento['tipo']) => {
@@ -67,7 +67,7 @@ export default function MovimientosStockPage() {
             case 'ENTRADA_AJUSTE': return <Badge className="bg-green-500 hover:bg-green-600">(+)</Badge>;
             case 'SALIDA_PRODUCCION': return <Badge variant="secondary">Salida Producción</Badge>;
             case 'SALIDA_MERMA': return <Badge variant="destructive">Merma</Badge>;
-            case 'SALIDA_AJUSTE': return <Badge className="bg-destructive hover:bg-destructive/80">(-)</Badge>;
+            case 'SALIDA_AJUSTE': return <Badge variant="destructive">(-)</Badge>;
             case 'MOVIMIENTO_SALIDA': return <Badge variant="outline">Movimiento (Salida)</Badge>;
             case 'MOVIMIENTO_ENTRADA': return <Badge variant="outline">Movimiento (Entrada)</Badge>;
             default: return <Badge>{tipo}</Badge>;
@@ -114,7 +114,7 @@ export default function MovimientosStockPage() {
                                     if(m.tipo === 'MOVIMIENTO_ENTRADA') ubicacionDisplay = `${ubicacionDestino}`;
 
                                     return (
-                                        <Tooltip key={m.id}>
+                                         <Tooltip key={m.id}>
                                             <TooltipTrigger asChild>
                                                  <TableRow>
                                                     <TableCell className="text-xs">{format(new Date(m.fecha), 'dd/MM/yy')}</TableCell>
