@@ -43,7 +43,7 @@ export default function MovimientosStockPage() {
             const articulo = articuloMap.get(m.articuloErpId);
             const term = searchTerm.toLowerCase();
             return (
-                (articulo?.nombreProductoERP.toLowerCase() || '').includes(term) ||
+                (articulo?.nombreProductoERP || '').toLowerCase().includes(term) ||
                 (m.responsable || '').toLowerCase().includes(term) ||
                 (m.concepto || '').toLowerCase().includes(term) ||
                 m.tipo.toLowerCase().includes(term)
@@ -55,7 +55,7 @@ export default function MovimientosStockPage() {
         return <LoadingSkeleton title="Cargando Movimientos de Stock..." />;
     }
     
-    const getShortName = (fullName: string) => {
+    const getShortName = (fullName?: string) => {
         if (!fullName) return '';
         const parts = fullName.split(' ');
         return `${parts[0]} ${parts.length > 1 ? parts[1] : ''}`.trim();
@@ -114,27 +114,27 @@ export default function MovimientosStockPage() {
                                     if(m.tipo === 'MOVIMIENTO_ENTRADA') ubicacionDisplay = `${ubicacionDestino}`;
 
                                     return (
-                                        <Tooltip key={m.id}>
-                                            <TooltipTrigger asChild>
-                                                 <TableRow>
+                                        <TableRow key={m.id}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
                                                     <TableCell className="text-xs">{format(new Date(m.fecha), 'dd/MM/yy')}</TableCell>
-                                                    <TableCell className="font-semibold">{articulo?.nombreProductoERP || 'Desconocido'}</TableCell>
-                                                    <TableCell>{renderTipoBadge(m.tipo)}</TableCell>
-                                                    <TableCell>{ubicacionDisplay}</TableCell>
-                                                    <TableCell className={cn("text-right font-mono", m.cantidad > 0 ? "text-green-600" : "text-destructive")}>
-                                                        {m.cantidad > 0 ? '+' : ''}{formatNumber(m.cantidad, 3)} {formatUnit(articulo?.unidad || '')}
-                                                    </TableCell>
-                                                    <TableCell className="text-xs text-muted-foreground">{m.concepto}</TableCell>
-                                                    <TableCell>{getShortName(m.responsable)}</TableCell>
-                                                </TableRow>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <div className="p-1 text-sm">
-                                                    <p>Stock previo: <strong>{formatNumber(m.stockPrevio || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
-                                                    <p>Stock final: <strong>{formatNumber(m.stockFinal || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
-                                                </div>
-                                            </TooltipContent>
-                                        </Tooltip>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <div className="p-1 text-sm">
+                                                        <p>Stock previo: <strong>{formatNumber(m.stockPrevio || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
+                                                        <p>Stock final: <strong>{formatNumber(m.stockFinal || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
+                                                    </div>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <TableCell className="font-semibold">{articulo?.nombreProductoERP || m.articuloErpId}</TableCell>
+                                            <TableCell>{renderTipoBadge(m.tipo)}</TableCell>
+                                            <TableCell>{ubicacionDisplay}</TableCell>
+                                            <TableCell className={cn("text-right font-mono", m.cantidad > 0 ? "text-green-600" : "text-destructive")}>
+                                                {m.cantidad > 0 ? '+' : ''}{formatNumber(m.cantidad, 3)} {formatUnit(articulo?.unidad || '')}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">{m.concepto}</TableCell>
+                                            <TableCell>{getShortName(m.responsable)}</TableCell>
+                                        </TableRow>
                                     );
                                 }) : (
                                     <TableRow>
