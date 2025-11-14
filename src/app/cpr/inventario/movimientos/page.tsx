@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatNumber, formatUnit, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function MovimientosStockPage() {
     const [movimientos, setMovimientos] = useState<StockMovimiento[]>([]);
@@ -43,8 +44,9 @@ export default function MovimientosStockPage() {
             const term = searchTerm.toLowerCase();
             return (
                 (articulo?.nombreProductoERP.toLowerCase() || '').includes(term) ||
+                (m.responsable || '').toLowerCase().includes(term) ||
                 (m.concepto || '').toLowerCase().includes(term) ||
-                (m.responsable || '').toLowerCase().includes(term)
+                m.tipo.toLowerCase().includes(term)
             );
         });
     }, [movimientos, searchTerm, articuloMap]);
@@ -52,14 +54,20 @@ export default function MovimientosStockPage() {
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Movimientos de Stock..." />;
     }
+    
+    const getShortName = (fullName: string) => {
+        if (!fullName) return '';
+        const parts = fullName.split(' ');
+        return `${parts[0]} ${parts[1] || ''}`.trim();
+    }
 
     const renderTipoBadge = (tipo: StockMovimiento['tipo']) => {
         switch(tipo) {
-            case 'ENTRADA_COMPRA': return <Badge className="bg-blue-500">Entrada Compra</Badge>;
-            case 'ENTRADA_AJUSTE': return <Badge className="bg-green-500">Ajuste (+)</Badge>;
+            case 'ENTRADA_COMPRA': return <Badge className="bg-blue-500 hover:bg-blue-600">Entrada Compra</Badge>;
+            case 'ENTRADA_AJUSTE': return <Badge className="bg-green-500 hover:bg-green-600">(+)</Badge>;
             case 'SALIDA_PRODUCCION': return <Badge variant="secondary">Salida Producción</Badge>;
             case 'SALIDA_MERMA': return <Badge variant="destructive">Merma</Badge>;
-            case 'SALIDA_AJUSTE': return <Badge variant="destructive">Ajuste (-)</Badge>;
+            case 'SALIDA_AJUSTE': return <Badge className="bg-destructive hover:bg-destructive/80">(-)</Badge>;
             case 'MOVIMIENTO_SALIDA': return <Badge variant="outline">Movimiento (Salida)</Badge>;
             case 'MOVIMIENTO_ENTRADA': return <Badge variant="outline">Movimiento (Entrada)</Badge>;
             default: return <Badge>{tipo}</Badge>;
@@ -67,7 +75,7 @@ export default function MovimientosStockPage() {
     };
 
     return (
-        <div>
+        <main>
             <Card>
                 <CardHeader>
                     <div className="relative">
@@ -82,6 +90,7 @@ export default function MovimientosStockPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="border rounded-lg max-h-[70vh] overflow-y-auto">
+                        <TooltipProvider>
                         <Table>
                             <TableHeader className="sticky top-0 bg-secondary">
                                 <TableRow>
@@ -95,7 +104,7 @@ export default function MovimientosStockPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredMovimientos.map(m => {
+                                {filteredMovimientos.length > 0 ? filteredMovimientos.map(m => {
                                     const articulo = articuloMap.get(m.articuloErpId);
                                     const ubicacionOrigen = m.ubicacionOrigenId ? (ubicacionMap.get(m.ubicacionOrigenId)?.nombre || 'N/A') : 'N/A';
                                     const ubicacionDestino = m.ubicacionDestinoId ? (ubicacionMap.get(m.ubicacionDestinoId)?.nombre || 'N/A') : '';
@@ -105,24 +114,41 @@ export default function MovimientosStockPage() {
                                     if(m.tipo === 'MOVIMIENTO_ENTRADA') ubicacionDisplay = ubicacionDestino;
 
                                     return (
-                                        <TableRow key={m.id}>
-                                            <TableCell className="text-xs">{format(new Date(m.fecha), 'dd/MM/yy HH:mm')}</TableCell>
-                                            <TableCell className="font-semibold">{articulo?.nombreProductoERP || 'Desconocido'}</TableCell>
-                                            <TableCell>{renderTipoBadge(m.tipo)}</TableCell>
-                                            <TableCell>{ubicacionDisplay}</TableCell>
-                                            <TableCell className={cn("text-right font-mono", m.cantidad > 0 ? "text-green-600" : "text-destructive")}>
-                                                {m.cantidad > 0 ? '+' : ''}{formatNumber(m.cantidad, 3)} {formatUnit(articulo?.unidad || '')}
-                                            </TableCell>
-                                            <TableCell>{m.concepto}</TableCell>
-                                            <TableCell>{m.responsable}</TableCell>
-                                        </TableRow>
+                                        <Tooltip key={m.id}>
+                                            <TooltipTrigger asChild>
+                                                <TableRow>
+                                                    <TableCell className="text-xs">{format(new Date(m.fecha), 'dd/MM/yy')}</TableCell>
+                                                    <TableCell className="font-semibold">{articulo?.nombreProductoERP || 'Desconocido'}</TableCell>
+                                                    <TableCell>{renderTipoBadge(m.tipo)}</TableCell>
+                                                    <TableCell>{ubicacionDisplay}</TableCell>
+                                                    <TableCell className={cn("text-right font-mono", m.cantidad > 0 ? "text-green-600" : "text-destructive")}>
+                                                        {m.cantidad > 0 ? '+' : ''}{formatNumber(m.cantidad, 3)} {formatUnit(articulo?.unidad || '')}
+                                                    </TableCell>
+                                                    <TableCell>{m.concepto}</TableCell>
+                                                    <TableCell>{getShortName(m.responsable)}</TableCell>
+                                                </TableRow>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <div className="p-1 text-sm">
+                                                    <p>Stock inicial: <strong>{formatNumber(m.stockPrevio || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
+                                                    <p>Stock final: <strong>{formatNumber(m.stockFinal || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
                                     );
-                                })}
+                                }) : (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="h-24 text-center">
+                                            No hay movimientos de stock registrados.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
+                        </TooltipProvider>
                     </div>
                 </CardContent>
             </Card>
-        </div>
+        </main>
     );
 }
