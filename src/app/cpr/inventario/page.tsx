@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Archive, Search, SlidersHorizontal, FileDown, FileUp, PlusCircle, Activity, X, Save, Loader2, Trash2 } from 'lucide-react';
-import type { ArticuloERP, StockArticuloUbicacion, Ubicacion, CentroProduccion, IncidenciaInventario, Proveedor } from '@/types';
+import { Archive, Search, SlidersHorizontal, FileDown, FileUp, PlusCircle, Activity, X, Save, Loader2, Trash2, Edit } from 'lucide-react';
+import type { ArticuloERP, StockArticuloUbicacion, Ubicacion, CentroProduccion, IncidenciaInventario, Proveedor, StockMovimiento } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,6 +22,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
 
 type StockUbicacionDetalle = {
     articulo: ArticuloERP;
@@ -39,6 +42,111 @@ type RecuentoItem = {
     cantidadReal: number | string;
     discrepancia?: number;
     esNuevo?: boolean;
+}
+
+function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item: StockUbicacionDetalle | null; isOpen: boolean; onClose: () => void; onSave: (data: any) => void; ubicaciones: Ubicacion[] }) {
+    const [ajuste, setAjuste] = useState({ tipo: 'cantidad', cantidad: 0, ubicacionDestino: '', motivo: '' });
+    const { impersonatedUser } = useImpersonatedUser();
+
+    useEffect(() => {
+        if (item) {
+            setAjuste({ tipo: 'cantidad', cantidad: item.stock, ubicacionDestino: '', motivo: '' });
+        }
+    }, [item]);
+
+    const handleSave = () => {
+        if (!item || !ajuste.motivo) {
+            alert('El motivo es obligatorio.');
+            return;
+        }
+        
+        let movimiento: Partial<StockMovimiento> = {
+            articuloErpId: item.articulo.idreferenciaerp,
+            fecha: new Date().toISOString(),
+            responsable: impersonatedUser?.nombre || 'Desconocido',
+            concepto: ajuste.motivo,
+        };
+
+        if (ajuste.tipo === 'cantidad') {
+            const diferencia = ajuste.cantidad - item.stock;
+            movimiento = {
+                ...movimiento,
+                tipo: diferencia > 0 ? 'ENTRADA_AJUSTE' : 'SALIDA_AJUSTE',
+                cantidad: diferencia,
+                ubicacionOrigenId: item.ubicacionId,
+                valoracion: diferencia * (item.articulo.precio || 0),
+            };
+        } else { // mover
+             const cantidadAMover = parseFloat(String(ajuste.cantidad));
+            if (isNaN(cantidadAMover) || cantidadAMover <= 0 || cantidadAMover > item.stock) {
+                alert('Cantidad a mover inválida.');
+                return;
+            }
+             movimiento = {
+                ...movimiento,
+                tipo: 'MOVIMIENTO_SALIDA', // Se registrarán dos movimientos
+                cantidad: -cantidadAMover,
+                ubicacionOrigenId: item.ubicacionId,
+                ubicacionDestinoId: ajuste.ubicacionDestino,
+                valoracion: -cantidadAMover * (item.articulo.precio || 0),
+            };
+        }
+        onSave(movimiento);
+    };
+
+    if (!item) return null;
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Ajuste de Stock: {item.articulo.nombreProductoERP}</DialogTitle>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <p><strong>Ubicación Actual:</strong> {item.ubicacionNombre}</p>
+                    <p><strong>Stock Teórico:</strong> {formatNumber(item.stock, 3)} {formatUnit(item.articulo.unidad)}</p>
+                    <Tabs defaultValue="cantidad" onValueChange={value => setAjuste(prev => ({...prev, tipo: value}))}>
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="cantidad">Ajustar Cantidad</TabsTrigger>
+                            <TabsTrigger value="mover">Mover Stock</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="cantidad" className="pt-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="nueva-cantidad">Nueva Cantidad Real</Label>
+                                <Input id="nueva-cantidad" type="number" value={ajuste.cantidad} onChange={e => setAjuste(prev => ({...prev, cantidad: parseFloat(e.target.value) || 0}))} />
+                                <p className="text-sm">Diferencia: <span className={cn("font-bold", (ajuste.cantidad - item.stock) < 0 ? 'text-destructive' : 'text-green-600')}>{formatNumber(ajuste.cantidad - item.stock, 3)}</span></p>
+                            </div>
+                        </TabsContent>
+                         <TabsContent value="mover" className="pt-4">
+                             <div className="grid grid-cols-2 gap-4">
+                                 <div className="space-y-2">
+                                    <Label htmlFor="cantidad-mover">Cantidad a Mover</Label>
+                                    <Input id="cantidad-mover" type="number" max={item.stock} onChange={e => setAjuste(prev => ({...prev, cantidad: parseFloat(e.target.value) || 0}))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="ubicacion-destino">Ubicación Destino</Label>
+                                    <Select onValueChange={(value) => setAjuste(prev => ({...prev, ubicacionDestino: value}))}>
+                                        <SelectTrigger id="ubicacion-destino"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                                        <SelectContent>
+                                            {ubicaciones.filter(u => u.id !== item.ubicacionId).map(u => <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                             </div>
+                        </TabsContent>
+                    </Tabs>
+                     <div className="space-y-2 pt-4">
+                        <Label htmlFor="motivo-ajuste">Motivo del Ajuste (Obligatorio)</Label>
+                        <Textarea id="motivo-ajuste" placeholder="Ej: Merma por rotura, Consumo interno para evento X, Corrección de conteo..." value={ajuste.motivo} onChange={e => setAjuste(prev => ({...prev, motivo: e.target.value}))}/>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+                    <Button onClick={handleSave}>Guardar Ajuste</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 function StockEntryDialog({ onSave, defaultUbicacionId }: { onSave: (data: any) => void; defaultUbicacionId?: string | null }) {
@@ -216,6 +324,8 @@ function InventarioPage() {
     const [isIncidenciaDialogOpen, setIsIncidenciaDialogOpen] = useState(false);
     const [showOnlyDiscrepancies, setShowOnlyDiscrepancies] = useState(false);
     const [updateTrigger, setUpdateTrigger] = useState(0);
+    const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
+    const [selectedStockItem, setSelectedStockItem] = useState<StockUbicacionDetalle | null>(null);
 
     const loadData = useCallback(() => {
         const storedArticulos = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
@@ -405,6 +515,39 @@ function InventarioPage() {
         ]);
         setIsArticuloDialogOpen(false);
     }
+    
+    const handleSaveAdjustment = (movimiento: StockMovimiento) => {
+        const allStock = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}') as Record<string, StockArticuloUbicacion>;
+        const allMovements = JSON.parse(localStorage.getItem('stockMovimientos') || '[]') as StockMovimiento[];
+
+        if(movimiento.tipo === 'MOVIMIENTO_SALIDA') {
+            const origenKey = `${movimiento.articuloErpId}_${movimiento.ubicacionOrigenId}`;
+            const destinoKey = `${movimiento.articuloErpId}_${movimiento.ubicacionDestinoId}`;
+            if(allStock[origenKey]) {
+                allStock[origenKey].stockTeorico += movimiento.cantidad; // cantidad es negativa
+            }
+            if(!allStock[destinoKey]) {
+                allStock[destinoKey] = { id: destinoKey, articuloErpId: movimiento.articuloErpId, ubicacionId: movimiento.ubicacionDestinoId!, stockTeorico: 0, lotes: [] };
+            }
+            allStock[destinoKey].stockTeorico -= movimiento.cantidad; // se suma el negativo del negativo
+            
+            const movimientoEntrada = {...movimiento, id: `mov-${Date.now()}-in`, tipo: 'MOVIMIENTO_ENTRADA', cantidad: -movimiento.cantidad, valoracion: -movimiento.valoracion};
+            allMovements.push(movimiento, movimientoEntrada);
+
+        } else { // Ajuste de cantidad
+            const stockKey = `${movimiento.articuloErpId}_${movimiento.ubicacionOrigenId}`;
+             if(allStock[stockKey]) {
+                allStock[stockKey].stockTeorico += movimiento.cantidad;
+             }
+             allMovements.push({ ...movimiento, id: `mov-${Date.now()}` });
+        }
+        
+        localStorage.setItem('stockArticuloUbicacion', JSON.stringify(allStock));
+        localStorage.setItem('stockMovimientos', JSON.stringify(allMovements));
+        toast({ title: 'Ajuste realizado', description: 'El stock y los movimientos han sido actualizados.' });
+        setIsAdjustmentModalOpen(false);
+        setUpdateTrigger(Date.now());
+    }
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Inventario de Materia Prima..." />;
@@ -436,7 +579,8 @@ function InventarioPage() {
                                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                                     <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        {categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'Todas las Categorías' : c}</SelectItem>)}
+                                        <SelectItem value="all">Todas las Categorías</SelectItem>
+                                        {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <Select value={locationFilter} onValueChange={setLocationFilter}>
@@ -466,11 +610,11 @@ function InventarioPage() {
                             </TableHeader><TableBody>
                                 {filteredStock.map(item => {
                                     return (
-                                    <TableRow key={`${item.articulo.idreferenciaerp}-${item.ubicacionId}`}>
+                                    <TableRow key={`${item.articulo.idreferenciaerp}-${item.ubicacionId}`} onClick={() => { setSelectedStockItem(item); setIsAdjustmentModalOpen(true); }} className="cursor-pointer">
                                         <TableCell className="font-semibold">{item.articulo.nombreProductoERP}</TableCell>
                                         <TableCell><Badge variant="outline">{item.articulo.categoriaMice || item.articulo.tipo}</Badge></TableCell>
                                         <TableCell><Badge variant="secondary">{item.ubicacionNombre}</Badge></TableCell>
-                                        <TableCell className="text-right font-mono">{formatNumber(item.stock, 2)} {formatUnit(item.articulo.unidad)}</TableCell>
+                                        <TableCell className="text-right font-mono">{formatNumber(item.stock, 3)} {formatUnit(item.articulo.unidad)}</TableCell>
                                         <TableCell className="text-right font-mono">{formatCurrency(item.valoracion)}</TableCell>
                                     </TableRow>
                                 )})}
@@ -525,7 +669,7 @@ function InventarioPage() {
                                 {filteredRecuentoItems.map(item => (
                                     <TableRow key={item.id} className={item.contado ? 'bg-green-50/50' : ''}>
                                         <TableCell className="font-semibold">{item.nombre}</TableCell>
-                                        <TableCell className="text-right font-mono">{formatNumber(item.stockTeorico, 2)} {formatUnit(item.unidad)}</TableCell>
+                                        <TableCell className="text-right font-mono">{formatNumber(item.stockTeorico, 3)} {formatUnit(item.unidad)}</TableCell>
                                         <TableCell>
                                             <Input 
                                                 type="text" 
@@ -535,7 +679,7 @@ function InventarioPage() {
                                             />
                                         </TableCell>
                                         <TableCell className={cn("text-right font-bold", item.discrepancia && item.discrepancia !== 0 && "text-destructive")}>
-                                            {item.discrepancia ? `${formatNumber(item.discrepancia, 2)} ${formatUnit(item.unidad)}` : '-'}
+                                            {item.discrepancia ? `${formatNumber(item.discrepancia, 3)} ${formatUnit(item.unidad)}` : '-'}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -544,6 +688,13 @@ function InventarioPage() {
                     </CardContent>
                 </Card>
             )}
+             <AdjustmentModal
+                isOpen={isAdjustmentModalOpen}
+                onClose={() => setIsAdjustmentModalOpen(false)}
+                item={selectedStockItem}
+                onSave={handleSaveAdjustment}
+                ubicaciones={ubicaciones}
+            />
         </div>
     );
 }
@@ -555,5 +706,4 @@ export default function InventarioPageWrapper() {
         </Suspense>
     )
 }
-
     
