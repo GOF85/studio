@@ -1,4 +1,3 @@
-import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -8,8 +7,6 @@ interface LoadingSkeletonProps {
 
 export function LoadingSkeleton({ title = "Cargando..."}: LoadingSkeletonProps) {
     return (
-        <>
-        <Header />
         <main className="container mx-auto px-4 py-8">
             <div className="flex items-center justify-between mb-8">
                 <div>
@@ -33,6 +30,5 @@ export function LoadingSkeleton({ title = "Cargando..."}: LoadingSkeletonProps) 
                 </CardContent>
             </Card>
         </main>
-        </>
     );
 }
