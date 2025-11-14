@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -75,7 +76,7 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
             const diferencia = ajuste.cantidad - item.stock;
             movimiento = {
                 ...movimiento,
-                tipo: diferencia > 0 ? 'ENTRADA_AJUSTE' : 'SALIDA_AJUSTE',
+                tipo: diferencia >= 0 ? 'ENTRADA_AJUSTE' : 'SALIDA_AJUSTE',
                 cantidad: diferencia,
                 ubicacionOrigenId: item.ubicacionId,
                 valoracion: diferencia * (item.articulo.precio || 0),
@@ -586,9 +587,9 @@ function InventarioPage() {
         } else { // Ajuste de cantidad
             const stockKey = `${movimiento.articuloErpId}_${movimiento.ubicacionOrigenId}`;
              if(allStock[stockKey]) {
-                allStock[stockKey].stockTeorico = movimiento.cantidad;
+                allStock[stockKey].stockTeorico = movimiento.stockFinal;
              } else {
-                 allStock[stockKey] = { id: stockKey, articuloErpId: movimiento.articuloErpId, ubicacionId: movimiento.ubicacionOrigenId!, stockTeorico: movimiento.cantidad, lotes: []};
+                 allStock[stockKey] = { id: stockKey, articuloErpId: movimiento.articuloErpId, ubicacionId: movimiento.ubicacionOrigenId!, stockTeorico: movimiento.stockFinal!, lotes: []};
              }
              allMovements.push({ ...movimiento, id: `mov-${Date.now()}` });
         }
@@ -762,4 +763,5 @@ export default function InventarioPageWrapper() {
     
 
     
+
 
