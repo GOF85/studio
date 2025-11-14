@@ -14,7 +14,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Combobox } from '@/components/ui/combobox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -23,6 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 
 
 type StockUbicacionDetalle = {
@@ -121,11 +122,21 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Ajuste de Stock: {item.articulo.nombreProductoERP}</DialogTitle>
+                    <DialogTitle>Ajuste de Stock</DialogTitle>
+                    <DialogDescription>{item.articulo.nombreProductoERP}</DialogDescription>
                 </DialogHeader>
+                <Separator />
                 <div className="py-4 space-y-4">
-                    <p><strong>Ubicación Actual:</strong> {item.ubicacionNombre}</p>
-                    <p><strong>Stock Teórico:</strong> {formatNumber(item.stock, 3)} {formatUnit(item.articulo.unidad)}</p>
+                    <div className="flex justify-around text-center">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Ubicación Actual</p>
+                            <p className="font-semibold">{item.ubicacionNombre}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Stock Teórico</p>
+                            <p className="font-semibold">{formatNumber(item.stock, 3)} {formatUnit(item.articulo.unidad)}</p>
+                        </div>
+                    </div>
                     <Tabs defaultValue="cantidad" onValueChange={value => setAjuste(prev => ({...prev, tipo: value}))}>
                         <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="cantidad">Ajustar Cantidad</TabsTrigger>
@@ -133,7 +144,7 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                         </TabsList>
                         <TabsContent value="cantidad" className="pt-4 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
+                                <div className="space-y-2">
                                     <Label>Nueva Cantidad (Formato Compra)</Label>
                                     <Input 
                                         type="number" 
@@ -142,7 +153,7 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                                     />
                                     <p className="text-xs text-muted-foreground mt-1">Formato compra: {item.articulo.unidadConversion || 1} {formatUnit(item.articulo.unidad)}</p>
                                 </div>
-                                <div>
+                                <div className="space-y-2">
                                     <Label htmlFor="nueva-cantidad">Nueva Cantidad Real ({formatUnit(item.articulo.unidad)})</Label>
                                     <Input id="nueva-cantidad" type="number" value={ajuste.cantidad} onChange={e => handleCantidadBaseChange(parseFloat(e.target.value) || 0)} />
                                 </div>
@@ -569,12 +580,14 @@ function InventarioPage() {
         } else { // Ajuste de cantidad
             const stockKey = `${movimiento.articuloErpId}_${movimiento.ubicacionOrigenId}`;
              if(allStock[stockKey]) {
+                const stockPrevio = allStock[stockKey].stockTeorico;
+                const diferencia = movimiento.cantidad - stockPrevio;
                 allStock[stockKey].stockTeorico = movimiento.cantidad;
+                movimiento.cantidad = diferencia;
              } else {
                  allStock[stockKey] = { id: stockKey, articuloErpId: movimiento.articuloErpId, ubicacionId: movimiento.ubicacionOrigenId!, stockTeorico: movimiento.cantidad, lotes: []};
              }
-             const diferencia = movimiento.cantidad - (item?.stock || 0);
-             movimiento.cantidad = diferencia; // Log the difference
+             
              allMovements.push({ ...movimiento, id: `mov-${Date.now()}` });
         }
         
@@ -594,7 +607,7 @@ function InventarioPage() {
     return (
         <div>
             <div className="flex items-start justify-between mb-2">
-                <h2 className="text-2xl font-semibold tracking-tight">Stock Teórico por Ubicación</h2>
+                <h2 className="text-2xl font-semibold tracking-tight">Stock Teórico Consolidado</h2>
                 <div className="flex items-center gap-2">
                     <Dialog>
                         <DialogTrigger asChild>
@@ -746,3 +759,36 @@ export default function InventarioPageWrapper() {
 }
     
 
+
+```
+- src/hooks/use-navigation-store.ts:
+```ts
+import { create } from 'zustand';
+
+type NavigationState = {
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+};
+
+export const useNavigationStore = create<NavigationState>((set) => ({
+  isSidebarOpen: true,
+  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+}));
+
+```
+- src/hooks/useHydration.ts:
+```ts
+"use client"
+
+import { useState, useEffect } from 'react';
+
+export const useHydration = () => {
+    const [isHydrated, setIsHydrated] = useState(false);
+    useEffect(() => {
+        setIsHydrated(true);
+    }, []);
+    return isHydrated;
+};
+
+```
+```
