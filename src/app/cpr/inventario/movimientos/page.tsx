@@ -88,8 +88,8 @@ export default function MovimientosStockPage() {
                         />
                     </div>
                 </CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg max-h-[70vh] overflow-y-auto">
+                <CardContent className="p-0">
+                    <div className="border-t rounded-lg max-h-[70vh] overflow-y-auto">
                         <TooltipProvider>
                         <Table>
                             <TableHeader className="sticky top-0 bg-secondary">
@@ -106,15 +106,15 @@ export default function MovimientosStockPage() {
                             <TableBody>
                                 {filteredMovimientos.length > 0 ? filteredMovimientos.map(m => {
                                     const articulo = articuloMap.get(m.articuloErpId);
-                                    const ubicacionOrigen = m.ubicacionOrigenId ? (ubicacionMap.get(m.ubicacionOrigenId)?.nombre || 'N/A') : 'N/A';
-                                    const ubicacionDestino = m.ubicacionDestinoId ? (ubicacionMap.get(m.ubicacionDestinoId)?.nombre || 'N/A') : '';
+                                    const ubicacionOrigen = m.ubicacionOrigenId ? (ubicacionesMap.get(m.ubicacionOrigenId)?.nombre || 'N/A') : 'N/A';
+                                    const ubicacionDestino = m.ubicacionDestinoId ? (ubicacionesMap.get(m.ubicacionDestinoId)?.nombre || 'N/A') : '';
                                     
                                     let ubicacionDisplay = ubicacionOrigen;
                                     if(m.tipo === 'MOVIMIENTO_SALIDA') ubicacionDisplay = `${ubicacionOrigen} → ${ubicacionDestino}`;
                                     if(m.tipo === 'MOVIMIENTO_ENTRADA') ubicacionDisplay = `${ubicacionDestino}`;
 
                                     return (
-                                         <Tooltip key={m.id}>
+                                        <Tooltip key={m.id}>
                                             <TooltipTrigger asChild>
                                                  <TableRow>
                                                     <TableCell className="text-xs">{format(new Date(m.fecha), 'dd/MM/yy')}</TableCell>
