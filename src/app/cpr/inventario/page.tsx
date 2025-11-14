@@ -121,10 +121,10 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent>
-                <DialogHeader>
+                 <DialogHeader>
                     <DialogTitle>Ajuste de Stock</DialogTitle>
                     <DialogDescription>{item.articulo.nombreProductoERP}</DialogDescription>
-                    <Separator/>
+                    <Separator />
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                     <div className="flex justify-around text-center">
@@ -145,7 +145,7 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                         <TabsContent value="cantidad" className="pt-4 space-y-4">
                              <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>Nueva Cantidad (caja)</Label>
+                                    <Label>Nueva Cantidad (Formato Compra)</Label>
                                     <Input 
                                         type="number" 
                                         value={cantidadCompra} 
@@ -583,14 +583,10 @@ function InventarioPage() {
         } else { // Ajuste de cantidad
             const stockKey = `${movimiento.articuloErpId}_${movimiento.ubicacionOrigenId}`;
              if(allStock[stockKey]) {
-                const stockPrevio = allStock[stockKey].stockTeorico;
-                const diferencia = movimiento.cantidad - stockPrevio;
                 allStock[stockKey].stockTeorico = movimiento.cantidad;
-                movimiento.cantidad = diferencia;
              } else {
                  allStock[stockKey] = { id: stockKey, articuloErpId: movimiento.articuloErpId, ubicacionId: movimiento.ubicacionOrigenId!, stockTeorico: movimiento.cantidad, lotes: []};
              }
-             
              allMovements.push({ ...movimiento, id: `mov-${Date.now()}` });
         }
         
@@ -609,7 +605,7 @@ function InventarioPage() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-4">
+             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold tracking-tight">Stock Teórico Consolidado</h2>
                 <div className="flex items-center gap-2">
                     <Dialog>
@@ -618,7 +614,6 @@ function InventarioPage() {
                         </DialogTrigger>
                         <StockEntryDialog onSave={handleSaveStockEntry} />
                     </Dialog>
-                    <Button onClick={() => router.push('/cpr/inventario/movimientos')} variant="outline"><History className="mr-2"/>Ver Movimientos</Button>
                     <Button onClick={() => setIsRecounting(true)}><SlidersHorizontal className="mr-2"/>Iniciar Recuento</Button>
                 </div>
             </div>
