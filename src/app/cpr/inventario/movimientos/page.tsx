@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -8,11 +9,11 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { StockMovimiento, ArticuloERP, Ubicacion } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { formatCurrency, formatNumber, formatUnit, cn } from '@/lib/utils';
+import { formatNumber, formatUnit } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -61,19 +62,6 @@ export default function MovimientosStockPage() {
         return `${parts[0]} ${parts.length > 1 ? parts[1] : ''}`.trim();
     }
 
-    const renderTipoBadge = (tipo: StockMovimiento['tipo']) => {
-        switch(tipo) {
-            case 'ENTRADA_COMPRA': return <Badge className="bg-blue-500 hover:bg-blue-600">Entrada Compra</Badge>;
-            case 'ENTRADA_AJUSTE': return <Badge className="bg-green-500 hover:bg-green-600">(+)</Badge>;
-            case 'SALIDA_PRODUCCION': return <Badge variant="secondary">Salida Producción</Badge>;
-            case 'SALIDA_MERMA': return <Badge variant="destructive">Merma</Badge>;
-            case 'SALIDA_AJUSTE': return <Badge variant="destructive">(-)</Badge>;
-            case 'MOVIMIENTO_SALIDA': return <Badge variant="outline">Movimiento (Salida)</Badge>;
-            case 'MOVIMIENTO_ENTRADA': return <Badge variant="outline">Movimiento (Entrada)</Badge>;
-            default: return <Badge>{tipo}</Badge>;
-        }
-    };
-
     return (
         <main>
             <Card>
@@ -112,29 +100,44 @@ export default function MovimientosStockPage() {
                                     let ubicacionDisplay = ubicacionOrigen;
                                     if(m.tipo === 'MOVIMIENTO_SALIDA') ubicacionDisplay = `${ubicacionOrigen} → ${ubicacionDestino}`;
                                     if(m.tipo === 'MOVIMIENTO_ENTRADA') ubicacionDisplay = `${ubicacionDestino}`;
+                                    
+                                     const renderTipoBadge = (tipo: StockMovimiento['tipo']) => {
+                                        switch(tipo) {
+                                            case 'ENTRADA_COMPRA': return <Badge className="bg-blue-500 hover:bg-blue-600">Entrada Compra</Badge>;
+                                            case 'ENTRADA_AJUSTE': return <Badge className="bg-green-500 hover:bg-green-600">(+)</Badge>;
+                                            case 'SALIDA_PRODUCCION': return <Badge variant="secondary">Salida Producción</Badge>;
+                                            case 'SALIDA_MERMA': return <Badge variant="destructive">Merma</Badge>;
+                                            case 'SALIDA_AJUSTE': return <Badge variant="destructive">(-)</Badge>;
+                                            case 'MOVIMIENTO_SALIDA': return <Badge variant="outline">Movimiento (Salida)</Badge>;
+                                            case 'MOVIMIENTO_ENTRADA': return <Badge variant="outline">Movimiento (Entrada)</Badge>;
+                                            default: return <Badge>{tipo}</Badge>;
+                                        }
+                                    };
 
                                     return (
-                                        <Tooltip key={m.id}>
-                                            <TableRow>
-                                                <TooltipTrigger asChild>
-                                                    <TableCell className="text-xs cursor-help">{format(new Date(m.fecha), 'dd/MM/yy')}</TableCell>
-                                                </TooltipTrigger>
-                                                <TableCell className="font-semibold">{articulo?.nombreProductoERP || m.articuloErpId}</TableCell>
-                                                <TableCell>{renderTipoBadge(m.tipo)}</TableCell>
-                                                <TableCell>{ubicacionDisplay}</TableCell>
-                                                <TableCell className={cn("text-right font-mono", m.cantidad > 0 ? "text-green-600" : "text-destructive")}>
-                                                    {m.cantidad > 0 ? '+' : ''}{formatNumber(m.cantidad, 3)} {formatUnit(articulo?.unidad || '')}
-                                                </TableCell>
-                                                <TableCell className="text-xs text-muted-foreground">{m.concepto}</TableCell>
-                                                <TableCell>{getShortName(m.responsable)}</TableCell>
-                                            </TableRow>
-                                            <TooltipContent>
-                                                <div className="p-1 text-sm">
-                                                    <p>Stock previo: <strong>{formatNumber(m.stockPrevio || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
-                                                    <p>Stock final: <strong>{formatNumber(m.stockFinal || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
-                                                </div>
-                                            </TooltipContent>
-                                        </Tooltip>
+                                        <TableRow key={m.id}>
+                                            <TableCell className="text-xs">
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="cursor-help">{format(new Date(m.fecha), 'dd/MM/yy')}</span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <div className="p-1 text-sm">
+                                                            <p>Stock previo: <strong>{formatNumber(m.stockPrevio || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
+                                                            <p>Stock final: <strong>{formatNumber(m.stockFinal || 0, 3)} {formatUnit(articulo?.unidad || '')}</strong></p>
+                                                        </div>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TableCell>
+                                            <TableCell className="font-semibold">{articulo?.nombreProductoERP || m.articuloErpId}</TableCell>
+                                            <TableCell>{renderTipoBadge(m.tipo)}</TableCell>
+                                            <TableCell>{ubicacionDisplay}</TableCell>
+                                            <TableCell className={`text-right font-mono ${m.cantidad < 0 ? 'text-destructive' : 'text-green-600'}`}>
+                                                {m.cantidad > 0 ? '+' : ''}{formatNumber(m.cantidad, 3)} {formatUnit(articulo?.unidad || '')}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">{m.concepto}</TableCell>
+                                            <TableCell>{getShortName(m.responsable)}</TableCell>
+                                        </TableRow>
                                     );
                                 }) : (
                                     <TableRow>
