@@ -24,8 +24,9 @@ export default function MovimientosStockPage() {
     const router = useRouter();
 
     useEffect(() => {
-        const storedMovimientos = JSON.parse(localStorage.getItem('stockMovimientos') || '[]') as StockMovimiento[];
-        setMovimientos(storedMovimientos.sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()));
+        const storedMovimientos = (JSON.parse(localStorage.getItem('stockMovimientos') || '[]') as StockMovimiento[])
+            .sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+        setMovimientos(storedMovimientos);
 
         const storedArticulos = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
         setArticuloMap(new Map(storedArticulos.map(a => [a.idreferenciaerp, a])));
@@ -67,20 +68,12 @@ export default function MovimientosStockPage() {
 
     return (
         <div>
-             <div className="flex items-center justify-between mb-6">
-                <div>
-                    <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/inventario')} className="mb-2">
-                        <ArrowLeft className="mr-2" /> Volver al Inventario
-                    </Button>
-                    <h1 className="text-3xl font-headline font-bold">Historial de Movimientos de Stock</h1>
-                </div>
-            </div>
             <Card>
                 <CardHeader>
                     <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Buscar por artículo, concepto o responsable..."
+                            placeholder="Buscar por artículo, responsable, concepto..."
                             className="pl-8"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -133,4 +126,3 @@ export default function MovimientosStockPage() {
         </div>
     );
 }
-
