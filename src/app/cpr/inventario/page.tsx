@@ -52,9 +52,10 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
 
     useEffect(() => {
         if (item) {
-            setAjuste({ tipo: 'cantidad', cantidad: item.stock, ubicacionDestino: '', motivo: '' });
+            const initialStock = parseFloat(item.stock.toFixed(3));
+            setAjuste({ tipo: 'cantidad', cantidad: initialStock, ubicacionDestino: '', motivo: '' });
             const conversionFactor = item.articulo.unidadConversion || 1;
-            setCantidadCompra(conversionFactor > 0 ? item.stock / conversionFactor : 0);
+            setCantidadCompra(conversionFactor > 0 ? parseFloat((initialStock / conversionFactor).toFixed(3)) : 0);
         }
     }, [item]);
 
@@ -106,22 +107,24 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
         setCantidadCompra(numValue);
         if (item) {
             const conversionFactor = item.articulo.unidadConversion || 1;
-            setAjuste(prev => ({...prev, cantidad: numValue * conversionFactor}));
+            setAjuste(prev => ({...prev, cantidad: parseFloat((numValue * conversionFactor).toFixed(3))}));
         }
     };
     
-    const handleCantidadBaseChange = (value: number) => {
-        const numValue = Math.max(0, value);
+    const handleCantidadBaseChange = (value: string) => {
+        const numValue = Math.max(0, parseFloat(value.replace(',', '.')) || 0);
         setAjuste(prev => ({...prev, cantidad: numValue}));
         if(item) {
             const conversionFactor = item.articulo.unidadConversion || 1;
-            setCantidadCompra(conversionFactor > 0 ? numValue / conversionFactor : 0);
+            setCantidadCompra(conversionFactor > 0 ? parseFloat((numValue / conversionFactor).toFixed(3)) : 0);
         }
     }
 
 
     if (!item) return null;
     
+    const diferencia = ajuste.cantidad - item.stock;
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent>
@@ -147,23 +150,25 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                             <TabsTrigger value="mover">Mover Stock</TabsTrigger>
                         </TabsList>
                         <TabsContent value="cantidad" className="pt-4 space-y-4">
-                             <div className="grid grid-cols-2 gap-4">
+                            <h4 className="font-semibold text-center">Nueva Cantidad</h4>
+                            <Separator/>
+                            <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>Nueva Cantidad (Formato Compra)</Label>
+                                    <Label>Formato Compra</Label>
                                     <Input 
                                         type="number" 
                                         value={cantidadCompra} 
                                         onChange={(e) => handleCantidadCompraChange(e.target.value)}
                                         min="0"
                                     />
-                                    <p className="text-xs text-muted-foreground mt-1">Formato compra: {item.articulo.unidadConversion || 1} {formatUnit(item.articulo.unidad)}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Formato: {item.articulo.unidadConversion || 1} {formatUnit(item.articulo.unidad)}</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="nueva-cantidad">Nueva Cantidad Real ({formatUnit(item.articulo.unidad)})</Label>
-                                    <Input id="nueva-cantidad" type="number" min="0" value={ajuste.cantidad} onChange={e => handleCantidadBaseChange(parseFloat(e.target.value) || 0)} />
+                                    <Label htmlFor="nueva-cantidad">{formatUnit(item.articulo.unidad)}</Label>
+                                    <Input id="nueva-cantidad" type="number" min="0" value={ajuste.cantidad} onChange={e => handleCantidadBaseChange(e.target.value)} />
                                 </div>
                             </div>
-                            <p className="text-sm">Diferencia: <span className={cn("font-bold", (ajuste.cantidad - item.stock) < 0 ? 'text-destructive' : 'text-green-600')}>{formatNumber(ajuste.cantidad - item.stock, 3)}</span></p>
+                            <p className="text-sm">Diferencia: <span className={cn("font-bold", diferencia < 0 ? 'text-destructive' : 'text-green-600')}>{formatNumber(diferencia, 3)}</span></p>
                         </TabsContent>
                          <TabsContent value="mover" className="pt-4">
                              <div className="grid grid-cols-2 gap-4">
@@ -574,7 +579,7 @@ function InventarioPage() {
             const origenKey = `${movimiento.articuloErpId}_${movimiento.ubicacionOrigenId}`;
             const destinoKey = `${movimiento.articuloErpId}_${movimiento.ubicacionDestinoId}`;
             if(allStock[origenKey]) {
-                allStock[origenKey].stockTeorico += movimiento.cantidad; // cantidad es negativa
+                allStock[origenKey].stockTeorico = movimiento.stockFinal!;
             }
             if(!allStock[destinoKey]) {
                 allStock[destinoKey] = { id: destinoKey, articuloErpId: movimiento.articuloErpId, ubicacionId: movimiento.ubicacionDestinoId!, stockTeorico: 0, lotes: [] };
@@ -582,12 +587,12 @@ function InventarioPage() {
             allStock[destinoKey].stockTeorico -= movimiento.cantidad; // se suma el negativo del negativo
             
             const movimientoEntrada = {...movimiento, id: `mov-${Date.now()}-in`, tipo: 'MOVIMIENTO_ENTRADA', cantidad: -movimiento.cantidad, valoracion: -movimiento.valoracion, stockPrevio: allStock[destinoKey].stockTeorico + movimiento.cantidad, stockFinal: allStock[destinoKey].stockTeorico };
-            allMovements.push(movimiento, movimientoEntrada);
+            allMovements.push({ ...movimiento, id: `mov-${Date.now()}` }, movimientoEntrada);
 
         } else { // Ajuste de cantidad
             const stockKey = `${movimiento.articuloErpId}_${movimiento.ubicacionOrigenId}`;
              if(allStock[stockKey]) {
-                allStock[stockKey].stockTeorico = movimiento.stockFinal;
+                allStock[stockKey].stockTeorico = movimiento.stockFinal!;
              } else {
                  allStock[stockKey] = { id: stockKey, articuloErpId: movimiento.articuloErpId, ubicacionId: movimiento.ubicacionOrigenId!, stockTeorico: movimiento.stockFinal!, lotes: []};
              }
@@ -612,7 +617,7 @@ function InventarioPage() {
              <div className="flex items-center justify-between mb-4">
                 <div></div>
                 <div className="flex items-center gap-2">
-                    <Dialog>
+                    <Dialog open={isArticuloDialogOpen} onOpenChange={setIsArticuloDialogOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline"><PlusCircle className="mr-2"/>Entrada Compra</Button>
                         </DialogTrigger>
@@ -763,5 +768,6 @@ export default function InventarioPageWrapper() {
     
 
     
+
 
 
