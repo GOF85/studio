@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Archive, Search, SlidersHorizontal, FileDown, FileUp, PlusCircle, Activity, X, Save, Loader2, Trash2, Edit } from 'lucide-react';
+import { Archive, Search, SlidersHorizontal, FileDown, FileUp, PlusCircle, Activity, X, Save, Loader2, Trash2, Edit, History } from 'lucide-react';
 import type { ArticuloERP, StockArticuloUbicacion, Ubicacion, CentroProduccion, IncidenciaInventario, Proveedor, StockMovimiento } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,8 +98,8 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
     };
 
     const handleCantidadCompraChange = (value: string) => {
-        const numValue = parseFloat(value.replace(',', '.')) || 0;
-        setCantidadCompra(value);
+        const numValue = Math.max(0, parseFloat(value.replace(',', '.')) || 0);
+        setCantidadCompra(numValue);
         if (item) {
             const conversionFactor = item.articulo.unidadConversion || 1;
             setAjuste(prev => ({...prev, cantidad: numValue * conversionFactor}));
@@ -107,10 +107,11 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
     };
     
     const handleCantidadBaseChange = (value: number) => {
-        setAjuste(prev => ({...prev, cantidad: value}));
+        const numValue = Math.max(0, value);
+        setAjuste(prev => ({...prev, cantidad: numValue}));
         if(item) {
             const conversionFactor = item.articulo.unidadConversion || 1;
-            setCantidadCompra(conversionFactor > 0 ? value / conversionFactor : 0);
+            setCantidadCompra(conversionFactor > 0 ? numValue / conversionFactor : 0);
         }
     }
 
@@ -123,7 +124,7 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                 <DialogHeader>
                     <DialogTitle>Ajuste de Stock</DialogTitle>
                     <DialogDescription>{item.articulo.nombreProductoERP}</DialogDescription>
-                    <Separator />
+                    <Separator/>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                     <div className="flex justify-around text-center">
@@ -143,19 +144,19 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                         </TabsList>
                         <TabsContent value="cantidad" className="pt-4 space-y-4">
                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label>Nueva Cantidad (Formato Compra)</Label>
+                                <div className="space-y-2">
+                                    <Label>Nueva Cantidad (caja)</Label>
                                     <Input 
                                         type="number" 
                                         value={cantidadCompra} 
                                         onChange={(e) => handleCantidadCompraChange(e.target.value)}
-                                        className="mt-2"
+                                        min="0"
                                     />
                                     <p className="text-xs text-muted-foreground mt-1">Formato compra: {item.articulo.unidadConversion || 1} {formatUnit(item.articulo.unidad)}</p>
                                 </div>
-                                <div>
+                                <div className="space-y-2">
                                     <Label htmlFor="nueva-cantidad">Nueva Cantidad Real ({formatUnit(item.articulo.unidad)})</Label>
-                                    <Input id="nueva-cantidad" type="number" value={ajuste.cantidad} onChange={e => handleCantidadBaseChange(parseFloat(e.target.value) || 0)} className="mt-2"/>
+                                    <Input id="nueva-cantidad" type="number" min="0" value={ajuste.cantidad} onChange={e => handleCantidadBaseChange(parseFloat(e.target.value) || 0)} />
                                 </div>
                             </div>
                             <p className="text-sm">Diferencia: <span className={cn("font-bold", (ajuste.cantidad - item.stock) < 0 ? 'text-destructive' : 'text-green-600')}>{formatNumber(ajuste.cantidad - item.stock, 3)}</span></p>
@@ -164,7 +165,7 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                              <div className="grid grid-cols-2 gap-4">
                                  <div className="space-y-2">
                                     <Label htmlFor="cantidad-mover">Cantidad a Mover</Label>
-                                    <Input id="cantidad-mover" type="number" max={item.stock} onChange={e => setAjuste(prev => ({...prev, cantidad: parseFloat(e.target.value) || 0}))} />
+                                    <Input id="cantidad-mover" type="number" min="0" max={item.stock} onChange={e => setAjuste(prev => ({...prev, cantidad: parseFloat(e.target.value) || 0}))} />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="ubicacion-destino">Ubicación Destino</Label>
@@ -369,6 +370,8 @@ function InventarioPage() {
     const [updateTrigger, setUpdateTrigger] = useState(0);
     const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
     const [selectedStockItem, setSelectedStockItem] = useState<StockUbicacionDetalle | null>(null);
+
+    const router = useRouter();
 
     const loadData = useCallback(() => {
         const storedArticulos = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
@@ -606,7 +609,7 @@ function InventarioPage() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold tracking-tight">Stock Teórico Consolidado</h2>
                 <div className="flex items-center gap-2">
                     <Dialog>
@@ -615,6 +618,7 @@ function InventarioPage() {
                         </DialogTrigger>
                         <StockEntryDialog onSave={handleSaveStockEntry} />
                     </Dialog>
+                    <Button onClick={() => router.push('/cpr/inventario/movimientos')} variant="outline"><History className="mr-2"/>Ver Movimientos</Button>
                     <Button onClick={() => setIsRecounting(true)}><SlidersHorizontal className="mr-2"/>Iniciar Recuento</Button>
                 </div>
             </div>
@@ -628,14 +632,14 @@ function InventarioPage() {
                                     placeholder="Buscar producto o categoría..." className="max-w-sm"
                                     value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                    <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                                    <SelectTrigger className="w-[180px]"><SelectValue placeholder="Categoría..."/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Todas las Categorías</SelectItem>
                                         {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <Select value={locationFilter} onValueChange={setLocationFilter}>
-                                    <SelectTrigger className="w-[220px]"><SelectValue placeholder="Todas las Ubicaciones"/></SelectTrigger>
+                                    <SelectTrigger className="w-[220px]"><SelectValue placeholder="Ubicación..."/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Todas las Ubicaciones</SelectItem>
                                         {ubicaciones.map(u => <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>)}

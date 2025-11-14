@@ -2,7 +2,7 @@
 
 'use client';
 
-import { Database, Users, Package, Building, Layers, Box, Percent, Target, Factory, CreditCard, Banknote, Trash2, UserPlus, MapPin } from 'lucide-react';
+import { Database, Users, Package, Building, Layers, Box, Percent, Target, Factory, CreditCard, Banknote, Trash2, UserPlus, MapPin, History } from 'lucide-react';
 
 export const bdNavLinks = [
     { title: 'Personal Interno', path: '/bd/personal', icon: Users },
@@ -15,6 +15,7 @@ export const bdNavLinks = [
     { title: 'Familias ERP', path: '/bd/familiasERP', icon: Layers },
     { title: 'Formatos de Expedición', path: '/bd/formatos-expedicion', icon: Box },
     { title: 'Centros y Ubicaciones', path: '/bd/centros', icon: Factory },
+    { title: 'Movimientos de Inventario', path: '/cpr/inventario/movimientos', icon: History },
     { title: 'Objetivos de Gasto', path: '/bd/objetivos-gasto', icon: Target },
     { title: 'Objetivos CPR', path: '/bd/objetivos-cpr', icon: CreditCard },
     { title: 'Costes Fijos CPR', path: '/bd/costes-fijos-cpr', icon: Banknote },
