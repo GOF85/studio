@@ -1131,6 +1131,8 @@ export type StockMovimiento = {
     ubicacionOrigenId?: string;
     ubicacionDestinoId?: string;
     valoracion: number;
+    stockPrevio: number;
+    stockFinal: number;
 }
 
 export type CierreInventario = {
@@ -1161,4 +1163,3 @@ export type IncidenciaInventario = {
 };
 
     
-

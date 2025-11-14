@@ -68,6 +68,7 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
             fecha: new Date().toISOString(),
             responsable: impersonatedUser?.nombre || 'Desconocido',
             concepto: ajuste.motivo,
+            stockPrevio: item.stock,
         };
 
         if (ajuste.tipo === 'cantidad') {
@@ -78,6 +79,7 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                 cantidad: diferencia,
                 ubicacionOrigenId: item.ubicacionId,
                 valoracion: diferencia * (item.articulo.precio || 0),
+                stockFinal: ajuste.cantidad,
             };
         } else { // mover
              const cantidadAMover = parseFloat(String(ajuste.cantidad));
@@ -92,6 +94,7 @@ function AdjustmentModal({ item, isOpen, onClose, onSave, ubicaciones }: { item:
                 ubicacionOrigenId: item.ubicacionId,
                 ubicacionDestinoId: ajuste.ubicacionDestino,
                 valoracion: -cantidadAMover * (item.articulo.precio || 0),
+                stockFinal: item.stock - cantidadAMover,
             };
         }
         onSave(movimiento);
@@ -577,7 +580,7 @@ function InventarioPage() {
             }
             allStock[destinoKey].stockTeorico -= movimiento.cantidad; // se suma el negativo del negativo
             
-            const movimientoEntrada = {...movimiento, id: `mov-${Date.now()}-in`, tipo: 'MOVIMIENTO_ENTRADA', cantidad: -movimiento.cantidad, valoracion: -movimiento.valoracion};
+            const movimientoEntrada = {...movimiento, id: `mov-${Date.now()}-in`, tipo: 'MOVIMIENTO_ENTRADA', cantidad: -movimiento.cantidad, valoracion: -movimiento.valoracion, stockPrevio: allStock[destinoKey].stockTeorico + movimiento.cantidad, stockFinal: allStock[destinoKey].stockTeorico };
             allMovements.push(movimiento, movimientoEntrada);
 
         } else { // Ajuste de cantidad
@@ -606,7 +609,7 @@ function InventarioPage() {
     return (
         <div>
              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-semibold tracking-tight">Stock Teórico Consolidado</h2>
+                <div></div>
                 <div className="flex items-center gap-2">
                     <Dialog>
                         <DialogTrigger asChild>
@@ -759,3 +762,4 @@ export default function InventarioPageWrapper() {
     
 
     
+
