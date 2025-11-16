@@ -1158,8 +1158,7 @@ export type CierreInventario = {
     valorInventarioFinal: number;
     valorCompras: number;
     valorConsumoTrazado: number;
-    valorConsumoEstimado: number; // Futuro uso
     valorMermaDesconocida: number;
-}
+    valorConsumoNoTrazado: number;
+};
     
-

@@ -1,12 +1,13 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, startOfMonth, endOfMonth, subMonths, addMonths, isAfter } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Calculator, Download, AlertTriangle } from 'lucide-react';
-import type { CierreInventario, StockArticuloUbicacion, ArticuloERP, StockMovimiento } from '@/types';
+import { ChevronLeft, ChevronRight, Calculator, Download, AlertTriangle, Save } from 'lucide-react';
+import type { CierreInventario, StockArticuloUbicacion, ArticuloERP, StockMovimiento, OrdenFabricacion, IngredienteInterno, Elaboracion, HistoricoPreciosERP } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,6 +15,8 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 function KpiCard({ title, value, description }: { title: string; value: string; description?: string }) {
   return (
@@ -34,6 +37,7 @@ export default function CierresInventarioPage() {
   const [cierres, setCierres] = useState<CierreInventario[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
+  const [valorComprasManual, setValorComprasManual] = useState(0);
 
   const loadCierres = useCallback(() => {
     const storedCierres = JSON.parse(localStorage.getItem('cierresInventario') || '[]') as CierreInventario[];
@@ -61,7 +65,11 @@ export default function CierresInventarioPage() {
     const allStock = JSON.parse(localStorage.getItem('stockArticuloUbicacion') || '{}') as Record<string, StockArticuloUbicacion>;
     const allArticulos = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const articulosMap = new Map(allArticulos.map(a => [a.idreferenciaerp, a]));
-    const allMovimientos = JSON.parse(localStorage.getItem('stockMovimientos') || '[]') as StockMovimiento[];
+    const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]).filter(of => of.estado === 'Finalizado' || of.estado === 'Validado');
+    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
+    const ingredientesMap = new Map((JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[]).map(i => [i.id, i]));
+    const historicoPrecios = JSON.parse(localStorage.getItem('historicoPreciosERP') || '[]') as HistoricoPreciosERP[];
     
     const valorInventarioFinal = Object.values(allStock).reduce((sum, item) => {
         const articulo = articulosMap.get(item.articuloErpId);
@@ -71,26 +79,50 @@ export default function CierresInventarioPage() {
     const mesAnteriorKey = format(subMonths(currentMonth, 1), 'yyyy-MM');
     const cierreAnterior = cierres.find(c => c.mes === mesAnteriorKey);
     const valorInventarioInicial = cierreAnterior?.valorInventarioFinal || 0;
-
+    
     const inicioMes = startOfMonth(currentMonth);
     const finMes = endOfMonth(currentMonth);
 
-    const movimientosMes = allMovimientos.filter(m => {
-        const fechaMovimiento = new Date(m.fecha);
-        return fechaMovimiento >= inicioMes && fechaMovimiento <= finMes;
+    const ofsDelMes = allOFs.filter(of => {
+        if (!of.fechaFinalizacion) return false;
+        const fechaFin = new Date(of.fechaFinalizacion);
+        return fechaFin >= inicioMes && fechaFin <= finMes;
     });
 
-    const valorCompras = movimientosMes
-        .filter(m => m.tipo === 'ENTRADA_COMPRA')
-        .reduce((sum, m) => sum + m.valoracion, 0);
+    const calculateHistoricalCost = (elaboracionId: string, eventDate: Date): number => {
+        const getPrecioHistorico = (erpId: string): number => {
+             const relevantPrices = historicoPrecios
+                .filter(h => h.articuloErpId === erpId && new Date(h.fecha) <= startOfDay(eventDate))
+                .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+            const latestPrice = articulosMap.get(erpId)?.precio || 0;
+            return relevantPrices.length > 0 ? relevantPrices[0].precioCalculado : latestPrice;
+        };
+        
+        const calculateElabCost = (elabId: string): number => {
+            const elab = elaboracionesMap.get(elabId);
+            if (!elab) return 0;
+            
+            const costeComponentes = (elab.componentes || []).reduce((sum, comp) => {
+                let componentCost = 0;
+                if (comp.tipo === 'ingrediente') {
+                    const ingrediente = ingredientesMap.get(comp.componenteId);
+                    const erpItem = ingrediente ? articulosMap.get(ingrediente.productoERPlinkId) : undefined;
+                    if(erpItem) componentCost = getPrecioHistorico(erpItem.idreferenciaerp) * comp.cantidad;
+                } else componentCost = calculateElabCost(comp.componenteId) * comp.cantidad;
+                return sum + (componentCost * (1 + (comp.merma || 0) / 100));
+            }, 0);
+            return elab.produccionTotal > 0 ? costeComponentes / elab.produccionTotal : 0;
+        }
+        return calculateElabCost(elaboracionId);
+    };
 
-    const valorConsumoTrazado = Math.abs(movimientosMes
-        .filter(m => m.tipo === 'SALIDA_PRODUCCION')
-        .reduce((sum, m) => sum + m.valoracion, 0));
+    const valorConsumoTrazado = ofsDelMes.reduce((sum, of) => {
+        const costeUnitarioHistorico = calculateHistoricalCost(of.elaboracionId, new Date(of.fechaFinalizacion!));
+        return sum + (costeUnitarioHistorico * (of.cantidadReal || of.cantidadTotal));
+    }, 0);
 
-    // Consumo Real = Inv. Inicial + Compras - Inv. Final
-    const consumoRealTotal = valorInventarioInicial + valorCompras - valorInventarioFinal;
-    const valorMermaDesconocida = consumoRealTotal - valorConsumoTrazado;
+    const valorConsumoNoTrazado = (valorInventarioInicial + valorComprasManual) - valorInventarioFinal;
+    const valorMermaDesconocida = valorConsumoNoTrazado - valorConsumoTrazado;
 
 
     const nuevoCierre: CierreInventario = {
@@ -101,10 +133,10 @@ export default function CierresInventarioPage() {
         fechaCierre: new Date().toISOString(),
         valorInventarioInicial,
         valorInventarioFinal,
-        valorCompras,
+        valorCompras: valorComprasManual,
         valorConsumoTrazado,
-        valorConsumoEstimado: 0, // Placeholder
         valorMermaDesconocida,
+        valorConsumoNoTrazado,
     };
     
     const updatedCierres = [...cierres, nuevoCierre];
@@ -139,12 +171,16 @@ export default function CierresInventarioPage() {
               <AlertDialogTitle>¿Confirmar cierre de inventario?</AlertDialogTitle>
               <AlertDialogDescription>
                 Esta acción creará una "foto" del estado actual del inventario para el mes de <strong>{format(currentMonth, 'MMMM yyyy', {locale: es})}</strong>.
-                Los cálculos se basarán en el inventario actual, las compras registradas y el cierre del mes anterior. Esta acción no se puede deshacer.
+                Introduce el valor total de las compras de materia prima de este mes.
               </AlertDialogDescription>
             </AlertDialogHeader>
+             <div className="py-4">
+                <Label htmlFor="valor-compras">Valor Total Compras del Mes (€)</Label>
+                <Input id="valor-compras" type="number" placeholder="Introduce el total de facturas de proveedores" value={valorComprasManual} onChange={e => setValorComprasManual(parseFloat(e.target.value) || 0)} />
+             </div>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleRealizarCierre}>Sí, realizar cierre</AlertDialogAction>
+              <AlertDialogAction onClick={handleRealizarCierre} disabled={valorComprasManual <= 0}>Sí, realizar cierre</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -155,7 +191,7 @@ export default function CierresInventarioPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <KpiCard title="Inventario Inicial" value={formatCurrency(selectedCierre.valorInventarioInicial)} />
                 <KpiCard title="Compras del Mes" value={formatCurrency(selectedCierre.valorCompras)} />
-                <KpiCard title="Consumo Trazado" value={formatCurrency(selectedCierre.valorConsumoTrazado)} description="Coste de MP de OFs finalizadas"/>
+                <KpiCard title="Consumo Trazado (OFs)" value={formatCurrency(selectedCierre.valorConsumoTrazado)} />
                 <KpiCard title="Inventario Final" value={formatCurrency(selectedCierre.valorInventarioFinal)} />
             </div>
             <Card>
@@ -163,12 +199,12 @@ export default function CierresInventarioPage() {
                 <CardContent className="text-lg">
                     <div className="flex justify-around items-center">
                         <div className="text-center">
-                            <p className="text-sm text-muted-foreground">Consumo Real Total</p>
-                            <p className="font-bold">{formatCurrency(selectedCierre.valorInventarioInicial + selectedCierre.valorCompras - selectedCierre.valorInventarioFinal)}</p>
+                            <p className="text-sm text-muted-foreground">Consumo Contable Total</p>
+                            <p className="font-bold">{formatCurrency(selectedCierre.valorConsumoNoTrazado)}</p>
                         </div>
                          <span className="text-3xl font-light text-muted-foreground">-</span>
                         <div className="text-center">
-                            <p className="text-sm text-muted-foreground">Consumo Trazado</p>
+                            <p className="text-sm text-muted-foreground">Consumo Trazado (OFs)</p>
                             <p className="font-bold">{formatCurrency(selectedCierre.valorConsumoTrazado)}</p>
                         </div>
                         <span className="text-3xl font-light text-muted-foreground">=</span>
