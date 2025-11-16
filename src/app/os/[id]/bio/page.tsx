@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -19,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { useOsContext } from '../os-context';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -113,187 +115,81 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function BioPage() {
-  const [isMounted, setIsMounted] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
-  
-  const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
-  const { toast } = useToast();
+    const { osId, isLoading, allItems: contextItems } = useOsContext();
+    const router = useRouter();
+    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
 
-   const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
-    if (!isMounted) {
-        return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
-    }
-    
-    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
-
-    const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
-    const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
-
-    const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
-    
-    const mermas: Record<string, number> = {};
-    allReturnSheets.forEach(sheet => {
-      Object.entries(sheet.itemStates).forEach(([key, state]) => {
-        const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
-        if (itemInfo && itemInfo.type === 'Bio' && itemInfo.sentQuantity > state.returnedQuantity) {
-            const perdida = itemInfo.sentQuantity - state.returnedQuantity;
-            mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
+    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+        if (!contextItems) {
+            return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
         }
-      });
-    });
-    
-    const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
-    const processedItemKeys = new Set<string>();
-    const blocked: BlockedOrderInfo[] = [];
+        
+        const relatedOrders = contextItems.materialOrders.filter(o => o.type === 'Bio');
+        
+        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+        const processedItemKeys = new Set<string>();
+        const blocked: BlockedOrderInfo[] = [];
 
-    relatedPickingSheets.forEach(sheet => {
-        const targetStatus = statusMap[sheet.status];
-        const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
+        contextItems.pickingSheets.forEach(sheet => {
+            const targetStatus = statusMap[sheet.status];
+            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
 
-        sheet.items.forEach(item => {
-            if (item.type !== 'Bio') return;
-            
-            const uniqueKey = `${item.orderId}-${item.itemCode}`;
-            const orderRef = relatedOrders.find(o => o.id === item.orderId);
-            
-            let cantidadReal = item.quantity;
-            if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
-                const mermaAplicable = Math.min(cantidadReal, mermas[item.itemCode]);
-                cantidadReal -= mermaAplicable;
-                mermas[item.itemCode] -= mermaAplicable;
+            sheet.items.forEach(itemInSheet => {
+                if (itemInSheet.type !== 'Bio') return;
+                
+                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
+                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
+                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
+
+                if (!originalItem) return;
+                
+                const itemWithInfo: ItemWithOrderInfo = {
+                    ...originalItem, 
+                    orderId: sheet.id, 
+                    orderContract: orderRef?.contractNumber || 'N/A', 
+                    orderStatus: sheet.status, 
+                    solicita: orderRef?.solicita,
+                };
+
+                statusItems[targetStatus].push(itemWithInfo);
+                sheetInfo.items.push(itemWithInfo);
+                processedItemKeys.add(uniqueKey);
+            });
+
+            if (sheetInfo.items.length > 0) {
+                blocked.push(sheetInfo);
             }
-
-            if(cantidadReal > 0) {
-              const itemWithInfo: ItemWithOrderInfo = {
-                  ...item, 
-                  quantity: cantidadReal,
-                  orderId: sheet.id, 
-                  orderContract: orderRef?.contractNumber || 'N/A', 
-                  orderStatus: sheet.status, 
-                  solicita: orderRef?.solicita,
-              };
-              statusItems[targetStatus].push(itemWithInfo);
-              sheetInfo.items.push(itemWithInfo);
-            }
-            processedItemKeys.add(uniqueKey);
         });
 
-        if (sheetInfo.items.length > 0) {
-            blocked.push(sheetInfo);
-        }
-    });
-
-    const all = relatedOrders.flatMap(order => 
-        order.items.map(item => {
-             let cantidadAjustada = item.quantity;
-            (item.ajustes || []).forEach(ajuste => {
-              cantidadAjustada += ajuste.cantidad;
-            });
-            return {
+        const all = relatedOrders.flatMap(order => 
+            order.items.map(item => ({
                 ...item, 
-                quantity: cantidadAjustada,
                 orderId: order.id, 
                 contractNumber: order.contractNumber, 
                 solicita: order.solicita, 
                 tipo: item.tipo, 
                 deliveryDate: order.deliveryDate,
                 ajustes: item.ajustes
-            } as ItemWithOrderInfo
-        })
-    );
-    
-    const pending = all.filter(item => {
-      const uniqueKey = `${item.orderId}-${item.itemCode}`;
-      let cantidadAjustada = item.quantity;
-      if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
-          const mermaAplicable = Math.min(cantidadAjustada, mermas[item.itemCode]);
-          cantidadAjustada -= mermaAplicable;
-          mermas[item.itemCode] -= mermaAplicable;
-      }
-      return !processedItemKeys.has(uniqueKey) && cantidadAjustada > 0;
-    }).map(item => {
-        let cantidadAjustada = item.quantity;
-        if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
-            cantidadAjustada -= mermas[item.itemCode];
-        }
-        return {...item, quantity: cantidadAjustada};
-    });
-    
-    statusItems['Asignado'] = pending;
+            } as ItemWithOrderInfo))
+        );
+        
+        const pending = all.filter(item => {
+          const uniqueKey = `${item.orderId}-${item.itemCode}`;
+          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+        });
+        
+        statusItems['Asignado'] = pending;
 
-    const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-    return { 
-        allItems: all, 
-        blockedOrders: blocked,
-        pendingItems: pending,
-        itemsByStatus: statusItems,
-        totalValoracionPendiente
-    };
-  }, [osId, isMounted]);
-
-  useEffect(() => {
-    setIsMounted(true);
-    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
-    setMaterialOrders(relatedOrders);
-  }, [osId]);
-
-  const handleSaveAll = () => {
-    setIsLoading(true);
-    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    
-    materialOrders.forEach(localOrder => {
-      const index = allMaterialOrders.findIndex(o => o.id === localOrder.id);
-      if (index !== -1) {
-        allMaterialOrders[index] = localOrder;
-      }
-    });
-
-    localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
-    window.dispatchEvent(new Event('storage'));
-    toast({ title: 'Guardado', description: 'Todos los cambios en los pedidos han sido guardados.' });
-    setIsLoading(false);
-  }
-
-  const handleItemChange = (orderId: string, itemCode: string, field: 'quantity' | 'solicita' | 'deliveryDate', value: any) => {
-    setMaterialOrders(prevOrders => {
-      return prevOrders.map(order => {
-        if (order.id === orderId) {
-            if (field === 'solicita' || field === 'deliveryDate') {
-                 return { ...order, [field]: value };
-            }
-          const updatedItems = order.items
-            .map(item => item.itemCode === itemCode ? { ...item, [field]: value } : item)
-            .filter(item => item.quantity > 0);
-          const updatedTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-          return { ...order, items: updatedItems, total: updatedTotal };
-        }
-        return order;
-      });
-    });
-  };
-
-  const handleDeleteItem = (orderId: string, itemCode: string) => {
-    handleItemChange(orderId, itemCode, 'quantity', 0);
-  }
-
-  const handleDeleteOrder = () => {
-    if (!orderToDelete) return;
-    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
-    localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
-    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Bio'));
-    window.dispatchEvent(new Event('storage'));
-    toast({ title: 'Pedido de material eliminado' });
-    setOrderToDelete(null);
-  };
+        return { 
+            allItems: all, 
+            blockedOrders: blocked,
+            pendingItems: pending,
+            itemsByStatus: statusItems,
+            totalValoracionPendiente
+        };
+    }, [osId, contextItems]);
   
   const renderStatusModal = (status: StatusColumn) => {
     const items = itemsByStatus[status];
@@ -354,8 +250,8 @@ export default function BioPage() {
       </DialogContent>
     )
   }
-
-  if (!isMounted) {
+  
+  if (isLoading) {
     return <LoadingSkeleton title="Cargando Módulo de Bio..." />;
   }
 
@@ -398,16 +294,6 @@ export default function BioPage() {
         <Card className="mb-6">
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
-                <div className="flex items-center gap-4">
-                    <div className="text-right">
-                        <p className="font-bold text-lg">{formatCurrency(totalValoracionPendiente)}</p>
-                        <p className="text-xs text-muted-foreground">Valoración total pendiente</p>
-                    </div>
-                    <Button onClick={handleSaveAll} disabled={isLoading}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                        <span className="ml-2">Guardar Cambios</span>
-                    </Button>
-                </div>
             </div>
             <CardContent>
                 <div className="border rounded-lg">
@@ -419,40 +305,19 @@ export default function BioPage() {
                                 <TableHead>Fecha Entrega</TableHead>
                                 <TableHead className="w-32">Cantidad</TableHead>
                                 <TableHead>Valoración</TableHead>
-                                <TableHead className="text-right w-12"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
                                 <TableRow key={item.itemCode + item.orderId}>
                                     <TableCell>{item.description}</TableCell>
-                                    <TableCell>
-                                        <Select value={item.solicita} onValueChange={(value: 'Sala' | 'Cocina') => handleItemChange(item.orderId, item.itemCode, 'solicita', value)}>
-                                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Sala">Sala</SelectItem>
-                                                <SelectItem value="Cocina">Cocina</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Input 
-                                            type="date" 
-                                            value={item.deliveryDate ? format(new Date(item.deliveryDate), 'yyyy-MM-dd') : ''}
-                                            onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'deliveryDate', e.target.value)}
-                                            className="h-8"
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
-                                    </TableCell>
+                                    <TableCell>{item.solicita}</TableCell>
+                                    <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
+                                    <TableCell>{item.quantity}</TableCell>
                                     <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                                    <TableCell>
-                                        <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteItem(item.orderId, item.itemCode)}><Trash2 className="h-4 w-4"/></Button>
-                                    </TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={6} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -495,26 +360,7 @@ export default function BioPage() {
         </Card>
 
        {activeModal && renderStatusModal(activeModal)}
-
-       <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
-            <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
-                Esta acción no se puede deshacer. Se eliminará el pedido de material.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                className="bg-destructive hover:bg-destructive/90"
-                onClick={handleDeleteOrder}
-                >
-                Eliminar
-                </AlertDialogAction>
-            </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
     </Dialog>
   );
 }
+

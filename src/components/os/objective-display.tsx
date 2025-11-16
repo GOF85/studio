@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { ServiceOrder, ObjetivosGasto, PersonalExterno, ComercialBriefing, GastronomyOrder } from '@/types';
+import type { ServiceOrder, ObjetivosGasto } from '@/types';
 import { Target, Info, RefreshCw } from 'lucide-react';
 import { GASTO_LABELS } from '@/lib/constants';
-import { formatCurrency, formatPercentage, formatNumber, calculateHours } from '@/lib/utils';
+import { formatCurrency, formatPercentage } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -39,18 +40,12 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
     }
   }, []);
 
-  // This logic is now much simpler. It will be the foundation for reading pre-calculated costs.
-  // For now, it will show 0 for budget until we implement the write-side logic.
   useEffect(() => {
     if (isMounted && osId && moduleName) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
 
       if (!currentOS) return;
-      
-      // The heavy calculation logic is REMOVED from here.
-      // We will assume costs are on the currentOS object in the future.
-      // For now, we simulate this by calculating only what's needed for display if not present.
       
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as any[];
       const allAjustes = (JSON.parse(localStorage.getItem('comercialAjustes') || '{}')[osId] || []) as { importe: number }[];
@@ -72,13 +67,12 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
       const objectivePct = (plantilla[moduleName] || 0) / 100;
       const objectiveValue = facturacionNeta * objectivePct;
 
-      // Placeholder for budget value. In the future, this would be `currentOS.costes[moduleName] || 0`
-      const budgetValue = 0; 
+      const budgetValue = currentOS.costes?.[moduleName] || 0; // Read pre-calculated cost
 
       setData({
         objective: objectiveValue,
         objectivePct,
-        budget: budgetValue, // Placeholder
+        budget: budgetValue,
         facturacionNeta,
       });
     }

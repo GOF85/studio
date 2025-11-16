@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { useOsContext } from '../os-context';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -114,77 +115,54 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function AlquilerPage() {
-  const [isMounted, setIsMounted] = useState(false);
-  const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-  const [updateTrigger, setUpdateTrigger] = useState(0);
-  
-  const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
+    const { osId, isLoading, allItems: contextItems } = useOsContext();
+    const router = useRouter();
+    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
 
- const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
-    if (typeof window === 'undefined') {
-        return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
-    }
-    
-    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
-
-    const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
-    const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
-
-    const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
-    
-    const mermas: Record<string, number> = {};
-    allReturnSheets.forEach(sheet => {
-      Object.entries(sheet.itemStates).forEach(([key, state]) => {
-        const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
-        if (itemInfo && itemInfo.type === 'Alquiler' && itemInfo.sentQuantity > state.returnedQuantity) {
-            const perdida = itemInfo.sentQuantity - state.returnedQuantity;
-            mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
+    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+        if (!contextItems) {
+            return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
         }
-      });
-    });
-    
-    const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
-    const processedItemKeys = new Set<string>();
-    const blocked: BlockedOrderInfo[] = [];
+        
+        const relatedOrders = contextItems.materialOrders.filter(o => o.type === 'Alquiler');
+        
+        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+        const processedItemKeys = new Set<string>();
+        const blocked: BlockedOrderInfo[] = [];
 
-    relatedPickingSheets.forEach(sheet => {
-        const targetStatus = statusMap[sheet.status];
-        const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
+        contextItems.pickingSheets.forEach(sheet => {
+            const targetStatus = statusMap[sheet.status];
+            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
 
-        sheet.items.forEach(itemInSheet => {
-            if (itemInSheet.type !== 'Alquiler') return;
-            
-            const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
-            const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
-            
-            // CRITICAL FIX: Always get the quantity from the source of truth (materialOrders)
-            const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
-            if (!originalItem) return;
-            
-            const itemWithInfo: ItemWithOrderInfo = {
-                ...originalItem, 
-                orderId: sheet.id, 
-                orderContract: orderRef?.contractNumber || 'N/A', 
-                orderStatus: sheet.status, 
-                solicita: orderRef?.solicita,
-            };
+            sheet.items.forEach(itemInSheet => {
+                if (itemInSheet.type !== 'Alquiler') return;
+                
+                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
+                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
+                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
 
-            statusItems[targetStatus].push(itemWithInfo);
-            sheetInfo.items.push(itemWithInfo);
-            processedItemKeys.add(uniqueKey);
+                if (!originalItem) return;
+                
+                const itemWithInfo: ItemWithOrderInfo = {
+                    ...originalItem, 
+                    orderId: sheet.id, 
+                    orderContract: orderRef?.contractNumber || 'N/A', 
+                    orderStatus: sheet.status, 
+                    solicita: orderRef?.solicita,
+                };
+
+                statusItems[targetStatus].push(itemWithInfo);
+                sheetInfo.items.push(itemWithInfo);
+                processedItemKeys.add(uniqueKey);
+            });
+
+            if (sheetInfo.items.length > 0) {
+                blocked.push(sheetInfo);
+            }
         });
 
-        if (sheetInfo.items.length > 0) {
-            blocked.push(sheetInfo);
-        }
-    });
-
-    const all = relatedOrders.flatMap(order => 
-        order.items.map(item => {
-            return {
+        const all = relatedOrders.flatMap(order => 
+            order.items.map(item => ({
                 ...item, 
                 orderId: order.id, 
                 contractNumber: order.contractNumber, 
@@ -192,45 +170,26 @@ export default function AlquilerPage() {
                 tipo: item.tipo, 
                 deliveryDate: order.deliveryDate,
                 ajustes: item.ajustes
-            } as ItemWithOrderInfo
-        })
-    );
-    
-    const pending = all.filter(item => {
-      const uniqueKey = `${item.orderId}-${item.itemCode}`;
-      let cantidadAjustada = item.quantity;
-      if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
-          cantidadAjustada = Math.max(0, cantidadAjustada - mermas[item.itemCode]);
-          mermas[item.itemCode] = 0;
-      }
-      return !processedItemKeys.has(uniqueKey) && cantidadAjustada > 0;
-    }).map(item => {
-        let cantidadAjustada = item.quantity;
-        if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
-            cantidadAjustada = Math.max(0, cantidadAjustada - mermas[item.itemCode]);
-        }
-        return {...item, quantity: cantidadAjustada};
-    });
-    
-    statusItems['Asignado'] = pending;
+            } as ItemWithOrderInfo))
+        );
+        
+        const pending = all.filter(item => {
+          const uniqueKey = `${item.orderId}-${item.itemCode}`;
+          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+        });
+        
+        statusItems['Asignado'] = pending;
 
-    const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-    return { 
-        allItems: all, 
-        blockedOrders: blocked,
-        pendingItems: pending,
-        itemsByStatus: statusItems,
-        totalValoracionPendiente
-    };
-  }, [osId, updateTrigger]);
-  
-    useEffect(() => {
-        setIsMounted(true);
-        const forceUpdate = () => setUpdateTrigger(prev => prev + 1);
-        window.addEventListener('storage', forceUpdate);
-        return () => window.removeEventListener('storage', forceUpdate);
-    }, []);
+        return { 
+            allItems: all, 
+            blockedOrders: blocked,
+            pendingItems: pending,
+            itemsByStatus: statusItems,
+            totalValoracionPendiente
+        };
+    }, [osId, contextItems]);
   
   const renderStatusModal = (status: StatusColumn) => {
     const items = itemsByStatus[status];
@@ -292,7 +251,7 @@ export default function AlquilerPage() {
     )
   }
 
-  if (!isMounted) {
+  if (isLoading) {
     return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
   }
 
@@ -404,4 +363,4 @@ export default function AlquilerPage() {
     </Dialog>
   );
 }
-    
+
