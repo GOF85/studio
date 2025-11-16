@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { format, subMonths, addMonths, isAfter, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subMonths, addMonths, isAfter, startOfMonth, endOfMonth, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Calculator, Download, AlertTriangle, Save, History, ArrowRight } from 'lucide-react';
 import type { CierreInventario, StockArticuloUbicacion, ArticuloERP, StockMovimiento, OrdenFabricacion, IngredienteInterno, Elaboracion, HistoricoPreciosERP, Ubicacion } from '@/types';
