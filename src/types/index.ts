@@ -1148,6 +1148,17 @@ export type IncidenciaInventario = {
     valoracionMerma?: number;
 };
 
+type InventarioSnapshotItem = {
+    articuloErpId: string;
+    nombreProducto: string;
+    ubicacionId: string;
+    ubicacionNombre: string;
+    stock: number;
+    unidad: string;
+    valoracion: number;
+};
+
+
 export type CierreInventario = {
     id: string; // ej: "CPR_2024-06"
     centroId: string;
@@ -1160,5 +1171,6 @@ export type CierreInventario = {
     valorConsumoTrazado: number;
     valorMermaDesconocida: number;
     valorConsumoNoTrazado: number;
+    snapshotInventario?: InventarioSnapshotItem[];
 };
     

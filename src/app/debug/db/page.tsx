@@ -36,7 +36,7 @@ const ALL_DATABASE_KEYS = [
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones', 'personalExternoDB', 'historicoPreciosERP',
     'incidenciasRetorno', 'costesFijosCPR', 'objetivosCPR', 'solicitudesPersonalCPR', 'cesionesPersonal',
-    'centros', 'ubicaciones', 'stockArticuloUbicacion', 'incidenciasInventario', 'cierresInventario'
+    'centros', 'ubicaciones', 'stockArticuloUbicacion', 'incidenciasInventario', 'cierresInventario', 'stockMovimientos'
 ];
 
 
@@ -101,7 +101,8 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
     ubicaciones: 'NUEVO: Ubicaciones físicas dentro de cada centro (ej. Pasillo A).',
     stockArticuloUbicacion: 'NUEVO: El inventario real. Mapea cada artículo a una ubicación y su stock.',
     incidenciasInventario: 'NUEVO: Registro de artículos no identificados durante un recuento.',
-    cierresInventario: 'NUEVO: "Fotos" mensuales del estado y valoración del inventario.'
+    cierresInventario: 'NUEVO: "Fotos" mensuales del estado y valoración del inventario.',
+    stockMovimientos: 'NUEVO: Historial de todos los movimientos de entrada y salida de stock.',
 };
 
 
@@ -215,3 +216,4 @@ export default function DebugDbPage() {
 }
 
     
+

@@ -1,4 +1,5 @@
 
+
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { parse, differenceInMinutes } from "date-fns";
@@ -15,6 +16,7 @@ export function formatCurrency(value: number | null | undefined) {
 }
 
 export function formatNumber(value: number, decimals: number = 2) {
+    if (isNaN(value)) return '0';
     return value.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
@@ -61,3 +63,4 @@ export function formatDuration(hours: number) {
     const m = totalMinutes % 60;
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
+
