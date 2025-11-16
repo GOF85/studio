@@ -1124,29 +1124,15 @@ export type StockMovimiento = {
     id: string;
     articuloErpId: string;
     fecha: string;
-    tipo: 'ENTRADA_COMPRA' | 'ENTRADA_AJUSTE' | 'SALIDA_PRODUCCION' | 'SALIDA_MERMA' | 'MOVIMIENTO_SALIDA' | 'MOVIMIENTO_ENTRADA';
+    tipo: 'ENTRADA_COMPRA' | 'ENTRADA_AJUSTE' | 'SALIDA_PRODUCCION' | 'SALIDA_MERMA' | 'SALIDA_AJUSTE' | 'MOVIMIENTO_SALIDA' | 'MOVIMIENTO_ENTRADA';
     cantidad: number; // Positivo para entradas, negativo para salidas
     concepto: string; // ej: "OF-2024-123", "Ajuste por rotura", "Movimiento a CPR_CALIENTE_PICK"
     responsable: string;
     ubicacionOrigenId?: string;
     ubicacionDestinoId?: string;
     valoracion: number;
-    stockPrevio: number;
-    stockFinal: number;
-}
-
-export type CierreInventario = {
-    id: string; // ej: "CPR_2024-06"
-    centroId: string;
-    mes: string; // "YYYY-MM"
-    fechaInicio: string;
-    fechaCierre: string;
-    valorInventarioInicial: number;
-    valorInventarioFinal: number;
-    valorCompras: number;
-    valorConsumoTrazado: number;
-    valorConsumoEstimado: number;
-    valorMermaDesconocida: number;
+    stockPrevio?: number;
+    stockFinal?: number;
 }
 
 export type IncidenciaInventario = {
@@ -1162,4 +1148,18 @@ export type IncidenciaInventario = {
     valoracionMerma?: number;
 };
 
+export type CierreInventario = {
+    id: string; // ej: "CPR_2024-06"
+    centroId: string;
+    mes: string; // "YYYY-MM"
+    fechaInicio: string;
+    fechaCierre: string;
+    valorInventarioInicial: number;
+    valorInventarioFinal: number;
+    valorCompras: number;
+    valorConsumoTrazado: number;
+    valorConsumoEstimado: number; // Futuro uso
+    valorMermaDesconocida: number;
+}
     
+

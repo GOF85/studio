@@ -36,7 +36,7 @@ const ALL_DATABASE_KEYS = [
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones', 'personalExternoDB', 'historicoPreciosERP',
     'incidenciasRetorno', 'costesFijosCPR', 'objetivosCPR', 'solicitudesPersonalCPR', 'cesionesPersonal',
-    'centros', 'ubicaciones', 'stockArticuloUbicacion', 'incidenciasInventario'
+    'centros', 'ubicaciones', 'stockArticuloUbicacion', 'incidenciasInventario', 'cierresInventario'
 ];
 
 
@@ -100,7 +100,8 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
     centros: 'NUEVO: Centros de Producción/Almacenes (ej. CPR_MAD).',
     ubicaciones: 'NUEVO: Ubicaciones físicas dentro de cada centro (ej. Pasillo A).',
     stockArticuloUbicacion: 'NUEVO: El inventario real. Mapea cada artículo a una ubicación y su stock.',
-    incidenciasInventario: 'NUEVO: Registro de artículos no identificados durante un recuento.'
+    incidenciasInventario: 'NUEVO: Registro de artículos no identificados durante un recuento.',
+    cierresInventario: 'NUEVO: "Fotos" mensuales del estado y valoración del inventario.'
 };
 
 
@@ -214,10 +215,3 @@ export default function DebugDbPage() {
 }
 
     
-
-
-
-
-
-
-
