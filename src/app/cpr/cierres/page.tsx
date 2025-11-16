@@ -1,12 +1,11 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, parseISO, startOfMonth, endOfMonth, subMonths, addMonths, isAfter, startOfDay } from 'date-fns';
+import { format, subMonths, addMonths, isAfter, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Calculator, Download, AlertTriangle, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calculator, Download, AlertTriangle, Save, History, ArrowRight } from 'lucide-react';
 import type { CierreInventario, StockArticuloUbicacion, ArticuloERP, StockMovimiento, OrdenFabricacion, IngredienteInterno, Elaboracion, HistoricoPreciosERP, Ubicacion } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -17,8 +16,6 @@ import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-
 
 function KpiCard({ title, value, description }: { title: string; value: string; description?: string }) {
   return (
@@ -40,6 +37,7 @@ export default function CierresInventarioPage() {
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
   const [valorComprasManual, setValorComprasManual] = useState(0);
+  const router = useRouter();
 
   const loadCierres = useCallback(() => {
     const storedCierres = JSON.parse(localStorage.getItem('cierresInventario') || '[]') as CierreInventario[];
@@ -249,56 +247,39 @@ export default function CierresInventarioPage() {
 
       <div className="mt-8">
         <h3 className="text-2xl font-headline font-semibold mb-4">Historial de Cierres</h3>
-        <Accordion type="single" collapsible className="w-full space-y-2">
-            {cierres.sort((a,b) => b.mes.localeCompare(a.mes)).map(c => (
-                <AccordionItem value={c.id} key={c.id} className="border rounded-lg">
-                    <AccordionTrigger className="p-4 hover:no-underline">
-                        <div className="grid grid-cols-6 w-full text-sm text-left">
-                            <div className="font-semibold capitalize">{format(parseISO(`${c.mes}-02`), 'MMMM yyyy', {locale: es})}</div>
-                            <div className="text-right">{formatCurrency(c.valorInventarioInicial)}</div>
-                            <div className="text-right">{formatCurrency(c.valorCompras)}</div>
-                            <div className="text-right">{formatCurrency(c.valorConsumoTrazado)}</div>
-                            <div className="text-right">{formatCurrency(c.valorInventarioFinal)}</div>
-                            <div className="text-right font-bold text-destructive">{formatCurrency(c.valorMermaDesconocida)}</div>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <div className="border-t max-h-96 overflow-y-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Artículo</TableHead>
-                                        <TableHead>Ubicación</TableHead>
-                                        <TableHead className="text-right">Stock</TableHead>
-                                        <TableHead className="text-right">Valoración</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {c.snapshotInventario?.sort((a,b) => b.valoracion - a.valoracion).map(item => (
-                                        <TableRow key={item.articuloErpId + item.ubicacionId}>
-                                            <TableCell className="font-medium">{item.nombreProducto}</TableCell>
-                                            <TableCell>{item.ubicacionNombre}</TableCell>
-                                            <TableCell className="text-right font-mono">{formatNumber(item.stock, 3)} {formatUnit(item.unidad)}</TableCell>
-                                            <TableCell className="text-right font-mono">{formatCurrency(item.valoracion)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-            ))}
-             <div className="grid grid-cols-6 w-full text-sm p-4 font-bold text-muted-foreground border-t">
-                <div>Mes</div>
-                <div className="text-right">Inv. Inicial</div>
-                <div className="text-right">Compras</div>
-                <div className="text-right">Consumo Trazado</div>
-                <div className="text-right">Inv. Final</div>
-                <div className="text-right">Merma Desconocida</div>
+            <div className="border rounded-lg">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Mes</TableHead>
+                            <TableHead className="text-right">Inv. Inicial</TableHead>
+                            <TableHead className="text-right">Compras</TableHead>
+                            <TableHead className="text-right">Consumo Trazado</TableHead>
+                            <TableHead className="text-right">Inv. Final</TableHead>
+                            <TableHead className="text-right">Merma Desconocida</TableHead>
+                            <TableHead className="text-right">Detalle</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {cierres.sort((a,b) => b.mes.localeCompare(a.mes)).map(c => (
+                            <TableRow key={c.id}>
+                                <TableCell className="font-semibold capitalize">{format(new Date(`${c.mes}-02`), 'MMMM yyyy', {locale: es})}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(c.valorInventarioInicial)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(c.valorCompras)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(c.valorConsumoTrazado)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(c.valorInventarioFinal)}</TableCell>
+                                <TableCell className="text-right font-bold text-destructive">{formatCurrency(c.valorMermaDesconocida)}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button asChild variant="ghost" size="sm">
+                                        <Link href={`/cpr/cierres/${c.id}`}>Ver detalle <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </div>
-        </Accordion>
       </div>
     </main>
   );
 }
-

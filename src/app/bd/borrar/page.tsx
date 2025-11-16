@@ -17,7 +17,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, ShieldAlert, Download, Loader2, Upload, Search, History } from 'lucide-react';
+import { Trash2, ShieldAlert, Download, Loader2, Upload, Search, History, Archive } from 'lucide-react';
 import Link from 'next/link';
 
 type DatabaseKey = 'personal' | 'espacios' | 'articulos' | 'tipoServicio' | 'tiposPersonal' | 'tiposTransporte' | 'atipicosDB' | 'decoracionDB' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores' | 'solicitudesPersonalCPR' | 'stockMovimientos';
@@ -267,6 +267,11 @@ export default function BorrarBdPage() {
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
+                            <Link href="/bd/borrar/cierres">
+                                <Button variant="destructive" size="sm">
+                                    <Archive className="mr-2 h-4 w-4" /> Borrar Cierres de Inventario
+                                </Button>
+                            </Link>
                         </CardContent>
                     </Card>
 
