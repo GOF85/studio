@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { format, subMonths, addMonths, isAfter, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Calculator, Download, AlertTriangle, Save, History, ArrowRight } from 'lucide-react';
@@ -108,7 +109,7 @@ export default function CierresInventarioPage() {
     const calculateHistoricalCost = (elaboracionId: string, eventDate: Date): number => {
         const getPrecioHistorico = (erpId: string): number => {
              const relevantPrices = historicoPrecios
-                .filter(h => h.articuloErpId === erpId && new Date(h.fecha) <= startOfDay(eventDate))
+                .filter(h => h.articuloErpId === erpId && new Date(h.fecha) <= startOfToday(eventDate))
                 .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
             const latestPrice = articulosMap.get(erpId)?.precio || 0;
             return relevantPrices.length > 0 ? relevantPrices[0].precioCalculado : latestPrice;
