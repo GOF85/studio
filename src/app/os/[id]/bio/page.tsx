@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -20,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { useOsContext } from '@/app/os/os-context';
+import { useOsContext } from '../../os-context';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -115,81 +114,13 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function BioPage() {
-    const { osId, isLoading, allItems: contextItems } = useOsContext();
+    const { osId, isLoading, getProcessedDataForType } = useOsContext();
     const router = useRouter();
     const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-
+  
     const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
-        if (!contextItems) {
-            return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
-        }
-        
-        const relatedOrders = contextItems.materialOrders.filter(o => o.type === 'Bio');
-        
-        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
-        const processedItemKeys = new Set<string>();
-        const blocked: BlockedOrderInfo[] = [];
-
-        contextItems.pickingSheets.forEach(sheet => {
-            const targetStatus = statusMap[sheet.status];
-            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
-
-            sheet.items.forEach(itemInSheet => {
-                if (itemInSheet.type !== 'Bio') return;
-                
-                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
-                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
-                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
-
-                if (!originalItem) return;
-                
-                const itemWithInfo: ItemWithOrderInfo = {
-                    ...originalItem, 
-                    orderId: sheet.id, 
-                    orderContract: orderRef?.contractNumber || 'N/A', 
-                    orderStatus: sheet.status, 
-                    solicita: orderRef?.solicita,
-                };
-
-                statusItems[targetStatus].push(itemWithInfo);
-                sheetInfo.items.push(itemWithInfo);
-                processedItemKeys.add(uniqueKey);
-            });
-
-            if (sheetInfo.items.length > 0) {
-                blocked.push(sheetInfo);
-            }
-        });
-
-        const all = relatedOrders.flatMap(order => 
-            order.items.map(item => ({
-                ...item, 
-                orderId: order.id, 
-                contractNumber: order.contractNumber, 
-                solicita: order.solicita, 
-                tipo: item.tipo, 
-                deliveryDate: order.deliveryDate,
-                ajustes: item.ajustes
-            } as ItemWithOrderInfo))
-        );
-        
-        const pending = all.filter(item => {
-          const uniqueKey = `${item.orderId}-${item.itemCode}`;
-          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
-        });
-        
-        statusItems['Asignado'] = pending;
-
-        const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-
-        return { 
-            allItems: all, 
-            blockedOrders: blocked,
-            pendingItems: pending,
-            itemsByStatus: statusItems,
-            totalValoracionPendiente
-        };
-    }, [osId, contextItems]);
+      return getProcessedDataForType('Bio');
+    }, [getProcessedDataForType]);
   
     const renderStatusModal = (status: StatusColumn) => {
       const items = itemsByStatus[status];
@@ -250,13 +181,13 @@ export default function BioPage() {
         </DialogContent>
       )
     }
-
+  
     if (isLoading) {
       return <LoadingSkeleton title="Cargando Módulo de Bio..." />;
     }
-
+  
     return (
-        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
+      <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
         <div className="flex items-center justify-between mb-4">
            <div className="flex items-center gap-2">
               <Dialog>
@@ -362,4 +293,4 @@ export default function BioPage() {
          {activeModal && renderStatusModal(activeModal)}
       </Dialog>
     );
-}
+  }
