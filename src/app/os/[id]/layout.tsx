@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ObjectiveDisplay } from '@/components/os/objective-display';
+import { OsContextProvider, useOsContext } from './os-context';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar, LayoutDashboard, Phone, ChevronRight, FilePenLine } from 'lucide-react';
 import {
   Tooltip,
@@ -58,10 +59,11 @@ const getInitials = (name: string) => {
     return name.substring(0, 2).toUpperCase();
 }
 
-function OsHeaderContent({ osId }: { osId: string }) {
+function OsHeaderContent({ osId }: { osId: string;}) {
     const pathname = usePathname();
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [updateKey, setUpdateKey] = useState(Date.now());
+    const { isLoading, allItems } = useOsContext();
 
     useEffect(() => {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
@@ -192,6 +194,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     const dashboardHref = `/os/${osId}`;
 
     return (
+      <OsContextProvider osId={osId}>
         <div className="container mx-auto">
             <div className="sticky top-[56px] z-30 bg-background/95 backdrop-blur-sm py-2 border-b">
                 <div className="flex items-center gap-4">
@@ -238,5 +241,6 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                 {children}
             </main>
         </div>
+      </OsContextProvider>
     );
 }

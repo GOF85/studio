@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { useOsContext } from '../os-context';
+import { useOsContext } from '@/app/os/os-context';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -191,176 +191,176 @@ export default function BioPage() {
         };
     }, [osId, contextItems]);
   
-  const renderStatusModal = (status: StatusColumn) => {
-    const items = itemsByStatus[status];
-    return (
+    const renderStatusModal = (status: StatusColumn) => {
+      const items = itemsByStatus[status];
+      return (
+          <DialogContent className="max-w-4xl">
+              <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
+              <div className="max-h-[60vh] overflow-y-auto">
+                  <Table>
+                      <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                          {items.length > 0 ? items.map((item, index) => (
+                              <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
+                          )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
+                      </TableBody>
+                  </Table>
+              </div>
+          </DialogContent>
+      )
+    }
+    
+    const renderSummaryModal = () => {
+        const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
+        const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        return (
         <DialogContent className="max-w-4xl">
-            <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
-            <div className="max-h-[60vh] overflow-y-auto">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {items.length > 0 ? items.map((item, index) => (
-                            <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
-                        )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
-                    </TableBody>
-                </Table>
+            <DialogHeader><DialogTitle>Resumen de Artículos de Bio</DialogTitle></DialogHeader>
+            <div className="max-h-[70vh] overflow-y-auto">
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead>Artículo</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Cant. Cajas</TableHead>
+                    <TableHead>Valoración</TableHead>
+                    <TableHead>Estado</TableHead>
+                </TableRow>
+                </TableHeader>
+                <TableBody>
+                {all.map((item, index) => {
+                    const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
+                    const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                    return (
+                    <TableRow key={`${item.itemCode}-${index}`}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{cajas}</TableCell>
+                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                        <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                    </TableRow>
+                    )
+                })}
+                </TableBody>
+            </Table>
+            </div>
+            <div className="flex justify-end font-bold text-lg p-4">
+                Valoración Total: {formatCurrency(totalValue)}
             </div>
         </DialogContent>
-    )
-  }
-  
-  const renderSummaryModal = () => {
-    const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
-    const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        )
+    }
+
+    if (isLoading) {
+        return <LoadingSkeleton title="Cargando Módulo de Bio..." />;
+    }
+
     return (
-      <DialogContent className="max-w-4xl">
-        <DialogHeader><DialogTitle>Resumen de Artículos de Bio</DialogTitle></DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Artículo</TableHead>
-                <TableHead>Cantidad</TableHead>
-                <TableHead>Cant. Cajas</TableHead>
-                <TableHead>Valoración</TableHead>
-                <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {all.map((item, index) => {
-                const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
-                const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
-                return (
-                  <TableRow key={`${item.itemCode}-${index}`}>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell>{cajas}</TableCell>
-                    <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                    <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-         <div className="flex justify-end font-bold text-lg p-4">
-            Valoración Total: {formatCurrency(totalValue)}
-        </div>
-      </DialogContent>
-    )
-  }
-  
-  if (isLoading) {
-    return <LoadingSkeleton title="Cargando Módulo de Bio..." />;
-  }
-
-  return (
-    <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
-      <div className="flex items-center justify-between mb-4">
-         <div className="flex items-center gap-2">
-            <Dialog>
-                <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-                </DialogTrigger>
-                {renderSummaryModal()}
-            </Dialog>
-            <BriefingSummaryDialog osId={osId} />
-        </div>
-        <Button asChild>
-          <Link href={`/pedidos?osId=${osId}&type=Bio`}>
-            <PlusCircle className="mr-2" />
-            Nuevo Pedido de Bio
-          </Link>
-        </Button>
-      </div>
-      
-       <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
-                const items = itemsByStatus[status];
-                const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                return (
-                <StatusCard 
-                    key={status}
-                    title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
-                    items={items.length}
-                    totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
-                    totalValue={totalValue}
-                    onClick={() => setActiveModal(status)}
-                />
-            )})}
-        </div>
-      
-        <Card className="mb-6">
-            <div className="flex items-center justify-between p-4">
-                <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
+        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                    </DialogTrigger>
+                    {renderSummaryModal()}
+                </Dialog>
+                <BriefingSummaryDialog osId={osId} />
             </div>
-            <CardContent>
-                <div className="border rounded-lg">
-                    <Table>
-                         <TableHeader>
-                            <TableRow>
-                                <TableHead>Artículo</TableHead>
-                                <TableHead>Solicita</TableHead>
-                                <TableHead>Fecha Entrega</TableHead>
-                                <TableHead className="w-32">Cantidad</TableHead>
-                                <TableHead>Valoración</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
-                                <TableRow key={item.itemCode + item.orderId}>
-                                    <TableCell>{item.description}</TableCell>
-                                    <TableCell>{item.solicita}</TableCell>
-                                    <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
-                                    <TableCell>{item.quantity}</TableCell>
-                                    <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                                </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+            <Button asChild>
+            <Link href={`/pedidos?osId=${osId}&type=Bio`}>
+                <PlusCircle className="mr-2" />
+                Nuevo Pedido de Bio
+            </Link>
+            </Button>
+        </div>
+        
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+                {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
+                    const items = itemsByStatus[status];
+                    const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    return (
+                    <StatusCard 
+                        key={status}
+                        title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
+                        items={items.length}
+                        totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
+                        totalValue={totalValue}
+                        onClick={() => setActiveModal(status)}
+                    />
+                )})}
+            </div>
+        
+            <Card className="mb-6">
+                <div className="flex items-center justify-between p-4">
+                    <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
                 </div>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
-            </CardHeader>
-             <CardContent>
-                 <div className="border rounded-lg">
-                    <Table>
-                         <TableHeader>
-                            <TableRow>
-                                <TableHead>Hoja Picking</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead>Contenido</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {blockedOrders.length > 0 ? blockedOrders.map(order => (
-                                <TableRow key={order.sheetId}>
-                                    <TableCell>
-                                        <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
-                                            <Badge variant="secondary">{order.sheetId}</Badge>
-                                        </Link>
-                                    </TableCell>
-                                    <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
-                                    <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
+                <CardContent>
+                    <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Artículo</TableHead>
+                                    <TableHead>Solicita</TableHead>
+                                    <TableHead>Fecha Entrega</TableHead>
+                                    <TableHead className="w-32">Cantidad</TableHead>
+                                    <TableHead>Valoración</TableHead>
                                 </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-        </Card>
+                            </TableHeader>
+                            <TableBody>
+                                {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                                    <TableRow key={item.itemCode + item.orderId}>
+                                        <TableCell>{item.description}</TableCell>
+                                        <TableCell>{item.solicita}</TableCell>
+                                        <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
+                                        <TableCell>{item.quantity}</TableCell>
+                                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
 
-       {activeModal && renderStatusModal(activeModal)}
-    </Dialog>
-  );
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Hoja Picking</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                    <TableHead>Contenido</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {blockedOrders.length > 0 ? blockedOrders.map(order => (
+                                    <TableRow key={order.sheetId}>
+                                        <TableCell>
+                                            <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
+                                                <Badge variant="secondary">{order.sheetId}</Badge>
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
+                                        <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+
+        {activeModal && renderStatusModal(activeModal)}
+        </Dialog>
+    );
 }
 
