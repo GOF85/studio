@@ -30,6 +30,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useDataStore } from '@/hooks/use-data-store';
 
 type CalendarEvent = {
   date: Date;
@@ -65,20 +66,18 @@ const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' 
 
 export default function CalendarioServiciosPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
   const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
+  const { data, isLoaded } = useDataStore();
 
+  const events = useMemo(() => {
+    if (!isLoaded) return [];
 
-  useEffect(() => {
-    const serviceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const briefings: ComercialBriefing[] = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-    
+    const { serviceOrders, comercialBriefings } = data;
     const allEvents: CalendarEvent[] = [];
-    
-    briefings.forEach(briefing => {
+
+    comercialBriefings.forEach(briefing => {
       const serviceOrder = serviceOrders.find(os => os.id === briefing.osId);
-      if (serviceOrder && serviceOrder.status !== 'Anulado') {
+      if (serviceOrder && serviceOrder.status !== 'Anulado' && serviceOrder.vertical !== 'Entregas') {
         briefing.items.forEach(item => {
           allEvents.push({
             date: new Date(item.fecha),
@@ -95,9 +94,8 @@ export default function CalendarioServiciosPage() {
       }
     });
 
-    setEvents(allEvents);
-    setIsMounted(true);
-  }, []);
+    return allEvents;
+  }, [isLoaded, data]);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -125,8 +123,8 @@ export default function CalendarioServiciosPage() {
   const nextMonth = () => setCurrentDate(add(currentDate, { months: 1 }));
   const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
 
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Calendario..." />;
+  if (!isLoaded) {
+    return <LoadingSkeleton title="Cargando Calendario de Servicios..." />;
   }
 
   return (
@@ -187,7 +185,7 @@ export default function CalendarioServiciosPage() {
                          return (
                             <Tooltip key={osId}>
                                 <TooltipTrigger asChild>
-                                <Link href={`/os?id=${osId}`}>
+                                <Link href={`/os/${osId}`}>
                                     <Badge variant={statusVariant[firstEvent.status]} className="w-full justify-start truncate cursor-pointer">
                                     {firstEvent.serviceNumber}
                                     </Badge>
@@ -230,7 +228,7 @@ export default function CalendarioServiciosPage() {
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto">
                     {dayDetails && Object.values(dayDetails.osEvents).flat().map((event, index) => (
-                         <Link key={`${event.osId}-${index}`} href={`/os?id=${event.osId}`} className="block p-3 hover:bg-muted rounded-md">
+                         <Link key={`${event.osId}-${index}`} href={`/os/${event.osId}`} className="block p-3 hover:bg-muted rounded-md">
                             <p className="font-bold text-primary">{event.serviceNumber}</p>
                             <p>{event.space}{event.finalClient && ` - ${event.finalClient}`}</p>
                             <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
