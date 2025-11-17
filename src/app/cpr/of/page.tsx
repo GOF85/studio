@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -194,13 +195,17 @@ function OfPageContent() {
     
     const proveedoresMap = useMemo(() => {
         if (!isLoaded || !data?.proveedores) return new Map();
-        return new Map(data.proveedores.map(p => [p.id, p]));
+        const map = new Map<string, Proveedor>();
+        data.proveedores.forEach(p => {
+            if(p.IdERP) map.set(p.IdERP, p);
+        });
+        return map;
     }, [isLoaded, data?.proveedores]);
 
     const articulosErpMap = useMemo(() => {
-        if (!isLoaded || !data?.articulosERP) return new Map();
-        return new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
-    }, [isLoaded, data?.articulosERP]);
+        if (!isLoaded || !data?.ingredientesERP) return new Map();
+        return new Map(data.ingredientesERP.map(a => [a.idreferenciaerp, a]));
+    }, [isLoaded, data?.ingredientesERP]);
 
     const ingredientesMap = useMemo(() => {
         if (!isLoaded || !data?.ingredientesInternos) return new Map();
@@ -497,8 +502,6 @@ function OfPageContent() {
             return [];
         }
 
-        console.log('[DEBUG 1] Necesidades Netas a procesar:', necesidades);
-
         const ingredientesNecesarios = new Map<string, { cantidad: number; desgloseUso: { receta: string; elaboracion: string; cantidad: number }[] }>();
 
         function getIngredientesRecursivo(elabId: string, cantidadRequerida: number, recetaNombre: string) {
@@ -528,19 +531,17 @@ function OfPageContent() {
                 getIngredientesRecursivo(necesidad.id, necesidad.cantidadNeta, necesidad.recetas.join(', '));
             }
         });
-
-        console.log('[DEBUG 2] Ingredientes Agregados:', ingredientesNecesarios);
         
         const compraPorProveedor = new Map<string, ProveedorConLista>();
 
         ingredientesNecesarios.forEach((datos, ingId) => {
             const ingredienteInterno = ingredientesMap.get(ingId);
-            if (!ingredienteInterno) return;
+            if (!ingredienteInterno || !ingredienteInterno.productoERPlinkId) return;
 
             const articuloERP = articulosErpMap.get(ingredienteInterno.productoERPlinkId);
-            if (!articuloERP || !articuloERP.proveedorPreferenteId) return;
+            if (!articuloERP || !articuloERP.idProveedor) return;
             
-            const proveedor = proveedoresMap.get(articuloERP.proveedorPreferenteId);
+            const proveedor = proveedoresMap.get(articuloERP.idProveedor);
             if (!proveedor) return;
 
             let proveedorData = compraPorProveedor.get(proveedor.id);
@@ -570,8 +571,6 @@ function OfPageContent() {
                 proveedorData.listaCompra.push(ingCompra);
             }
         });
-
-        console.log('[DEBUG 3] Compra Agrupada por Proveedor:', compraPorProveedor);
 
         return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
     }, [isLoaded, data, necesidades, elaboracionesMap, ingredientesMap, articulosErpMap, proveedoresMap]);
@@ -1065,7 +1064,7 @@ function OfPageContent() {
                     </div>
                 </CardContent>
             </Card>
-             <Card>
+             <Card className="mt-4">
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">Necesidades Cubiertas</CardTitle>
                     <CardDescription>Elaboraciones cuya producción ya está planificada o cubierta por el stock para el periodo seleccionado.</CardDescription>
@@ -1424,4 +1423,5 @@ export default function OFPage() {
 
 
     
+
 
