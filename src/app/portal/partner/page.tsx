@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Building2 } from 'lucide-react';
+import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Building2, ArrowLeft } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -11,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { formatUnit } from '@/lib/utils';
+import { formatUnit, formatNumber } from '@/lib/utils';
 import type { PedidoPartner, PedidoEntrega, ProductoVenta, Entrega, Proveedor } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
+import { useDataStore } from '@/hooks/use-data-store';
 
 
 type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
@@ -87,8 +89,8 @@ function CommentDialog({ pedido, onSave, isReadOnly }: { pedido: PedidoPartnerCo
 }
 
 export default function PartnerPortalPage() {
+    const { data, isLoaded, loadAllData } = useDataStore();
     const [pedidos, setPedidos] = useState<PedidoPartnerConEstado[]>([]);
-    const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
     const router = useRouter();
@@ -105,33 +107,29 @@ export default function PartnerPortalPage() {
         const roles = impersonatedUser.roles || [];
         return roles.includes('Admin') || roles.includes('Comercial');
     }, [impersonatedUser]);
-
+    
     const isReadOnly = useMemo(() => {
         if (!impersonatedUser) return true;
         return isAdminOrComercial;
     }, [impersonatedUser, isAdminOrComercial]);
 
-    const loadData = useCallback(() => {
+    const loadPortalData = useCallback(() => {
         const partnerShouldBeDefined = impersonatedUser?.roles?.includes('Partner Gastronomia');
         if (partnerShouldBeDefined && !impersonatedUser?.proveedorId) {
             setPedidos([]);
-            setIsMounted(true);
             return;
         }
 
-        const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
-        const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-        const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
+        const { entregas, pedidosEntrega, productosVenta, partnerPedidosStatus } = data;
         
-        const osMap = new Map(allEntregas.map(os => [os.id, os]));
-        const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
-        const partnerStatusData = JSON.parse(localStorage.getItem('partnerPedidosStatus') || '{}') as Record<string, { status: SimplifiedPedidoPartnerStatus; comentarios?: string }>;
-
+        const osMap = new Map(entregas.map(os => [os.id, os]));
+        const productosMap = new Map(productosVenta.map(p => [p.id, p]));
+        
         const partnerPedidos: PedidoPartnerConEstado[] = [];
 
-        allPedidosEntrega.forEach(pedido => {
+        pedidosEntrega.forEach(pedido => {
             const os = osMap.get(pedido.osId);
-            if (!os) return;
+            if (!os || os.status !== 'Confirmado') return;
 
             (pedido.hitos || []).forEach((hito, hitoIndex) => {
                 (hito.items || []).forEach(item => {
@@ -140,7 +138,7 @@ export default function PartnerPortalPage() {
 
                     if (shouldInclude) {
                          const id = `${hito.id}-${item.id}`;
-                         const statusInfo = partnerStatusData[id] || { status: 'Pendiente' };
+                         const statusInfo = partnerPedidosStatus[id] || { status: 'Pendiente' };
                          const expedicionNumero = `${os.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
                          partnerPedidos.push({
                             id,
@@ -163,22 +161,15 @@ export default function PartnerPortalPage() {
         });
         
         setPedidos(partnerPedidos);
-        setIsMounted(true);
-    }, [impersonatedUser]);
+    }, [impersonatedUser, data]);
 
     useEffect(() => {
-        if (impersonatedUser) {
-            const userRoles = impersonatedUser.roles || [];
-            const canAccess = userRoles.includes('Partner Gastronomia') || isAdminOrComercial;
-            if (!canAccess) {
-                router.push('/portal');
-            }
+        if (!isLoaded) {
+          loadAllData();
+        } else {
+          loadPortalData();
         }
-    }, [impersonatedUser, router, isAdminOrComercial]);
-
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
+    }, [isLoaded, loadAllData, loadPortalData]);
     
     const handleAccept = (pedido: PedidoPartnerConEstado) => {
         if (!impersonatedUser) return;
@@ -189,7 +180,7 @@ export default function PartnerPortalPage() {
         partnerStatusData[pedido.id].status = 'Aceptado';
         localStorage.setItem('partnerPedidosStatus', JSON.stringify(partnerStatusData));
         logActivity(impersonatedUser, 'Aceptar Pedido', `Aceptado: ${pedido.cantidad} x ${pedido.elaboracionNombre}`, pedido.expedicionNumero);
-        loadData();
+        loadPortalData();
         toast({ title: 'Pedido Aceptado', description: `El pedido ha sido marcado como "Aceptado".` });
     };
 
@@ -205,7 +196,7 @@ export default function PartnerPortalPage() {
         if(pedido) {
             logActivity(impersonatedUser, 'Añadir Comentario', `Comentario en ${pedido.elaboracionNombre}: "${comment}"`, pedido.expedicionNumero);
         }
-        loadData();
+        loadPortalData();
         toast({ title: 'Comentario guardado' });
     };
     
@@ -215,7 +206,7 @@ export default function PartnerPortalPage() {
             const deliveryDate = new Date(p.fechaEntrega);
 
             const isPast = isBefore(deliveryDate, today);
-            if (!showCompleted && isPast) {
+            if (!showCompleted && (isPast || p.status === 'Aceptado')) {
                 return false;
             }
 
@@ -272,13 +263,7 @@ export default function PartnerPortalPage() {
             });
     }, [filteredPedidos]);
 
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
-    const calStartDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const calEndDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-    const calendarDays = eachDayOfInterval({ start: calStartDate, end: calEndDate });
-
-     const eventsByDay = useMemo(() => {
+    const eventsByDay = useMemo(() => {
         const grouped: { [dayKey: string]: PedidoPartnerConEstado[] } = {};
         pedidos.forEach(event => {
             const dayKey = format(new Date(event.fechaEntrega), 'yyyy-MM-dd');
@@ -287,12 +272,18 @@ export default function PartnerPortalPage() {
         });
         return grouped;
     }, [pedidos]);
+    
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const calStartDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calEndDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    const calendarDays = eachDayOfInterval({ start: calStartDate, end: calEndDate });
 
     const nextMonth = () => setCurrentDate(add(currentDate, { months: 1 }));
     const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
 
 
-    if (!isMounted) {
+    if (!isLoaded) {
         return <LoadingSkeleton title="Cargando Portal de Partner..." />;
     }
     
@@ -310,6 +301,20 @@ export default function PartnerPortalPage() {
     return (
         <TooltipProvider>
          <main className="container mx-auto px-4 py-8">
+            <div className="flex items-center justify-between border-b pb-4 mb-8">
+                <div className="flex items-center gap-4">
+                    <Factory className="w-10 h-10 text-primary" />
+                    <div>
+                        <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Partner de Producción</h1>
+                    </div>
+                </div>
+                 {isAdminOrComercial && (
+                     <Badge variant="outline" className="px-4 py-2 text-lg border-primary text-primary">
+                        Vista de Administrador
+                    </Badge>
+                )}
+            </div>
+
             <Tabs defaultValue="lista">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="lista">Lista de Producción</TabsTrigger>
@@ -479,3 +484,46 @@ export default function PartnerPortalPage() {
     
 
     
+
+```
+- src/app/rrhh/solicitudes/page.tsx
+- src/components/os/os-provider.tsx
+- src/app/rrhh/analitica/externos/page.tsx
+- src/app/os/personal-externo-db/nuevo/page.tsx
+- src/app/os/personal-externo-db/[id]/page.tsx
+- src/app/os/transporte/pedido/page.tsx
+- src/app/os/transporte/page.tsx
+- src/app/os/transporte/[id]/page.tsx
+- src/app/os/prueba-menu/page.tsx
+- src/app/os/prueba-menu/[id]/page.tsx
+- src/app/os/personal-mice/[id]/page.tsx
+- src/app/os/personal-mice/page.tsx
+- src/app/os/personal-externo/page.tsx
+- src/app/os/personal-externo/[id]/page.tsx
+- src/app/os/layout.tsx
+- src/app/os/page.tsx
+- src/app/os/hielo/[id]/page.tsx
+- src/app/os/hielo/page.tsx
+- src/app/os/gastronomia/page.tsx
+- src/app/os/gastronomia/[briefingItemId]/layout.tsx
+- src/app/os/gastronomia/[briefingItemId]/page.tsx
+- src/app/os/decoracion/page.tsx
+- src/app/os/decoracion/[id]/page.tsx
+- src/app/os/cta-explotacion/page.tsx
+- src/app/os/cta-explotacion/[id]/page.tsx
+- src/app/os/comercial/[id]/page.tsx
+- src/app/os/comercial/page.tsx
+- src/app/os/bodega/[id]/page.tsx
+- src/app/os/bodega/page.tsx
+- src/app/os/bio/[id]/page.tsx
+- src/app/os/bio/page.tsx
+- src/app/os/atipicos/page.tsx
+- src/app/os/alquiler/[id]/page.tsx
+- src/app/os/alquiler/page.tsx
+- src/app/os/almacen/[id]/page.tsx
+- src/app/os/almacen/page.tsx
+- src/app/os/[id]/info/page.tsx
+- src/app/os/[id]/info/layout.tsx
+- src/app/os/[id]/layout.tsx
+- src/app/os/[id]/page.tsx
+- src/app/page.tsx

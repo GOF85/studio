@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -188,13 +189,18 @@ function OfPageContent() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     
     useEffect(() => {
-        loadAllData();
+        if (!isLoaded) {
+            loadAllData();
+        }
+    }, [isLoaded, loadAllData]);
+
+    useEffect(() => {
         setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) });
-    }, [loadAllData]);
+    }, []);
     
     const proveedoresMap = useMemo(() => {
         if (!isLoaded || !data?.proveedores) return new Map();
-        return new Map(data.proveedores.map(p => [p.id, p]));
+        return new Map(data.proveedores.map(p => [p.IdERP, p]));
     }, [isLoaded, data?.proveedores]);
 
     const articulosErpMap = useMemo(() => {
@@ -1410,11 +1416,3 @@ export default function OFPage() {
 
 
 
-    
-
-    
-
-
-
-
-    
