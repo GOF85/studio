@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
+import { PlusCircle, Eye, FileText } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem, ReturnSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,14 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { useOsContext } from '../../os-context';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -114,14 +108,110 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function AlquilerPage() {
-    const { osId, isLoading, getProcessedDataForType } = useOsContext();
-    const router = useRouter();
+    const [isLoading, setIsLoading] = useState(true);
     const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+    const [updateTrigger, setUpdateTrigger] = useState(0);
+    const router = useRouter();
+    const params = useParams();
+    const osId = params.id as string;
   
     const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
-      return getProcessedDataForType('Alquiler');
-    }, [getProcessedDataForType]);
+        if (typeof window === 'undefined') {
+            return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
+        }
+        
+        const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+        const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
+
+        const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
+        const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
+        
+        const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
+        
+        const mermas: Record<string, number> = {};
+        allReturnSheets.forEach(sheet => {
+          Object.entries(sheet.itemStates).forEach(([key, state]) => {
+            const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
+            if (itemInfo && itemInfo.type === 'Alquiler' && itemInfo.sentQuantity > state.returnedQuantity) {
+                const perdida = itemInfo.sentQuantity - state.returnedQuantity;
+                mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
+            }
+          });
+        });
+        
+        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+        const processedItemKeys = new Set<string>();
+        const blocked: BlockedOrderInfo[] = [];
+
+        relatedPickingSheets.forEach(sheet => {
+            const targetStatus = statusMap[sheet.status];
+            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
+
+            sheet.items.forEach(itemInSheet => {
+                if (itemInSheet.type !== 'Alquiler') return;
+                
+                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
+                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
+                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
+
+                if (!originalItem) return;
+                
+                const itemWithInfo: ItemWithOrderInfo = {
+                    ...originalItem,
+                    orderId: sheet.id, 
+                    orderContract: orderRef?.contractNumber || 'N/A', 
+                    orderStatus: sheet.status, 
+                    solicita: orderRef?.solicita,
+                };
+
+                statusItems[targetStatus].push(itemWithInfo);
+                sheetInfo.items.push(itemWithInfo);
+                processedItemKeys.add(uniqueKey);
+            });
+
+            if (sheetInfo.items.length > 0) {
+                blocked.push(sheetInfo);
+            }
+        });
+
+        const all = relatedOrders.flatMap(order => 
+            order.items.map(item => ({
+                ...item, 
+                orderId: order.id, 
+                contractNumber: order.contractNumber, 
+                solicita: order.solicita, 
+                tipo: item.tipo, 
+                deliveryDate: order.deliveryDate,
+                ajustes: item.ajustes
+            } as ItemWithOrderInfo))
+        );
+        
+        const pending = all.filter(item => {
+          const uniqueKey = `${item.orderId}-${item.itemCode}`;
+          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+        });
+        
+        statusItems['Asignado'] = pending;
+
+        const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
+        return { 
+            allItems: all, 
+            blockedOrders: blocked,
+            pendingItems: pending,
+            itemsByStatus: statusItems,
+            totalValoracionPendiente
+        };
+    }, [osId, updateTrigger]);
     
+    useEffect(() => {
+        setIsLoading(true);
+        const forceUpdate = () => setUpdateTrigger(prev => prev + 1);
+        window.addEventListener('storage', forceUpdate);
+        setIsLoading(false);
+        return () => window.removeEventListener('storage', forceUpdate);
+    }, []);
+  
     const renderStatusModal = (status: StatusColumn) => {
       const items = itemsByStatus[status];
       return (
@@ -294,4 +384,3 @@ export default function AlquilerPage() {
       </Dialog>
     );
 }
-    
