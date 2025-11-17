@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -22,7 +21,13 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -36,13 +41,14 @@ export default function PrevisionEntregasPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const storedOrders = localStorage.getItem('entregas');
+    let storedOrders = localStorage.getItem('entregas');
     const allOrders: Entrega[] = storedOrders ? JSON.parse(storedOrders) : [];
     setEntregas(allOrders.filter(os => os.vertical === 'Entregas'));
     setIsMounted(true);
   }, []);
 
   const availableMonths = useMemo(() => {
+    if (!entregas) return ['all'];
     const months = new Set<string>();
     entregas.forEach(os => {
       try {
@@ -52,11 +58,12 @@ export default function PrevisionEntregasPage() {
         console.error(`Invalid start date for OS ${os.serviceNumber}: ${os.startDate}`);
       }
     });
-    return Array.from(months).sort().reverse();
+    return ['all', ...Array.from(months).sort().reverse()];
   }, [entregas]);
   
   const filteredAndSortedOrders = useMemo(() => {
     const today = startOfToday();
+    
     const filtered = entregas.filter(os => {
       const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
       
@@ -127,7 +134,7 @@ export default function PrevisionEntregasPage() {
                     <SelectItem value="all">Todos los meses</SelectItem>
                     {availableMonths.map(month => (
                         <SelectItem key={month} value={month}>
-                        {format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
+                        {month === 'all' ? 'Todos' : format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
                         </SelectItem>
                     ))}
                     </SelectContent>
@@ -139,7 +146,7 @@ export default function PrevisionEntregasPage() {
                     </label>
             </div>
             </div>
-             <div className="flex items-center gap-2 flex-wrap">
+             <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Estado:</span>
                 <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
                 <Button size="sm" variant={statusFilter === 'Borrador' ? 'default' : 'outline'} onClick={() => setStatusFilter('Borrador')}>Borrador</Button>
@@ -162,8 +169,12 @@ export default function PrevisionEntregasPage() {
               <TableBody>
               {filteredAndSortedOrders.length > 0 ? (
                   filteredAndSortedOrders.map(os => (
-                  <TableRow key={os.id} onClick={() => router.push(`/entregas/pedido/${os.id}`)} className="cursor-pointer">
-                      <TableCell className="font-medium">{os.serviceNumber}</TableCell>
+                  <TableRow key={os.id} className="cursor-pointer">
+                      <TableCell className="font-medium">
+                        <Link href={`/entregas/pedido/${os.id}`} className="text-primary hover:underline">
+                            {os.serviceNumber}
+                        </Link>
+                      </TableCell>
                       <TableCell>{os.client}</TableCell>
                       <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')} {os.deliveryTime || ''}</TableCell>
                       <TableCell>

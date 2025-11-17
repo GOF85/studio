@@ -172,21 +172,23 @@ export default function PrevisionServiciosPage() {
               <TableBody>
               {filteredAndSortedOrders.length > 0 ? (
                   filteredAndSortedOrders.map(os => (
-                  <TableRow key={os.id} onClick={() => router.push(`/os/${os.id}`)} className="cursor-pointer">
-                      <TableCell className="font-medium flex items-center gap-2">
-                        {os.isVip && (
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger>
-                                        <Star className="h-4 w-4 text-amber-500 fill-amber-500"/>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Evento VIP</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        )}
-                        {os.serviceNumber}
+                  <TableRow key={os.id}>
+                      <TableCell className="font-medium">
+                        <Link href={`/os/${os.id}`} className="flex items-center gap-2 text-primary hover:underline">
+                            {os.isVip && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <Star className="h-4 w-4 text-amber-500 fill-amber-500"/>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Evento VIP</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                            {os.serviceNumber}
+                        </Link>
                       </TableCell>
                       <TableCell>{os.client}</TableCell>
                       <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
