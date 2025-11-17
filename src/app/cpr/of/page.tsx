@@ -473,20 +473,25 @@ function OfPageContent() {
     }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas]);
     
     const listaDeLaCompraPorProveedor = useMemo(() => {
-        if (!isLoaded || !data || !necesidades || !data.articulosERP) return [];
-        if (!data.elaboraciones || !data.ingredientesInternos || !data.proveedores) return [];
-
+        if (!isLoaded || !data.articulosERP || !data.proveedores || !necesidades || !data.elaboraciones || !data.ingredientesInternos) return [];
+    
         const elabMap = new Map(data.elaboraciones.map(e => [e.id, e]));
         const ingMap = new Map(data.ingredientesInternos.map(i => [i.id, i]));
         const erpMap = new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
-        const proveedoresMap = new Map(data.proveedores.map(p => [p.IdERP, p]));
-
+        
+        // Find proveedor by IdERP first, then fall back to id for older data compatibility
+        const proveedoresMap = new Map<string, Proveedor>();
+        data.proveedores.forEach(p => {
+          if (p.IdERP) proveedoresMap.set(p.IdERP, p);
+          proveedoresMap.set(p.id, p);
+        });
+    
         const ingredientesNecesarios = new Map<string, { cantidad: number, desgloseUso: { receta: string, elaboracion: string, cantidad: number }[] }>();
-
+    
         function getIngredientesRecursivo(elabId: string, cantidadRequerida: number, recetaNombre: string) {
             const elaboracion = elabMap.get(elabId);
             if (!elaboracion) return;
-
+    
             const ratio = cantidadRequerida / (elaboracion.produccionTotal > 0 ? elaboracion.produccionTotal : 1);
             
             (elaboracion.componentes || []).forEach(comp => {
@@ -504,31 +509,31 @@ function OfPageContent() {
                 }
             });
         }
-
+    
         necesidades.forEach(necesidad => {
-            if(necesidad.cantidadNeta > 0) {
+            if (necesidad.cantidadNeta > 0) {
                 getIngredientesRecursivo(necesidad.id, necesidad.cantidadNeta, necesidad.recetas.join(', '));
             }
         });
         
         const compraPorProveedor = new Map<string, ProveedorConLista>();
-
+    
         ingredientesNecesarios.forEach((data, ingId) => {
             const ingredienteInterno = ingMap.get(ingId);
             if (!ingredienteInterno) return;
-
+    
             const articuloERP = erpMap.get(ingredienteInterno.productoERPlinkId);
             if (!articuloERP) return;
-
-            const proveedor = proveedoresMap.get(articuloERP.idProveedor);
+    
+            const proveedor = proveedoresMap.get(articuloERP.idProveedor || '');
             if (!proveedor) return;
-
+    
             let proveedorData = compraPorProveedor.get(proveedor.id);
             if (!proveedorData) {
                 proveedorData = { ...proveedor, listaCompra: [] };
                 compraPorProveedor.set(proveedor.id, proveedorData);
             }
-
+    
             const ingCompra: IngredienteDeCompra = {
                 erpId: articuloERP.idreferenciaerp,
                 nombreProducto: articuloERP.nombreProductoERP,
@@ -550,7 +555,7 @@ function OfPageContent() {
                 proveedorData.listaCompra.push(ingCompra);
             }
         });
-
+    
         return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
     }, [isLoaded, necesidades, data]);
 
@@ -1367,4 +1372,5 @@ export default function OFPage() {
     
 
     
+
 
