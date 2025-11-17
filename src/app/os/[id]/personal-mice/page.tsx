@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,7 +21,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { differenceInMinutes, parse } from 'date-fns';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -36,6 +36,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useOsData } from '@/hooks/use-os-data';
 import { calculateHours, formatCurrency } from '@/lib/utils';
 
 
@@ -63,16 +64,15 @@ const formSchema = z.object({
 type PersonalMiceFormValues = z.infer<typeof formSchema>;
 
 export default function PersonalMiceFormPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [spaceAddress, setSpaceAddress] = useState<string>('');
-  const [isMounted, setIsMounted] = useState(false);
+  const params = useParams();
+  const osId = params.id as string;
+  const { serviceOrder, spaceAddress, briefing, isLoading: isOsDataLoading } = useOsData(osId);
+  
   const [personalDB, setPersonalDB] = useState<Personal[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
 
   const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
   const { toast } = useToast();
 
   const form = useForm<PersonalMiceFormValues>({
@@ -80,22 +80,20 @@ export default function PersonalMiceFormPage() {
     defaultValues: { personal: [] },
   });
 
-  const { control, setValue } = form;
+  const { control, setValue, getValues, formState } = form;
 
-  const { fields, append, remove, move } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
     name: "personal",
   });
   
  const handlePersonalChange = useCallback((index: number, name: string) => {
     if (!name) return;
-    const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
+    const person = personalDB.find(p => p.nombreCompleto === name);
     if (person) {
-      setValue(`personal.${index}.nombre`, person.nombre, { shouldDirty: true });
+      setValue(`personal.${index}.nombre`, person.nombreCompleto, { shouldDirty: true });
       setValue(`personal.${index}.dni`, person.dni || '', { shouldDirty: true });
       setValue(`personal.${index}.precioHora`, person.precioHora || 0, { shouldDirty: true });
-    } else {
-       setValue(`personal.${index}.nombre`, name, { shouldDirty: true });
     }
   }, [personalDB, setValue]);
   
@@ -117,50 +115,19 @@ export default function PersonalMiceFormPage() {
     return { totalPlanned: totals.planned, totalReal: totals.real };
   }, [watchedFields]);
 
-  const loadData = useCallback(() => {
-     if (!osId) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
-        router.push('/pes');
-        return;
-    }
-    
-    try {
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const currentOS = allServiceOrders.find(os => os.id === osId);
-        setServiceOrder(currentOS || null);
-
-        if (currentOS?.space) {
-            const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-            const currentSpace = allEspacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
-            setSpaceAddress(currentSpace?.identificacion.calle || '');
-        }
-
-        const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
-        const relatedOrders = allOrders.filter(order => order.osId === osId);
-        form.reset({ personal: relatedOrders });
-
-        const dbPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        setPersonalDB(dbPersonal);
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
-    } finally {
-        setIsMounted(true);
-    }
-  }, [osId, router, toast, form]);
-
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    const dbPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    setPersonalDB(dbPersonal);
+    
+    const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
+    const relatedOrders = allOrders.filter(order => order.osId === osId);
+    form.reset({ personal: relatedOrders });
+  }, [osId, form]);
 
 
  const onSubmit = (data: PersonalMiceFormValues) => {
-    setIsLoading(true);
-    if (!osId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
-      setIsLoading(false);
-      return;
-    }
-
+    setIsSubmitting(true);
+    
     const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
     const otherOsOrders = allOrders.filter(o => o.osId !== osId);
     
@@ -171,8 +138,8 @@ export default function PersonalMiceFormPage() {
 
     setTimeout(() => {
         toast({ title: 'Personal MICE guardado', description: 'Todos los cambios han sido guardados.' });
-        setIsLoading(false);
-        form.reset(data); // Resets form with new values, marking it as not dirty
+        setIsSubmitting(false);
+        form.reset(data);
     }, 500);
   };
   
@@ -201,10 +168,10 @@ export default function PersonalMiceFormPage() {
   };
 
   const personalOptions = useMemo(() => {
-    return personalDB.map(p => ({ label: p.nombre, value: p.nombre.toLowerCase() }));
+    return personalDB.map(p => ({ label: p.nombreCompleto, value: p.nombreCompleto }));
   }, [personalDB]);
 
-  if (!isMounted || !serviceOrder) {
+  if (isOsDataLoading) {
     return <LoadingSkeleton title="Cargando Módulo de Personal MICE..." />;
   }
 
@@ -213,28 +180,28 @@ export default function PersonalMiceFormPage() {
       <main>
        <FormProvider {...form}>
         <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)}>
-             <div className="flex items-center justify-between mb-6">
-                <Card className="flex-grow">
+            <div className="flex items-center justify-between mb-6">
+                 <Card className="flex-grow">
                   <CardContent className="p-3 flex items-center justify-between">
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-2 font-semibold">
                             <Building className="h-5 w-5" /> 
-                            <span>{serviceOrder.space}</span>
+                            <span>{serviceOrder?.space}</span>
                             {spaceAddress && <span className="font-normal">({spaceAddress})</span>}
                         </div>
                         <Separator orientation="vertical" className="h-6"/>
                         <div className="flex items-center gap-2">
                             <Users className="h-5 w-5" /> 
                             <span className="font-semibold">Resp. Metre:</span>
-                            <span>{serviceOrder.respMetre}</span>
-                            {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
+                            <span>{serviceOrder?.respMetre}</span>
+                            {serviceOrder?.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder?.respMetrePhone}</span>}
                         </div>
                     </div>
                   </CardContent>
                 </Card>
                  <div className="flex gap-2 ml-4">
-                    <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                    <Button type="submit" disabled={isSubmitting || !formState.isDirty}>
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : <Save />}
                         <span className="ml-2">Guardar Cambios</span>
                     </Button>
                 </div>

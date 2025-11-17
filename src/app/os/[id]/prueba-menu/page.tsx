@@ -24,6 +24,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { useOsData } from '@/hooks/use-os-data';
+
 
 const pruebaMenuItemSchema = z.object({
   id: z.string(),
@@ -36,30 +38,29 @@ const pruebaMenuItemSchema = z.object({
 const formSchema = z.object({
   items: z.array(pruebaMenuItemSchema),
   observacionesGenerales: z.string().optional().default(''),
-  costePruebaMenu: z.coerce.number().optional().default(0),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function PruebaMenuPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const osId = searchParams.get('osId');
+  const params = useParams();
+  const osId = params.id as string;
   const { toast } = useToast();
+
+  const { serviceOrder, briefing, isLoading: isOsDataLoading } = useOsData(osId);
 
   const [isMounted, setIsMounted] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [asistentesPrueba, setAsistentesPrueba] = useState(0);
   const [costePrueba, setCostePrueba] = useState(0);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { items: [], observacionesGenerales: '', costePruebaMenu: 0 },
+    defaultValues: { items: [], observacionesGenerales: '' },
   });
 
-  const { control, handleSubmit, formState } = form;
+  const { control, handleSubmit, formState, reset } = form;
   const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
@@ -71,16 +72,9 @@ export default function PruebaMenuPage() {
       router.push('/pes');
       return;
     }
-
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    setServiceOrder(currentOS || null);
-
-    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-    const currentBriefing = allBriefings.find(b => b.osId === osId);
-    if (currentBriefing) {
-        setBriefingItems(currentBriefing.items);
-        const pruebaMenuHito = currentBriefing.items.find(item => item.descripcion.toLowerCase() === 'prueba de menu');
+    
+    if (briefing) {
+        const pruebaMenuHito = briefing.items.find(item => item.descripcion.toLowerCase() === 'prueba de menu');
         if (pruebaMenuHito) {
             setAsistentesPrueba(pruebaMenuHito.asistentes || 0);
             const calculatedCost = (pruebaMenuHito.asistentes * pruebaMenuHito.precioUnitario) + (pruebaMenuHito.importeFijo || 0);
@@ -94,12 +88,11 @@ export default function PruebaMenuPage() {
       form.reset({ 
         items: currentMenuTest.items,
         observacionesGenerales: currentMenuTest.observacionesGenerales || '',
-        costePruebaMenu: currentMenuTest.costePruebaMenu || 0,
        });
     }
 
     setIsMounted(true);
-  }, [osId, router, toast, form]);
+  }, [osId, router, toast, form, briefing]);
 
   useEffect(() => {
     loadData();
@@ -140,21 +133,18 @@ const handlePrint = async () => {
         const pageWidth = doc.internal.pageSize.getWidth();
         let finalY = margin;
         
-        // --- TEXTOS ---
         const texts = {
             es: { proposalTitle: 'Prueba de Menú', orderNumber: 'Nº Servicio:', issueDate: 'Fecha Emisión:', client: 'Cliente:', finalClient: 'Cliente Final:', contact: 'Contacto:', eventDate: 'Fecha Principal:', deliveryFor: 'Entrega para:', logistics: 'Logística:', item: 'Producto', qty: 'Cant.', unitPrice: 'P. Unitario', subtotal: 'Subtotal', deliveryTotal: 'Total Entrega', summaryTitle: 'Resumen Económico', productsSubtotal: 'Subtotal Productos', logisticsSubtotal: 'Logística', taxableBase: 'Base Imponible', vat: 'IVA', total: 'TOTAL Propuesta', observations: 'Observaciones', footer: 'MICE Catering - Propuesta generada digitalmente.', portes: 'portes', porte: 'porte' },
-            en: { proposalTitle: 'Commercial Proposal', orderNumber: 'Order No.:', issueDate: 'Issue Date:', client: 'Client:', finalClient: 'End Client:', contact: 'Contact:', eventDate: 'Main Date:', deliveryFor: 'Delivery for:', logistics: 'Logistics:', item: 'Product', qty: 'Qty.', unitPrice: 'Unit Price', subtotal: 'Subtotal', deliveryTotal: 'Financial Summary', productsSubtotal: 'Products Subtotal', logisticsSubtotal: 'Logistics Subtotal', taxableBase: 'Taxable Base', vat: 'VAT', total: 'TOTAL Proposal', observations: 'Observations', footer: 'MICE Catering - Digitally generated proposal.', portes: 'deliveries', porte: 'delivery' }
+            en: { proposalTitle: 'Commercial Proposal', orderNumber: 'Order No.:', issueDate: 'Issue Date:', client: 'Client:', finalClient: 'End Client:', contact: 'Contact:', eventDate: 'Main Date:', deliveryFor: 'Delivery for:', logistics: 'Logistics:', item: 'Product', qty: 'Qty.', unitPrice: 'Unit Price', subtotal: 'Subtotal', deliveryTotal: 'Financial Summary', productsSubtotal: 'Products Subtotal', logisticsSubtotal: 'Logistics Subtotal', taxableBase: 'Taxable Base', vat: 'VAT', total: 'TOTAL Proposal', observations: 'Observations', footer: 'MICE Catering - Digitally generated proposal.', portes: 'portes', porte: 'delivery' }
         };
         const T = texts['es'];
 
-        // --- CABECERA ---
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor('#059669'); // Primary color
         doc.text(T.proposalTitle, margin, finalY);
         finalY += 10;
         
-        // --- DATOS SERVICIO Y EVENTO ---
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor('#374151'); // Gris oscuro
@@ -168,7 +158,7 @@ const handlePrint = async () => {
         const eventData = [
             ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
             ['Asistentes:', String(serviceOrder.asistentes)],
-            ['Servicios:', briefingItems.map(i => i.descripcion).join(', ') || '-']
+            ['Servicios:', (briefing?.items || []).map(i => i.descripcion).join(', ') || '-']
         ];
 
         autoTable(doc, {
@@ -191,7 +181,6 @@ const handlePrint = async () => {
 
         finalY = (doc as any).lastAutoTable.finalY + 10;
         
-        // --- TABLAS DE BODEGA Y GASTRONOMÍA ---
         const addSection = (category: 'BODEGA' | 'GASTRONOMÍA') => {
             const sectionItems = form.getValues('items').filter(item => item.mainCategory === category);
             if(sectionItems.length === 0) return;
@@ -249,7 +238,6 @@ const handlePrint = async () => {
         addSection('BODEGA');
         addSection('GASTRONOMÍA');
 
-        // --- OBSERVACIONES GENERALES ---
         const obsGenerales = form.getValues('observacionesGenerales');
         if (obsGenerales) {
             if (finalY + 30 > pageHeight) {
@@ -362,8 +350,12 @@ const handlePrint = async () => {
     )
   }
 
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted || isOsDataLoading) {
     return <LoadingSkeleton title="Cargando Prueba de Menú..." />;
+  }
+
+  if (!briefing) {
+    return <p>No se encontró el briefing para esta OS.</p>
   }
 
   return (
@@ -373,33 +365,22 @@ const handlePrint = async () => {
             <Card className="flex-grow">
                 <CardContent className="p-3 flex items-center justify-between">
                     <div className="flex items-center gap-4 text-sm">
-                        <div className="font-semibold">Nº Servicio: <Badge variant="secondary">{serviceOrder.serviceNumber}</Badge></div>
+                        <div><span className="font-semibold">Asistentes a la prueba:</span> <Badge>{asistentesPrueba}</Badge></div>
                         <Separator orientation="vertical" className="h-6"/>
-                        <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                        <div><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+                        <div><span className="font-semibold">Coste del Hito:</span> <Badge variant="destructive">{costePrueba.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</Badge></div>
                     </div>
-                    <div className="flex items-center gap-6">
-                       <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Asistentes a la prueba</p>
-                          <p className="font-bold text-lg">{asistentesPrueba}</p>
-                       </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Coste del Hito</p>
-                          <p className="font-bold text-lg">{costePrueba.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
-                       </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
+                            {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+                            {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
+                        </Button>
+                        <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
+                            <Save className="mr-2" />
+                            Guardar Cambios
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
-            <div className="flex gap-2 ml-4">
-                <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
-                    {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
-                    {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
-                </Button>
-                <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
-                    <Save className="mr-2" />
-                    Guardar Cambios
-                </Button>
-            </div>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-6">
