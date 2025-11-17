@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -17,3 +16,7 @@ export default function HomePage() {
 
   if (!isLoaded) {
     return <LoadingScreen />;
+  }
+
+  return <DashboardPage />;
+}
