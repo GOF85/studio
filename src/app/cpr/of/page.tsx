@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -188,12 +187,6 @@ function OfPageContent() {
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
     
-     useEffect(() => {
-        if (!isLoaded) {
-            loadAllData();
-        }
-    }, [isLoaded, loadAllData]);
-
     useEffect(() => {
         setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) });
     }, []);
@@ -212,7 +205,7 @@ function OfPageContent() {
         return 'serviceOrder' in hito;
     };
     
-    const { ordenes, personalCPR, necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
+    const { necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
         if (!isLoaded || !data || !dateRange?.from) return { ordenes: [], personalCPR: [], necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
 
         const {
@@ -330,16 +323,6 @@ function OfPageContent() {
 
     }, [isLoaded, data, dateRange, serviceOrdersMap, elaboracionesMap]);
 
-    const { ingredientesMap, articulosErpMap, proveedoresMap } = useMemo(() => {
-        if (!isLoaded || !data) return { ingredientesMap: new Map(), articulosErpMap: new Map(), proveedoresMap: new Map() };
-        const { ingredientesInternos, articulosERP, proveedores } = data;
-        return {
-            ingredientesMap: new Map(ingredientesInternos.map(i => [i.id, i])),
-            articulosErpMap: new Map(articulosERP.map(a => [a.idreferenciaerp, a])),
-            proveedoresMap: new Map(proveedores.map(p => [p.IdERP, p]))
-        };
-    }, [isLoaded, data]);
-
     useEffect(() => {
         if (!necesidades || !dateRange?.from || !dateRange?.to || !data) {
             setReporteData(null);
@@ -439,6 +422,16 @@ function OfPageContent() {
         });
 
     }, [necesidades, dateRange, data, serviceOrdersMap, elaboracionesMap]);
+    
+    const { ingredientesMap, articulosErpMap, proveedoresMap } = useMemo(() => {
+        if (!isLoaded || !data) return { ingredientesMap: new Map(), articulosErpMap: new Map(), proveedoresMap: new Map() };
+        const { ingredientesInternos, articulosERP, proveedores } = data;
+        return {
+            ingredientesMap: new Map(ingredientesInternos.map(i => [i.id, i])),
+            articulosErpMap: new Map(articulosERP.map(a => [a.idreferenciaerp, a])),
+            proveedoresMap: new Map(proveedores.map(p => [p.IdERP, p]))
+        };
+    }, [isLoaded, data]);
     
     const listaDeLaCompraPorProveedor = useMemo(() => {
         if (!isLoaded || !data || !necesidades) {
@@ -715,3 +708,42 @@ export default function OFPage() {
         </Suspense>
     )
 }
+
+```
+- src/hooks/use-os-data.ts:
+```ts
+'use client';
+
+import { useEffect, useMemo } from 'react';
+import { useDataStore } from './use-data-store';
+import type { ServiceOrder, ComercialBriefing, Entrega } from '@/types';
+
+export function useOsData(osId: string) {
+    const { isLoaded, data } = useDataStore();
+    
+    return useMemo(() => {
+        if (!isLoaded || !osId) {
+            return { serviceOrder: null, briefing: null, isLoading: true, spaceAddress: '' };
+        }
+
+        const currentOS = data.serviceOrders.find(os => os.id === osId);
+        
+        let address = '';
+        if (currentOS?.space) {
+            const currentSpace = data.espacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
+            address = currentSpace?.identificacion.calle || '';
+        }
+        
+        const currentBriefing = data.comercialBriefings.find(b => b.osId === osId);
+
+        return { 
+            serviceOrder: currentOS || null, 
+            briefing: currentBriefing || null, 
+            isLoading: false, 
+            spaceAddress: address
+        };
+    }, [isLoaded, osId, data]);
+}
+
+```
+

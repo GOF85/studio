@@ -17,7 +17,3 @@ export default function HomePage() {
 
   if (!isLoaded) {
     return <LoadingScreen />;
-  }
-
-  return <DashboardPage />;
-}
