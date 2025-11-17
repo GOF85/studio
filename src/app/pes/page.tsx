@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, ClipboardList, Package, Star, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, ClipboardList, Star, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,10 +46,12 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useDataStore } from '@/hooks/use-data-store';
 
 export default function PrevisionServiciosPage() {
-  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
+  const { data, isLoaded, loadAllData } = useDataStore();
+  const serviceOrders = data.serviceOrders || [];
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
@@ -57,37 +59,39 @@ export default function PrevisionServiciosPage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
-
+  
   useEffect(() => {
-    let storedOrders = localStorage.getItem('serviceOrders');
-    setServiceOrders(storedOrders ? JSON.parse(storedOrders) : []);
-    setIsMounted(true);
-  }, []);
+    if (!isLoaded) {
+      loadAllData();
+    }
+  }, [isLoaded, loadAllData]);
 
   const availableMonths = useMemo(() => {
-    if (!serviceOrders) return ['all'];
+    if (!serviceOrders || serviceOrders.length === 0) return ['all'];
     const months = new Set<string>();
     serviceOrders.forEach(os => {
       try {
-        const month = format(new Date(os.startDate), 'yyyy-MM');
-        months.add(month);
+        if (os && os.startDate) {
+          const month = format(new Date(os.startDate), 'yyyy-MM');
+          months.add(month);
+        }
       } catch (e) {
         console.error(`Invalid start date for OS ${os.serviceNumber}: ${os.startDate}`);
       }
     });
     return ['all', ...Array.from(months).sort().reverse()];
   }, [serviceOrders]);
-  
+
   const filteredAndSortedOrders = useMemo(() => {
-    const today = startOfToday();
-    
     if (!serviceOrders || serviceOrders.length === 0) {
       return [];
     }
-
+    
+    const today = startOfToday();
     const cateringOrders = serviceOrders.filter(os => os.vertical !== 'Entregas');
 
     const filtered = cateringOrders.filter(os => {
+      if (!os) return false;
       const searchMatch = searchTerm.trim() === '' || 
         (os.serviceNumber && os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase())) || 
         (os.client && os.client.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -107,7 +111,7 @@ export default function PrevisionServiciosPage() {
           try {
               pastEventMatch = !isBefore(new Date(os.endDate), today);
           } catch (e) {
-              pastEventMatch = true; // Default to showing if date is invalid
+              pastEventMatch = true;
           }
       }
 
@@ -119,7 +123,7 @@ export default function PrevisionServiciosPage() {
     return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   }, [serviceOrders, searchTerm, selectedMonth, showPastEvents, statusFilter]);
-  
+
   const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
     Borrador: 'secondary',
     Pendiente: 'destructive',
@@ -131,12 +135,12 @@ export default function PrevisionServiciosPage() {
     if (!orderToDelete) return;
     const updatedOrders = serviceOrders.filter(os => os.id !== orderToDelete);
     localStorage.setItem('serviceOrders', JSON.stringify(updatedOrders));
-    setServiceOrders(updatedOrders);
+    loadAllData(); // Re-trigger data loading in zustand store
     toast({ title: 'Orden de Servicio eliminada.' });
     setOrderToDelete(null);
   };
-
-  if (!isMounted) {
+  
+  if (!isLoaded) {
     return <LoadingSkeleton title="Cargando Previsión de Servicios..." />;
   }
 
