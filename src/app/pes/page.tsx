@@ -172,7 +172,7 @@ export default function PrevisionServiciosPage() {
               <TableBody>
               {filteredAndSortedOrders.length > 0 ? (
                   filteredAndSortedOrders.map(os => (
-                  <TableRow key={os.id}>
+                  <TableRow key={os.id} className="cursor-pointer" onClick={() => router.push(`/os/${os.id}`)}>
                       <TableCell className="font-medium">
                         <Link href={`/os/${os.id}`} className="flex items-center gap-2 text-primary hover:underline">
                             {os.isVip && (

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -474,8 +473,8 @@ function OfPageContent() {
     }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas]);
     
     const listaDeLaCompraPorProveedor = useMemo(() => {
-        if (!isLoaded || !data || !necesidades) return [];
-        if (!data.elaboraciones || !data.ingredientesInternos || !data.articulosERP || !data.proveedores) return [];
+        if (!isLoaded || !data || !necesidades || !data.articulosERP) return [];
+        if (!data.elaboraciones || !data.ingredientesInternos || !data.proveedores) return [];
 
         const elabMap = new Map(data.elaboraciones.map(e => [e.id, e]));
         const ingMap = new Map(data.ingredientesInternos.map(i => [i.id, i]));
@@ -1368,3 +1367,4 @@ export default function OFPage() {
     
 
     
+
