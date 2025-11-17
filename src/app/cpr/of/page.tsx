@@ -477,7 +477,7 @@ function OfPageContent() {
 
         const elabMap = new Map(data.elaboraciones.map(e => [e.id, e]));
         const ingMap = new Map(data.ingredientesInternos.map(i => [i.id, i]));
-        const erpMap = new Map(data.ingredientesERP.map(a => [a.idreferenciaerp, a]));
+        const erpMap = new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
         const proveedoresMap = new Map(data.proveedores.map(p => [p.IdERP, p]));
 
         const ingredientesNecesarios = new Map<string, { cantidad: number, desgloseUso: { receta: string, elaboracion: string, cantidad: number }[] }>();
@@ -1361,4 +1361,6 @@ export default function OFPage() {
         </Suspense>
     )
 }
+    
+
     
