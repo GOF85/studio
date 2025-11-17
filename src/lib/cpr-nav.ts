@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare, Shield, Users, UserCheck, TrendingUp, Archive, HistoryIcon, Calculator } from 'lucide-react';
