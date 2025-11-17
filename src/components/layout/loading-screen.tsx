@@ -1,9 +1,9 @@
 
 'use client';
 
+import { Factory } from 'lucide-react';
 import { useDataStore } from '@/hooks/use-data-store';
 import { Progress } from '../ui/progress';
-import { Factory } from 'lucide-react';
 
 export function LoadingScreen() {
     const { loadingMessage, loadingProgress } = useDataStore();
@@ -15,7 +15,7 @@ export function LoadingScreen() {
                 <h1 className="text-2xl font-headline font-semibold">Cargando MICE Catering...</h1>
                 <div className="space-y-2">
                     <Progress value={loadingProgress} />
-                    <p className="text-sm text-muted-foreground">{loadingMessage}</p>
+                    <p className="text-sm text-muted-foreground">{loadingMessage} ({Math.round(loadingProgress)}%)</p>
                 </div>
             </div>
         </div>

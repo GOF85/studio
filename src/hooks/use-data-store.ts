@@ -17,8 +17,8 @@ import type {
 
 type DataStore = {
     isLoaded: boolean;
-    loadingMessage: string;
     loadingProgress: number;
+    loadingMessage: string;
     data: {
         serviceOrders: ServiceOrder[];
         entregas: Entrega[];
@@ -75,7 +75,7 @@ type DataStore = {
         solicitudesPersonalCPR: SolicitudPersonalCPR[];
         incidenciasRetorno: any[];
     };
-    loadAllData: () => Promise<void>;
+    loadAllData: () => void;
 };
 
 const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
@@ -113,34 +113,39 @@ const defaultValuesMap: { [key: string]: any } = {
 
 export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: false,
-    loadingMessage: 'Inicializando...',
     loadingProgress: 0,
+    loadingMessage: 'Inicializando...',
     data: dataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']),
 
-    loadAllData: async () => {
-        if (get().isLoaded || typeof window === 'undefined') return;
+    loadAllData: () => {
+        if (typeof window === 'undefined' || get().isLoaded) return;
+        
+        set({ loadingMessage: 'Preparando carga...', loadingProgress: 1 });
 
-        set({ loadingMessage: 'Iniciando carga de datos...', loadingProgress: 1 });
-        await new Promise(resolve => setTimeout(resolve, 50)); // Allow UI to update
-
-        const totalKeys = dataKeys.length;
         const allData: Partial<DataStore['data']> = {};
+        let processedKeys = 0;
+        const totalKeys = dataKeys.length;
 
-        for (let i = 0; i < totalKeys; i++) {
-            const key = dataKeys[i];
+        function processKey(index: number) {
+            if (index >= totalKeys) {
+                set({ data: allData as DataStore['data'], isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
+                return;
+            }
+
+            const key = dataKeys[index];
             const defaultValue = defaultValuesMap[key] ?? [];
-            
-            // This async break allows the UI to update.
-            await new Promise(resolve => setTimeout(resolve, 10)); 
-            
-            set({
-                loadingMessage: `Cargando ${key}...`,
-                loadingProgress: ((i + 1) / totalKeys) * 100,
-            });
-
             (allData as any)[key] = loadFromLocalStorage(key, defaultValue);
+
+            processedKeys++;
+            const progress = (processedKeys / totalKeys) * 100;
+            
+            // Update state and schedule the next key processing
+            setTimeout(() => {
+                set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
+                processKey(index + 1);
+            }, 10); // Small delay to allow UI to update
         }
 
-        set({ data: allData as DataStore['data'], isLoaded: true, loadingMessage: '¡Listo!', loadingProgress: 100 });
+        processKey(0); // Start processing
     },
 }));

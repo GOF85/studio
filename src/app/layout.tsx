@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils';
 import { NProgressProvider } from '@/components/providers/nprogress-provider';
 import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
-import { AppInitializer } from '@/components/layout/app-initializer';
+import { Suspense } from 'react';
+import { LoadingScreen } from '@/components/layout/loading-screen';
 
 export const metadata: Metadata = {
   title: 'MICE Catering',
@@ -31,12 +32,12 @@ export default function RootLayout({
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
         <ImpersonatedUserProvider>
           <NProgressProvider>
-            <AppInitializer>
-              <div className="relative flex min-h-screen flex-col">
-                <Header />
+            <div className="relative flex min-h-screen flex-col">
+              <Header />
+              <Suspense fallback={<LoadingScreen />}>
                 {children}
-              </div>
-            </AppInitializer>
+              </Suspense>
+            </div>
           </NProgressProvider>
         </ImpersonatedUserProvider>
         <Toaster />
