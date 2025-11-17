@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -473,7 +474,8 @@ function OfPageContent() {
     }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas]);
     
     const listaDeLaCompraPorProveedor = useMemo(() => {
-        if (!isLoaded || !necesidades) return [];
+        if (!isLoaded || !data || !necesidades) return [];
+        if (!data.elaboraciones || !data.ingredientesInternos || !data.articulosERP || !data.proveedores) return [];
 
         const elabMap = new Map(data.elaboraciones.map(e => [e.id, e]));
         const ingMap = new Map(data.ingredientesInternos.map(i => [i.id, i]));
