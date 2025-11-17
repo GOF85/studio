@@ -56,7 +56,8 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Combobox } from '@/components/ui/combobox';
-import { useOsContext } from '../os-context';
+import { useOsContext } from '../../os-context';
+import { useDataStore } from '@/hooks/use-data-store';
 
 export const osFormSchema = z.object({
   id: z.string().min(1),
@@ -249,7 +250,7 @@ export default function InfoPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
 
-  const { serviceOrder, briefing, isLoading: isOsDataLoading } = useOsData(osId);
+  const { serviceOrder, isLoading: isOsDataLoading } = useOsContext();
   const { data, isLoaded } = useDataStore();
   
   const [personal, setPersonal] = useState<Personal[]>([]);
@@ -266,7 +267,7 @@ export default function InfoPage() {
     defaultValues,
   });
 
-  const { formState: { isDirty }, setValue, watch, reset } = form;
+  const { control, handleSubmit, formState: { isDirty }, getValues, reset, watch, setValue } = form;
   
   const getFullName = (p: Personal) => `${p.nombre} ${p.apellido1} ${p.apellido2 || ''}`.trim();
 
@@ -329,7 +330,7 @@ export default function InfoPage() {
     if (isEditing) { // Update existing
       const osIndex = allOS.findIndex(os => os.id === osId);
       if (osIndex !== -1) {
-        allOS[osIndex] = { ...allOS[osIndex], ...formData, id: osId };
+        allOS[osIndex] = { ...allOS[osIndex], ...formData, id: osId, startDate: format(formData.startDate, 'yyyy-MM-dd'), endDate: format(formData.endDate, 'yyyy-MM-dd') };
         message = 'Orden de Servicio actualizada correctamente.';
       }
     } else { // Create new
@@ -370,6 +371,8 @@ export default function InfoPage() {
   }
   
   const statusValue = watch("status");
+  const isLoading = useLoadingStore(state => state.isLoading);
+  const setIsLoading = useLoadingStore(state => state.setIsLoading);
 
   const handleStatusChange = (value: OsFormValues['status']) => {
     if (value === 'Anulado') {
@@ -416,7 +419,7 @@ export default function InfoPage() {
                         </FormItem>
                     )} />
                     <Button type="submit" form="os-form" size="sm" disabled={isLoading || !isDirty}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <Save className="mr-2" />
                         <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar OS'}</span>
                     </Button>
                 </div>
@@ -432,10 +435,10 @@ export default function InfoPage() {
                   <FormField control={control} name="endDate" render={({ field }) => (
                       <FormItem className="flex flex-col"><FormLabel>Fecha Fin</FormLabel><Popover open={endDateOpen} onOpenChange={setEndDateOpen}><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={(date) => {field.onChange(date); setEndDateOpen(false);}} initialFocus locale={es} /></PopoverContent></Popover><FormMessage /></FormItem>
                   )} />
-                  <FormField control={control} name="asistentes" render={({ field }) => (
+                  <FormField control={form.control} name="asistentes" render={({ field }) => (
                         <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <FormField control={control} name="cateringVertical" render={({ field }) => (
+                    <FormField control={form.control} name="cateringVertical" render={({ field }) => (
                         <FormItem><FormLabel>Vertical Catering</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
@@ -521,81 +524,100 @@ export default function InfoPage() {
                                 ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR],
                                 ['respProjectManager', 'respProjectManagerPhone', 'respProjectManagerMail', 'Resp. Project Manager', personalOperaciones],
                             ].map(([name, phone, mail, label, personalList]) => (
-                              <div key={name as string} className="flex items-end gap-4">
-                                <FormField control={control} name={name as any} render={({ field }) => (
-                                  <FormItem className="flex-grow">
+                              <div key={name as string} className="grid items-center grid-cols-[1fr_1.5fr_1.5fr] gap-4">
                                     <FormLabel>{label as string}</FormLabel>
-                                    <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, phone as any, mail as any); }} value={field.value}>
-                                      <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                      <SelectContent>
-                                        {(personalList as Personal[]).map(p => <SelectItem key={p.id} value={getFullName(p)}>{getFullName(p)}</SelectItem>)}
-                                      </SelectContent>
-                                    </Select>
-                                  </FormItem>
-                                )} />
-                                <div className="flex items-center gap-2 pb-1 text-sm text-muted-foreground">
-                                   <Phone className="h-4 w-4"/>
-                                   <span>{watch(phone as any) || '-'}</span>
-                                </div>
-                                <div className="flex items-center gap-2 pb-1 text-sm text-muted-foreground">
-                                   <Mail className="h-4 w-4"/>
-                                   <span>{watch(mail as any) || '-'}</span>
-                                </div>
+                                    <FormField control={control} name={name as any} render={({ field }) => (
+                                        <FormItem>
+                                            <Combobox options={(personalList as Personal[]).map(p => ({ label: getFullName(p), value: getFullName(p) }))}
+                                                value={field.value}
+                                                onChange={(value) => { field.onChange(value); handlePersonalChange(value, phone as keyof OsFormValues, mail as keyof OsFormValues); }}
+                                                placeholder="Seleccionar..." />
+                                        </FormItem>
+                                    )}/>
+                                    <div className="flex gap-2 items-center text-sm text-muted-foreground"><Phone className="h-4 w-4"/> {watch(phone as any) || '-'} <Separator orientation="vertical" className="h-4"/> <Mail className="h-4 w-4"/> {watch(mail as any) || '-'}</div>
                               </div>
                             ))}
 
-                            <Separator className="my-3" />
+                             <Separator />
                             
-                            <FormField control={control} name="comercialAsiste" render={({ field }) => (<FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!m-0 text-base">Comercial asiste al evento</FormLabel></FormItem>)} />
-                            <div className="flex items-end gap-4">
-                              <FormField control={control} name="comercial" render={({ field }) => (
-                                <FormItem className="flex-grow">
-                                  <FormLabel>Resp. Comercial</FormLabel>
-                                  <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'comercialPhone', 'comercialMail'); }} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>{personalComercial.map(p => <SelectItem key={p.id} value={getFullName(p)}>{getFullName(p)}</SelectItem>)}</SelectContent>
-                                  </Select>
-                                </FormItem>
-                              )} />
-                              <div className="flex items-center gap-2 pb-1 text-sm text-muted-foreground"><Phone className="h-4 w-4"/><span>{watch('comercialPhone') || '-'}</span></div>
-                              <div className="flex items-center gap-2 pb-1 text-sm text-muted-foreground"><Mail className="h-4 w-4"/><span>{watch('comercialMail') || '-'}</span></div>
+                             <div className="grid items-center grid-cols-[1fr_1.5fr_1.5fr] gap-4">
+                                <FormField control={control} name="comercialAsiste" render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center gap-2">
+                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="comercial-asiste" /></FormControl>
+                                        <FormLabel htmlFor="comercial-asiste">Comercial asiste al evento</FormLabel>
+                                    </FormItem>
+                                )} />
+                                <FormField control={control} name="comercial" render={({ field }) => (
+                                    <FormItem>
+                                    <Combobox options={(personalComercial as Personal[]).map(p => ({ label: getFullName(p), value: getFullName(p) }))}
+                                        value={field.value}
+                                        onChange={(value) => { field.onChange(value); handlePersonalChange(value, 'comercialPhone', 'comercialMail'); }}
+                                        placeholder="Seleccionar comercial..." />
+                                    </FormItem>
+                                )}/>
+                                <div className="flex gap-2 items-center text-sm text-muted-foreground"><Phone className="h-4 w-4"/> {watch('comercialPhone') || '-'} <Separator orientation="vertical" className="h-4"/> <Mail className="h-4 w-4"/> {watch('comercialMail') || '-'}</div>
                             </div>
                             
-                            <Separator className="my-3" />
 
-                            <FormField control={control} name="rrhhAsiste" render={({ field }) => (<FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!m-0 text-base">RRHH asiste al evento</FormLabel></FormItem>)} />
-                            <div className="flex items-end gap-4">
-                              <FormField control={control} name="respRRHH" render={({ field }) => (
-                                <FormItem className="flex-grow">
-                                  <FormLabel>Resp. RRHH</FormLabel>
-                                  <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respRRHHPhone', 'respRRHHMail'); }} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>{personalRRHH.map(p => <SelectItem key={p.id} value={getFullName(p)}>{getFullName(p)}</SelectItem>)}</SelectContent>
-                                  </Select>
-                                </FormItem>
-                              )} />
-                              <div className="flex items-center gap-2 pb-1 text-sm text-muted-foreground"><Phone className="h-4 w-4"/><span>{watch('respRRHHPhone') || '-'}</span></div>
-                              <div className="flex items-center gap-2 pb-1 text-sm text-muted-foreground"><Mail className="h-4 w-4"/><span>{watch('respRRHHMail') || '-'}</span></div>
+                             <Separator />
+
+                            <div className="grid items-center grid-cols-[1fr_1.5fr_1.5fr] gap-4">
+                                 <FormField control={control} name="rrhhAsiste" render={({ field }) => (
+                                     <FormItem className="flex flex-row items-center gap-2">
+                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="rrhh-asiste" /></FormControl>
+                                        <FormLabel htmlFor="rrhh-asiste">RRHH asiste al evento</FormLabel>
+                                    </FormItem>
+                                )}/>
+                                 <FormField control={control} name="respRRHH" render={({ field }) => (
+                                    <FormItem>
+                                     <Combobox options={(personalRRHH as Personal[]).map(p => ({ label: getFullName(p), value: getFullName(p) }))}
+                                        value={field.value}
+                                        onChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respRRHHPhone', 'respRRHHMail'); }}
+                                        placeholder="Seleccionar responsable RRHH..." />
+                                    </FormItem>
+                                )}/>
+                                <div className="flex gap-2 items-center text-sm text-muted-foreground"><Phone className="h-4 w-4"/> {watch('respRRHHPhone') || '-'} <Separator orientation="vertical" className="h-4"/> <Mail className="h-4 w-4"/> {watch('respRRHHMail') || '-'}</div>
                             </div>
                           </div>
                         </AccordionContent>
                         </Card>
                       </AccordionItem>
-                    </Accordion>
+                      
+                       <AccordionItem value="comentarios" className="border-none">
+                           <Card>
+                             <AccordionTrigger className="p-4"><h3 className="text-lg font-semibold">Comentarios Generales</h3></AccordionTrigger>
+                            <AccordionContent>
+                              <div className="px-4 pb-4">
+                                <FormField control={control} name="comments" render={({ field }) => (
+                                    <FormItem><FormControl><Textarea {...field} rows={6} /></FormControl></FormItem>
+                                )} />
+                              </div>
+                            </AccordionContent>
+                           </Card>
+                       </AccordionItem>
+                   </Accordion>
                 
-                <div className="space-y-4 pt-4 border-t">
-                  <FormField control={control} name="comments" render={({ field }) => (
-                      <FormItem>
-                          <FormLabel>Comentarios Generales</FormLabel>
-                          <FormControl><Textarea rows={4} {...field} /></FormControl>
-                      </FormItem>
-                  )} />
-                </div>
               </CardContent>
             </Card>
           </form>
         </FormProvider>
       </main>
+
+        <AlertDialog open={isAnulacionDialogOpen} onOpenChange={setIsAnulacionDialogOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Anular Orden de Servicio</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Por favor, introduce el motivo de la anulación.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Textarea value={anulacionMotivo} onChange={(e) => setAnulacionMotivo(e.target.value)} />
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setIsAnulacionDialogOpen(false)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmAnulacion}>Confirmar Anulación</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }
