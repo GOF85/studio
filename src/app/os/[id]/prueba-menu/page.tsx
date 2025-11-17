@@ -2,8 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Printer, Loader2, UtensilsCrossed } from 'lucide-react';
@@ -18,9 +19,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+
 
 const pruebaMenuItemSchema = z.object({
   id: z.string(),
@@ -351,39 +355,37 @@ const handlePrint = async () => {
   }
 
   return (
-    <>
-      <div className="flex items-center justify-between mb-4">
-        <Card className="flex-grow">
-            <CardContent className="p-3 flex items-center justify-between">
-                <div className="flex items-center gap-4 text-sm">
-                    <div className="font-semibold">Nº Servicio: <Badge variant="secondary">{serviceOrder.serviceNumber}</Badge></div>
-                    <Separator orientation="vertical" className="h-6"/>
-                    <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                    <div><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
-                </div>
-                 <div className="flex items-center gap-2">
-                    <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba:</FormLabel>
-                    <Input value={asistentesPrueba} readOnly className="h-9 w-16 text-center font-bold text-lg"/>
-                </div>
-            </CardContent>
-        </Card>
-        <div className="flex gap-2 ml-4">
-             <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
+    <main>
+      <FormProvider {...form}>
+        <div className="flex items-center justify-between mb-4">
+            <Card className="flex-grow">
+                <CardContent className="p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-sm">
+                        <div className="font-semibold">Nº Servicio: <Badge variant="secondary">{serviceOrder.serviceNumber}</Badge></div>
+                        <Separator orientation="vertical" className="h-6"/>
+                        <div><strong>Cliente:</strong> {serviceOrder.client}</div>
+                        <div><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba:</FormLabel>
+                        <Input value={asistentesPrueba} readOnly className="h-9 w-16 text-center font-bold text-lg"/>
+                    </div>
+                </CardContent>
+            </Card>
+            <div className="flex gap-2 ml-4">
+                <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
                 {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
                 {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
-            </Button>
-            <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
-                <Save className="mr-2" />
-                Guardar Cambios
-            </Button>
+                </Button>
+                <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
+                    <Save className="mr-2" />
+                    Guardar Cambios
+                </Button>
+            </div>
         </div>
-      </div>
-    
-      <Separator className="my-6" />
 
-      <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="flex items-center gap-2">
+            <div className="no-print flex items-center gap-2 p-4 border rounded-lg bg-card">
                 <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
                 <FormField
                     control={control}
@@ -433,6 +435,7 @@ const handlePrint = async () => {
             </div>
         </form>
       </Form>
+    </main>
     </>
   );
 }
