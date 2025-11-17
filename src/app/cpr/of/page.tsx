@@ -185,6 +185,7 @@ function OfPageContent() {
 
     const router = useRouter();
     const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     useEffect(() => {
         loadAllData();
@@ -197,19 +198,19 @@ function OfPageContent() {
     }, [isLoaded, data?.proveedores]);
 
     const articulosErpMap = useMemo(() => {
-        if (!isLoaded || !data?.articulosERP) return new Map();
+        if (!isLoaded || !data.articulosERP) return new Map();
         return new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
-    }, [isLoaded, data?.articulosERP]);
+    }, [isLoaded, data.articulosERP]);
 
     const ingredientesMap = useMemo(() => {
-        if (!isLoaded || !data?.ingredientesInternos) return new Map();
+        if (!isLoaded || !data.ingredientesInternos) return new Map();
         return new Map(data.ingredientesInternos.map(i => [i.id, i]));
-    }, [isLoaded, data?.ingredientesInternos]);
+    }, [isLoaded, data.ingredientesInternos]);
 
     const elaboracionesMap = useMemo(() => {
-        if (!isLoaded || !data?.elaboraciones) return new Map();
+        if (!isLoaded || !data.elaboraciones) return new Map();
         return new Map(data.elaboraciones.map(e => [e.id, e]));
-    }, [isLoaded, data?.elaboraciones]);
+    }, [isLoaded, data.elaboraciones]);
     
     const { ordenes, personalCPR, serviceOrdersMap, necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
         if (!isLoaded) return { ordenes: [], personalCPR: [], elaboracionesMap: new Map(), serviceOrdersMap: new Map(), necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
@@ -492,8 +493,12 @@ function OfPageContent() {
     }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas]);
     
     const listaDeLaCompraPorProveedor = useMemo(() => {
-        if (!isLoaded || !necesidades || !data.articulosERP || !data.proveedores) return [];
-        
+        if (!isLoaded || !necesidades || !data.articulosERP || !data.proveedores || !data.ingredientesInternos || !data.elaboraciones) {
+            return [];
+        }
+
+        console.log('[DEBUG 1] Necesidades Netas a procesar:', necesidades);
+
         const ingredientesNecesarios = new Map<string, { cantidad: number; desgloseUso: { receta: string; elaboracion: string; cantidad: number }[] }>();
 
         function getIngredientesRecursivo(elabId: string, cantidadRequerida: number, recetaNombre: string) {
@@ -523,6 +528,8 @@ function OfPageContent() {
                 getIngredientesRecursivo(necesidad.id, necesidad.cantidadNeta, necesidad.recetas.join(', '));
             }
         });
+
+        console.log('[DEBUG 2] Ingredientes Agregados:', ingredientesNecesarios);
         
         const compraPorProveedor = new Map<string, ProveedorConLista>();
 
@@ -564,8 +571,10 @@ function OfPageContent() {
             }
         });
 
+        console.log('[DEBUG 3] Compra Agrupada por Proveedor:', compraPorProveedor);
+
         return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
-    }, [isLoaded, necesidades, elaboracionesMap, ingredientesMap, articulosErpMap, proveedoresMap, data]);
+    }, [isLoaded, data, necesidades, elaboracionesMap, ingredientesMap, articulosErpMap, proveedoresMap]);
 
 
     const flatCompraList = useMemo(() => 
@@ -758,7 +767,7 @@ function OfPageContent() {
   return (
     <>
     <TooltipProvider>
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 p-4 border rounded-lg bg-card">
+       <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 p-4 border rounded-lg bg-card">
         <div className="flex-grow">
             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
@@ -1415,3 +1424,4 @@ export default function OFPage() {
 
 
     
+
