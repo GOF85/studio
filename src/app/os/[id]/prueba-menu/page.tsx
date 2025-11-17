@@ -53,6 +53,7 @@ export default function PruebaMenuPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [asistentesPrueba, setAsistentesPrueba] = useState(0);
+  const [costePrueba, setCostePrueba] = useState(0);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -81,7 +82,11 @@ export default function PruebaMenuPage() {
     if (currentBriefing) {
         setBriefingItems(currentBriefing.items);
         const pruebaMenuHito = currentBriefing.items.find(item => item.descripcion.toLowerCase() === 'prueba de menu');
-        setAsistentesPrueba(pruebaMenuHito?.asistentes || 0);
+        if (pruebaMenuHito) {
+            setAsistentesPrueba(pruebaMenuHito.asistentes || 0);
+            const calculatedCost = (pruebaMenuHito.asistentes * pruebaMenuHito.precioUnitario) + (pruebaMenuHito.importeFijo || 0);
+            setCostePrueba(calculatedCost);
+        }
     }
 
     const allMenuTests = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
@@ -111,7 +116,7 @@ export default function PruebaMenuPage() {
         osId, 
         items: data.items, 
         observacionesGenerales: data.observacionesGenerales,
-        costePruebaMenu: data.costePruebaMenu
+        costePruebaMenu: costePrueba
     };
 
     if (index > -1) {
@@ -369,14 +374,20 @@ const handlePrint = async () => {
             <Card className="flex-grow">
                 <CardContent className="p-3 flex items-center justify-between">
                     <div className="flex items-center gap-4 text-sm">
-                        <div className="font-semibold">Nº Servicio: <Badge variant="secondary">{serviceOrder.serviceNumber}</Badge></div>
+                        <div><strong>Nº Servicio:</strong> <Badge variant="secondary">{serviceOrder.serviceNumber}</Badge></div>
                         <Separator orientation="vertical" className="h-6"/>
                         <div><strong>Cliente:</strong> {serviceOrder.client}</div>
                         <div><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba:</FormLabel>
-                        <Input value={asistentesPrueba} readOnly className="h-9 w-16 text-center font-bold text-lg"/>
+                    <div className="flex items-center gap-6">
+                       <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Asistentes a la prueba</p>
+                          <p className="font-bold text-lg">{asistentesPrueba}</p>
+                       </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Coste del Hito</p>
+                          <p className="font-bold text-lg">{costePrueba.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
+                       </div>
                     </div>
                 </CardContent>
             </Card>
@@ -392,31 +403,9 @@ const handlePrint = async () => {
             </div>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="no-print flex items-center gap-2 p-4 border rounded-lg bg-card">
-                <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
-                <FormField
-                    control={control}
-                    name="costePruebaMenu"
-                    render={({ field }) => (
-                        <FormItem className="flex items-center gap-2">
-                            <FormControl>
-                                <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    {...field} 
-                                    className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
-                                />
-                            </FormControl>
-                            <span className="text-lg font-bold">€</span>
-                        </FormItem>
-                    )}
-                />
-            </div>
-            
             <div className="space-y-6">
                 {renderSection('BODEGA')}
                 {renderSection('GASTRONOMÍA')}
-
                 <Card>
                     <CardHeader className="py-4">
                     <CardTitle>Observaciones Generales</CardTitle>
@@ -445,4 +434,4 @@ const handlePrint = async () => {
     </main>
   );
 }
-
+```
