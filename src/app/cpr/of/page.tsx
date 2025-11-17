@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -192,18 +191,37 @@ function OfPageContent() {
         setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) });
     }, [loadAllData]);
     
-    const { ordenes, personalCPR, elaboracionesMap, serviceOrdersMap, necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
+    const proveedoresMap = useMemo(() => {
+        if (!isLoaded || !data?.proveedores) return new Map();
+        return new Map(data.proveedores.map(p => [p.id, p]));
+    }, [isLoaded, data?.proveedores]);
+
+    const articulosErpMap = useMemo(() => {
+        if (!isLoaded || !data?.articulosERP) return new Map();
+        return new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
+    }, [isLoaded, data?.articulosERP]);
+
+    const ingredientesMap = useMemo(() => {
+        if (!isLoaded || !data?.ingredientesInternos) return new Map();
+        return new Map(data.ingredientesInternos.map(i => [i.id, i]));
+    }, [isLoaded, data?.ingredientesInternos]);
+
+    const elaboracionesMap = useMemo(() => {
+        if (!isLoaded || !data?.elaboraciones) return new Map();
+        return new Map(data.elaboraciones.map(e => [e.id, e]));
+    }, [isLoaded, data?.elaboraciones]);
+    
+    const { ordenes, personalCPR, serviceOrdersMap, necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
         if (!isLoaded) return { ordenes: [], personalCPR: [], elaboracionesMap: new Map(), serviceOrdersMap: new Map(), necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
 
         const allOFs = data.ordenesFabricacion;
         const allPersonal = data.personal.filter(p => p.departamento === 'CPR');
-        const elabMap = new Map(data.elaboraciones.map(e => [e.id, e]));
         const osMap = new Map(data.serviceOrders.map(os => [os.id, os]));
         const allPickingStatesData = data.pickingStates;
         
         const necesidadesAgregadas: Map<string, NecesidadItem> = new Map();
 
-        if (!dateRange?.from) return { ordenes: allOFs, personalCPR: allPersonal, elaboracionesMap: elabMap, serviceOrdersMap: osMap, necesidades: [], necesidadesCubiertas: [], pickingStates: allPickingStatesData };
+        if (!dateRange?.from) return { ordenes: allOFs, personalCPR: allPersonal, elaboracionesMap, serviceOrdersMap: osMap, necesidades: [], necesidadesCubiertas: [], pickingStates: allPickingStatesData };
 
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
@@ -229,7 +247,7 @@ function OfPageContent() {
                     if (!receta || !receta.elaboraciones) return;
 
                     receta.elaboraciones.forEach(elabEnReceta => {
-                        const elab = elabMap.get(elabEnReceta.elaboracionId);
+                        const elab = elaboracionesMap.get(elabEnReceta.elaboracionId);
                         if (!elab) return;
                         
                         const id = elab.id;
@@ -288,7 +306,7 @@ function OfPageContent() {
                         if (!receta || !receta.elaboraciones) return;
 
                         receta.elaboraciones.forEach(elabEnReceta => {
-                            const elab = elabMap.get(elabEnReceta.elaboracionId);
+                            const elab = elaboracionesMap.get(elabEnReceta.elaboracionId);
                             if (!elab) return;
 
                             const id = elab.id;
@@ -367,8 +385,8 @@ function OfPageContent() {
             else necesidadesCubiertas.push(itemCompleto);
         });
 
-        return { ordenes: allOFs, personalCPR: allPersonal, elaboracionesMap: elabMap, serviceOrdersMap: osMap, necesidades: necesidadesNetas, necesidadesCubiertas, pickingStates: allPickingStatesData };
-    }, [isLoaded, data, dateRange]);
+        return { ordenes: allOFs, personalCPR: allPersonal, elaboracionesMap, serviceOrdersMap: osMap, necesidades: necesidadesNetas, necesidadesCubiertas, pickingStates: allPickingStatesData };
+    }, [isLoaded, data, dateRange, elaboracionesMap]);
     
     useEffect(() => {
         if (!necesidades || !dateRange?.from || !dateRange?.to) {
@@ -473,24 +491,9 @@ function OfPageContent() {
 
     }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas]);
     
-    const proveedoresMap = useMemo(() => {
-        if (!isLoaded) return new Map();
-        return new Map(data.proveedores.map(p => [p.id, p]));
-    }, [isLoaded, data.proveedores]);
-
-    const articulosErpMap = useMemo(() => {
-        if (!isLoaded) return new Map();
-        return new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
-    }, [isLoaded, data.articulosERP]);
-
-    const ingredientesMap = useMemo(() => {
-        if (!isLoaded) return new Map();
-        return new Map(data.ingredientesInternos.map(i => [i.id, i]));
-    }, [isLoaded, data.ingredientesInternos]);
-
     const listaDeLaCompraPorProveedor = useMemo(() => {
         if (!isLoaded || !necesidades || !data.articulosERP || !data.proveedores) return [];
-    
+        
         const ingredientesNecesarios = new Map<string, { cantidad: number; desgloseUso: { receta: string; elaboracion: string; cantidad: number }[] }>();
 
         function getIngredientesRecursivo(elabId: string, cantidadRequerida: number, recetaNombre: string) {
@@ -1409,3 +1412,6 @@ export default function OFPage() {
     
 
 
+
+
+    
