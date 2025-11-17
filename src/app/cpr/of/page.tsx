@@ -195,17 +195,13 @@ function OfPageContent() {
     
     const proveedoresMap = useMemo(() => {
         if (!isLoaded || !data?.proveedores) return new Map();
-        const map = new Map<string, Proveedor>();
-        data.proveedores.forEach(p => {
-            if(p.IdERP) map.set(p.IdERP, p);
-        });
-        return map;
+        return new Map(data.proveedores.map(p => [p.id, p]));
     }, [isLoaded, data?.proveedores]);
 
     const articulosErpMap = useMemo(() => {
-        if (!isLoaded || !data?.ingredientesERP) return new Map();
-        return new Map(data.ingredientesERP.map(a => [a.idreferenciaerp, a]));
-    }, [isLoaded, data?.ingredientesERP]);
+        if (!isLoaded || !data?.articulosERP) return new Map();
+        return new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
+    }, [isLoaded, data?.articulosERP]);
 
     const ingredientesMap = useMemo(() => {
         if (!isLoaded || !data?.ingredientesInternos) return new Map();
@@ -1423,5 +1419,6 @@ export default function OFPage() {
 
 
     
+
 
 
