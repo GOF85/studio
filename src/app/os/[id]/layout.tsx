@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -62,15 +61,10 @@ const getInitials = (name: string) => {
 
 function OsHeaderContent({ osId }: { osId: string;}) {
     const pathname = usePathname();
-    const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+    const { serviceOrder, isLoading } = useOsContext();
     const [updateKey, setUpdateKey] = useState(Date.now());
-    const { isLoading } = useOsContext();
 
     useEffect(() => {
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const currentOS = allServiceOrders.find(os => os.id === osId);
-        setServiceOrder(currentOS || null);
-
         const handleStorageChange = () => {
             setUpdateKey(Date.now());
         };

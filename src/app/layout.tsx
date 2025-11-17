@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { NProgressProvider } from '@/components/providers/nprogress-provider';
 import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
+import { AppInitializer } from '@/components/layout/app-initializer';
 
 export const metadata: Metadata = {
   title: 'MICE Catering',
@@ -30,10 +31,12 @@ export default function RootLayout({
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
         <ImpersonatedUserProvider>
           <NProgressProvider>
-            <div className="relative flex min-h-screen flex-col">
-              <Header />
-              {children}
-            </div>
+            <AppInitializer>
+              <div className="relative flex min-h-screen flex-col">
+                <Header />
+                {children}
+              </div>
+            </AppInitializer>
           </NProgressProvider>
         </ImpersonatedUserProvider>
         <Toaster />

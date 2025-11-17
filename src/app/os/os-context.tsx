@@ -2,7 +2,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
-import type { ServiceOrder, MaterialOrder, PickingSheet, ReturnSheet, OrderItem } from '@/types';
+import type { ServiceOrder, MaterialOrder, PickingSheet, ReturnSheet, OrderItem, ComercialBriefing, Entrega } from '@/types';
+import { useDataStore } from '@/hooks/use-data-store';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -39,6 +40,9 @@ interface ProcessedData {
 interface OsDataContextType {
     osId: string;
     isLoading: boolean;
+    serviceOrder: ServiceOrder | Entrega | null;
+    briefing: ComercialBriefing | null;
+    spaceAddress: string;
     allContextData: {
         materialOrders: MaterialOrder[];
         pickingSheets: PickingSheet[];
@@ -50,39 +54,33 @@ interface OsDataContextType {
 export const OsContext = createContext<OsDataContextType | undefined>(undefined);
 
 export function OsContextProvider({ osId, children }: { osId: string; children: React.ReactNode }) {
-    const [isLoading, setIsLoading] = useState(true);
-    const [allContextData, setAllContextData] = useState<OsDataContextType['allContextData']>(null);
+    const { isLoaded, data } = useDataStore();
 
-    const loadData = useCallback(() => {
-        setIsLoading(true);
-        try {
-            const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-            const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
-            const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>);
-            
-            setAllContextData({
-                materialOrders: allMaterialOrders.filter(o => o.osId === osId),
-                pickingSheets: allPickingSheets.filter(s => s.osId === osId),
-                returnSheets: allReturnSheets.filter(s => s.osId === osId),
-            });
-        } catch (error) {
-            console.error("Failed to load OS context data", error);
-            setAllContextData(null);
-        } finally {
-            setIsLoading(false);
+    const { serviceOrder, briefing, spaceAddress, allContextData } = useMemo(() => {
+        if (!isLoaded || !osId) return { serviceOrder: null, briefing: null, spaceAddress: '', allContextData: null };
+
+        const currentOS = data.serviceOrders.find(os => os.id === osId);
+        let address = '';
+        if (currentOS?.space) {
+            const currentSpace = data.espacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
+            address = currentSpace?.identificacion.calle || '';
         }
-    }, [osId]);
+        
+        const currentBriefing = data.comercialBriefings.find(b => b.osId === osId);
 
-    useEffect(() => {
-        loadData();
-        const handleStorageChange = (e: StorageEvent) => {
-             if (e.key === 'materialOrders' || e.key === 'pickingSheets' || e.key === 'returnSheets') {
-                loadData();
-            }
+        const contextData = {
+            materialOrders: data.materialOrders.filter(o => o.osId === osId),
+            pickingSheets: Object.values(data.pickingSheets).filter(s => s.osId === osId),
+            returnSheets: Object.values(data.returnSheets).filter(s => s.osId === osId),
         };
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, [loadData]);
+
+        return { 
+            serviceOrder: currentOS || null, 
+            briefing: currentBriefing || null, 
+            spaceAddress: address, 
+            allContextData: contextData 
+        };
+    }, [isLoaded, osId, data]);
     
     const getProcessedDataForType = useCallback((type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler'): ProcessedData => {
         const emptyResult: ProcessedData = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
@@ -151,8 +149,8 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
         );
         
         const pending = all.filter(item => {
-            const uniqueKey = `${item.orderId}-${item.itemCode}`;
-            return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+          const uniqueKey = `${item.orderId}-${item.itemCode}`;
+          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
         });
         
         statusItems['Asignado'] = pending;
@@ -168,7 +166,7 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
         };
     }, [allContextData]);
 
-    const value = { osId, isLoading, allContextData, getProcessedDataForType };
+    const value = { osId, isLoading: !isLoaded, allContextData, getProcessedDataForType, serviceOrder, briefing, spaceAddress };
 
     return <OsContext.Provider value={value}>{children}</OsContext.Provider>;
 }
