@@ -7,16 +7,14 @@ import { cn } from '@/lib/utils';
 import { NProgressProvider } from '@/components/providers/nprogress-provider';
 import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
-import { Suspense, useEffect } from 'react';
-import { LoadingScreen } from '@/components/layout/loading-screen';
-import { useDataStore } from '@/hooks/use-data-store';
+import { Suspense } from 'react';
+
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { isLoaded } = useDataStore();
 
   return (
     <html lang="es" suppressHydrationWarning>
@@ -31,18 +29,16 @@ export default function RootLayout({
         />
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
-        {!isLoaded ? (
-          <LoadingScreen />
-        ) : (
           <ImpersonatedUserProvider>
             <NProgressProvider>
               <div className="relative flex min-h-screen flex-col">
                 <Header />
-                  {children}
+                  <Suspense>
+                    {children}
+                  </Suspense>
               </div>
             </NProgressProvider>
           </ImpersonatedUserProvider>
-        )}
         <Toaster />
       </body>
     </html>
