@@ -1,3 +1,4 @@
+
 'use client';
 
 import { create } from 'zustand';
@@ -118,6 +119,9 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
     loadAllData: async () => {
         if (get().isLoaded || typeof window === 'undefined') return;
+
+        set({ loadingMessage: 'Iniciando carga de datos...', loadingProgress: 1 });
+        await new Promise(resolve => setTimeout(resolve, 50)); // Allow UI to update
 
         const totalKeys = dataKeys.length;
         const allData: Partial<DataStore['data']> = {};
