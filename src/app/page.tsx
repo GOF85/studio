@@ -10,16 +10,7 @@ export default function HomePage() {
   const { isLoaded, loadAllData } = useDataStore();
 
   useEffect(() => {
-    // This ensures loadAllData is called only once on the client side
-    // after the component has mounted.
     if (!isLoaded) {
       loadAllData();
     }
-  }, [isLoaded, loadAllData]);
-
-  if (!isLoaded) {
-    return <LoadingScreen />;
-  }
-
-  return <DashboardPage />;
-}
+  }, [isLoaded

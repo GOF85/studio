@@ -237,7 +237,7 @@ function OfPageContent() {
              hitos.forEach(hito => {
                 if (!isWithinInterval(new Date(hito.fecha), { start: rangeStart, end: rangeEnd })) return;
                 
-                const os = getOs(isOsHito(hito) ? hito.serviceOrder.id : hito.osId);
+                const os = getOs(isOsHito(hito) ? (hito as any).osId : hito.osId);
                 if (!os || (os as ServiceOrder).status !== 'Confirmado') return;
                 
                 const fechaKey = format(new Date(hito.fecha), 'yyyy-MM-dd');
@@ -1363,3 +1363,5 @@ export default function OFPage() {
 
 
     
+
+```

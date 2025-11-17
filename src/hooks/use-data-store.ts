@@ -1,4 +1,3 @@
-
 'use client';
 
 import { create } from 'zustand';
@@ -75,7 +74,7 @@ type DataStore = {
         solicitudesPersonalCPR: SolicitudPersonalCPR[];
         incidenciasRetorno: any[];
     };
-    loadAllData: () => void;
+    loadAllData: () => Promise<void>;
 };
 
 const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
@@ -111,30 +110,41 @@ const defaultValuesMap: { [key: string]: any } = {
     stockElaboraciones: {}, personalExternoAjustes: {},
 };
 
+const createInitialData = (): DataStore['data'] => {
+    return dataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']);
+};
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: false,
     loadingProgress: 0,
     loadingMessage: 'Inicializando...',
-    data: dataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']),
+    data: createInitialData(),
 
-    loadAllData: () => {
+    loadAllData: async () => {
         if (get().isLoaded || typeof window === 'undefined') {
             return;
         }
 
         set({ isLoaded: false, loadingProgress: 0, loadingMessage: 'Empezando carga de datos...' });
 
-        const allData: Partial<DataStore['data']> = {};
+        const loadedData: Partial<DataStore['data']> = {};
         const totalKeys = dataKeys.length;
         
-        dataKeys.forEach((key, index) => {
+        for (let i = 0; i < totalKeys; i++) {
+            const key = dataKeys[i];
             const defaultValue = defaultValuesMap[key] ?? [];
-            (allData as any)[key] = loadFromLocalStorage(key, defaultValue);
+            (loadedData as any)[key] = loadFromLocalStorage(key, defaultValue);
+            
+            const progress = ((i + 1) / totalKeys) * 100;
+            // Use requestAnimationFrame to avoid blocking the main thread for UI updates
+            await new Promise(resolve => requestAnimationFrame(() => {
+                set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
+                resolve(null);
+            }));
+        }
 
-            const progress = ((index + 1) / totalKeys) * 100;
-            set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
-        });
-
-        set({ data: allData as DataStore['data'], isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
+        set({ data: loadedData as DataStore['data'], isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
     },
 }));
