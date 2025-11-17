@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat, Printer } from 'lucide-react';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat, Printer, MoreHorizontal, Pencil, Trash2, Archive, CheckSquare } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState, LoteAsignado, ArticuloERP, IngredienteInterno, Proveedor, PedidoEntrega, Entrega, ProductoVenta, ComponenteElaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -489,8 +489,8 @@ function OfPageContent() {
     }, [isLoaded, data.ingredientesInternos]);
 
     const listaDeLaCompraPorProveedor = useMemo(() => {
-        if (!isLoaded || !necesidades.length) return [];
-        
+        if (!isLoaded || !necesidades || !data.articulosERP || !data.proveedores) return [];
+    
         const ingredientesNecesarios = new Map<string, { cantidad: number; desgloseUso: { receta: string; elaboracion: string; cantidad: number }[] }>();
 
         function getIngredientesRecursivo(elabId: string, cantidadRequerida: number, recetaNombre: string) {
@@ -528,9 +528,9 @@ function OfPageContent() {
             if (!ingredienteInterno) return;
 
             const articuloERP = articulosErpMap.get(ingredienteInterno.productoERPlinkId);
-            if (!articuloERP) return;
-
-            const proveedor = proveedoresMap.get(articuloERP.idProveedor || '');
+            if (!articuloERP || !articuloERP.proveedorPreferenteId) return;
+            
+            const proveedor = proveedoresMap.get(articuloERP.proveedorPreferenteId);
             if (!proveedor) return;
 
             let proveedorData = compraPorProveedor.get(proveedor.id);
@@ -562,7 +562,7 @@ function OfPageContent() {
         });
 
         return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
-    }, [isLoaded, necesidades, elaboracionesMap, ingredientesMap, articulosErpMap, proveedoresMap]);
+    }, [isLoaded, necesidades, elaboracionesMap, ingredientesMap, articulosErpMap, proveedoresMap, data]);
 
 
     const flatCompraList = useMemo(() => 
@@ -753,6 +753,7 @@ function OfPageContent() {
   const numSelected = selectedNecesidades.size;
 
   return (
+    <>
     <TooltipProvider>
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 p-4 border rounded-lg bg-card">
         <div className="flex-grow">
@@ -903,7 +904,7 @@ function OfPageContent() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="lista-compra" className="mt-4">
+        <TabsContent value="lista-compra">
              <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
@@ -982,7 +983,7 @@ function OfPageContent() {
                 </CardContent>
             </Card>
         </TabsContent>
-        <TabsContent value="generacion-of" className="mt-4 space-y-4">
+        <TabsContent value="generacion-of">
             <Card>
                 <CardHeader className="flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2"><ChefHat/>Necesidades de Producción Agregadas</CardTitle>
@@ -1093,7 +1094,7 @@ function OfPageContent() {
                 </CardContent>
             </Card>
         </TabsContent>
-        <TabsContent value="creadas" className="mt-4 space-y-4">
+        <TabsContent value="creadas">
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Factory/>Órdenes de Fabricación Creadas</CardTitle>
@@ -1141,7 +1142,9 @@ function OfPageContent() {
                                 <TableHead>Cant. Producida</TableHead>
                                 <TableHead>Valoración Lote</TableHead>
                                 <TableHead>Fecha Prevista</TableHead>
+                                <TableHead>Responsable</TableHead>
                                 <TableHead>Estado</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1166,8 +1169,26 @@ function OfPageContent() {
                                             <TableCell>{of.cantidadReal ? `${formatNumber(of.cantidadReal, 2)} ${formatUnit(of.unidad)}` : '-'}</TableCell>
                                             <TableCell className="font-semibold">{formatCurrency(costeLote)}</TableCell>
                                             <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>{of.responsable || '-'}</TableCell>
                                             <TableCell>
                                             <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => router.push(`/cpr/of/${of.id}`)}>
+                                                        <Pencil className="mr-2 h-4 w-4" /> Editar
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setOrderToDelete(of.id)}}>
+                                                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </TableCell>
                                         </TableRow>
                                     );
@@ -1188,7 +1209,7 @@ function OfPageContent() {
                                 })
                             ) : (
                                 <TableRow>
-                                <TableCell colSpan={8} className="h-24 text-center">
+                                <TableCell colSpan={9} className="h-24 text-center">
                                     No se encontraron órdenes de fabricación.
                                 </TableCell>
                                 </TableRow>
@@ -1199,7 +1220,7 @@ function OfPageContent() {
                 </CardContent>
             </Card>
         </TabsContent>
-        <TabsContent value="asignacion" className="mt-4">
+        <TabsContent value="asignacion">
              <Card>
                 <CardHeader>
                     <CardTitle>Asignación de Órdenes Pendientes</CardTitle>
@@ -1220,10 +1241,10 @@ function OfPageContent() {
                             {ordenes.filter(o => o.estado === 'Pendiente').length > 0 ? (
                                 ordenes.filter(o => o.estado === 'Pendiente').map(of => (
                                     <TableRow key={of.id} className="hover:bg-muted/30">
-                                        <TableCell><Badge variant="outline">{of.id}</TableCell>
+                                        <TableCell><Badge variant="outline">{of.id}</Badge></TableCell>
                                         <TableCell className="font-medium">{of.elaboracionNombre}</TableCell>
                                         <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell><Badge variant="secondary">{of.partidaAsignada}</TableCell>
+                                        <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
                                         <TableCell>
                                             <Select onValueChange={(responsable) => handleAssignResponsable(of.id, responsable)}>
                                                 <SelectTrigger>
@@ -1363,6 +1384,7 @@ function OfPageContent() {
             </DialogContent>
         </Dialog>
     </TooltipProvider>
+    </>
   );
 }
 
@@ -1383,3 +1405,7 @@ export default function OFPage() {
 
 
     
+
+    
+
+
