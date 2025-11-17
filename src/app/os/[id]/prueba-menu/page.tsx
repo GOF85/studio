@@ -25,7 +25,6 @@ import autoTable from 'jspdf-autotable';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
-
 const pruebaMenuItemSchema = z.object({
   id: z.string(),
   type: z.enum(['header', 'item']),
@@ -44,8 +43,8 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function PruebaMenuPage() {
   const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
+  const searchParams = useSearchParams();
+  const osId = searchParams.get('osId');
   const { toast } = useToast();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -143,7 +142,7 @@ const handlePrint = async () => {
         
         // --- TEXTOS ---
         const texts = {
-            es: { proposalTitle: 'Prueba de Menú', orderNumber: 'Nº Servicio:', issueDate: 'Fecha Emisión:', client: 'Cliente:', finalClient: 'Cliente Final:', contact: 'Contacto:', eventDate: 'Fecha Principal:', deliveryFor: 'Entrega para:', logistics: 'Logística:', item: 'Producto', qty: 'Cant.', unitPrice: 'P. Unitario', subtotal: 'Subtotal', deliveryTotal: 'Total Entrega', summaryTitle: 'Resumen Económico', productsSubtotal: 'Subtotal Productos', logisticsSubtotal: 'Subtotal Logística', taxableBase: 'Base Imponible', vat: 'IVA', total: 'TOTAL Propuesta', observations: 'Observaciones', footer: 'MICE Catering - Propuesta generada digitalmente.', portes: 'portes', porte: 'porte' },
+            es: { proposalTitle: 'Prueba de Menú', orderNumber: 'Nº Servicio:', issueDate: 'Fecha Emisión:', client: 'Cliente:', finalClient: 'Cliente Final:', contact: 'Contacto:', eventDate: 'Fecha Principal:', deliveryFor: 'Entrega para:', logistics: 'Logística:', item: 'Producto', qty: 'Cant.', unitPrice: 'P. Unitario', subtotal: 'Subtotal', deliveryTotal: 'Total Entrega', summaryTitle: 'Resumen Económico', productsSubtotal: 'Subtotal Productos', logisticsSubtotal: 'Logística', taxableBase: 'Base Imponible', vat: 'IVA', total: 'TOTAL Propuesta', observations: 'Observaciones', footer: 'MICE Catering - Propuesta generada digitalmente.', portes: 'portes', porte: 'porte' },
             en: { proposalTitle: 'Commercial Proposal', orderNumber: 'Order No.:', issueDate: 'Issue Date:', client: 'Client:', finalClient: 'End Client:', contact: 'Contact:', eventDate: 'Main Date:', deliveryFor: 'Delivery for:', logistics: 'Logistics:', item: 'Product', qty: 'Qty.', unitPrice: 'Unit Price', subtotal: 'Subtotal', deliveryTotal: 'Financial Summary', productsSubtotal: 'Products Subtotal', logisticsSubtotal: 'Logistics Subtotal', taxableBase: 'Taxable Base', vat: 'VAT', total: 'TOTAL Proposal', observations: 'Observations', footer: 'MICE Catering - Digitally generated proposal.', portes: 'deliveries', porte: 'delivery' }
         };
         const T = texts['es'];
@@ -374,7 +373,7 @@ const handlePrint = async () => {
             <Card className="flex-grow">
                 <CardContent className="p-3 flex items-center justify-between">
                     <div className="flex items-center gap-4 text-sm">
-                        <div><strong>Nº Servicio:</strong> <Badge variant="secondary">{serviceOrder.serviceNumber}</Badge></div>
+                        <div className="font-semibold">Nº Servicio: <Badge variant="secondary">{serviceOrder.serviceNumber}</Badge></div>
                         <Separator orientation="vertical" className="h-6"/>
                         <div><strong>Cliente:</strong> {serviceOrder.client}</div>
                         <div><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
@@ -403,35 +402,35 @@ const handlePrint = async () => {
             </div>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-6">
-                {renderSection('BODEGA')}
-                {renderSection('GASTRONOMÍA')}
-                <Card>
-                    <CardHeader className="py-4">
-                    <CardTitle>Observaciones Generales</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <FormField
-                        control={control}
-                        name="observacionesGenerales"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormControl>
-                                <Textarea
-                                placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
-                                rows={4}
-                                {...field}
-                                />
-                            </FormControl>
-                            </FormItem>
-                        )}
-                        />
-                    </CardContent>
-                </Card>
-            </div>
+          <div className="space-y-6">
+              {renderSection('BODEGA')}
+              {renderSection('GASTRONOMÍA')}
+
+              <Card>
+                  <CardHeader className="py-4">
+                  <CardTitle>Observaciones Generales</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                      <FormField
+                      control={control}
+                      name="observacionesGenerales"
+                      render={({ field }) => (
+                          <FormItem>
+                          <FormControl>
+                              <Textarea
+                              placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
+                              rows={4}
+                              {...field}
+                              />
+                          </FormControl>
+                          </FormItem>
+                      )}
+                      />
+                  </CardContent>
+              </Card>
+          </div>
         </form>
       </FormProvider>
     </main>
   );
 }
-```
