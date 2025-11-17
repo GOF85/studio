@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
@@ -156,7 +155,7 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
         };
     }, [osId, isLoaded, data]);
 
-    const value = { osId, isLoading: !isLoaded, getProcessedDataForType, serviceOrder, briefing, spaceAddress, allContextData: null };
+    const value = { osId, isLoading: !isLoaded, getProcessedDataForType, serviceOrder, briefing, spaceAddress };
 
     return <OsContext.Provider value={value}>{children}</OsContext.Provider>;
 }

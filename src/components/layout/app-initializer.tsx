@@ -16,5 +16,4 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
         return <LoadingScreen />;
     }
 
-    return <>{children}</>;
-}
+    

@@ -321,8 +321,7 @@ export default function InfoPage() {
 
 
   function onSubmit(formData: OsFormValues) {
-    setIsLoading(true);
-
+    setIsSubmittingFromDialog(true);
     let allOS = data.serviceOrders;
     let message = '';
     let currentOsId = osId;
@@ -341,7 +340,7 @@ export default function InfoPage() {
             title: 'Error',
             description: 'Ya existe una Orden de Servicio con este número.',
         });
-        setIsLoading(false);
+        setIsSubmittingFromDialog(false);
         return;
       }
       currentOsId = formData.id;
@@ -358,7 +357,7 @@ export default function InfoPage() {
     localStorage.setItem('serviceOrders', JSON.stringify(allOS));
     
     toast({ description: message });
-    setIsLoading(false);
+    setIsSubmittingFromDialog(false);
 
     if (!isEditing) {
         router.push(`/os/${currentOsId}/info`);
@@ -371,8 +370,6 @@ export default function InfoPage() {
   }
   
   const statusValue = watch("status");
-  const isLoading = useLoadingStore(state => state.isLoading);
-  const setIsLoading = useLoadingStore(state => state.setIsLoading);
 
   const handleStatusChange = (value: OsFormValues['status']) => {
     if (value === 'Anulado') {
@@ -418,8 +415,8 @@ export default function InfoPage() {
                         </Select>
                         </FormItem>
                     )} />
-                    <Button type="submit" form="os-form" size="sm" disabled={isLoading || !isDirty}>
-                        <Save className="mr-2" />
+                    <Button type="submit" form="os-form" size="sm" disabled={isSubmittingFromDialog || !isDirty}>
+                        {isSubmittingFromDialog ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />}
                         <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar OS'}</span>
                     </Button>
                 </div>
@@ -430,7 +427,7 @@ export default function InfoPage() {
                     <FormItem className="flex flex-col"><FormLabel>Nº Servicio</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={control} name="startDate" render={({ field }) => (
-                      <FormItem className="flex flex-col"><FormLabel>Fecha Inicio</FormLabel><Popover open={startDateOpen} onOpenChange={setStartDateOpen}><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={(date) => {field.onChange(date); setStartDateOpen(false);}} initialFocus locale={es} /></PopoverContent></Popover><FormMessage /></FormItem>
+                      <FormItem className="flex flex-col"><FormLabel>Fecha Inicio</FormLabel><Popover open={startDateOpen} onOpenChange={setStartDateOpen}><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={(date) => { field.onChange(date); setStartDateOpen(false); }} initialFocus locale={es} /></PopoverContent></Popover><FormMessage /></FormItem>
                   )} />
                   <FormField control={control} name="endDate" render={({ field }) => (
                       <FormItem className="flex flex-col"><FormLabel>Fecha Fin</FormLabel><Popover open={endDateOpen} onOpenChange={setEndDateOpen}><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={(date) => {field.onChange(date); setEndDateOpen(false);}} initialFocus locale={es} /></PopoverContent></Popover><FormMessage /></FormItem>
@@ -621,3 +618,4 @@ export default function InfoPage() {
     </>
   );
 }
+```
