@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 export default function CPRPage() {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/cpr/dashboard');
+        router.replace('/cpr/of');
     }, [router]);
     return null;
 }
