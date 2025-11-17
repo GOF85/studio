@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -187,7 +188,7 @@ function OfPageContent() {
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
     
-    useEffect(() => {
+     useEffect(() => {
         if (!isLoaded) {
             loadAllData();
         }
@@ -714,5 +715,3 @@ export default function OFPage() {
         </Suspense>
     )
 }
-
-    
