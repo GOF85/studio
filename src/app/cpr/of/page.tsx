@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat, Printer } from 'lucide-react';
-import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState, LoteAsignado, ArticuloERP, IngredienteInterno, Proveedor, PedidoEntrega, Entrega, ProductoVenta } from '@/types';
+import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState, LoteAsignado, ArticuloERP, IngredienteInterno, Proveedor, PedidoEntrega, Entrega, ProductoVenta, ComponenteElaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -472,29 +473,33 @@ function OfPageContent() {
 
     }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas]);
     
+    const proveedoresMap = useMemo(() => {
+        if (!isLoaded) return new Map();
+        return new Map(data.proveedores.map(p => [p.id, p]));
+    }, [isLoaded, data.proveedores]);
+
+    const articulosErpMap = useMemo(() => {
+        if (!isLoaded) return new Map();
+        return new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
+    }, [isLoaded, data.articulosERP]);
+
+    const ingredientesMap = useMemo(() => {
+        if (!isLoaded) return new Map();
+        return new Map(data.ingredientesInternos.map(i => [i.id, i]));
+    }, [isLoaded, data.ingredientesInternos]);
+
     const listaDeLaCompraPorProveedor = useMemo(() => {
-        if (!isLoaded || !data.articulosERP || !data.proveedores || !necesidades || !data.elaboraciones || !data.ingredientesInternos) return [];
-    
-        const elabMap = new Map(data.elaboraciones.map(e => [e.id, e]));
-        const ingMap = new Map(data.ingredientesInternos.map(i => [i.id, i]));
-        const erpMap = new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
+        if (!isLoaded || !necesidades.length) return [];
         
-        // Find proveedor by IdERP first, then fall back to id for older data compatibility
-        const proveedoresMap = new Map<string, Proveedor>();
-        data.proveedores.forEach(p => {
-          if (p.IdERP) proveedoresMap.set(p.IdERP, p);
-          proveedoresMap.set(p.id, p);
-        });
-    
-        const ingredientesNecesarios = new Map<string, { cantidad: number, desgloseUso: { receta: string, elaboracion: string, cantidad: number }[] }>();
-    
+        const ingredientesNecesarios = new Map<string, { cantidad: number; desgloseUso: { receta: string; elaboracion: string; cantidad: number }[] }>();
+
         function getIngredientesRecursivo(elabId: string, cantidadRequerida: number, recetaNombre: string) {
-            const elaboracion = elabMap.get(elabId);
-            if (!elaboracion) return;
-    
+            const elaboracion = elaboracionesMap.get(elabId);
+            if (!elaboracion || !elaboracion.componentes) return;
+
             const ratio = cantidadRequerida / (elaboracion.produccionTotal > 0 ? elaboracion.produccionTotal : 1);
             
-            (elaboracion.componentes || []).forEach(comp => {
+            elaboracion.componentes.forEach(comp => {
                 const cantidadComponente = comp.cantidad * ratio;
                 if (comp.tipo === 'ingrediente') {
                     let ingData = ingredientesNecesarios.get(comp.componenteId);
@@ -509,7 +514,7 @@ function OfPageContent() {
                 }
             });
         }
-    
+
         necesidades.forEach(necesidad => {
             if (necesidad.cantidadNeta > 0) {
                 getIngredientesRecursivo(necesidad.id, necesidad.cantidadNeta, necesidad.recetas.join(', '));
@@ -517,47 +522,48 @@ function OfPageContent() {
         });
         
         const compraPorProveedor = new Map<string, ProveedorConLista>();
-    
-        ingredientesNecesarios.forEach((data, ingId) => {
-            const ingredienteInterno = ingMap.get(ingId);
+
+        ingredientesNecesarios.forEach((datos, ingId) => {
+            const ingredienteInterno = ingredientesMap.get(ingId);
             if (!ingredienteInterno) return;
-    
-            const articuloERP = erpMap.get(ingredienteInterno.productoERPlinkId);
+
+            const articuloERP = articulosErpMap.get(ingredienteInterno.productoERPlinkId);
             if (!articuloERP) return;
-    
+
             const proveedor = proveedoresMap.get(articuloERP.idProveedor || '');
             if (!proveedor) return;
-    
+
             let proveedorData = compraPorProveedor.get(proveedor.id);
             if (!proveedorData) {
                 proveedorData = { ...proveedor, listaCompra: [] };
                 compraPorProveedor.set(proveedor.id, proveedorData);
             }
-    
+
             const ingCompra: IngredienteDeCompra = {
                 erpId: articuloERP.idreferenciaerp,
                 nombreProducto: articuloERP.nombreProductoERP,
                 refProveedor: articuloERP.referenciaProveedor || '',
                 formatoCompra: `${articuloERP.unidadConversion} ${formatUnit(articuloERP.unidad)}`,
-                necesidadNeta: data.cantidad,
+                necesidadNeta: datos.cantidad,
                 unidadNeta: articuloERP.unidad,
                 unidadConversion: articuloERP.unidadConversion,
                 precioCompra: articuloERP.precioCompra,
                 descuento: articuloERP.descuento || 0,
-                desgloseUso: data.desgloseUso.sort((a,b) => b.cantidad - a.cantidad),
+                desgloseUso: datos.desgloseUso.sort((a,b) => b.cantidad - a.cantidad),
             };
             
             const existingItemIndex = proveedorData.listaCompra.findIndex(item => item.erpId === articuloERP.idreferenciaerp);
             if (existingItemIndex > -1) {
-                proveedorData.listaCompra[existingItemIndex].necesidadNeta += data.cantidad;
-                proveedorData.listaCompra[existingItemIndex].desgloseUso.push(...data.desgloseUso);
+                proveedorData.listaCompra[existingItemIndex].necesidadNeta += datos.cantidad;
+                proveedorData.listaCompra[existingItemIndex].desgloseUso.push(...datos.desgloseUso);
             } else {
                 proveedorData.listaCompra.push(ingCompra);
             }
         });
-    
+
         return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
-    }, [isLoaded, necesidades, data]);
+    }, [isLoaded, necesidades, elaboracionesMap, ingredientesMap, articulosErpMap, proveedoresMap]);
+
 
     const flatCompraList = useMemo(() => 
         listaDeLaCompraPorProveedor.flatMap(proveedor => 
@@ -1214,10 +1220,10 @@ function OfPageContent() {
                             {ordenes.filter(o => o.estado === 'Pendiente').length > 0 ? (
                                 ordenes.filter(o => o.estado === 'Pendiente').map(of => (
                                     <TableRow key={of.id} className="hover:bg-muted/30">
-                                        <TableCell><Badge variant="outline">{of.id}</Badge></TableCell>
+                                        <TableCell><Badge variant="outline">{of.id}</TableCell>
                                         <TableCell className="font-medium">{of.elaboracionNombre}</TableCell>
                                         <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
+                                        <TableCell><Badge variant="secondary">{of.partidaAsignada}</TableCell>
                                         <TableCell>
                                             <Select onValueChange={(responsable) => handleAssignResponsable(of.id, responsable)}>
                                                 <SelectTrigger>
@@ -1374,3 +1380,6 @@ export default function OFPage() {
     
 
 
+
+
+    
