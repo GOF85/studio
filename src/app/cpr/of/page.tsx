@@ -197,6 +197,20 @@ function OfPageContent() {
     useEffect(() => {
         setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) });
     }, []);
+
+    const elaboracionesMap = useMemo(() => {
+        if (!isLoaded) return new Map();
+        return new Map(data.elaboraciones.map(e => [e.id, e]));
+    }, [isLoaded, data.elaboraciones]);
+    
+    const serviceOrdersMap = useMemo(() => {
+        if (!isLoaded) return new Map();
+        return new Map(data.serviceOrders.map(os => [os.id, os]));
+    }, [isLoaded, data.serviceOrders]);
+
+    const isOsHito = (hito: ComercialBriefingItem | EntregaHito): hito is ComercialBriefingItem & { serviceOrder: ServiceOrder } => {
+        return 'serviceOrder' in hito;
+    };
     
     const { ordenes, personalCPR, necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
         if (!isLoaded || !data || !dateRange?.from) return { ordenes: [], personalCPR: [], necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
@@ -209,10 +223,9 @@ function OfPageContent() {
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
 
-        const osMap = new Map(serviceOrders.map(os => [os.id, os]));
+        const osMap = serviceOrdersMap;
         const entregasMap = new Map(entregas.map(e => [e.id, e]));
         const recetasMap = new Map(recetas.map(r => [r.id, r]));
-        const elaboracionesMap = new Map(elaboraciones.map(e => [e.id, e]));
         
         const necesidadesAgregadas = new Map<string, NecesidadItem>();
 
@@ -310,18 +323,23 @@ function OfPageContent() {
         return { 
             ordenes: ordenesFabricacion, 
             personalCPR: personal.filter(p => p.departamento === 'CPR'), 
-            serviceOrdersMap: osMap, 
             necesidades: necesidadesNetas, 
             necesidadesCubiertas, 
             pickingStates: allPickingStatesData
         };
 
-    }, [isLoaded, data, dateRange]);
+    }, [isLoaded, data, dateRange, serviceOrdersMap, elaboracionesMap]);
 
-    const isOsHito = (hito: ComercialBriefingItem | EntregaHito): hito is ComercialBriefingItem & { serviceOrder: ServiceOrder } => {
-        return 'serviceOrder' in hito;
-    };
-    
+    const { ingredientesMap, articulosErpMap, proveedoresMap } = useMemo(() => {
+        if (!isLoaded || !data) return { ingredientesMap: new Map(), articulosErpMap: new Map(), proveedoresMap: new Map() };
+        const { ingredientesInternos, articulosERP, proveedores } = data;
+        return {
+            ingredientesMap: new Map(ingredientesInternos.map(i => [i.id, i])),
+            articulosErpMap: new Map(articulosERP.map(a => [a.idreferenciaerp, a])),
+            proveedoresMap: new Map(proveedores.map(p => [p.IdERP, p]))
+        };
+    }, [isLoaded, data]);
+
     useEffect(() => {
         if (!necesidades || !dateRange?.from || !dateRange?.to || !data) {
             setReporteData(null);
@@ -420,7 +438,7 @@ function OfPageContent() {
             elaboraciones: Array.from(allElaboracionesNecesarias.values()),
         });
 
-    }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data]);
+    }, [necesidades, dateRange, data, serviceOrdersMap, elaboracionesMap]);
     
     const listaDeLaCompraPorProveedor = useMemo(() => {
         if (!isLoaded || !data || !necesidades) {
@@ -1114,6 +1132,7 @@ function OfPageContent() {
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                                                        <span className="sr-only">Abrir menú</span>
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                     </DropdownMenuTrigger>
@@ -1121,7 +1140,7 @@ function OfPageContent() {
                                                         <DropdownMenuItem onClick={() => router.push(`/cpr/of/${of.id}`)}>
                                                         <Pencil className="mr-2 h-4 w-4" /> Editar
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setOrderToDelete(of.id)}}>
+                                                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setOrderToDelete(of.id); }}>
                                                         <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
