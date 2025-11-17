@@ -64,7 +64,7 @@ function OsHeaderContent({ osId }: { osId: string;}) {
     const pathname = usePathname();
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [updateKey, setUpdateKey] = useState(Date.now());
-    const { isLoading, allItems } = useOsContext();
+    const { isLoading } = useOsContext();
 
     useEffect(() => {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];

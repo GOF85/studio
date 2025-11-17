@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -21,6 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
+import { useOsData } from '@/app/os/os-context';
 
 const statusOptions: TransporteOrder['status'][] = ['Pendiente', 'Confirmado', 'En Ruta', 'Entregado'];
 
@@ -46,10 +48,10 @@ export default function PedidoTransportePage() {
   const isEditing = !!orderId;
 
   const [isMounted, setIsMounted] = useState(false);
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [proveedores, setProveedores] = useState<TipoTransporte[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
+  const { serviceOrder, isLoading } = useOsData(osId);
   const { toast } = useToast();
 
   const form = useForm<TransporteOrderFormValues>({
@@ -63,10 +65,6 @@ export default function PedidoTransportePage() {
   });
 
   useEffect(() => {
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    setServiceOrder(currentOS || null);
-
     const allProveedores = (JSON.parse(localStorage.getItem('tiposTransporte') || '[]') as TipoTransporte[])
         .filter(p => p.tipo === 'Catering');
     setProveedores(allProveedores);
@@ -84,19 +82,19 @@ export default function PedidoTransportePage() {
     } else {
       form.reset({
         id: Date.now().toString(),
-        fecha: currentOS?.startDate ? new Date(currentOS.startDate) : new Date(),
+        fecha: serviceOrder?.startDate ? new Date(serviceOrder.startDate) : new Date(),
         proveedorId: '',
         lugarRecogida: 'Avda. de la Industria, 38, 28108 Alcobendas, Madrid',
         horaRecogida: '09:00',
-        lugarEntrega: currentOS?.spaceAddress || currentOS?.space || '',
-        horaEntrega: currentOS?.deliveryTime || '10:00',
+        lugarEntrega: serviceOrder?.spaceAddress || serviceOrder?.space || '',
+        horaEntrega: serviceOrder?.deliveryTime || '10:00',
         observaciones: '',
         status: 'Pendiente',
       })
     }
     
     setIsMounted(true);
-  }, [osId, orderId, form, isEditing]);
+  }, [osId, orderId, form, isEditing, serviceOrder]);
 
   const selectedProviderId = form.watch('proveedorId');
   const selectedProvider = useMemo(() => {
@@ -140,7 +138,7 @@ export default function PedidoTransportePage() {
     router.push(`/os/${osId}/transporte`);
   };
 
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted || isLoading) {
     return <LoadingSkeleton title="Cargando Pedido de Transporte..." />;
   }
 
@@ -156,7 +154,7 @@ export default function PedidoTransportePage() {
                             Volver al Módulo
                         </Button>
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Truck />{isEditing ? 'Editar' : 'Nuevo'} Pedido de Transporte</h1>
-                        <p className="text-muted-foreground">Para la OS: {serviceOrder.serviceNumber}</p>
+                        <p className="text-muted-foreground">Para la OS: {serviceOrder?.serviceNumber}</p>
                     </div>
                      <div className="flex gap-2">
                         <Button variant="outline" type="button" onClick={() => router.push(`/os/${osId}/transporte`)}>
