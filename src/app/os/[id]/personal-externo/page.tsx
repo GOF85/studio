@@ -1,5 +1,6 @@
 
 'use client';
+
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
@@ -11,8 +12,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload } from 'lucide-react';
 
-import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoTurnoPersonal } from '@/types';
-import { ESTADO_TURNO_PERSONAL, AJUSTE_CONCEPTO_OPCIONES } from '@/types';
+import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno } from '@/types';
+import { ESTADO_PERSONAL_EXTERNO, AJUSTE_CONCEPTO_OPCIONES } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -181,7 +182,7 @@ export default function PersonalExternoPage() {
         const allProveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
         setAllProveedores(allProveedoresData);
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const currentPersonalExterno = allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Solicitado' };
+        const currentPersonalExterno = allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' };
         setPersonalExterno(currentPersonalExterno);
        
         const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
@@ -235,7 +236,7 @@ export default function PersonalExternoPage() {
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, costeFinalPlanificado: planned + aj, finalTotalReal: real + aj };
   }, [watchedFields, watchedAjustes]);
 
-    const handleGlobalStatusAction = (newStatus: EstadoTurnoPersonal) => {
+    const handleGlobalStatusAction = (newStatus: EstadoPersonalExterno) => {
         if (!personalExterno) return;
      
         let requiresUpdate = false;
@@ -280,6 +281,8 @@ export default function PersonalExternoPage() {
     const ActionButton = () => {
         if(!personalExterno) return null;
         switch(personalExterno.status) {
+            case 'Pendiente':
+                return <Button onClick={() => handleGlobalStatusAction('Solicitado')}><Send className="mr-2"/>Solicitar a ETT</Button>
             case 'Solicitado':
                 if (isSolicitudDesactualizada) {
                     return <Button onClick={handleSubmit(onSubmit)}><RefreshCw className="mr-2"/>Notificar Cambios a ETT</Button>
@@ -290,7 +293,7 @@ export default function PersonalExternoPage() {
             case 'Cerrado':
                  return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Cerrado</Button>
             default:
-                return <Button onClick={() => handleGlobalStatusAction('Solicitado')}><Send className="mr-2"/>Solicitar a ETT</Button>;
+                return null;
         }
     }
 
@@ -305,7 +308,7 @@ export default function PersonalExternoPage() {
       const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
       const index = allPersonalExterno.findIndex(p => p.osId === osId);
      
-      const currentStatus = personalExterno?.status || 'Solicitado';
+      const currentStatus = personalExterno?.status || 'Pendiente';
      
       const newPersonalData: PersonalExterno = {
           osId,
@@ -789,4 +792,3 @@ export default function PersonalExternoPage() {
   );
 }
 
-```
