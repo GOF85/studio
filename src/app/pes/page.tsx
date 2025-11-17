@@ -18,6 +18,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -36,16 +46,6 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 export default function PrevisionServiciosPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
@@ -80,27 +80,34 @@ export default function PrevisionServiciosPage() {
   
   const filteredAndSortedOrders = useMemo(() => {
     const today = startOfToday();
+    
+    if (!serviceOrders || serviceOrders.length === 0) {
+      return [];
+    }
+
     const cateringOrders = serviceOrders.filter(os => os.vertical !== 'Entregas');
 
     const filtered = cateringOrders.filter(os => {
-      const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
+      const searchMatch = searchTerm.trim() === '' || 
+        (os.serviceNumber && os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase())) || 
+        (os.client && os.client.toLowerCase().includes(searchTerm.toLowerCase()));
       
       let monthMatch = true;
-      if (selectedMonth !== 'all') {
-        try {
-          const osMonth = format(new Date(os.startDate), 'yyyy-MM');
-          monthMatch = osMonth === selectedMonth;
-        } catch (e) {
-          monthMatch = false;
-        }
+      if (selectedMonth !== 'all' && os.startDate) {
+          try {
+              const osMonth = format(new Date(os.startDate), 'yyyy-MM');
+              monthMatch = osMonth === selectedMonth;
+          } catch(e) {
+              monthMatch = false;
+          }
       }
       
       let pastEventMatch = true;
-      if (!showPastEvents) {
+      if (!showPastEvents && os.endDate) {
           try {
               pastEventMatch = !isBefore(new Date(os.endDate), today);
           } catch (e) {
-              pastEventMatch = true;
+              pastEventMatch = true; // Default to showing if date is invalid
           }
       }
 
@@ -237,7 +244,7 @@ export default function PrevisionServiciosPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => router.push(`/os/${os.id}`)}>
+                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/os/${os.id}`); }}>
                                         <Pencil className="mr-2 h-4 w-4" /> Editar
                                     </DropdownMenuItem>
                                     <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setOrderToDelete(os.id); }}>
@@ -259,7 +266,7 @@ export default function PrevisionServiciosPage() {
           </Table>
         </div>
         
-        <AlertDialog open={!!orderToDelete} onOpenChange={setOrderToDelete}>
+        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => setOrderToDelete(open ? orderToDelete : null)}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
