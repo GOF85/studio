@@ -120,13 +120,9 @@ export const useDataStore = create<DataStore>((set, get) => ({
     data: dataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']),
 
     loadAllData: () => {
-        if (typeof window === 'undefined' || get().isLoaded) {
-            if (get().isLoaded) return;
-            set({ isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
-            return;
-        }
-
-        const allData: Partial<DataStore['data']> = {};
+        if (typeof window === 'undefined' || get().isLoaded) return;
+        
+        set({ isLoaded: false, loadingProgress: 0, loadingMessage: 'Empezando carga de datos...' });
         
         const existingKeys = Object.keys(localStorage).filter(key => dataKeysSet.has(key));
         const totalKeys = existingKeys.length;
@@ -136,9 +132,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
             return;
         }
 
-        set({ loadingMessage: 'Preparando carga...', loadingProgress: 1 });
-
         let processedKeys = 0;
+        const allData: Partial<DataStore['data']> = {};
 
         function processKey(index: number) {
             if (index >= totalKeys) {
@@ -146,19 +141,22 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 return;
             }
 
-            const key = existingKeys[index];
-            const defaultValue = defaultValuesMap[key] ?? [];
-            (allData as any)[key] = loadFromLocalStorage(key, defaultValue);
-
-            processedKeys++;
-            const progress = (processedKeys / totalKeys) * 100;
-            
             setTimeout(() => {
+                const key = existingKeys[index];
+                const defaultValue = defaultValuesMap[key] ?? [];
+                (allData as any)[key] = loadFromLocalStorage(key, defaultValue);
+
+                processedKeys++;
+                const progress = (processedKeys / totalKeys) * 100;
+                
                 set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
+                
                 processKey(index + 1);
-            }, 10);
+            }, 0);
         }
 
         processKey(0);
     },
 }));
+
+useDataStore.getState().loadAllData();
