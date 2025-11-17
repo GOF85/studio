@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -352,15 +352,14 @@ const handlePrint = async () => {
 
   return (
     <>
-    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4">
         <Card className="flex-grow">
             <CardContent className="p-3 flex items-center justify-between">
                 <div className="flex items-center gap-4 text-sm">
-                    <span><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</span>
+                    <div className="font-semibold">Nº Servicio: <Badge variant="secondary">{serviceOrder.serviceNumber}</Badge></div>
                     <Separator orientation="vertical" className="h-6"/>
-                    <span><strong>Cliente:</strong> {serviceOrder.client}</span>
-                    <Separator orientation="vertical" className="h-6"/>
-                    <span><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</span>
+                    <div><strong>Cliente:</strong> {serviceOrder.client}</div>
+                    <div><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
                 </div>
                  <div className="flex items-center gap-2">
                     <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba:</FormLabel>
@@ -369,7 +368,7 @@ const handlePrint = async () => {
             </CardContent>
         </Card>
         <div className="flex gap-2 ml-4">
-            <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
+             <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
                 {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
                 {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
             </Button>
@@ -378,62 +377,62 @@ const handlePrint = async () => {
                 Guardar Cambios
             </Button>
         </div>
-    </div>
+      </div>
     
-    <Separator className="my-6" />
+      <Separator className="my-6" />
 
-    <Form {...form}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="flex items-center gap-2">
-            <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
-            <FormField
-                control={control}
-                name="costePruebaMenu"
-                render={({ field }) => (
-                    <FormItem className="flex items-center gap-2">
-                        <FormControl>
-                            <Input 
-                                type="number" 
-                                step="0.01" 
-                                {...field} 
-                                className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
-                            />
-                        </FormControl>
-                        <span className="text-lg font-bold">€</span>
-                    </FormItem>
-                )}
-            />
-        </div>
-
-        <div className="space-y-6">
-            {renderSection('BODEGA')}
-            {renderSection('GASTRONOMÍA')}
-
-            <Card>
-                <CardHeader className="py-4">
-                <CardTitle>Observaciones Generales</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                    <FormField
+      <Form {...form}>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="flex items-center gap-2">
+                <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
+                <FormField
                     control={control}
-                    name="observacionesGenerales"
+                    name="costePruebaMenu"
                     render={({ field }) => (
-                        <FormItem>
-                        <FormControl>
-                            <Textarea
-                            placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
-                            rows={4}
-                            {...field}
-                            />
-                        </FormControl>
+                        <FormItem className="flex items-center gap-2">
+                            <FormControl>
+                                <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    {...field} 
+                                    className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
+                                />
+                            </FormControl>
+                            <span className="text-lg font-bold">€</span>
                         </FormItem>
                     )}
-                    />
-                </CardContent>
-            </Card>
-        </div>
-      </form>
-    </Form>
+                />
+            </div>
+            
+            <div className="space-y-6">
+                {renderSection('BODEGA')}
+                {renderSection('GASTRONOMÍA')}
+
+                <Card>
+                    <CardHeader className="py-4">
+                    <CardTitle>Observaciones Generales</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                        <FormField
+                        control={control}
+                        name="observacionesGenerales"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormControl>
+                                <Textarea
+                                placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
+                                rows={4}
+                                {...field}
+                                />
+                            </FormControl>
+                            </FormItem>
+                        )}
+                        />
+                    </CardContent>
+                </Card>
+            </div>
+        </form>
+      </Form>
     </>
   );
 }
