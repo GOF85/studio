@@ -45,7 +45,7 @@ type DataStore = {
         ctaComentarios: Record<string, any>;
         objetivosGastoPlantillas: ObjetivosGasto[];
         defaultObjetivoGastoId: string | null;
-        ingredientesERP: IngredienteERP[];
+        articulosERP: IngredienteERP[];
         familiasERP: FamiliaERP[];
         ingredientesInternos: IngredienteInterno[];
         elaboraciones: Elaboracion[];
@@ -95,7 +95,7 @@ const dataKeys = [
     'personalMiceOrders', 'personalExterno', 'pruebasMenu', 'pickingSheets', 'returnSheets',
     'ordenesFabricacion', 'pickingStates', 'excedentesProduccion', 'personalEntrega',
     'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 'ctaComentarios',
-    'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'ingredientesERP', 'familiasERP',
+    'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 'familiasERP',
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones',
     'personalExternoAjustes', 'personalExternoDB', 'historicoPreciosERP', 'costesFijosCPR',
@@ -103,8 +103,6 @@ const dataKeys = [
     'proveedores', 'tiposTransporte', 'decoracionDB', 'atipicosDB', 'pedidoPlantillas',
     'formatosExpedicionDB', 'solicitudesPersonalCPR', 'incidenciasRetorno',
 ];
-
-const dataKeysSet = new Set(dataKeys);
 
 const defaultValuesMap: { [key: string]: any } = {
     defaultObjetivoGastoId: null,
@@ -120,43 +118,30 @@ export const useDataStore = create<DataStore>((set, get) => ({
     data: dataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']),
 
     loadAllData: () => {
-        if (typeof window === 'undefined' || get().isLoaded) return;
-        
-        set({ isLoaded: false, loadingProgress: 0, loadingMessage: 'Empezando carga de datos...' });
-        
-        const existingKeys = Object.keys(localStorage).filter(key => dataKeysSet.has(key));
-        const totalKeys = existingKeys.length;
-        
-        if (totalKeys === 0) {
-            setTimeout(() => {
-                set({ data: get().data, isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
-            }, 500); // Small delay to show the loading screen briefly
+        // Prevent re-loading if data is already loaded
+        if (get().isLoaded || typeof window === 'undefined') {
             return;
         }
 
-        let processedKeys = 0;
-        const allData: Partial<DataStore['data']> = {};
+        set({ isLoaded: false, loadingProgress: 0, loadingMessage: 'Empezando carga de datos...' });
 
-        function processKey(index: number) {
-            if (index >= totalKeys) {
-                set({ data: allData as DataStore['data'], isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
-                return;
-            }
-
-            setTimeout(() => {
-                const key = existingKeys[index];
+        // Simulate async loading to show progress
+        setTimeout(() => {
+            const allData: Partial<DataStore['data']> = {};
+            const totalKeys = dataKeys.length;
+            
+            dataKeys.forEach((key, index) => {
                 const defaultValue = defaultValuesMap[key] ?? [];
                 (allData as any)[key] = loadFromLocalStorage(key, defaultValue);
 
-                processedKeys++;
-                const progress = (processedKeys / totalKeys) * 100;
-                
-                set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
-                
-                processKey(index + 1);
-            }, 10);
-        }
+                // This update is synchronous but we batch them for performance
+                if ((index + 1) % 5 === 0 || index === totalKeys - 1) {
+                    const progress = ((index + 1) / totalKeys) * 100;
+                    set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
+                }
+            });
 
-        processKey(0);
+            set({ data: allData as DataStore['data'], isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
+        }, 100); // Small delay to ensure loading screen renders
     },
 }));
