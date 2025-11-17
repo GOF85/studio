@@ -43,11 +43,6 @@ interface OsDataContextType {
     serviceOrder: ServiceOrder | Entrega | null;
     briefing: ComercialBriefing | null;
     spaceAddress: string;
-    allContextData: {
-        materialOrders: MaterialOrder[];
-        pickingSheets: PickingSheet[];
-        returnSheets: ReturnSheet[];
-    } | null;
     getProcessedDataForType: (type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler') => ProcessedData;
 }
 
@@ -56,8 +51,8 @@ export const OsContext = createContext<OsDataContextType | undefined>(undefined)
 export function OsContextProvider({ osId, children }: { osId: string; children: React.ReactNode }) {
     const { isLoaded, data } = useDataStore();
 
-    const { serviceOrder, briefing, spaceAddress, allContextData } = useMemo(() => {
-        if (!isLoaded || !osId) return { serviceOrder: null, briefing: null, spaceAddress: '', allContextData: null };
+    const { serviceOrder, briefing, spaceAddress } = useMemo(() => {
+        if (!isLoaded || !osId) return { serviceOrder: null, briefing: null, spaceAddress: '' };
 
         const currentOS = data.serviceOrders.find(os => os.id === osId);
         let address = '';
@@ -68,30 +63,25 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
         
         const currentBriefing = data.comercialBriefings.find(b => b.osId === osId);
 
-        const contextData = {
-            materialOrders: data.materialOrders.filter(o => o.osId === osId),
-            pickingSheets: Object.values(data.pickingSheets).filter(s => s.osId === osId),
-            returnSheets: Object.values(data.returnSheets).filter(s => s.osId === osId),
-        };
-
         return { 
             serviceOrder: currentOS || null, 
             briefing: currentBriefing || null, 
             spaceAddress: address, 
-            allContextData: contextData 
         };
     }, [isLoaded, osId, data]);
     
     const getProcessedDataForType = useCallback((type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler'): ProcessedData => {
         const emptyResult: ProcessedData = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
         
-        if (!allContextData) return emptyResult;
+        if (!isLoaded) return emptyResult;
         
-        const { materialOrders, pickingSheets, returnSheets } = allContextData;
-        const relatedOrders = materialOrders.filter(o => o.type === type);
+        const { materialOrders, pickingSheets, returnSheets } = data;
+        const relatedOrders = materialOrders.filter(o => o.osId === osId && o.type === type);
+        const relatedPickingSheets = Object.values(pickingSheets).filter(s => s.osId === osId);
+        const relatedReturnSheets = Object.values(returnSheets).filter(s => s.osId === osId);
         
         const mermas: Record<string, number> = {};
-        returnSheets.forEach(sheet => {
+        relatedReturnSheets.forEach(sheet => {
           Object.entries(sheet.itemStates).forEach(([key, state]) => {
             const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
             if (itemInfo && itemInfo.type === type && itemInfo.sentQuantity > state.returnedQuantity) {
@@ -105,7 +95,7 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
         const processedItemKeys = new Set<string>();
         const blocked: BlockedOrderInfo[] = [];
 
-        pickingSheets.forEach(sheet => {
+        relatedPickingSheets.forEach(sheet => {
             const targetStatus = statusMap[sheet.status];
             const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
 
@@ -164,9 +154,9 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
             itemsByStatus: statusItems,
             totalValoracionPendiente
         };
-    }, [allContextData]);
+    }, [osId, isLoaded, data]);
 
-    const value = { osId, isLoading: !isLoaded, allContextData, getProcessedDataForType, serviceOrder, briefing, spaceAddress };
+    const value = { osId, isLoading: !isLoaded, getProcessedDataForType, serviceOrder, briefing, spaceAddress, allContextData: null };
 
     return <OsContext.Provider value={value}>{children}</OsContext.Provider>;
 }

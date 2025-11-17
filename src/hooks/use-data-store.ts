@@ -1,4 +1,3 @@
-
 'use client';
 
 import { create } from 'zustand';
@@ -17,6 +16,8 @@ import type {
 
 type DataStore = {
     isLoaded: boolean;
+    loadingMessage: string;
+    loadingProgress: number;
     data: {
         serviceOrders: ServiceOrder[];
         entregas: Entrega[];
@@ -73,8 +74,7 @@ type DataStore = {
         solicitudesPersonalCPR: SolicitudPersonalCPR[];
         incidenciasRetorno: any[];
     };
-    loadAllData: () => void;
-    refreshData: () => void;
+    loadAllData: () => Promise<void>;
 };
 
 const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
@@ -88,86 +88,55 @@ const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
     }
 };
 
+const dataKeys = [
+    'serviceOrders', 'entregas', 'comercialBriefings', 'pedidosEntrega', 'gastronomyOrders',
+    'materialOrders', 'transporteOrders', 'hieloOrders', 'decoracionOrders', 'atipicoOrders',
+    'personalMiceOrders', 'personalExterno', 'pruebasMenu', 'pickingSheets', 'returnSheets',
+    'ordenesFabricacion', 'pickingStates', 'excedentesProduccion', 'personalEntrega',
+    'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 'ctaComentarios',
+    'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 'familiasERP',
+    'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
+    'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones',
+    'personalExternoAjustes', 'personalExternoDB', 'historicoPreciosERP', 'costesFijosCPR',
+    'objetivosCPR', 'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposPersonal',
+    'proveedores', 'tiposTransporte', 'decoracionDB', 'atipicosDB', 'pedidoPlantillas',
+    'formatosExpedicionDB', 'solicitudesPersonalCPR', 'incidenciasRetorno',
+];
+
+const defaultValuesMap: { [key: string]: any } = {
+    defaultObjetivoGastoId: null,
+    pickingSheets: {}, returnSheets: {}, pickingStates: {}, partnerPedidosStatus: {},
+    ctaRealCosts: {}, ctaComentarios: {}, comercialAjustes: {}, pickingEntregasState: {},
+    stockElaboraciones: {}, personalExternoAjustes: {},
+};
+
 export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: false,
-    data: {
-        serviceOrders: [], entregas: [], comercialBriefings: [], pedidosEntrega: [],
-        gastronomyOrders: [], materialOrders: [], transporteOrders: [], hieloOrders: [],
-        decoracionOrders: [], atipicoOrders: [], personalMiceOrders: [], personalExterno: [],
-        pruebasMenu: [], pickingSheets: {}, returnSheets: {}, ordenesFabricacion: [],
-        pickingStates: {}, excedentesProduccion: [], personalEntrega: [], partnerPedidosStatus: {},
-        activityLogs: [], ctaRealCosts: {}, ctaComentarios: {}, objetivosGastoPlantillas: [],
-        defaultObjetivoGastoId: null, ingredientesERP: [], familiasERP: [], ingredientesInternos: [],
-        elaboraciones: [], recetas: [], categoriasRecetas: [], portalUsers: [],
-        comercialAjustes: {}, productosVenta: [], pickingEntregasState: {},
-        stockElaboraciones: {}, personalExternoAjustes: {}, personalExternoDB: [],
-        historicoPreciosERP: [], costesFijosCPR: [], objetivosCPR: [], personal: [],
-        espacios: [], articulos: [], tipoServicio: [], tiposPersonal: [], proveedores: [],
-        tiposTransporte: [], decoracionDB: [], atipicosDB: [], pedidoPlantillas: [],
-        formatosExpedicionDB: [], solicitudesPersonalCPR: [], incidenciasRetorno: [],
+    loadingMessage: 'Inicializando...',
+    loadingProgress: 0,
+    data: dataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']),
+
+    loadAllData: async () => {
+        if (get().isLoaded || typeof window === 'undefined') return;
+
+        const totalKeys = dataKeys.length;
+        const allData: Partial<DataStore['data']> = {};
+
+        for (let i = 0; i < totalKeys; i++) {
+            const key = dataKeys[i];
+            const defaultValue = defaultValuesMap[key] ?? [];
+            
+            // This async break allows the UI to update.
+            await new Promise(resolve => setTimeout(resolve, 10)); 
+            
+            set({
+                loadingMessage: `Cargando ${key}...`,
+                loadingProgress: ((i + 1) / totalKeys) * 100,
+            });
+
+            (allData as any)[key] = loadFromLocalStorage(key, defaultValue);
+        }
+
+        set({ data: allData as DataStore['data'], isLoaded: true, loadingMessage: '¡Listo!', loadingProgress: 100 });
     },
-    loadAllData: () => {
-        if (get().isLoaded) return;
-        const allData = {
-            serviceOrders: loadFromLocalStorage<ServiceOrder[]>('serviceOrders', []),
-            entregas: loadFromLocalStorage<Entrega[]>('entregas', []),
-            comercialBriefings: loadFromLocalStorage<ComercialBriefing[]>('comercialBriefings', []),
-            pedidosEntrega: loadFromLocalStorage<PedidoEntrega[]>('pedidosEntrega', []),
-            gastronomyOrders: loadFromLocalStorage<GastronomyOrder[]>('gastronomyOrders', []),
-            materialOrders: loadFromLocalStorage<MaterialOrder[]>('materialOrders', []),
-            transporteOrders: loadFromLocalStorage<TransporteOrder[]>('transporteOrders', []),
-            hieloOrders: loadFromLocalStorage<HieloOrder[]>('hieloOrders', []),
-            decoracionOrders: loadFromLocalStorage<DecoracionOrder[]>('decoracionOrders', []),
-            atipicoOrders: loadFromLocalStorage<AtipicoOrder[]>('atipicoOrders', []),
-            personalMiceOrders: loadFromLocalStorage<PersonalMiceOrder[]>('personalMiceOrders', []),
-            personalExterno: loadFromLocalStorage<PersonalExterno[]>('personalExterno', []),
-            pruebasMenu: loadFromLocalStorage<PruebaMenuData[]>('pruebasMenu', []),
-            pickingSheets: loadFromLocalStorage<Record<string, PickingSheet>>('pickingSheets', {}),
-            returnSheets: loadFromLocalStorage<Record<string, ReturnSheet>>('returnSheets', {}),
-            ordenesFabricacion: loadFromLocalStorage<OrdenFabricacion[]>('ordenesFabricacion', []),
-            pickingStates: loadFromLocalStorage<Record<string, PickingState>>('pickingStates', {}),
-            excedentesProduccion: loadFromLocalStorage<ExcedenteProduccion[]>('excedentesProduccion', []),
-            personalEntrega: loadFromLocalStorage<PersonalEntrega[]>('personalEntrega', []),
-            partnerPedidosStatus: loadFromLocalStorage<Record<string, any>>('partnerPedidosStatus', {}),
-            activityLogs: loadFromLocalStorage<ActivityLog[]>('activityLogs', []),
-            ctaRealCosts: loadFromLocalStorage<Record<string, any>>('ctaRealCosts', {}),
-            ctaComentarios: loadFromLocalStorage<Record<string, any>>('ctaComentarios', {}),
-            objetivosGastoPlantillas: loadFromLocalStorage<ObjetivosGasto[]>('objetivosGastoPlantillas', []),
-            defaultObjetivoGastoId: loadFromLocalStorage<string | null>('defaultObjetivoGastoId', null),
-            ingredientesERP: loadFromLocalStorage<IngredienteERP[]>('articulosERP', []), // Key is articulosERP
-            familiasERP: loadFromLocalStorage<FamiliaERP[]>('familiasERP', []),
-            ingredientesInternos: loadFromLocalStorage<IngredienteInterno[]>('ingredientesInternos', []),
-            elaboraciones: loadFromLocalStorage<Elaboracion[]>('elaboraciones', []),
-            recetas: loadFromLocalStorage<Receta[]>('recetas', []),
-            categoriasRecetas: loadFromLocalStorage<CategoriaReceta[]>('categoriasRecetas', []),
-            portalUsers: loadFromLocalStorage<PortalUser[]>('portalUsers', []),
-            comercialAjustes: loadFromLocalStorage<Record<string, ComercialAjuste[]>>('comercialAjustes', {}),
-            productosVenta: loadFromLocalStorage<ProductoVenta[]>('productosVenta', []),
-            pickingEntregasState: loadFromLocalStorage<Record<string, PickingEntregaState>>('pickingEntregasState', {}),
-            stockElaboraciones: loadFromLocalStorage<Record<string, StockElaboracion>>('stockElaboraciones', {}),
-            personalExternoAjustes: loadFromLocalStorage<Record<string, PersonalExternoAjuste[]>>('personalExternoAjustes', {}),
-            personalExternoDB: loadFromLocalStorage<PersonalExternoDB[]>('personalExternoDB', []),
-            historicoPreciosERP: loadFromLocalStorage<HistoricoPreciosERP[]>('historicoPreciosERP', []),
-            costesFijosCPR: loadFromLocalStorage<CosteFijoCPR[]>('costesFijosCPR', []),
-            objetivosCPR: loadFromLocalStorage<ObjetivoMensualCPR[]>('objetivosCPR', []),
-            personal: loadFromLocalStorage<Personal[]>('personal', []),
-            espacios: loadFromLocalStorage<Espacio[]>('espacios', []),
-            articulos: loadFromLocalStorage<ArticuloCatering[]>('articulos', []),
-            tipoServicio: loadFromLocalStorage<TipoServicio[]>('tipoServicio', []),
-            tiposPersonal: loadFromLocalStorage<CategoriaPersonal[]>('tiposPersonal', []),
-            proveedores: loadFromLocalStorage<Proveedor[]>('proveedores', []),
-            tiposTransporte: loadFromLocalStorage<TipoTransporte[]>('tiposTransporte', []),
-            decoracionDB: loadFromLocalStorage<DecoracionDBItem[]>('decoracionDB', []),
-            atipicosDB: loadFromLocalStorage<AtipicoDBItem[]>('atipicosDB', []),
-            pedidoPlantillas: loadFromLocalStorage<PedidoPlantilla[]>('pedidoPlantillas', []),
-            formatosExpedicionDB: loadFromLocalStorage<FormatoExpedicion[]>('formatosExpedicionDB', []),
-            solicitudesPersonalCPR: loadFromLocalStorage<SolicitudPersonalCPR[]>('solicitudesPersonalCPR', []),
-            incidenciasRetorno: loadFromLocalStorage<any[]>('incidenciasRetorno', []),
-        };
-        set({ data: allData, isLoaded: true });
-    },
-    refreshData: () => {
-        set({ isLoaded: false });
-        get().loadAllData();
-    }
 }));
