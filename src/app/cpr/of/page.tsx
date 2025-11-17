@@ -198,22 +198,22 @@ function OfPageContent() {
     }, [isLoaded, data?.proveedores]);
 
     const articulosErpMap = useMemo(() => {
-        if (!isLoaded || !data.articulosERP) return new Map();
+        if (!isLoaded || !data?.articulosERP) return new Map();
         return new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
-    }, [isLoaded, data.articulosERP]);
+    }, [isLoaded, data?.articulosERP]);
 
     const ingredientesMap = useMemo(() => {
-        if (!isLoaded || !data.ingredientesInternos) return new Map();
+        if (!isLoaded || !data?.ingredientesInternos) return new Map();
         return new Map(data.ingredientesInternos.map(i => [i.id, i]));
-    }, [isLoaded, data.ingredientesInternos]);
+    }, [isLoaded, data?.ingredientesInternos]);
 
     const elaboracionesMap = useMemo(() => {
-        if (!isLoaded || !data.elaboraciones) return new Map();
+        if (!isLoaded || !data?.elaboraciones) return new Map();
         return new Map(data.elaboraciones.map(e => [e.id, e]));
-    }, [isLoaded, data.elaboraciones]);
+    }, [isLoaded, data?.elaboraciones]);
     
     const { ordenes, personalCPR, serviceOrdersMap, necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
-        if (!isLoaded) return { ordenes: [], personalCPR: [], elaboracionesMap: new Map(), serviceOrdersMap: new Map(), necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
+        if (!isLoaded || !data) return { ordenes: [], personalCPR: [], elaboracionesMap: new Map(), serviceOrdersMap: new Map(), necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
 
         const allOFs = data.ordenesFabricacion;
         const allPersonal = data.personal.filter(p => p.departamento === 'CPR');
@@ -390,7 +390,7 @@ function OfPageContent() {
     }, [isLoaded, data, dateRange, elaboracionesMap]);
     
     useEffect(() => {
-        if (!necesidades || !dateRange?.from || !dateRange?.to) {
+        if (!necesidades || !dateRange?.from || !dateRange?.to || !data) {
             setReporteData(null);
             return;
         }
@@ -490,10 +490,10 @@ function OfPageContent() {
             elaboraciones: Array.from(allElaboracionesNecesarias.values()),
         });
 
-    }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data.recetas]);
+    }, [necesidades, dateRange, serviceOrdersMap, elaboracionesMap, data]);
     
     const listaDeLaCompraPorProveedor = useMemo(() => {
-        if (!isLoaded || !necesidades || !data.articulosERP || !data.proveedores || !data.ingredientesInternos || !data.elaboraciones) {
+        if (!isLoaded || !data || !necesidades) {
             return [];
         }
 
