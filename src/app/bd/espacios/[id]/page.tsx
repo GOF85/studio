@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -94,7 +95,7 @@ export default function EditarEspacioPage() {
     if (item) {
         // Ensure all optional fields have default values to prevent uncontrolled to controlled error
         const defaultEvaluacionMICE = {
-            relacionComercial: 'Sin Relación',
+            relacionComercial: 'Sin Relación' as RelacionComercial,
             exclusividadMusica: false,
             exclusividadAudiovisuales: false,
             ...item.evaluacionMICE,
@@ -120,12 +121,36 @@ export default function EditarEspacioPage() {
             ...item.identificacion,
         }
 
-        const dataToReset = {
-            ...item,
-            identificacion: defaultIdentificacion,
-            capacidades: defaultCapacidades,
-            contactos: item.contactos || [],
-            evaluacionMICE: defaultEvaluacionMICE,
+        const dataToReset: EspacioFormValues = {
+            id: item.id || '',
+            identificacion: {
+                nombreEspacio: defaultIdentificacion.nombreEspacio || '',
+                tipoDeEspacio: defaultIdentificacion.tipoDeEspacio || [],
+                ciudad: defaultIdentificacion.ciudad || '',
+                provincia: defaultIdentificacion.provincia || '',
+                calle: defaultIdentificacion.calle || '',
+                codigoPostal: defaultIdentificacion.codigoPostal || '',
+                estilos: defaultIdentificacion.estilos || [],
+                tags: defaultIdentificacion.tags || [],
+                idealPara: defaultIdentificacion.idealPara || [],
+            },
+            capacidades: {
+                aforoMaximoCocktail: defaultCapacidades.aforoMaximoCocktail || 0,
+                aforoMaximoBanquete: defaultCapacidades.aforoMaximoBanquete || 0,
+                salas: (defaultCapacidades.salas || []).map(s => ({...s, nombreSala: s.nombreSala || ''})),
+            },
+            contactos: (item.contactos || []).map(c => ({
+                id: c.id || '',
+                nombre: c.nombre || '',
+                cargo: c.cargo || '',
+                telefono: c.telefono || '',
+                email: c.email || '',
+            })),
+            evaluacionMICE: {
+                relacionComercial: defaultEvaluacionMICE.relacionComercial,
+                exclusividadMusica: defaultEvaluacionMICE.exclusividadMusica || false,
+                exclusividadAudiovisuales: defaultEvaluacionMICE.exclusividadAudiovisuales || false,
+            },
         };
         
         reset(dataToReset);
