@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -181,7 +180,7 @@ export default function ComercialPage() {
       setTiposServicio(JSON.parse(storedTipos));
     }
     
-    const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}') as {[key: string]: ComercialAjuste[]};
+    const allAjustes = (JSON.parse(localStorage.getItem('comercialAjustes') || '{}') as {[key: string]: ComercialAjuste[]})[osId] || [];
 
     if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
@@ -202,7 +201,7 @@ export default function ComercialPage() {
       const currentBriefing = allBriefings.find(b => b.osId === osId);
       setBriefing(currentBriefing || { osId, items: [] });
       
-      setAjustes(allAjustes[osId] || []);
+      setAjustes(allAjustes);
     }
     setIsMounted(true);
   }, [osId, router, financialForm]);
@@ -448,7 +447,8 @@ export default function ComercialPage() {
                             onCheckedChange={field.onChange}
                         />
                         </FormControl>
-                        <FormLabel className="!m-0 text-base">
+                        <FormLabel className="!m-0 text-base flex items-center gap-2">
+                            <Utensils/>
                             Con gastronomía
                         </FormLabel>
                     </FormItem>
