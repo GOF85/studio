@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { NProgressProvider } from '@/components/providers/nprogress-provider';
 import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 
 
 export default function RootLayout({
@@ -15,6 +15,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  
+  useEffect(() => {
+    const hasBeenReset = localStorage.getItem('app-storage-reset-v1');
+    if (!hasBeenReset) {
+      console.log("Corrupted storage detected. Performing a full application reset...");
+      localStorage.clear();
+      localStorage.setItem('app-storage-reset-v1', 'true');
+      window.location.reload();
+    }
+  }, []);
 
   return (
     <html lang="es" suppressHydrationWarning>
