@@ -15,16 +15,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  
-  useEffect(() => {
-    const hasBeenReset = localStorage.getItem('app-storage-reset-v1');
-    if (!hasBeenReset) {
-      console.log("Corrupted storage detected. Performing a full application reset...");
-      localStorage.clear();
-      localStorage.setItem('app-storage-reset-v1', 'true');
-      window.location.reload();
-    }
-  }, []);
 
   return (
     <html lang="es" suppressHydrationWarning>
