@@ -3,14 +3,16 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
-import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
+import { useForm, useFieldArray, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { format, differenceInMinutes, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Printer, Loader2, UtensilsCrossed } from 'lucide-react';
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -18,8 +20,6 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Separator } from '@/components/ui/separator';
@@ -136,10 +136,18 @@ const handlePrint = async () => {
         const pageWidth = doc.internal.pageSize.getWidth();
         let finalY = margin;
         
+        // --- TEXTOS ---
+        const texts = {
+            es: { proposalTitle: 'Prueba de Menú', orderNumber: 'Nº Servicio:', issueDate: 'Fecha Emisión:', client: 'Cliente:', finalClient: 'Cliente Final:', contact: 'Contacto:', eventDate: 'Fecha Principal:', deliveryFor: 'Entrega para:', logistics: 'Logística:', item: 'Producto', qty: 'Cant.', unitPrice: 'P. Unitario', subtotal: 'Subtotal', deliveryTotal: 'Total Entrega', summaryTitle: 'Resumen Económico', productsSubtotal: 'Subtotal Productos', logisticsSubtotal: 'Subtotal Logística', taxableBase: 'Base Imponible', vat: 'IVA', total: 'TOTAL Propuesta', observations: 'Observaciones', footer: 'MICE Catering - Propuesta generada digitalmente.', portes: 'portes', porte: 'porte' },
+            en: { proposalTitle: 'Commercial Proposal', orderNumber: 'Order No.:', issueDate: 'Issue Date:', client: 'Client:', finalClient: 'End Client:', contact: 'Contact:', eventDate: 'Main Date:', deliveryFor: 'Delivery for:', logistics: 'Logistics:', item: 'Product', qty: 'Qty.', unitPrice: 'Unit Price', subtotal: 'Subtotal', deliveryTotal: 'Financial Summary', productsSubtotal: 'Products Subtotal', logisticsSubtotal: 'Logistics Subtotal', taxableBase: 'Taxable Base', vat: 'VAT', total: 'TOTAL Proposal', observations: 'Observations', footer: 'MICE Catering - Digitally generated proposal.', portes: 'deliveries', porte: 'delivery' }
+        };
+        const T = texts['es'];
+
+        // --- CABECERA ---
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor('#059669'); // Primary color
-        doc.text('Prueba de Menú', margin, finalY);
+        doc.text(T.proposalTitle, margin, finalY);
         finalY += 10;
         
         // --- DATOS SERVICIO Y EVENTO ---
@@ -266,7 +274,7 @@ const handlePrint = async () => {
     } finally {
         setIsPrinting(false);
     }
-};
+  };
 
   const addRow = (mainCategory: 'BODEGA' | 'GASTRONOMÍA', type: 'header' | 'item') => {
     append({
@@ -366,7 +374,7 @@ const handlePrint = async () => {
                         <div><strong>Cliente:</strong> {serviceOrder.client}</div>
                         <div><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
                     </div>
-                     <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                         <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba:</FormLabel>
                         <Input value={asistentesPrueba} readOnly className="h-9 w-16 text-center font-bold text-lg"/>
                     </div>
@@ -374,8 +382,8 @@ const handlePrint = async () => {
             </Card>
             <div className="flex gap-2 ml-4">
                 <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
-                {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
-                {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
+                    {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+                    {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
                 </Button>
                 <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
                     <Save className="mr-2" />
@@ -383,7 +391,6 @@ const handlePrint = async () => {
                 </Button>
             </div>
         </div>
-
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="no-print flex items-center gap-2 p-4 border rounded-lg bg-card">
                 <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
@@ -434,8 +441,8 @@ const handlePrint = async () => {
                 </Card>
             </div>
         </form>
-      </Form>
+      </FormProvider>
     </main>
-    </>
   );
 }
+
