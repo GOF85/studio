@@ -8,7 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Printer, Loader2, UtensilsCrossed } from 'lucide-react';
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -353,72 +352,57 @@ const handlePrint = async () => {
 
   return (
     <>
-    <div className="flex items-start justify-between mb-4">
-        <div>
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-            <ClipboardCheck />
-            Prueba de Menú
-        </h1>
-        </div>
-        <div className="flex gap-2 no-print">
+    <div className="flex items-center justify-between mb-4">
+        <Card className="flex-grow">
+            <CardContent className="p-3 flex items-center justify-between">
+                <div className="flex items-center gap-4 text-sm">
+                    <span><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</span>
+                    <Separator orientation="vertical" className="h-6"/>
+                    <span><strong>Cliente:</strong> {serviceOrder.client}</span>
+                    <Separator orientation="vertical" className="h-6"/>
+                    <span><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</span>
+                </div>
+                 <div className="flex items-center gap-2">
+                    <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba:</FormLabel>
+                    <Input value={asistentesPrueba} readOnly className="h-9 w-16 text-center font-bold text-lg"/>
+                </div>
+            </CardContent>
+        </Card>
+        <div className="flex gap-2 ml-4">
             <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
-            {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
-            {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
+                {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+                {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
             </Button>
-        <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
-            <Save className="mr-2" />
-            Guardar Cambios
-        </Button>
+            <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
+                <Save className="mr-2" />
+                Guardar Cambios
+            </Button>
         </div>
     </div>
     
-    <Card className="mb-4">
-        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            <div>
-                <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
-                <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
-                <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
-                <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
-            </div>
-            <Separator className="my-2 md:hidden" />
-            <div>
-                <h4 className="font-bold col-span-full mb-1">Datos del Evento</h4>
-                <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
-                <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
-                <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
-            </div>
-        </CardContent>
-    </Card>
     <Separator className="my-6" />
 
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="no-print flex items-center gap-6 p-4 border rounded-lg bg-background">
-             <div className="flex items-center gap-2">
-                <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba</FormLabel>
-                <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
-            </div>
-             <div className="flex items-center gap-2">
-                <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
-                <FormField
-                    control={control}
-                    name="costePruebaMenu"
-                    render={({ field }) => (
-                        <FormItem className="flex items-center gap-2">
-                            <FormControl>
-                                <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    {...field} 
-                                    className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
-                                />
-                            </FormControl>
-                            <span className="text-lg font-bold">€</span>
-                        </FormItem>
-                    )}
-                />
-            </div>
+        <div className="flex items-center gap-2">
+            <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
+            <FormField
+                control={control}
+                name="costePruebaMenu"
+                render={({ field }) => (
+                    <FormItem className="flex items-center gap-2">
+                        <FormControl>
+                            <Input 
+                                type="number" 
+                                step="0.01" 
+                                {...field} 
+                                className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
+                            />
+                        </FormControl>
+                        <span className="text-lg font-bold">€</span>
+                    </FormItem>
+                )}
+            />
         </div>
 
         <div className="space-y-6">
