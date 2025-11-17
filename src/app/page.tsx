@@ -13,4 +13,11 @@ export default function HomePage() {
     if (!isLoaded) {
       loadAllData();
     }
-  }, [isLoaded
+  }, [isLoaded, loadAllData]);
+
+  if (!isLoaded) {
+    return <LoadingScreen />;
+  }
+
+  return <DashboardPage />;
+}
