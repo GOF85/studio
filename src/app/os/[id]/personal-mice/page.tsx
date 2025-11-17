@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
+import { PlusCircle, Trash2, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
 import type { PersonalMiceOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,9 +20,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { differenceInMinutes, parse, format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { differenceInMinutes, parse } from 'date-fns';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -67,7 +65,6 @@ type PersonalMiceFormValues = z.infer<typeof formSchema>;
 export default function PersonalMiceFormPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [spaceAddress, setSpaceAddress] = useState<string>('');
-  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [personalDB, setPersonalDB] = useState<Personal[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -137,10 +134,6 @@ export default function PersonalMiceFormPage() {
             const currentSpace = allEspacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
             setSpaceAddress(currentSpace?.identificacion.calle || '');
         }
-
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const currentBriefing = allBriefings.find(b => b.osId === osId);
-        setBriefingItems(currentBriefing?.items || []);
 
         const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
         const relatedOrders = allOrders.filter(order => order.osId === osId);
@@ -220,67 +213,32 @@ export default function PersonalMiceFormPage() {
       <main>
        <FormProvider {...form}>
         <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)}>
-             <div className="flex items-start justify-between mb-4">
-                 <div></div>
-                <div className="flex gap-2">
+             <div className="flex items-center justify-between mb-6">
+                <Card className="flex-grow">
+                  <CardContent className="p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 font-semibold">
+                            <Building className="h-5 w-5" /> 
+                            <span>{serviceOrder.space}</span>
+                            {spaceAddress && <span className="font-normal">({spaceAddress})</span>}
+                        </div>
+                        <Separator orientation="vertical" className="h-6"/>
+                        <div className="flex items-center gap-2">
+                            <Users className="h-5 w-5" /> 
+                            <span className="font-semibold">Resp. Metre:</span>
+                            <span>{serviceOrder.respMetre}</span>
+                            {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
+                        </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                 <div className="flex gap-2 ml-4">
                     <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                         <span className="ml-2">Guardar Cambios</span>
                     </Button>
                 </div>
             </div>
-
-            <Card className="mb-6">
-                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                        <Building className="h-4 w-4" /> 
-                        <span className="font-semibold">{serviceOrder.space}</span>
-                        {spaceAddress && <span>({spaceAddress})</span>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" /> 
-                        <span className="font-semibold">Resp. Metre:</span>
-                        <span>{serviceOrder.respMetre}</span>
-                        {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
-                    </div>
-                </CardContent>
-            </Card>
-
-             <Accordion type="single" collapsible className="w-full mb-4" >
-                <AccordionItem value="item-1">
-                <Card>
-                    <AccordionTrigger className="p-4">
-                        <h3 className="text-xl font-semibold">Servicios del Evento</h3>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                    <CardContent className="pt-0">
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead className="py-2 px-3">Fecha</TableHead>
-                            <TableHead className="py-2 px-3">Descripción</TableHead>
-                            <TableHead className="py-2 px-3">Asistentes</TableHead>
-                            <TableHead className="py-2 px-3">Duración</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {briefingItems.length > 0 ? briefingItems.map(item => (
-                            <TableRow key={item.id}>
-                                <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
-                                <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
-                                <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                                <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
-                            </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                        </Table>
-                    </CardContent>
-                    </AccordionContent>
-                </Card>
-                </AccordionItem>
-            </Accordion>
 
             <Card>
                 <CardHeader className="flex-row items-center justify-between">
