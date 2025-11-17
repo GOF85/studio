@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, ClipboardList, Package, Star } from 'lucide-react';
+import { PlusCircle, ClipboardList, Package, Star, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -30,6 +36,16 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function PrevisionServiciosPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
@@ -38,7 +54,9 @@ export default function PrevisionServiciosPage() {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     let storedOrders = localStorage.getItem('serviceOrders');
@@ -100,6 +118,15 @@ export default function PrevisionServiciosPage() {
     Pendiente: 'destructive',
     Confirmado: 'default',
     Anulado: 'destructive'
+  };
+
+  const handleDelete = () => {
+    if (!orderToDelete) return;
+    const updatedOrders = serviceOrders.filter(os => os.id !== orderToDelete);
+    localStorage.setItem('serviceOrders', JSON.stringify(updatedOrders));
+    setServiceOrders(updatedOrders);
+    toast({ title: 'Orden de Servicio eliminada.' });
+    setOrderToDelete(null);
   };
 
   if (!isMounted) {
@@ -167,14 +194,15 @@ export default function PrevisionServiciosPage() {
                   <TableHead>Asistentes</TableHead>
                   <TableHead>Comercial</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
               </TableHeader>
               <TableBody>
               {filteredAndSortedOrders.length > 0 ? (
                   filteredAndSortedOrders.map(os => (
-                  <TableRow key={os.id} className="cursor-pointer" onClick={() => router.push(`/os/${os.id}`)}>
+                  <TableRow key={os.id} onClick={() => router.push(`/os/${os.id}`)} className="cursor-pointer">
                       <TableCell className="font-medium">
-                        <Link href={`/os/${os.id}`} className="flex items-center gap-2 text-primary hover:underline">
+                        <div className="flex items-center gap-2">
                             {os.isVip && (
                                 <TooltipProvider>
                                     <Tooltip>
@@ -187,8 +215,8 @@ export default function PrevisionServiciosPage() {
                                     </Tooltip>
                                 </TooltipProvider>
                             )}
-                            {os.serviceNumber}
-                        </Link>
+                            <span className="text-primary hover:underline">{os.serviceNumber}</span>
+                        </div>
                       </TableCell>
                       <TableCell>{os.client}</TableCell>
                       <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
@@ -200,11 +228,29 @@ export default function PrevisionServiciosPage() {
                           {os.status}
                       </Badge>
                       </TableCell>
+                       <TableCell className="text-right">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                                        <span className="sr-only">Abrir menú</span>
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => router.push(`/os/${os.id}`)}>
+                                        <Pencil className="mr-2 h-4 w-4" /> Editar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setOrderToDelete(os.id); }}>
+                                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
                   </TableRow>
                   ))
               ) : (
                   <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                       No hay órdenes de servicio que coincidan con los filtros.
                   </TableCell>
                   </TableRow>
@@ -212,6 +258,21 @@ export default function PrevisionServiciosPage() {
               </TableBody>
           </Table>
         </div>
+        
+        <AlertDialog open={!!orderToDelete} onOpenChange={setOrderToDelete}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción eliminará permanentemente la Orden de Servicio y todos sus datos asociados (briefing, pedidos de material, etc.). Esta acción no se puede deshacer.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>Sí, eliminar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </main>
   );
 }
