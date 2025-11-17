@@ -195,28 +195,23 @@ function OfPageContent() {
         if (!isLoaded) return new Map();
         return new Map(data.elaboraciones.map(e => [e.id, e]));
     }, [isLoaded, data.elaboraciones]);
-    
-    const serviceOrdersMap = useMemo(() => {
-        if (!isLoaded) return new Map();
-        return new Map(data.serviceOrders.map(os => [os.id, os]));
-    }, [isLoaded, data.serviceOrders]);
 
     const isOsHito = (hito: ComercialBriefingItem | EntregaHito): hito is ComercialBriefingItem & { serviceOrder: ServiceOrder } => {
         return 'serviceOrder' in hito;
     };
     
-    const { necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
-        if (!isLoaded || !data || !dateRange?.from) return { ordenes: [], personalCPR: [], necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
+    const { necesidades, necesidadesCubiertas } = useMemo(() => {
+        if (!isLoaded || !data || !dateRange?.from) return { necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
 
         const {
-            ordenesFabricacion, personal, serviceOrders, comercialBriefings, gastronomyOrders, recetas, elaboraciones,
-            entregas, pedidosEntrega, productosVenta, stockElaboraciones, pickingStates: allPickingStatesData
+            ordenesFabricacion, serviceOrders, comercialBriefings, gastronomyOrders, recetas,
+            entregas, pedidosEntrega, productosVenta, stockElaboraciones, pickingStates
         } = data;
         
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
 
-        const osMap = serviceOrdersMap;
+        const osMap = new Map(serviceOrders.map(os => [os.id, os]));
         const entregasMap = new Map(entregas.map(e => [e.id, e]));
         const recetasMap = new Map(recetas.map(r => [r.id, r]));
         
@@ -286,7 +281,7 @@ function OfPageContent() {
         calculateNeeds(allHitosEntregas, (id) => entregasMap.get(id), () => []);
 
         const stockAsignadoGlobal: Record<string, number> = {};
-        Object.values(allPickingStatesData).forEach(state => {
+        Object.values(pickingStates).forEach(state => {
             (state.itemStates || []).forEach(assigned => {
                 const of = ordenesFabricacion.find(o => o.id === assigned.ofId);
                 if (of) stockAsignadoGlobal[of.elaboracionId] = (stockAsignadoGlobal[of.elaboracionId] || 0) + assigned.quantity;
@@ -315,13 +310,13 @@ function OfPageContent() {
 
         return { 
             ordenes: ordenesFabricacion, 
-            personalCPR: personal.filter(p => p.departamento === 'CPR'), 
+            personalCPR: data.personal.filter(p => p.departamento === 'CPR'), 
             necesidades: necesidadesNetas, 
             necesidadesCubiertas, 
-            pickingStates: allPickingStatesData
+            pickingStates,
         };
 
-    }, [isLoaded, data, dateRange, serviceOrdersMap, elaboracionesMap]);
+    }, [isLoaded, data, dateRange, elaboracionesMap]);
 
     useEffect(() => {
         if (!necesidades || !dateRange?.from || !dateRange?.to || !data) {
@@ -377,7 +372,7 @@ function OfPageContent() {
             necesidad.osIDs.forEach(id => osIds.add(id));
             necesidad.desgloseCompleto.forEach(d => {
                 serviciosSet.add(d.hitoId);
-                const os = serviceOrdersMap.get(d.osId);
+                const os = data.serviceOrders.find(o => o.id === d.osId);
                 totalPax += os?.asistentes || 0;
             });
         });
@@ -421,7 +416,7 @@ function OfPageContent() {
             elaboraciones: Array.from(allElaboracionesNecesarias.values()),
         });
 
-    }, [necesidades, dateRange, data, serviceOrdersMap, elaboracionesMap]);
+    }, [necesidades, dateRange, data, elaboracionesMap]);
     
     const { ingredientesMap, articulosErpMap, proveedoresMap } = useMemo(() => {
         if (!isLoaded || !data) return { ingredientesMap: new Map(), articulosErpMap: new Map(), proveedoresMap: new Map() };
@@ -523,8 +518,8 @@ function OfPageContent() {
 
 
     const filteredAndSortedItems = useMemo(() => {
-        if (!ordenes) return [];
-        return ordenes
+        if (!data.ordenesFabricacion) return [];
+        return data.ordenesFabricacion
         .filter(item => {
             const searchMatch = searchTerm === '' || 
                                 item.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -553,7 +548,7 @@ function OfPageContent() {
             return searchMatch && statusMatch && partidaMatch && dateMatch;
         })
         .sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
-    }, [ordenes, searchTerm, statusFilter, partidaFilter, dateRange]);
+    }, [data.ordenesFabricacion, searchTerm, statusFilter, partidaFilter, dateRange]);
     
     const handleClearFilters = () => {
         setSearchTerm('');
@@ -564,7 +559,7 @@ function OfPageContent() {
 
     const handleDeleteOrder = () => {
         if (!orderToDelete) return;
-        const updatedOFs = ordenes.filter(of => of.id !== orderToDelete);
+        const updatedOFs = data.ordenesFabricacion.filter(of => of.id !== orderToDelete);
         localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
         loadAllData();
         toast({ title: 'Orden de Fabricación Eliminada' });
@@ -644,7 +639,8 @@ function OfPageContent() {
         });
     };
 
-    const getPickingInfo = (ofId: string): { osId: string; containerId: string } | null => {
+    const getPickingInfo = (ofId: string) => {
+        const pickingStates = data.pickingStates;
         for (const osId in pickingStates) {
             const state = pickingStates[osId];
             const found = state.itemStates.find(item => item.ofId === ofId);
@@ -700,50 +696,6 @@ function OfPageContent() {
   
   const numSelected = selectedNecesidades.size;
 }
-
-export default function OFPage() {
-    return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Planificación y OFs..." />}>
-            <OfPageContent />
-        </Suspense>
-    )
-}
-
 ```
-- src/hooks/use-os-data.ts:
-```ts
-'use client';
-
-import { useEffect, useMemo } from 'react';
-import { useDataStore } from './use-data-store';
-import type { ServiceOrder, ComercialBriefing, Entrega } from '@/types';
-
-export function useOsData(osId: string) {
-    const { isLoaded, data } = useDataStore();
-    
-    return useMemo(() => {
-        if (!isLoaded || !osId) {
-            return { serviceOrder: null, briefing: null, isLoading: true, spaceAddress: '' };
-        }
-
-        const currentOS = data.serviceOrders.find(os => os.id === osId);
-        
-        let address = '';
-        if (currentOS?.space) {
-            const currentSpace = data.espacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
-            address = currentSpace?.identificacion.calle || '';
-        }
-        
-        const currentBriefing = data.comercialBriefings.find(b => b.osId === osId);
-
-        return { 
-            serviceOrder: currentOS || null, 
-            briefing: currentBriefing || null, 
-            isLoading: false, 
-            spaceAddress: address
-        };
-    }, [isLoaded, osId, data]);
-}
-
 ```
 
