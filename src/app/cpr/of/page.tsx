@@ -198,65 +198,49 @@ function OfPageContent() {
         setDateRange({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) });
     }, []);
     
-    const proveedoresMap = useMemo(() => {
-        if (!isLoaded || !data?.proveedores) return new Map();
-        return new Map(data.proveedores.map(p => [p.IdERP, p]));
-    }, [isLoaded, data?.proveedores]);
+    const { ordenes, personalCPR, necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
+        if (!isLoaded || !data || !dateRange?.from) return { ordenes: [], personalCPR: [], necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
 
-    const articulosErpMap = useMemo(() => {
-        if (!isLoaded || !data?.articulosERP) return new Map();
-        return new Map(data.articulosERP.map(a => [a.idreferenciaerp, a]));
-    }, [isLoaded, data?.articulosERP]);
-
-    const ingredientesMap = useMemo(() => {
-        if (!isLoaded || !data?.ingredientesInternos) return new Map();
-        return new Map(data.ingredientesInternos.map(i => [i.id, i]));
-    }, [isLoaded, data?.ingredientesInternos]);
-
-    const elaboracionesMap = useMemo(() => {
-        if (!isLoaded || !data?.elaboraciones) return new Map();
-        return new Map(data.elaboraciones.map(e => [e.id, e]));
-    }, [isLoaded, data?.elaboraciones]);
-    
-    const { ordenes, personalCPR, serviceOrdersMap, necesidades, necesidadesCubiertas, pickingStates } = useMemo(() => {
-        if (!isLoaded || !data) return { ordenes: [], personalCPR: [], elaboracionesMap: new Map(), serviceOrdersMap: new Map(), necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
-
-        const allOFs = data.ordenesFabricacion;
-        const allPersonal = data.personal.filter(p => p.departamento === 'CPR');
-        const osMap = new Map(data.serviceOrders.map(os => [os.id, os]));
-        const allPickingStatesData = data.pickingStates;
+        const {
+            ordenesFabricacion, personal, serviceOrders, comercialBriefings, gastronomyOrders, recetas, elaboraciones,
+            entregas, pedidosEntrega, productosVenta, stockElaboraciones, pickingStates: allPickingStatesData
+        } = data;
         
-        const necesidadesAgregadas: Map<string, NecesidadItem> = new Map();
-
-        if (!dateRange?.from) return { ordenes: allOFs, personalCPR: allPersonal, elaboracionesMap, serviceOrdersMap: osMap, necesidades: [], necesidadesCubiertas: [], pickingStates: allPickingStatesData };
-
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
 
-        // --- CATERING ---
-        const gastroOrdersInRange = data.gastronomyOrders.filter(order => {
-            try {
-                const hitoDate = startOfDay(new Date(order.fecha));
-                return isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd });
-            } catch (e) { return false; }
-        });
+        const osMap = new Map(serviceOrders.map(os => [os.id, os]));
+        const entregasMap = new Map(entregas.map(e => [e.id, e]));
+        const recetasMap = new Map(recetas.map(r => [r.id, r]));
+        const elaboracionesMap = new Map(elaboraciones.map(e => [e.id, e]));
+        
+        const necesidadesAgregadas = new Map<string, NecesidadItem>();
 
-        gastroOrdersInRange.forEach(gastroOrder => {
-            try {
-                const fechaKey = format(new Date(gastroOrder.fecha), 'yyyy-MM-dd');
-                const os = osMap.get(gastroOrder.osId);
-                const briefing = data.comercialBriefings.find(b => b.osId === gastroOrder.osId);
-                if (!os || !briefing || os.status !== 'Confirmado') return;
+        const calculateNeeds = (
+            hitos: (ComercialBriefingItem | EntregaHito)[],
+            getOs: (id: string) => ServiceOrder | Entrega | undefined,
+            getGastroItems: (id: string) => { id: string; quantity: number }[]
+        ) => {
+             hitos.forEach(hito => {
+                if (!isWithinInterval(new Date(hito.fecha), { start: rangeStart, end: rangeEnd })) return;
+                
+                const os = getOs(isOsHito(hito) ? hito.serviceOrder.id : hito.osId);
+                if (!os || (os as ServiceOrder).status !== 'Confirmado') return;
+                
+                const fechaKey = format(new Date(hito.fecha), 'yyyy-MM-dd');
+                const items = isOsHito(hito) ? getGastroItems(hito.id) : hito.items;
 
-                (gastroOrder.items || []).forEach(item => {
-                    if (item.type !== 'item') return;
-                    const receta = data.recetas.find(r => r.id === item.id);
+                items.forEach(item => {
+                    const receta = isOsHito(hito) 
+                        ? recetasMap.get(item.id) 
+                        : recetasMap.get(productosVenta.find(p => p.id === item.id)?.recetaId || '');
+
                     if (!receta || !receta.elaboraciones) return;
 
                     receta.elaboraciones.forEach(elabEnReceta => {
                         const elab = elaboracionesMap.get(elabEnReceta.elaboracionId);
                         if (!elab) return;
-                        
+
                         const id = elab.id;
                         let necesidad = necesidadesAgregadas.get(id);
 
@@ -269,92 +253,36 @@ function OfPageContent() {
                             };
                             necesidadesAgregadas.set(id, necesidad);
                         }
-                        
+
                         const cantidadNecesaria = (item.quantity || 1) * elabEnReceta.cantidad;
                         necesidad.cantidadNecesariaTotal += cantidadNecesaria;
-                        necesidad.osIDs.add(gastroOrder.osId);
-                        
+                        necesidad.osIDs.add(os.id);
                         if (!necesidad.recetas.includes(receta.nombre)) necesidad.recetas.push(receta.nombre);
                         
                         const desglose = necesidad.desgloseDiario.find(d => d.fecha === fechaKey);
                         if (desglose) desglose.cantidad += cantidadNecesaria;
                         else necesidad.desgloseDiario.push({ fecha: fechaKey, cantidad: cantidadNecesaria });
-                        
-                        const hito = briefing.items.find(h => h.id === gastroOrder.id);
+
                         necesidad.desgloseCompleto.push({
-                            osId: os.id, osNumber: os.serviceNumber, osSpace: os.space, hitoId: hito?.id || '',
-                            hitoDescripcion: hito?.descripcion || '', fechaHito: hito?.fecha || '', recetaId: receta.id,
-                            recetaNombre: receta.nombre, cantidadReceta: item.quantity || 1, cantidadNecesaria: cantidadNecesaria
+                            osId: os.id, osNumber: os.serviceNumber, osSpace: os.space || (hito as EntregaHito).lugarEntrega, hitoId: hito.id,
+                            hitoDescripcion: hito.descripcion || `Entrega ${hito.hora}`, fechaHito: hito.fecha, recetaId: receta.id,
+                            recetaNombre: receta.nombre, cantidadReceta: item.quantity || 1, cantidadNecesaria
                         });
                     });
                 });
-            } catch (e) {}
-        });
-
-        // --- ENTREGAS ---
-        const pedidosEntregaInRange = data.pedidosEntrega.filter(pedido => {
-             const os = data.entregas.find(e => e.id === pedido.osId);
-             if (!os || os.status !== 'Confirmado') return false;
-             return (pedido.hitos || []).some(h => isWithinInterval(new Date(h.fecha), { start: rangeStart, end: rangeEnd }));
-        });
-
-        pedidosEntregaInRange.forEach(pedido => {
-            const os = data.entregas.find(e => e.id === pedido.osId);
-            if (!os) return;
-
-            (pedido.hitos || []).forEach(hito => {
-                if (!isWithinInterval(new Date(hito.fecha), { start: rangeStart, end: rangeEnd })) return;
-                const fechaKey = format(new Date(hito.fecha), 'yyyy-MM-dd');
-
-                (hito.items || []).forEach(item => {
-                    const productoVenta = data.productosVenta.find(p => p.id === item.id);
-                    if (productoVenta && productoVenta.recetaId) {
-                        const receta = data.recetas.find(r => r.id === productoVenta.recetaId);
-                        if (!receta || !receta.elaboraciones) return;
-
-                        receta.elaboraciones.forEach(elabEnReceta => {
-                            const elab = elaboracionesMap.get(elabEnReceta.elaboracionId);
-                            if (!elab) return;
-
-                            const id = elab.id;
-                            let necesidad = necesidadesAgregadas.get(id);
-
-                            if (!necesidad) {
-                                necesidad = {
-                                    id, nombre: elab.nombre, cantidadNecesariaTotal: 0, unidad: elab.unidadProduccion,
-                                    osIDs: new Set(), partida: elab.partidaProduccion, tipoExpedicion: elab.tipoExpedicion,
-                                    stockDisponible: 0, cantidadPlanificada: 0, desgloseDiario: [], cantidadNeta: 0,
-                                    recetas: [], desgloseCompleto: [],
-                                };
-                                necesidadesAgregadas.set(id, necesidad);
-                            }
-                            
-                            const cantidadNecesaria = (item.quantity || 1) * elabEnReceta.cantidad;
-                            necesidad.cantidadNecesariaTotal += cantidadNecesaria;
-                            necesidad.osIDs.add(pedido.osId);
-                            
-                            if (!necesidad.recetas.includes(receta.nombre)) necesidad.recetas.push(receta.nombre);
-                            
-                            const desglose = necesidad.desgloseDiario.find(d => d.fecha === fechaKey);
-                            if (desglose) desglose.cantidad += cantidadNecesaria;
-                            else necesidad.desgloseDiario.push({ fecha: fechaKey, cantidad: cantidadNecesaria });
-                            
-                            necesidad.desgloseCompleto.push({
-                                osId: os.id, osNumber: os.serviceNumber, osSpace: hito.lugarEntrega, hitoId: hito.id,
-                                hitoDescripcion: `Entrega ${hito.hora}`, fechaHito: hito.fecha, recetaId: receta.id,
-                                recetaNombre: receta.nombre, cantidadReceta: item.quantity || 1, cantidadNecesaria: cantidadNecesaria
-                            });
-                        });
-                    }
-                });
             });
-        });
+        };
 
+        const allHitosCatering = comercialBriefings.flatMap(b => b.items.map(i => ({ ...i, serviceOrder: osMap.get(b.osId)!, osId: b.osId }))).filter(h => h.conGastronomia);
+        const allHitosEntregas = pedidosEntrega.flatMap(p => p.hitos.map(h => ({...h, osId: p.osId})));
+
+        calculateNeeds(allHitosCatering, (id) => osMap.get(id), (hitoId) => gastronomyOrders.find(go => go.id === hitoId)?.items || []);
+        calculateNeeds(allHitosEntregas, (id) => entregasMap.get(id), () => []);
 
         const stockAsignadoGlobal: Record<string, number> = {};
         Object.values(allPickingStatesData).forEach(state => {
             (state.itemStates || []).forEach(assigned => {
-                const of = allOFs.find(o => o.id === assigned.ofId);
+                const of = ordenesFabricacion.find(o => o.id === assigned.ofId);
                 if (of) stockAsignadoGlobal[of.elaboracionId] = (stockAsignadoGlobal[of.elaboracionId] || 0) + assigned.quantity;
             });
         });
@@ -362,38 +290,37 @@ function OfPageContent() {
         const necesidadesNetas: NecesidadItem[] = [];
         const necesidadesCubiertas: NecesidadItem[] = [];
 
-        Array.from(necesidadesAgregadas.values()).forEach(necesidad => {
-            const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => {
+        necesidadesAgregadas.forEach(necesidad => {
+            const ofsExistentes = ordenesFabricacion.filter(of => {
                 if (of.elaboracionId !== necesidad.id) return false;
-                try {
-                    const ofDate = startOfDay(new Date(of.fechaProduccionPrevista));
-                    return isWithinInterval(ofDate, { start: rangeStart, end: rangeEnd });
-                } catch(e) { return false; }
+                const ofDate = startOfDay(new Date(of.fechaProduccionPrevista));
+                return isWithinInterval(ofDate, { start: rangeStart, end: rangeEnd });
             });
             
-            const cantidadPlanificada = ofsExistentes.reduce((sum, of) => {
-                const isFinalizado = of.estado === 'Finalizado' || of.estado === 'Validado';
-                return sum + (isFinalizado && of.cantidadReal ? of.cantidadReal : of.cantidadTotal);
-            }, 0);
-            
-            const stockTotalBruto = data.stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
-            const stockAsignado = stockAsignadoGlobal[necesidad.id] || 0;
-            const stockDisponible = Math.max(0, stockTotalBruto - stockAsignado);
-            
+            const cantidadPlanificada = ofsExistentes.reduce((sum, of) => sum + (of.estado === 'Finalizado' || of.estado === 'Validado' ? (of.cantidadReal || of.cantidadTotal) : of.cantidadTotal), 0);
+            const stockDisponible = Math.max(0, (stockElaboraciones[necesidad.id]?.cantidadTotal || 0) - (stockAsignadoGlobal[necesidad.id] || 0));
             const stockAUtilizar = Math.min(necesidad.cantidadNecesariaTotal, stockDisponible);
             const cantidadNeta = necesidad.cantidadNecesariaTotal - stockAUtilizar - cantidadPlanificada;
 
-            const itemCompleto = {
-                ...necesidad, stockDisponible: stockAUtilizar, cantidadPlanificada, cantidadNeta,
-                desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
-            };
-
+            const itemCompleto = { ...necesidad, stockDisponible: stockAUtilizar, cantidadPlanificada, cantidadNeta };
             if (cantidadNeta > 0.001) necesidadesNetas.push(itemCompleto);
             else necesidadesCubiertas.push(itemCompleto);
         });
 
-        return { ordenes: allOFs, personalCPR: allPersonal, elaboracionesMap, serviceOrdersMap: osMap, necesidades: necesidadesNetas, necesidadesCubiertas, pickingStates: allPickingStatesData };
-    }, [isLoaded, data, dateRange, elaboracionesMap]);
+        return { 
+            ordenes: ordenesFabricacion, 
+            personalCPR: personal.filter(p => p.departamento === 'CPR'), 
+            serviceOrdersMap: osMap, 
+            necesidades: necesidadesNetas, 
+            necesidadesCubiertas, 
+            pickingStates: allPickingStatesData
+        };
+
+    }, [isLoaded, data, dateRange]);
+
+    const isOsHito = (hito: ComercialBriefingItem | EntregaHito): hito is ComercialBriefingItem & { serviceOrder: ServiceOrder } => {
+        return 'serviceOrder' in hito;
+    };
     
     useEffect(() => {
         if (!necesidades || !dateRange?.from || !dateRange?.to || !data) {
@@ -413,7 +340,6 @@ function OfPageContent() {
             const elab = elaboracionesMap.get(necesidad.id);
             if (!elab) return;
 
-            // Para Resumen de Elaboraciones
             let elabItem = allElaboracionesNecesarias.get(necesidad.id);
             if (!elabItem) {
                 elabItem = { id: necesidad.id, nombre: necesidad.nombre, partida: elab.partidaProduccion, udTotales: 0, unidad: elab.unidadProduccion, necesidadesPorDia: {}, usadoEn: [] };
@@ -424,7 +350,6 @@ function OfPageContent() {
                 elabItem.necesidadesPorDia[d.fecha] = (elabItem.necesidadesPorDia[d.fecha] || 0) + d.cantidad;
             });
 
-            // Para Resumen de Recetas (Referencias)
             necesidad.desgloseCompleto.forEach(d => {
                 let recetaItem = allRecetasNecesarias.get(d.recetaId);
                 const recetaData = data.recetas.find(r => r.id === d.recetaId);
@@ -448,7 +373,6 @@ function OfPageContent() {
                 }
             });
 
-            // For summary
             necesidad.osIDs.forEach(id => osIds.add(id));
             necesidad.desgloseCompleto.forEach(d => {
                 serviciosSet.add(d.hitoId);
@@ -588,6 +512,7 @@ function OfPageContent() {
 
 
     const filteredAndSortedItems = useMemo(() => {
+        if (!ordenes) return [];
         return ordenes
         .filter(item => {
             const searchMatch = searchTerm === '' || 
@@ -1416,3 +1341,6 @@ export default function OFPage() {
 
 
 
+
+
+    
