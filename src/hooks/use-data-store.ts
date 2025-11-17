@@ -95,7 +95,7 @@ const dataKeys = [
     'personalMiceOrders', 'personalExterno', 'pruebasMenu', 'pickingSheets', 'returnSheets',
     'ordenesFabricacion', 'pickingStates', 'excedentesProduccion', 'personalEntrega',
     'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 'ctaComentarios',
-    'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 'familiasERP',
+    'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'ingredientesERP', 'familiasERP',
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones',
     'personalExternoAjustes', 'personalExternoDB', 'historicoPreciosERP', 'costesFijosCPR',
@@ -103,6 +103,8 @@ const dataKeys = [
     'proveedores', 'tiposTransporte', 'decoracionDB', 'atipicosDB', 'pedidoPlantillas',
     'formatosExpedicionDB', 'solicitudesPersonalCPR', 'incidenciasRetorno',
 ];
+
+const dataKeysSet = new Set(dataKeys);
 
 const defaultValuesMap: { [key: string]: any } = {
     defaultObjetivoGastoId: null,
@@ -118,13 +120,25 @@ export const useDataStore = create<DataStore>((set, get) => ({
     data: dataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']),
 
     loadAllData: () => {
-        if (typeof window === 'undefined' || get().isLoaded) return;
-        
-        set({ loadingMessage: 'Preparando carga...', loadingProgress: 1 });
+        if (typeof window === 'undefined' || get().isLoaded) {
+            if (get().isLoaded) return;
+            set({ isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
+            return;
+        }
 
         const allData: Partial<DataStore['data']> = {};
+        
+        const existingKeys = Object.keys(localStorage).filter(key => dataKeysSet.has(key));
+        const totalKeys = existingKeys.length;
+        
+        if (totalKeys === 0) {
+            set({ data: get().data, isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
+            return;
+        }
+
+        set({ loadingMessage: 'Preparando carga...', loadingProgress: 1 });
+
         let processedKeys = 0;
-        const totalKeys = dataKeys.length;
 
         function processKey(index: number) {
             if (index >= totalKeys) {
@@ -132,20 +146,19 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 return;
             }
 
-            const key = dataKeys[index];
+            const key = existingKeys[index];
             const defaultValue = defaultValuesMap[key] ?? [];
             (allData as any)[key] = loadFromLocalStorage(key, defaultValue);
 
             processedKeys++;
             const progress = (processedKeys / totalKeys) * 100;
             
-            // Update state and schedule the next key processing
             setTimeout(() => {
                 set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
                 processKey(index + 1);
-            }, 10); // Small delay to allow UI to update
+            }, 10);
         }
 
-        processKey(0); // Start processing
+        processKey(0);
     },
 }));
