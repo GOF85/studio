@@ -17,3 +17,7 @@ export function LoadingScreen() {
                     <Progress value={loadingProgress} />
                     <p className="text-sm text-muted-foreground">{loadingMessage}</p>
                 </div>
+            </div>
+        </div>
+    );
+}
