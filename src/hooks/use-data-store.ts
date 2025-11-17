@@ -128,7 +128,9 @@ export const useDataStore = create<DataStore>((set, get) => ({
         const totalKeys = existingKeys.length;
         
         if (totalKeys === 0) {
-            set({ data: get().data, isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
+            setTimeout(() => {
+                set({ data: get().data, isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
+            }, 500); // Small delay to show the loading screen briefly
             return;
         }
 
@@ -152,11 +154,9 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
                 
                 processKey(index + 1);
-            }, 0);
+            }, 10);
         }
 
         processKey(0);
     },
 }));
-
-useDataStore.getState().loadAllData();
