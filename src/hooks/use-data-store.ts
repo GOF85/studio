@@ -118,30 +118,23 @@ export const useDataStore = create<DataStore>((set, get) => ({
     data: dataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']),
 
     loadAllData: () => {
-        // Prevent re-loading if data is already loaded
         if (get().isLoaded || typeof window === 'undefined') {
             return;
         }
 
         set({ isLoaded: false, loadingProgress: 0, loadingMessage: 'Empezando carga de datos...' });
 
-        // Simulate async loading to show progress
-        setTimeout(() => {
-            const allData: Partial<DataStore['data']> = {};
-            const totalKeys = dataKeys.length;
-            
-            dataKeys.forEach((key, index) => {
-                const defaultValue = defaultValuesMap[key] ?? [];
-                (allData as any)[key] = loadFromLocalStorage(key, defaultValue);
+        const allData: Partial<DataStore['data']> = {};
+        const totalKeys = dataKeys.length;
+        
+        dataKeys.forEach((key, index) => {
+            const defaultValue = defaultValuesMap[key] ?? [];
+            (allData as any)[key] = loadFromLocalStorage(key, defaultValue);
 
-                // This update is synchronous but we batch them for performance
-                if ((index + 1) % 5 === 0 || index === totalKeys - 1) {
-                    const progress = ((index + 1) / totalKeys) * 100;
-                    set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
-                }
-            });
+            const progress = ((index + 1) / totalKeys) * 100;
+            set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
+        });
 
-            set({ data: allData as DataStore['data'], isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
-        }, 100); // Small delay to ensure loading screen renders
+        set({ data: allData as DataStore['data'], isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
     },
 }));
