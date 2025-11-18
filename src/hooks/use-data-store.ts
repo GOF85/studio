@@ -115,22 +115,43 @@ export const useDataStore = create<DataStore>((set, get) => ({
     loadAllData: () => {
         const { isLoaded } = get();
         if (isLoaded) {
+            console.log('[PERF] Data already loaded. Skipping.');
             return;
         }
+
+        console.log('[PERF] Starting global data load...');
+        const totalStart = performance.now();
+        const performanceLog: { key: string, read: number, parse: number }[] = [];
 
         const loadedData: Partial<DataStoreData> = {};
         
         ALL_DATA_KEYS.forEach(key => {
+            let readTime = 0;
+            let parseTime = 0;
+
             try {
+                const readStart = performance.now();
                 const storedValue = localStorage.getItem(key);
-                loadedData[key as keyof DataStoreData] = storedValue
-                    ? JSON.parse(storedValue)
-                    : (defaultValuesMap[key] ?? []);
+                readTime = performance.now() - readStart;
+                
+                const parseStart = performance.now();
+                if (storedValue) {
+                    loadedData[key as keyof DataStoreData] = JSON.parse(storedValue);
+                } else {
+                    loadedData[key as keyof DataStoreData] = defaultValuesMap[key] ?? [];
+                }
+                parseTime = performance.now() - parseStart;
+
             } catch(e) {
                 console.warn(`Could not parse key: ${key}. Setting to default.`, e);
                 loadedData[key as keyof DataStoreData] = defaultValuesMap[key] ?? [];
             }
+            performanceLog.push({ key, read: readTime, parse: parseTime });
         });
+
+        const totalEnd = performance.now();
+        console.log(`[PERF] Finished global data load. Total Time: ${(totalEnd - totalStart).toFixed(2)}ms`);
+        console.table(performanceLog.sort((a, b) => (b.read + b.parse) - (a.read + a.parse)));
 
         set({ data: loadedData, isLoaded: true });
     }

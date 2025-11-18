@@ -96,7 +96,7 @@ export function PrevisionServiciosContent() {
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
+    <main>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
           <ClipboardList />
