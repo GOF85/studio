@@ -1,6 +1,7 @@
+
 'use client';
 
-import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import { createContext, useContext, useEffect, useMemo, useCallback } from 'react';
 import type { ServiceOrder, MaterialOrder, PickingSheet, ReturnSheet, OrderItem, ComercialBriefing, Entrega } from '@/types';
 import { useDataStore } from '@/hooks/use-data-store';
 
@@ -48,7 +49,12 @@ interface OsDataContextType {
 export const OsContext = createContext<OsDataContextType | undefined>(undefined);
 
 export function OsContextProvider({ osId, children }: { osId: string; children: React.ReactNode }) {
-    const { isLoaded, data } = useDataStore();
+    const { isLoaded, data, loadKeys } = useDataStore();
+
+    useEffect(() => {
+        loadKeys(['serviceOrders', 'espacios', 'comercialBriefings', 'materialOrders', 'pickingSheets', 'returnSheets']);
+    }, [loadKeys]);
+
 
     const { serviceOrder, briefing, spaceAddress } = useMemo(() => {
         if (!isLoaded || !osId) return { serviceOrder: null, briefing: null, spaceAddress: '' };

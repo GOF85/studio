@@ -1,24 +1,17 @@
-
 'use client';
 
 import { useEffect } from 'react';
 import { DashboardPage } from '@/app/dashboard-page';
 import { useDataStore } from '@/hooks/use-data-store';
-import { LoadingScreen } from '@/components/layout/loading-screen';
-
 
 export default function HomePage() {
-  const { isLoaded, loadAllData } = useDataStore();
+  const { loadKeys } = useDataStore();
 
   useEffect(() => {
-    if (!isLoaded) {
-      loadAllData();
-    }
-  }, [isLoaded, loadAllData]);
+    // Pre-load some basic data for the dashboard if needed in the future
+    // For now, it's just links, so no pre-loading is necessary.
+    // Example: loadKeys(['serviceOrders', 'entregas']);
+  }, [loadKeys]);
   
-  if (!isLoaded) {
-    return <LoadingScreen/>
-  }
-
   return <DashboardPage />;
 }

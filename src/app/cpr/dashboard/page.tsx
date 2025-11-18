@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -78,13 +79,11 @@ function WorkflowSection({ title, modules }: { title: string, modules: (typeof c
 }
 
 export default function CprDashboardPage() {
-    const { data, isLoaded, loadAllData } = useDataStore();
+    const { data, isLoaded, loadKeys } = useDataStore();
     
     useEffect(() => {
-        if (!isLoaded) {
-            loadAllData();
-        }
-    }, [isLoaded, loadAllData]);
+        loadKeys(['ordenesFabricacion', 'solicitudesPersonalCPR']);
+    }, [loadKeys]);
 
     const kpiData = useMemo(() => {
         if (!isLoaded) return { pendientes: 0, enProceso: 0, finalizadasHoy: 0, incidencias: 0, turnosPorValidar: 0 };

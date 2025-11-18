@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -49,7 +50,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useDataStore } from '@/hooks/use-data-store';
 
 export default function PrevisionServiciosPage() {
-  const { data, isLoaded, loadAllData } = useDataStore();
+  const { data, isLoaded, loadKeys } = useDataStore();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -60,10 +61,8 @@ export default function PrevisionServiciosPage() {
   const { toast } = useToast();
   
   useEffect(() => {
-    if (!isLoaded) {
-      loadAllData();
-    }
-  }, [isLoaded, loadAllData]);
+    loadKeys(['serviceOrders']);
+  }, [loadKeys]);
 
   const availableMonths = useMemo(() => {
     if (!data.serviceOrders || data.serviceOrders.length === 0) return ['all'];
@@ -134,7 +133,7 @@ export default function PrevisionServiciosPage() {
     if (!orderToDelete) return;
     const updatedOrders = data.serviceOrders.filter(os => os.id !== orderToDelete);
     localStorage.setItem('serviceOrders', JSON.stringify(updatedOrders));
-    loadAllData(); // Re-trigger data loading in zustand store
+    loadKeys(['serviceOrders']); // Re-trigger data loading in zustand store
     toast({ title: 'Orden de Servicio eliminada.' });
     setOrderToDelete(null);
   };

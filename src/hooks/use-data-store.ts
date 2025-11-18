@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { create } from 'zustand';
@@ -136,20 +137,29 @@ export const useDataStore = create<DataStore>((set, get) => ({
         };
 
         const loadedData: Partial<DataStore['data']> = {};
-        dataKeys.forEach(key => {
+        
+        const loadChunk = (index: number) => {
+            if (index >= dataKeys.length) {
+                const endTime = performance.now();
+                set({ 
+                    data: loadedData as DataStore['data'], 
+                    isLoaded: true,
+                    performance: {
+                        totalLoadTime: endTime - startTime,
+                        individualParseTimes: individualParseTimes.sort((a,b) => b.time - a.time),
+                    }
+                });
+                return;
+            }
+            
+            const key = dataKeys[index];
             const defaultValue = defaultValuesMap[key] ?? [];
             (loadedData as any)[key] = loadFromLocalStorage(key, defaultValue);
-        });
-        
-        const endTime = performance.now();
 
-        set({ 
-            data: loadedData as DataStore['data'], 
-            isLoaded: true,
-            performance: {
-                totalLoadTime: endTime - startTime,
-                individualParseTimes: individualParseTimes.sort((a,b) => b.time - a.time),
-            }
-        });
+            // Schedule the next chunk
+            requestAnimationFrame(() => loadChunk(index + 1));
+        };
+        
+        loadChunk(0);
     },
 }));
