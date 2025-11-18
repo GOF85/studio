@@ -1,7 +1,48 @@
 
 'use client';
 
-import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart, Database, UserPlus, Shuffle, UserCheck, LayoutDashboard, Component, Sprout, CheckSquare, TrendingUp, Printer, ListChecks, AlertTriangle, History, HistoryIcon, Calculator, Box, Layers, Percent, Target, Banknote, CreditCard, ChefHat, Archive, CheckCircle } from 'lucide-react';
+import {
+    ClipboardList,
+    BookHeart,
+    Factory,
+    Settings,
+    Package,
+    Warehouse,
+    Users,
+    Truck,
+    LifeBuoy,
+    BarChart3,
+    Calendar,
+    AreaChart,
+    Database,
+    UserPlus,
+    Shuffle,
+    UserCheck,
+    LayoutDashboard,
+    Component,
+    Sprout,
+    CheckSquare,
+    TrendingUp,
+    Printer,
+    ListChecks,
+    AlertTriangle,
+    History,
+    HistoryIcon,
+    Calculator,
+    Box,
+    Layers,
+    Percent,
+    Target,
+    Banknote,
+    CreditCard,
+    CheckCircle,
+    Archive,
+    ChefHat,
+    PackagePlus,
+    Shield,
+    Building,
+    Trash2
+} from 'lucide-react';
 
 export const mainNav = [
     { title: 'Previsión de Servicios', href: '/pes', icon: ClipboardList, exact: true },
