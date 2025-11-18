@@ -1,11 +1,10 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Eye, FileText } from 'lucide-react';
-import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem, ReturnSheet } from '@/types';
+import type { OrderItem, PickingSheet, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,20 +29,16 @@ type ItemWithOrderInfo = OrderItem & {
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
 
 function BriefingSummaryDialog({ osId }: { osId: string }) {
-    const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
-
-    useEffect(() => {
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const currentBriefing = allBriefings.find(b => b.osId === osId);
-        if (currentBriefing) {
-            const sortedItems = [...currentBriefing.items].sort((a, b) => {
-                const dateComparison = a.fecha.localeCompare(b.fecha);
-                if (dateComparison !== 0) return dateComparison;
-                return a.horaInicio.localeCompare(b.horaInicio);
-            });
-            setBriefingItems(sortedItems);
-        }
-    }, [osId]);
+    const { briefing } = useOsContext();
+    
+    const sortedItems = useMemo(() => {
+        if (!briefing?.items) return [];
+        return [...briefing.items].sort((a, b) => {
+            const dateComparison = a.fecha.localeCompare(b.fecha);
+            if (dateComparison !== 0) return dateComparison;
+            return a.horaInicio.localeCompare(b.horaInicio);
+        });
+    }, [briefing]);
 
     return (
         <Dialog>
@@ -64,7 +59,7 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {briefingItems.length > 0 ? briefingItems.map(item => (
+                            {sortedItems.length > 0 ? sortedItems.map(item => (
                                 <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
                                     <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
                                     <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
@@ -173,21 +168,21 @@ export default function AlquilerPage() {
     return (
       <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
         <div className="flex items-center justify-between mb-4">
-           <div className="flex items-center gap-2">
-              <Dialog>
-                  <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-                  </DialogTrigger>
-                  {renderSummaryModal()}
-              </Dialog>
-              <BriefingSummaryDialog osId={osId} />
-          </div>
-          <Button asChild>
+            <div className="flex items-center gap-2">
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                    </DialogTrigger>
+                    {renderSummaryModal()}
+                </Dialog>
+                <BriefingSummaryDialog osId={osId} />
+            </div>
+            <Button asChild>
             <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
-              <PlusCircle className="mr-2" />
-              Nuevo Pedido de Alquiler
+                <PlusCircle className="mr-2" />
+                Nuevo Pedido de Alquiler
             </Link>
-          </Button>
+            </Button>
         </div>
         
          <div className="grid md:grid-cols-3 gap-6 mb-8">
@@ -244,10 +239,10 @@ export default function AlquilerPage() {
               <CardHeader>
                   <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
               </CardHeader>
-               <CardContent>
-                   <div className="border rounded-lg">
+              <CardContent>
+                  <div className="border rounded-lg">
                       <Table>
-                           <TableHeader>
+                          <TableHeader>
                               <TableRow>
                                   <TableHead>Hoja Picking</TableHead>
                                   <TableHead>Estado</TableHead>
@@ -278,3 +273,5 @@ export default function AlquilerPage() {
       </Dialog>
     );
 }
+
+    

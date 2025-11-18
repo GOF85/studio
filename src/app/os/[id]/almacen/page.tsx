@@ -1,10 +1,10 @@
+
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Eye, FileText } from 'lucide-react';
-import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem, ReturnSheet } from '@/types';
+import type { OrderItem, PickingSheet, ComercialBriefingItem, ReturnSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,20 +30,16 @@ type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
 
 
 function BriefingSummaryDialog({ osId }: { osId: string }) {
-    const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+    const { briefing } = useOsContext();
 
-    useEffect(() => {
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const currentBriefing = allBriefings.find(b => b.osId === osId);
-        if (currentBriefing) {
-            const sortedItems = [...currentBriefing.items].sort((a, b) => {
-                const dateComparison = a.fecha.localeCompare(b.fecha);
-                if (dateComparison !== 0) return dateComparison;
-                return a.horaInicio.localeCompare(b.horaInicio);
-            });
-            setBriefingItems(sortedItems);
-        }
-    }, [osId]);
+    const sortedItems = useMemo(() => {
+        if (!briefing?.items) return [];
+        return [...briefing.items].sort((a, b) => {
+            const dateComparison = a.fecha.localeCompare(b.fecha);
+            if (dateComparison !== 0) return dateComparison;
+            return a.horaInicio.localeCompare(b.horaInicio);
+        });
+    }, [briefing]);
 
     return (
         <Dialog>
@@ -64,7 +60,7 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {briefingItems.length > 0 ? briefingItems.map(item => (
+                            {sortedItems.length > 0 ? sortedItems.map(item => (
                                 <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
                                     <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
                                     <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
@@ -99,7 +95,6 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 
 export default function AlmacenPage() {
     const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-    const router = useRouter();
     const { osId, getProcessedDataForType, isLoading } = useOsContext();
 
     const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(
@@ -279,3 +274,5 @@ export default function AlmacenPage() {
         </Dialog>
     );
 }
+
+    

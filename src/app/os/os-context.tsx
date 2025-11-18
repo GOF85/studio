@@ -57,20 +57,20 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
 
 
     const { serviceOrder, briefing, spaceAddress } = useMemo(() => {
-        if (!isLoaded || !osId) return { serviceOrder: null, briefing: null, spaceAddress: '' };
+        if (!isLoaded || !osId || !data.serviceOrders) return { serviceOrder: null, briefing: null, spaceAddress: '' };
 
         const currentOS = data.serviceOrders.find(os => os.id === osId);
         let address = '';
-        if (currentOS?.space) {
+        if (currentOS?.space && data.espacios) {
             const currentSpace = data.espacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
             address = currentSpace?.identificacion.calle || '';
         }
         
-        const currentBriefing = data.comercialBriefings.find(b => b.osId === osId);
+        const currentBriefing = data.comercialBriefings?.find(b => b.osId === osId) || null;
 
         return { 
             serviceOrder: currentOS || null, 
-            briefing: currentBriefing || null, 
+            briefing: currentBriefing, 
             spaceAddress: address, 
         };
     }, [isLoaded, osId, data]);
@@ -78,12 +78,11 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
     const getProcessedDataForType = useCallback((type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler'): ProcessedData => {
         const emptyResult: ProcessedData = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
         
-        if (!isLoaded) return emptyResult;
+        if (!isLoaded || !data.materialOrders || !data.pickingSheets || !data.returnSheets) return emptyResult;
         
-        const { materialOrders, pickingSheets, returnSheets } = data;
-        const relatedOrders = materialOrders.filter(o => o.osId === osId && o.type === type);
-        const relatedPickingSheets = Object.values(pickingSheets).filter(s => s.osId === osId);
-        const relatedReturnSheets = Object.values(returnSheets).filter(s => s.osId === osId);
+        const relatedOrders = data.materialOrders.filter(o => o.osId === osId && o.type === type);
+        const relatedPickingSheets = Object.values(data.pickingSheets).filter(s => s.osId === osId);
+        const relatedReturnSheets = Object.values(data.returnSheets).filter(s => s.osId === osId);
         
         const mermas: Record<string, number> = {};
         relatedReturnSheets.forEach(sheet => {
@@ -173,3 +172,5 @@ export function useOsContext() {
     }
     return context;
 }
+
+    
