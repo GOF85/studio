@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { create } from 'zustand';
@@ -16,14 +14,10 @@ import type {
     AtipicoDBItem, PedidoPlantilla, FormatoExpedicion 
 } from '@/types';
 
-type PerformanceTimings = {
-    totalLoadTime: number;
-    individualParseTimes: { key: string; time: number }[];
-};
+type DataKeys = keyof DataStore['data'];
 
 type DataStore = {
-    isLoaded: boolean;
-    performance: PerformanceTimings;
+    isLoaded: Record<string, boolean>;
     data: {
         serviceOrders: ServiceOrder[];
         entregas: Entrega[];
@@ -80,10 +74,10 @@ type DataStore = {
         solicitudesPersonalCPR: SolicitudPersonalCPR[];
         incidenciasRetorno: any[];
     };
-    loadAllData: () => void;
+    loadKeys: (keys: DataKeys[]) => void;
 };
 
-const dataKeys = [
+const allDataKeys: DataKeys[] = [
     'serviceOrders', 'entregas', 'comercialBriefings', 'pedidosEntrega', 'gastronomyOrders',
     'materialOrders', 'transporteOrders', 'hieloOrders', 'decoracionOrders', 'atipicoOrders',
     'personalMiceOrders', 'personalExterno', 'pruebasMenu', 'pickingSheets', 'returnSheets',
@@ -106,60 +100,39 @@ const defaultValuesMap: { [key: string]: any } = {
 };
 
 const createInitialData = (): DataStore['data'] => {
-    return dataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']);
+    return allDataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']);
 };
 
 export const useDataStore = create<DataStore>((set, get) => ({
-    isLoaded: false,
-    performance: { totalLoadTime: 0, individualParseTimes: [] },
+    isLoaded: {},
     data: createInitialData(),
 
-    loadAllData: () => {
-        if (get().isLoaded || typeof window === 'undefined') return;
+    loadKeys: (keys: DataKeys[]) => {
+        if (typeof window === 'undefined') return;
 
-        const startTime = performance.now();
-        const individualParseTimes: { key: string; time: number }[] = [];
+        const currentState = get();
+        const dataToLoad = keys.filter(key => !currentState.isLoaded[key]);
 
-        const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
-            const itemStartTime = performance.now();
-            const storedValue = localStorage.getItem(key);
-            try {
-                const parsed = storedValue ? JSON.parse(storedValue) : defaultValue;
-                const itemEndTime = performance.now();
-                individualParseTimes.push({ key, time: itemEndTime - itemStartTime });
-                return parsed;
-            } catch (e) {
-                console.error(`Error parsing localStorage key "${key}":`, e);
-                const itemEndTime = performance.now();
-                individualParseTimes.push({ key, time: itemEndTime - itemStartTime });
-                return defaultValue;
-            }
-        };
+        if (dataToLoad.length === 0) return;
 
         const loadedData: Partial<DataStore['data']> = {};
-        
-        const loadChunk = (index: number) => {
-            if (index >= dataKeys.length) {
-                const endTime = performance.now();
-                set({ 
-                    data: loadedData as DataStore['data'], 
-                    isLoaded: true,
-                    performance: {
-                        totalLoadTime: endTime - startTime,
-                        individualParseTimes: individualParseTimes.sort((a,b) => b.time - a.time),
-                    }
-                });
-                return;
-            }
-            
-            const key = dataKeys[index];
-            const defaultValue = defaultValuesMap[key] ?? [];
-            (loadedData as any)[key] = loadFromLocalStorage(key, defaultValue);
+        const newIsLoadedState: Record<string, boolean> = { ...currentState.isLoaded };
 
-            // Schedule the next chunk
-            requestAnimationFrame(() => loadChunk(index + 1));
-        };
-        
-        loadChunk(0);
+        dataToLoad.forEach(key => {
+            const storedValue = localStorage.getItem(key);
+            const defaultValue = defaultValuesMap[key] ?? [];
+            try {
+                (loadedData as any)[key] = storedValue ? JSON.parse(storedValue) : defaultValue;
+            } catch (e) {
+                console.error(`Error parsing localStorage key "${key}":`, e);
+                (loadedData as any)[key] = defaultValue;
+            }
+            newIsLoadedState[key] = true;
+        });
+
+        set(state => ({
+            data: { ...state.data, ...loadedData },
+            isLoaded: newIsLoadedState,
+        }));
     },
 }));

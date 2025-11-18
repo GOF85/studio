@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -51,7 +50,6 @@ import { useDataStore } from '@/hooks/use-data-store';
 
 export default function PrevisionServiciosPage() {
   const { data, isLoaded, loadKeys } = useDataStore();
-  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
@@ -59,13 +57,13 @@ export default function PrevisionServiciosPage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
-  
+
   useEffect(() => {
     loadKeys(['serviceOrders']);
   }, [loadKeys]);
 
   const availableMonths = useMemo(() => {
-    if (!data.serviceOrders || data.serviceOrders.length === 0) return ['all'];
+    if (!isLoaded || !data.serviceOrders) return ['all'];
     const months = new Set<string>();
     data.serviceOrders.forEach(os => {
       try {
@@ -78,13 +76,11 @@ export default function PrevisionServiciosPage() {
       }
     });
     return ['all', ...Array.from(months).sort().reverse()];
-  }, [data.serviceOrders]);
+  }, [isLoaded, data.serviceOrders]);
 
   const filteredAndSortedOrders = useMemo(() => {
-    if (!data.serviceOrders || data.serviceOrders.length === 0) {
-      return [];
-    }
-    
+    if (!isLoaded) return [];
+
     const today = startOfToday();
     const cateringOrders = data.serviceOrders.filter(os => os.vertical !== 'Entregas');
 
@@ -119,9 +115,8 @@ export default function PrevisionServiciosPage() {
     });
 
     return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-
-  }, [data.serviceOrders, searchTerm, selectedMonth, showPastEvents, statusFilter]);
-
+  }, [isLoaded, data.serviceOrders, searchTerm, selectedMonth, showPastEvents, statusFilter]);
+  
   const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
     Borrador: 'secondary',
     Pendiente: 'destructive',
@@ -133,7 +128,7 @@ export default function PrevisionServiciosPage() {
     if (!orderToDelete) return;
     const updatedOrders = data.serviceOrders.filter(os => os.id !== orderToDelete);
     localStorage.setItem('serviceOrders', JSON.stringify(updatedOrders));
-    loadKeys(['serviceOrders']); // Re-trigger data loading in zustand store
+    loadKeys(['serviceOrders']);
     toast({ title: 'Orden de Servicio eliminada.' });
     setOrderToDelete(null);
   };
