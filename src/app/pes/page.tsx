@@ -32,23 +32,14 @@ const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' 
   Anulado: 'destructive'
 };
 
-function PrevisionServiciosContent() {
-  const { data, loadKeys } = useDataStore();
+function PrevisionServiciosContent({ serviceOrders }: { serviceOrders: ServiceOrder[] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-
-  useEffect(() => {
-    console.log('[PES_PAGE] useEffect: Component mounted, calling loadKeys.');
-    loadKeys(['serviceOrders']);
-    setIsDataLoaded(true);
-  }, [loadKeys]);
 
   const availableMonths = useMemo(() => {
-    console.log('[PES_PAGE] useMemo(availableMonths): Recalculating months.');
     const months = new Set<string>();
-    (data.serviceOrders || []).forEach(os => {
+    serviceOrders.forEach(os => {
       try {
         const month = format(new Date(os.startDate), 'yyyy-MM');
         months.add(month);
@@ -57,18 +48,12 @@ function PrevisionServiciosContent() {
       }
     });
     return ['all', ...Array.from(months).sort().reverse()];
-  }, [data.serviceOrders]);
-  
+  }, [serviceOrders]);
+
   const filteredAndSortedOrders = useMemo(() => {
-    console.log('[PES_PAGE] useMemo(filteredAndSortedOrders): Recalculating orders.');
     const today = startOfToday();
     
-    if (!data.serviceOrders) {
-        console.log('[PES_PAGE] useMemo(filteredAndSortedOrders): data.serviceOrders is not available yet.');
-        return [];
-    }
-    
-    const filtered = data.serviceOrders.filter(os => {
+    const filtered = serviceOrders.filter(os => {
       const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
       
       let monthMatch = true;
@@ -93,16 +78,8 @@ function PrevisionServiciosContent() {
       return os.vertical !== 'Entregas' && searchMatch && monthMatch && pastEventMatch;
     });
 
-    console.log(`[PES_PAGE] useMemo(filteredAndSortedOrders): Found ${filtered.length} orders.`);
     return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-
-  }, [data.serviceOrders, searchTerm, selectedMonth, showPastEvents]);
-  
-  console.log('[PES_PAGE] Rendering component...');
-
-  if (!isDataLoaded || !data.serviceOrders) {
-    return <LoadingSkeleton title="Cargando Previsión de Servicios..." />;
-  }
+  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents]);
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -198,11 +175,28 @@ function PrevisionServiciosContent() {
 }
 
 export default function PrevisionServiciosPage() {
-  return (
-    <Suspense fallback={<LoadingSkeleton title="Cargando..." />} >
-        <PrevisionServiciosContent />
-    </Suspense>
-  )
-}
+    const { data, loadKeys } = useDataStore();
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-    
+    useEffect(() => {
+        console.log('[PES_PAGE] useEffect: Component mounted, calling loadKeys.');
+        loadKeys(['serviceOrders']);
+        // The store's update will trigger re-renders. We'll check for data availability directly.
+    }, [loadKeys]);
+
+    useEffect(() => {
+        if (data && data.serviceOrders) {
+            setIsDataLoaded(true);
+        }
+    }, [data]);
+
+    if (!isDataLoaded) {
+        return <LoadingSkeleton title="Cargando Previsión de Servicios..." />;
+    }
+
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando..." />} >
+            <PrevisionServiciosContent serviceOrders={data.serviceOrders || []} />
+        </Suspense>
+    )
+}
