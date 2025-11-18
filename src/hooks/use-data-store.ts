@@ -15,8 +15,14 @@ import type {
     AtipicoDBItem, PedidoPlantilla, FormatoExpedicion 
 } from '@/types';
 
+type PerformanceTimings = {
+    totalLoadTime: number;
+    individualParseTimes: { key: string; time: number }[];
+};
+
 type DataStore = {
     isLoaded: boolean;
+    performance: PerformanceTimings;
     data: {
         serviceOrders: ServiceOrder[];
         entregas: Entrega[];
@@ -76,17 +82,6 @@ type DataStore = {
     loadAllData: () => void;
 };
 
-const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
-    if (typeof window === 'undefined') return defaultValue;
-    const storedValue = localStorage.getItem(key);
-    try {
-        return storedValue ? JSON.parse(storedValue) : defaultValue;
-    } catch (e) {
-        console.error(`Error parsing localStorage key "${key}":`, e);
-        return defaultValue;
-    }
-};
-
 const dataKeys = [
     'serviceOrders', 'entregas', 'comercialBriefings', 'pedidosEntrega', 'gastronomyOrders',
     'materialOrders', 'transporteOrders', 'hieloOrders', 'decoracionOrders', 'atipicoOrders',
@@ -115,19 +110,46 @@ const createInitialData = (): DataStore['data'] => {
 
 export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: false,
+    performance: { totalLoadTime: 0, individualParseTimes: [] },
     data: createInitialData(),
 
     loadAllData: () => {
-        if (get().isLoaded || typeof window === 'undefined') {
-            return;
-        }
+        if (get().isLoaded || typeof window === 'undefined') return;
+
+        const startTime = performance.now();
+        const individualParseTimes: { key: string; time: number }[] = [];
+
+        const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
+            const itemStartTime = performance.now();
+            const storedValue = localStorage.getItem(key);
+            try {
+                const parsed = storedValue ? JSON.parse(storedValue) : defaultValue;
+                const itemEndTime = performance.now();
+                individualParseTimes.push({ key, time: itemEndTime - itemStartTime });
+                return parsed;
+            } catch (e) {
+                console.error(`Error parsing localStorage key "${key}":`, e);
+                const itemEndTime = performance.now();
+                individualParseTimes.push({ key, time: itemEndTime - itemStartTime });
+                return defaultValue;
+            }
+        };
 
         const loadedData: Partial<DataStore['data']> = {};
         dataKeys.forEach(key => {
             const defaultValue = defaultValuesMap[key] ?? [];
             (loadedData as any)[key] = loadFromLocalStorage(key, defaultValue);
         });
+        
+        const endTime = performance.now();
 
-        set({ data: loadedData as DataStore['data'], isLoaded: true });
+        set({ 
+            data: loadedData as DataStore['data'], 
+            isLoaded: true,
+            performance: {
+                totalLoadTime: endTime - startTime,
+                individualParseTimes: individualParseTimes.sort((a,b) => b.time - a.time),
+            }
+        });
     },
 }));

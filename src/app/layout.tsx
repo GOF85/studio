@@ -8,7 +8,7 @@ import { NProgressProvider } from '@/components/providers/nprogress-provider';
 import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
 import { Suspense, useEffect } from 'react';
-
+import { PerformanceMonitor } from '@/components/debug/performance-monitor';
 
 export default function RootLayout({
   children,
@@ -40,6 +40,7 @@ export default function RootLayout({
             </NProgressProvider>
           </ImpersonatedUserProvider>
         <Toaster />
+        {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
       </body>
     </html>
   );
