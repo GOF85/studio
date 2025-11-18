@@ -94,9 +94,9 @@ export const cprNav = [
 ];
 
 export const rrhhNav = [
-    { title: 'Dashboard RRHH', href: '/rrhh', icon: LayoutDashboard, description: 'Vista general y accesos directos del módulo de RRHH.', adminOnly: false },
-    { title: 'Solicitudes de Personal', href: '/rrhh/solicitudes', icon: ClipboardList, description: 'Gestiona las necesidades de personal para Eventos y CPR.', adminOnly: false },
-    { title: 'Cesiones de Personal', href: '/rrhh/cesiones', icon: Shuffle, description: 'Gestiona la asignación de personal interno entre departamentos.', adminOnly: false },
+    { title: 'Dashboard RRHH', href: '/rrhh', icon: LayoutDashboard, description: 'Vista general y accesos directos del módulo de RRHH.' },
+    { title: 'Solicitudes de Personal', href: '/rrhh/solicitudes', icon: ClipboardList, description: 'Gestiona las necesidades de personal para Eventos y CPR.' },
+    { title: 'Cesiones de Personal', href: '/rrhh/cesiones', icon: Shuffle, description: 'Gestiona la asignación de personal interno entre departamentos.' },
     { title: 'Validación de Horas (Cesiones)', href: '/rrhh/validacion-cesiones', icon: UserCheck, description: 'Valida las horas reales del personal interno cedido.', adminOnly: true },
     { title: 'Base de Datos de Personal', href: '/bd/personal', icon: Users, description: 'Administra los empleados internos.', adminOnly: true },
     { title: 'Base de Datos de ETTs', href: '/bd/personal-externo-db', icon: UserPlus, description: 'Administra los trabajadores externos.', adminOnly: true },
@@ -104,32 +104,30 @@ export const rrhhNav = [
 ];
 
 export const bookNavLinks = [
-    { title: 'Dashboard', path: '/book', icon: BookHeart, exact: true },
-    { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
-    { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
-    { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
-    { title: 'Verificación de Ingredientes', path: '/book/verificacionIngredientes', icon: Shield },
-    { title: 'Revisión Gastronómica', path: '/book/revision-ingredientes', icon: CheckSquare },
-    { title: 'Evolución de Costes', path: '/book/evolucion-costes', icon: TrendingUp },
-    { title: 'Info. Alérgenos', path: '/book/alergenos', icon: Sprout },
-    { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
+    { title: 'Dashboard', href: '/book', icon: BookHeart, exact: true },
+    { title: 'Recetas', href: '/book/recetas', icon: BookHeart },
+    { title: 'Elaboraciones', href: '/book/elaboraciones', icon: Component },
+    { title: 'Ingredientes', href: '/book/ingredientes', icon: ChefHat },
+    { title: 'Verificación de Ingredientes', href: '/book/verificacionIngredientes', icon: Shield },
+    { title: 'Revisión Gastronómica', href: '/book/revision-ingredientes', icon: CheckSquare },
+    { title: 'Evolución de Costes', href: '/book/evolucion-costes', icon: TrendingUp },
+    { title: 'Info. Alérgenos', href: '/book/alergenos', icon: Sprout },
+    { title: 'Informe Gastronómico', href: '/book/informe', icon: BarChart3, exact: true },
 ];
 
     
 export const bdNavLinks = [
-    { title: 'Personal Interno', path: '/bd/personal', icon: Users },
-    { title: 'Personal Externo', path: '/bd/personal-externo-db', icon: UserPlus },
-    { title: 'Proveedores', path: '/bd/proveedores', icon: Building },
-    { title: 'Catálogo Personal Externo', path: '/bd/tipos-personal', icon: Users },
-    { title: 'Espacios', path: '/bd/espacios', icon: Building },
-    { title: 'Artículos MICE', path: '/bd/articulos', icon: Package },
-    { title: 'Base de Datos ERP', path: '/bd/erp', icon: Database },
-    { title: 'Familias ERP', path: '/bd/familiasERP', icon: Layers },
-    { title: 'Categorías de Recetas', path: '/bd/categorias-recetas', icon: BookHeart },
-    { title: 'Formatos de Expedición', path: '/bd/formatos-expedicion', icon: Box },
-    { title: 'Centros y Ubicaciones', path: '/bd/centros', icon: Factory },
-    { title: 'Objetivos CPR', path: '/bd/objetivos-cpr', icon: CreditCard },
-    { title: 'Administración', path: '/bd/borrar', icon: Trash2 },
+    { title: 'Personal Interno', href: '/bd/personal', icon: Users },
+    { title: 'Personal Externo', href: '/bd/personal-externo-db', icon: UserPlus },
+    { title: 'Proveedores', href: '/bd/proveedores', icon: Building },
+    { title: 'Catálogo Personal Externo', href: '/bd/tipos-personal', icon: Users },
+    { title: 'Espacios', href: '/bd/espacios', icon: Building },
+    { title: 'Artículos MICE', href: '/bd/articulos', icon: Package },
+    { title: 'Base de Datos ERP', href: '/bd/erp', icon: Database },
+    { title: 'Familias ERP', href: '/bd/familiasERP', icon: Layers },
+    { title: 'Categorías de Recetas', href: '/bd/categorias-recetas', icon: BookHeart },
+    { title: 'Formatos de Expedición', href: '/bd/formatos-expedicion', icon: Box },
+    { title: 'Centros y Ubicaciones', href: '/bd/centros', icon: Factory },
+    { title: 'Objetivos CPR', href: '/bd/objetivos-cpr', icon: CreditCard },
+    { title: 'Administración', href: '/bd/borrar', icon: Trash2 },
 ];
-
-    
