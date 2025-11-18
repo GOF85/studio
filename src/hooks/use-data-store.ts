@@ -15,112 +15,123 @@ import type {
     AtipicoDBItem, PedidoPlantilla, FormatoExpedicion 
 } from '@/types';
 
-type DataKeys = keyof DataStore['data'];
+type DataStoreData = {
+    serviceOrders: ServiceOrder[];
+    entregas: Entrega[];
+    comercialBriefings: ComercialBriefing[];
+    pedidosEntrega: PedidoEntrega[];
+    gastronomyOrders: GastronomyOrder[];
+    materialOrders: MaterialOrder[];
+    transporteOrders: TransporteOrder[];
+    hieloOrders: HieloOrder[];
+    decoracionOrders: DecoracionOrder[];
+    atipicoOrders: AtipicoOrder[];
+    personalMiceOrders: PersonalMiceOrder[];
+    personalExterno: PersonalExterno[];
+    pruebasMenu: PruebaMenuData[];
+    pickingSheets: Record<string, PickingSheet>;
+    returnSheets: Record<string, ReturnSheet>;
+    ordenesFabricacion: OrdenFabricacion[];
+    pickingStates: Record<string, PickingState>;
+    excedentesProduccion: ExcedenteProduccion[];
+    personalEntrega: PersonalEntrega[];
+    partnerPedidosStatus: Record<string, any>;
+    activityLogs: ActivityLog[];
+    ctaRealCosts: Record<string, any>;
+    ctaComentarios: Record<string, any>;
+    objetivosGastoPlantillas: ObjetivosGasto[];
+    defaultObjetivoGastoId: string | null;
+    articulosERP: IngredienteERP[];
+    familiasERP: FamiliaERP[];
+    ingredientesInternos: IngredienteInterno[];
+    elaboraciones: Elaboracion[];
+    recetas: Receta[];
+    categoriasRecetas: CategoriaReceta[];
+    portalUsers: PortalUser[];
+    comercialAjustes: Record<string, ComercialAjuste[]>;
+    productosVenta: ProductoVenta[];
+    pickingEntregasState: Record<string, PickingEntregaState>;
+    stockElaboraciones: Record<string, StockElaboracion>;
+    personalExternoAjustes: Record<string, PersonalExternoAjuste[]>;
+    personalExternoDB: PersonalExternoDB[];
+    historicoPreciosERP: HistoricoPreciosERP[];
+    costesFijosCPR: CosteFijoCPR[];
+    objetivosCPR: ObjetivoMensualCPR[];
+    personal: Personal[];
+    espacios: Espacio[];
+    articulos: ArticuloCatering[];
+    tipoServicio: TipoServicio[];
+    tiposPersonal: CategoriaPersonal[];
+    proveedores: Proveedor[];
+    tiposTransporte: TipoTransporte[];
+    decoracionDB: DecoracionDBItem[];
+    atipicosDB: AtipicoDBItem[];
+    pedidoPlantillas: PedidoPlantilla[];
+    formatosExpedicionDB: FormatoExpedicion[];
+    solicitudesPersonalCPR: SolicitudPersonalCPR[];
+    incidenciasRetorno: any[];
+    cesionesPersonal: any[];
+    centros: any[];
+    ubicaciones: any[];
+    stockArticuloUbicacion: any;
+    stockMovimientos: any[];
+    incidenciasInventario: any[];
+    cierresInventario: any[];
+};
+
+
+type DataKeys = keyof DataStoreData;
 
 type DataStore = {
-    data: {
-        serviceOrders?: ServiceOrder[];
-        entregas?: Entrega[];
-        comercialBriefings?: ComercialBriefing[];
-        pedidosEntrega?: PedidoEntrega[];
-        gastronomyOrders?: GastronomyOrder[];
-        materialOrders?: MaterialOrder[];
-        transporteOrders?: TransporteOrder[];
-        hieloOrders?: HieloOrder[];
-        decoracionOrders?: DecoracionOrder[];
-        atipicoOrders?: AtipicoOrder[];
-        personalMiceOrders?: PersonalMiceOrder[];
-        personalExterno?: PersonalExterno[];
-        pruebasMenu?: PruebaMenuData[];
-        pickingSheets?: Record<string, PickingSheet>;
-        returnSheets?: Record<string, ReturnSheet>;
-        ordenesFabricacion?: OrdenFabricacion[];
-        pickingStates?: Record<string, PickingState>;
-        excedentesProduccion?: ExcedenteProduccion[];
-        personalEntrega?: PersonalEntrega[];
-        partnerPedidosStatus?: Record<string, any>;
-        activityLogs?: ActivityLog[];
-        ctaRealCosts?: Record<string, any>;
-        ctaComentarios?: Record<string, any>;
-        objetivosGastoPlantillas?: ObjetivosGasto[];
-        defaultObjetivoGastoId?: string | null;
-        articulosERP?: IngredienteERP[];
-        familiasERP?: FamiliaERP[];
-        ingredientesInternos?: IngredienteInterno[];
-        elaboraciones?: Elaboracion[];
-        recetas?: Receta[];
-        categoriasRecetas?: CategoriaReceta[];
-        portalUsers?: PortalUser[];
-        comercialAjustes?: Record<string, ComercialAjuste[]>;
-        productosVenta?: ProductoVenta[];
-        pickingEntregasState?: Record<string, PickingEntregaState>;
-        stockElaboraciones?: Record<string, StockElaboracion>;
-        personalExternoAjustes?: Record<string, PersonalExternoAjuste[]>;
-        personalExternoDB?: PersonalExternoDB[];
-        historicoPreciosERP?: HistoricoPreciosERP[];
-        costesFijosCPR?: CosteFijoCPR[];
-        objetivosCPR?: ObjetivoMensualCPR[];
-        personal?: Personal[];
-        espacios?: Espacio[];
-        articulos?: ArticuloCatering[];
-        tipoServicio?: TipoServicio[];
-        tiposPersonal?: CategoriaPersonal[];
-        proveedores?: Proveedor[];
-        tiposTransporte?: TipoTransporte[];
-        decoracionDB?: DecoracionDBItem[];
-        atipicosDB?: AtipicoDBItem[];
-        pedidoPlantillas?: PedidoPlantilla[];
-        formatosExpedicionDB?: FormatoExpedicion[];
-        solicitudesPersonalCPR?: SolicitudPersonalCPR[];
-        incidenciasRetorno?: any[];
-    };
-    loadKeys: (keys: DataKeys[]) => void;
+    data: Partial<DataStoreData>;
+    isLoaded: boolean;
+    loadAllData: () => void;
 };
+
+export const ALL_DATA_KEYS: DataKeys[] = [
+    'serviceOrders', 'entregas', 'comercialBriefings', 'pedidosEntrega', 'gastronomyOrders', 'materialOrders',
+    'transporteOrders', 'hieloOrders', 'decoracionOrders', 'atipicoOrders', 'personalMiceOrders', 'personalExterno',
+    'pruebasMenu', 'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates', 'excedentesProduccion',
+    'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 'ctaComentarios', 'objetivosGastoPlantillas',
+    'defaultObjetivoGastoId', 'articulosERP', 'familiasERP', 'ingredientesInternos', 'elaboraciones', 'recetas',
+    'categoriasRecetas', 'portalUsers', 'comercialAjustes', 'productosVenta', 'pickingEntregasState',
+    'stockElaboraciones', 'personalExternoAjustes', 'personalExternoDB', 'historicoPreciosERP', 'costesFijosCPR',
+    'objetivosCPR', 'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposPersonal', 'proveedores', 'tiposTransporte',
+    'decoracionDB', 'atipicosDB', 'pedidoPlantillas', 'formatosExpedicionDB', 'solicitudesPersonalCPR', 'incidenciasRetorno',
+    'cesionesPersonal', 'centros', 'ubicaciones', 'stockArticuloUbicacion', 'stockMovimientos', 'incidenciasInventario', 'cierresInventario'
+];
 
 const defaultValuesMap: { [key in DataKeys]?: any } = {
     defaultObjetivoGastoId: null,
     pickingSheets: {}, returnSheets: {}, pickingStates: {}, partnerPedidosStatus: {},
     ctaRealCosts: {}, ctaComentarios: {}, comercialAjustes: {}, pickingEntregasState: {},
-    stockElaboraciones: {}, personalExternoAjustes: {},
+    stockElaboraciones: {}, personalExternoAjustes: {}, stockArticuloUbicacion: {},
 };
 
 export const useDataStore = create<DataStore>((set, get) => ({
-    data: {}, // Start with a truly empty data object
+    data: {},
+    isLoaded: false,
 
-    loadKeys: (keys: DataKeys[]) => {
-        const t0 = performance.now();
-        console.log(`[PERF] loadKeys triggered for: ${keys.join(', ')}`);
-        
-        const currentState = get().data;
-        const dataToLoad = keys.filter(key => !(key in currentState));
-
-        if (dataToLoad.length === 0) {
-            console.log("[PERF] All requested keys already in memory. Aborting load.");
+    loadAllData: () => {
+        const { isLoaded } = get();
+        if (isLoaded) {
             return;
         }
+
+        const loadedData: Partial<DataStoreData> = {};
         
-        console.log(`[PERF] Keys to load from localStorage: ${dataToLoad.join(', ')}`);
-
-        const loadedData: Partial<DataStore['data']> = {};
-        const timings: Record<string, number> = {};
-
-        dataToLoad.forEach(key => {
-            const tKeyStart = performance.now();
-            const storedValue = localStorage.getItem(key);
-            const parsedValue = storedValue ? JSON.parse(storedValue) : (defaultValuesMap[key] ?? []);
-            loadedData[key as keyof DataStore['data']] = parsedValue;
-            const tKeyEnd = performance.now();
-            timings[key] = tKeyEnd - tKeyStart;
+        ALL_DATA_KEYS.forEach(key => {
+            try {
+                const storedValue = localStorage.getItem(key);
+                loadedData[key as keyof DataStoreData] = storedValue
+                    ? JSON.parse(storedValue)
+                    : (defaultValuesMap[key] ?? []);
+            } catch(e) {
+                console.warn(`Could not parse key: ${key}. Setting to default.`, e);
+                loadedData[key as keyof DataStoreData] = defaultValuesMap[key] ?? [];
+            }
         });
 
-        set(state => ({
-            data: { ...state.data, ...loadedData },
-        }));
-        
-        const t1 = performance.now();
-        console.log(`[PERF] Finished data load. Total Time: ${(t1 - t0).toFixed(2)}ms`);
-        console.table(timings);
-    },
+        set({ data: loadedData, isLoaded: true });
+    }
 }));
-
-    

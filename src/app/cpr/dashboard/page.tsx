@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import Link from 'next/link';
@@ -79,17 +77,14 @@ function WorkflowSection({ title, modules }: { title: string, modules: (typeof c
 }
 
 export default function CprDashboardPage() {
-    const { data, isLoaded, loadKeys } = useDataStore();
+    const { data, isLoaded } = useDataStore();
     
-    useEffect(() => {
-        loadKeys(['ordenesFabricacion', 'solicitudesPersonalCPR']);
-    }, [loadKeys]);
-
     const kpiData = useMemo(() => {
         if (!isLoaded) return { pendientes: 0, enProceso: 0, finalizadasHoy: 0, incidencias: 0, turnosPorValidar: 0 };
         
         const today = new Date();
-        const { ordenesFabricacion, solicitudesPersonalCPR } = data;
+        const ordenesFabricacion = data.ordenesFabricacion || [];
+        const solicitudesPersonalCPR = data.solicitudesPersonalCPR || [];
         
         const pendientes = ordenesFabricacion.filter(of => of.estado === 'Pendiente' || of.estado === 'Asignada').length;
         const enProceso = ordenesFabricacion.filter(of => of.estado === 'En Proceso').length;

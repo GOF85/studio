@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useCallback } from 'react';
@@ -49,12 +48,7 @@ interface OsDataContextType {
 export const OsContext = createContext<OsDataContextType | undefined>(undefined);
 
 export function OsContextProvider({ osId, children }: { osId: string; children: React.ReactNode }) {
-    const { isLoaded, data, loadKeys } = useDataStore();
-
-    useEffect(() => {
-        loadKeys(['serviceOrders', 'espacios', 'comercialBriefings', 'materialOrders', 'pickingSheets', 'returnSheets']);
-    }, [loadKeys]);
-
+    const { isLoaded, data } = useDataStore();
 
     const { serviceOrder, briefing, spaceAddress } = useMemo(() => {
         if (!isLoaded || !osId || !data.serviceOrders) return { serviceOrder: null, briefing: null, spaceAddress: '' };
@@ -172,5 +166,3 @@ export function useOsContext() {
     }
     return context;
 }
-
-    

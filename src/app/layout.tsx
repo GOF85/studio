@@ -7,14 +7,25 @@ import { cn } from '@/lib/utils';
 import { NProgressProvider } from '@/components/providers/nprogress-provider';
 import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
+import { useDataStore } from '@/hooks/use-data-store';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { isLoaded, loadAllData } = useDataStore();
+
+  useEffect(() => {
+    // This effect runs once on initial mount and triggers the global data load.
+    if (!isLoaded) {
+      loadAllData();
+    }
+  }, [isLoaded, loadAllData]);
+
 
   return (
     <html lang="es" suppressHydrationWarning>
@@ -33,6 +44,9 @@ export default function RootLayout({
             <NProgressProvider>
               <div className="relative flex min-h-screen flex-col">
                 <Header />
+                 {!isLoaded ? (
+                  <LoadingSkeleton title="Cargando datos de la aplicación..." />
+                ) : (
                 <div className="flex-1">
                   <div className="container mx-auto">
                     <div className="grid lg:grid-cols-[250px_1fr] gap-12">
@@ -47,6 +61,7 @@ export default function RootLayout({
                     </div>
                   </div>
                 </div>
+                )}
               </div>
             </NProgressProvider>
           </ImpersonatedUserProvider>
