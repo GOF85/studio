@@ -1,5 +1,5 @@
 
-      'use client';
+'use client';
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
@@ -40,11 +40,13 @@ function PrevisionServiciosContent() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   useEffect(() => {
+    console.log('[PES_PAGE] useEffect: Component mounted, calling loadKeys.');
     loadKeys(['serviceOrders']);
     setIsDataLoaded(true);
   }, [loadKeys]);
 
   const availableMonths = useMemo(() => {
+    console.log('[PES_PAGE] useMemo(availableMonths): Recalculating months.');
     const months = new Set<string>();
     (data.serviceOrders || []).forEach(os => {
       try {
@@ -58,9 +60,13 @@ function PrevisionServiciosContent() {
   }, [data.serviceOrders]);
   
   const filteredAndSortedOrders = useMemo(() => {
+    console.log('[PES_PAGE] useMemo(filteredAndSortedOrders): Recalculating orders.');
     const today = startOfToday();
     
-    if (!data.serviceOrders) return [];
+    if (!data.serviceOrders) {
+        console.log('[PES_PAGE] useMemo(filteredAndSortedOrders): data.serviceOrders is not available yet.');
+        return [];
+    }
     
     const filtered = data.serviceOrders.filter(os => {
       const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
@@ -87,11 +93,14 @@ function PrevisionServiciosContent() {
       return os.vertical !== 'Entregas' && searchMatch && monthMatch && pastEventMatch;
     });
 
+    console.log(`[PES_PAGE] useMemo(filteredAndSortedOrders): Found ${filtered.length} orders.`);
     return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   }, [data.serviceOrders, searchTerm, selectedMonth, showPastEvents]);
+  
+  console.log('[PES_PAGE] Rendering component...');
 
-  if (!isDataLoaded) {
+  if (!isDataLoaded || !data.serviceOrders) {
     return <LoadingSkeleton title="Cargando Previsión de Servicios..." />;
   }
 
