@@ -182,4 +182,8 @@ export function PrevisionServiciosContent() {
               </TableRow>
             )}
           </TableBody>
-        </
+        </Table>
+      </div>
+    </main>
+  );
+}
