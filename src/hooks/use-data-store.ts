@@ -75,23 +75,9 @@ type DataStore = {
         solicitudesPersonalCPR: SolicitudPersonalCPR[];
         incidenciasRetorno: any[];
     };
+    loadAllData: () => Promise<void>; // Kept for potential future use, but optimized
     loadKeys: (keys: DataKeys[]) => void;
 };
-
-const allDataKeys: DataKeys[] = [
-    'serviceOrders', 'entregas', 'comercialBriefings', 'pedidosEntrega', 'gastronomyOrders',
-    'materialOrders', 'transporteOrders', 'hieloOrders', 'decoracionOrders', 'atipicoOrders',
-    'personalMiceOrders', 'personalExterno', 'pruebasMenu', 'pickingSheets', 'returnSheets',
-    'ordenesFabricacion', 'pickingStates', 'excedentesProduccion', 'personalEntrega',
-    'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 'ctaComentarios',
-    'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 'familiasERP',
-    'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
-    'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones',
-    'personalExternoAjustes', 'personalExternoDB', 'historicoPreciosERP', 'costesFijosCPR',
-    'objetivosCPR', 'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposPersonal',
-    'proveedores', 'tiposTransporte', 'decoracionDB', 'atipicosDB', 'pedidoPlantillas',
-    'formatosExpedicionDB', 'solicitudesPersonalCPR', 'incidenciasRetorno',
-];
 
 const defaultValuesMap: { [key: string]: any } = {
     defaultObjetivoGastoId: null,
@@ -100,57 +86,68 @@ const defaultValuesMap: { [key: string]: any } = {
     stockElaboraciones: {}, personalExternoAjustes: {},
 };
 
-const createInitialData = (): DataStore['data'] => {
-    return allDataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']);
+const loadFromLocalStorage = (key: string) => {
+    if (typeof window === 'undefined') {
+        return defaultValuesMap[key] ?? [];
+    }
+    try {
+        const storedValue = localStorage.getItem(key);
+        return storedValue ? JSON.parse(storedValue) : (defaultValuesMap[key] ?? []);
+    } catch (error) {
+        console.error(`Error parsing localStorage key "${key}":`, error);
+        return defaultValuesMap[key] ?? [];
+    }
 };
 
 export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: {},
-    data: createInitialData(),
+    data: {} as DataStore['data'], // Start with an empty object
 
     loadKeys: (keys: DataKeys[]) => {
-        if (typeof window === 'undefined') return;
-
-        const overallStartTime = performance.now();
-        console.log(`[PERF] Starting data load for keys:`, keys);
-
         const currentState = get();
         const dataToLoad = keys.filter(key => !currentState.isLoaded[key]);
 
         if (dataToLoad.length === 0) {
-            console.log(`[PERF] All requested keys already loaded. Aborting.`);
             return;
         }
 
         const loadedData: Partial<DataStore['data']> = {};
         const newIsLoadedState: Record<string, boolean> = { ...currentState.isLoaded };
-        const individualTimings: Record<string, number> = {};
 
         dataToLoad.forEach(key => {
-            const keyStartTime = performance.now();
-            const storedValue = localStorage.getItem(key);
-            const defaultValue = defaultValuesMap[key] ?? [];
-            try {
-                (loadedData as any)[key] = storedValue ? JSON.parse(storedValue) : defaultValue;
-            } catch (e) {
-                console.error(`Error parsing localStorage key "${key}":`, e);
-                (loadedData as any)[key] = defaultValue;
-            }
+            loadedData[key as keyof DataStore['data']] = loadFromLocalStorage(key);
             newIsLoadedState[key] = true;
-            const keyEndTime = performance.now();
-            individualTimings[key] = keyEndTime - keyStartTime;
         });
-        
-        const overallEndTime = performance.now();
-        const totalLoadTime = overallEndTime - overallStartTime;
-
-        console.log(`[PERF] Finished data load. Total Time: ${totalLoadTime.toFixed(2)}ms`);
-        console.table(individualTimings);
 
         set(state => ({
             data: { ...state.data, ...loadedData },
             isLoaded: newIsLoadedState,
         }));
+    },
+    
+    loadAllData: async () => {
+        // This function is now optimized to run async and in a single batch.
+        if (typeof window === 'undefined') return;
+
+        const startTime = performance.now();
+        console.log("[PERF] Starting full data load...");
+        
+        const allDataKeys: DataKeys[] = Object.keys(get().data) as DataKeys[];
+
+        const allLoadedData = allDataKeys.reduce((acc, key) => {
+            acc[key] = loadFromLocalStorage(key);
+            return acc;
+        }, {} as Record<string, any>);
+
+        const newIsLoadedState = allDataKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {});
+        
+        set({
+            data: allLoadedData as DataStore['data'],
+            isLoaded: newIsLoadedState,
+        });
+
+        const endTime = performance.now();
+        console.log(`[PERF] Full data load completed in ${(endTime - startTime).toFixed(2)}ms`);
     },
 }));
 
