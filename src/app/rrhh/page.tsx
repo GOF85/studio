@@ -4,8 +4,18 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { rrhhNav } from '@/lib/rrhh-nav';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { useMemo } from 'react';
 
 export default function RrhhDashboardPage() {
+    const { impersonatedUser } = useImpersonatedUser();
+    
+    const visibleNav = useMemo(() => {
+        if (!impersonatedUser) return [];
+        const isAdmin = impersonatedUser.roles.includes('Admin');
+        return rrhhNav.filter(item => (!item.adminOnly || isAdmin) && item.href !== '/rrhh');
+    }, [impersonatedUser]);
+
   return (
     <main>
         <div className="mb-12">
@@ -14,7 +24,7 @@ export default function RrhhDashboardPage() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rrhhNav.filter(item => item.href !== '/rrhh').map(item => (
+            {visibleNav.map(item => (
                 <Link href={item.href} key={item.href}>
                     <Card className="hover:border-primary hover:shadow-lg transition-all h-full flex flex-col">
                         <CardHeader>

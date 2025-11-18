@@ -1,3 +1,4 @@
+
 'use client';
 
 import { create } from 'zustand';
@@ -16,8 +17,6 @@ import type {
 
 type DataStore = {
     isLoaded: boolean;
-    loadingProgress: number;
-    loadingMessage: string;
     data: {
         serviceOrders: ServiceOrder[];
         entregas: Entrega[];
@@ -74,7 +73,7 @@ type DataStore = {
         solicitudesPersonalCPR: SolicitudPersonalCPR[];
         incidenciasRetorno: any[];
     };
-    loadAllData: () => Promise<void>;
+    loadAllData: () => void;
 };
 
 const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
@@ -114,37 +113,21 @@ const createInitialData = (): DataStore['data'] => {
     return dataKeys.reduce((acc, key) => ({ ...acc, [key]: defaultValuesMap[key] ?? [] }), {} as DataStore['data']);
 };
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: false,
-    loadingProgress: 0,
-    loadingMessage: 'Inicializando...',
     data: createInitialData(),
 
-    loadAllData: async () => {
+    loadAllData: () => {
         if (get().isLoaded || typeof window === 'undefined') {
             return;
         }
 
-        set({ isLoaded: false, loadingProgress: 0, loadingMessage: 'Empezando carga de datos...' });
-
         const loadedData: Partial<DataStore['data']> = {};
-        const totalKeys = dataKeys.length;
-        
-        for (let i = 0; i < totalKeys; i++) {
-            const key = dataKeys[i];
+        dataKeys.forEach(key => {
             const defaultValue = defaultValuesMap[key] ?? [];
             (loadedData as any)[key] = loadFromLocalStorage(key, defaultValue);
-            
-            const progress = ((i + 1) / totalKeys) * 100;
-            // Use requestAnimationFrame to avoid blocking the main thread for UI updates
-            await new Promise(resolve => requestAnimationFrame(() => {
-                set({ loadingProgress: progress, loadingMessage: `Cargando ${key}...` });
-                resolve(null);
-            }));
-        }
+        });
 
-        set({ data: loadedData as DataStore['data'], isLoaded: true, loadingProgress: 100, loadingMessage: '¡Listo!' });
+        set({ data: loadedData as DataStore['data'], isLoaded: true });
     },
 }));

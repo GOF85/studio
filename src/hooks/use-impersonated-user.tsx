@@ -2,7 +2,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { PortalUser } from '@/types';
+import type { PortalUser, Personal } from '@/types';
+import { usePathname } from 'next/navigation';
 
 type ImpersonatedUserContextType = {
   impersonatedUser: PortalUser | null;
@@ -13,6 +14,7 @@ const ImpersonatedUserContext = createContext<ImpersonatedUserContextType | unde
 
 export function ImpersonatedUserProvider({ children }: { children: ReactNode }) {
   const [impersonatedUser, setImpersonatedUserState] = useState<PortalUser | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     // On initial load, try to get the user from localStorage
@@ -35,6 +37,16 @@ export function ImpersonatedUserProvider({ children }: { children: ReactNode }) 
       localStorage.removeItem('impersonatedUser');
     }
   };
+  
+  useEffect(() => {
+    // If user navigates away from portal, clear impersonation
+    if (impersonatedUser && !pathname.startsWith('/portal') && !pathname.startsWith('/rrhh')) {
+        const isAdminOrComercial = impersonatedUser.roles.includes('Admin') || impersonatedUser.roles.includes('Comercial');
+        if (!isAdminOrComercial) {
+            // setImpersonatedUser(null);
+        }
+    }
+  }, [pathname, impersonatedUser]);
 
   return (
     <ImpersonatedUserContext.Provider value={{ impersonatedUser, setImpersonatedUser }}>

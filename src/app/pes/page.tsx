@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { format, parseISO, isBefore, startOfToday } from 'date-fns';
+import { format, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, ClipboardList, Star, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { ServiceOrder } from '@/types';
@@ -50,7 +50,6 @@ import { useDataStore } from '@/hooks/use-data-store';
 
 export default function PrevisionServiciosPage() {
   const { data, isLoaded, loadAllData } = useDataStore();
-  const serviceOrders = data.serviceOrders || [];
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -67,9 +66,9 @@ export default function PrevisionServiciosPage() {
   }, [isLoaded, loadAllData]);
 
   const availableMonths = useMemo(() => {
-    if (!serviceOrders || serviceOrders.length === 0) return ['all'];
+    if (!data.serviceOrders || data.serviceOrders.length === 0) return ['all'];
     const months = new Set<string>();
-    serviceOrders.forEach(os => {
+    data.serviceOrders.forEach(os => {
       try {
         if (os && os.startDate) {
           const month = format(new Date(os.startDate), 'yyyy-MM');
@@ -80,15 +79,15 @@ export default function PrevisionServiciosPage() {
       }
     });
     return ['all', ...Array.from(months).sort().reverse()];
-  }, [serviceOrders]);
+  }, [data.serviceOrders]);
 
   const filteredAndSortedOrders = useMemo(() => {
-    if (!serviceOrders || serviceOrders.length === 0) {
+    if (!data.serviceOrders || data.serviceOrders.length === 0) {
       return [];
     }
     
     const today = startOfToday();
-    const cateringOrders = serviceOrders.filter(os => os.vertical !== 'Entregas');
+    const cateringOrders = data.serviceOrders.filter(os => os.vertical !== 'Entregas');
 
     const filtered = cateringOrders.filter(os => {
       if (!os) return false;
@@ -122,7 +121,7 @@ export default function PrevisionServiciosPage() {
 
     return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
-  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents, statusFilter]);
+  }, [data.serviceOrders, searchTerm, selectedMonth, showPastEvents, statusFilter]);
 
   const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
     Borrador: 'secondary',
@@ -133,7 +132,7 @@ export default function PrevisionServiciosPage() {
 
   const handleDelete = () => {
     if (!orderToDelete) return;
-    const updatedOrders = serviceOrders.filter(os => os.id !== orderToDelete);
+    const updatedOrders = data.serviceOrders.filter(os => os.id !== orderToDelete);
     localStorage.setItem('serviceOrders', JSON.stringify(updatedOrders));
     loadAllData(); // Re-trigger data loading in zustand store
     toast({ title: 'Orden de Servicio eliminada.' });

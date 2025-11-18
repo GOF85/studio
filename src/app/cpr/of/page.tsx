@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -645,18 +646,6 @@ function OfPageContent() {
         else newSelection.delete(elabId);
         return newSelection;
         });
-    };
-
-    const getPickingInfo = (ofId: string) => {
-        const pickingStates = data.pickingStates;
-        for (const osId in pickingStates) {
-            const state = pickingStates[osId];
-            const found = state.itemStates.find(item => item.ofId === ofId);
-            if (found) {
-                return { osId, containerId: found.containerId };
-            }
-        }
-        return null;
     };
     
     const handlePrintReport = () => {

@@ -5,20 +5,26 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useMemo } from 'react';
-import { Users, Menu, ChevronRight, BarChart3, UserPlus } from 'lucide-react';
+import { Users, Menu, ChevronRight, BarChart3, UserPlus, Shuffle, UserCheck } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { rrhhNav } from '@/lib/rrhh-nav';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
     const pathname = usePathname();
+    const { impersonatedUser } = useImpersonatedUser();
+    const isAdmin = useMemo(() => impersonatedUser?.roles.includes('Admin'), [impersonatedUser]);
+    
+    const visibleNav = rrhhNav.filter(item => !item.adminOnly || isAdmin);
+    
     return (
         <div className="w-full">
              <SheetHeader className="p-4 border-b">
                 <SheetTitle className="flex items-center gap-2 text-lg"><Users/>Recursos Humanos</SheetTitle>
             </SheetHeader>
             <nav className="grid items-start gap-1 p-4">
-                {rrhhNav.map((item, index) => {
+                {visibleNav.map((item, index) => {
                     const isActive = pathname.startsWith(item.href);
                     return (
                     <Link
