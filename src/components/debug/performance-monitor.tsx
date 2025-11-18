@@ -12,7 +12,7 @@ export function PerformanceMonitor() {
     const { performance } = useDataStore();
     const [isOpen, setIsOpen] = useState(true);
 
-    if (performance.totalLoadTime === 0 || !isOpen) {
+    if (!isOpen) {
         return (
              <Button
                 variant="outline"
@@ -54,4 +54,3 @@ export function PerformanceMonitor() {
         </Card>
     );
 }
-
