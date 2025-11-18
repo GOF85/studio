@@ -1,0 +1,71 @@
+
+'use client';
+
+import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart, Database, UserPlus, Shuffle, UserCheck, LayoutDashboard, Component, Sprout, CheckSquare, TrendingUp, Printer, ListChecks, AlertTriangle, History, HistoryIcon, Calculator, Box, Layers, Percent, Target, Banknote, CreditCard, ChefHat } from 'lucide-react';
+
+export const mainNav = [
+    { title: 'Previsión de Servicios', href: '/pes', icon: ClipboardList, exact: true },
+    { title: 'Calendario de Servicios', href: '/calendario', icon: Calendar, exact: true },
+    { title: 'Entregas MICE', href: '/entregas', icon: Truck },
+    { title: 'Almacén', href: '/almacen', icon: Warehouse },
+    { title: 'Analítica', href: '/analitica', icon: BarChart3 },
+    { title: 'Control de Explotación', href: '/control-explotacion', icon: AreaChart },
+    { title: 'Configuración', href: '/configuracion', icon: Settings },
+];
+
+export const cprNav = [
+    { title: 'Dashboard CPR', href: '/cpr/dashboard', icon: LayoutDashboard, description: 'Vista general y KPIs del centro de producción.' },
+    { title: 'Planificación y OFs', href: '/cpr/of', icon: Factory, description: 'Agrega necesidades y gestiona las O.F.' },
+    { title: 'Taller de Producción', href: '/cpr/produccion', icon: ChefHat, description: 'Interfaz para cocineros en tablets.' },
+    { title: 'Inventario de Materia Prima', href: '/cpr/inventario', icon: Archive, description: 'Gestiona el stock teórico y físico de ingredientes.'},
+    { title: 'Cierres de Inventario', href: '/cpr/cierres', icon: Calculator, description: 'Realiza y consulta los cierres de inventario mensuales.'},
+    { title: 'Movimientos de Inventario', href: '/cpr/inventario/movimientos', icon: HistoryIcon, description: 'Auditoría de todos los ajustes y movimientos de stock.'},
+    { title: 'Picking y Logística', href: '/cpr/picking', icon: ListChecks, description: 'Prepara las expediciones para eventos.' },
+    { title: 'Control de Calidad', href: '/cpr/calidad', icon: CheckCircle, description: 'Valida las elaboraciones.' },
+    { title: 'Solicitudes de Personal', href: '/cpr/solicitud-personal', icon: Users, description: 'Pide personal de apoyo para picos de trabajo.' },
+    { title: 'Validación de Horas', href: '/cpr/validacion-horas', icon: UserCheck, description: 'Cierra los turnos del personal de apoyo.'},
+    { title: 'Stock Elaboraciones', href: '/cpr/excedentes', icon: PackagePlus, description: 'Consulta el inventario de elaboraciones.' },
+    { title: 'Productividad', href: '/cpr/productividad', icon: BarChart3, description: 'Analiza los tiempos de producción.' },
+    { title: 'Informe de Picking', href: '/cpr/informe-picking', icon: Printer, description: 'Consulta el picking completo de una OS.' },
+    // { title: 'Trazabilidad', href: '/cpr/trazabilidad', icon: History, description: 'Consulta lotes y su histórico.' }, // Temporalmente deshabilitado por rendimiento
+    { title: 'Incidencias', href: '/cpr/incidencias', icon: AlertTriangle, description: 'Revisa las incidencias de producción e inventario.' },
+];
+
+export const rrhhNav = [
+    { title: 'Dashboard RRHH', href: '/rrhh', icon: LayoutDashboard, description: 'Vista general y accesos directos del módulo de RRHH.', adminOnly: false },
+    { title: 'Solicitudes de Personal', href: '/rrhh/solicitudes', icon: ClipboardList, description: 'Gestiona las necesidades de personal para Eventos y CPR.', adminOnly: false },
+    { title: 'Cesiones de Personal', href: '/rrhh/cesiones', icon: Shuffle, description: 'Gestiona la asignación de personal interno entre departamentos.', adminOnly: false },
+    { title: 'Validación de Horas (Cesiones)', href: '/rrhh/validacion-cesiones', icon: UserCheck, description: 'Valida las horas reales del personal interno cedido.', adminOnly: true },
+    { title: 'Base de Datos de Personal', href: '/bd/personal', icon: Users, description: 'Administra los empleados internos.', adminOnly: true },
+    { title: 'Base de Datos de ETTs', href: '/bd/personal-externo-db', icon: UserPlus, description: 'Administra los trabajadores externos.', adminOnly: true },
+    { title: 'Analítica de RRHH', href: '/rrhh/analitica', icon: BarChart3, description: 'Analiza costes, horas y productividad del personal.' },
+];
+
+export const bookNavLinks = [
+    { title: 'Dashboard', path: '/book', icon: BookHeart, exact: true },
+    { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
+    { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
+    { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
+    { title: 'Verificación de Ingredientes', path: '/book/verificacionIngredientes', icon: Shield },
+    { title: 'Revisión Gastronómica', path: '/book/revision-ingredientes', icon: CheckSquare },
+    { title: 'Evolución de Costes', path: '/book/evolucion-costes', icon: TrendingUp },
+    { title: 'Info. Alérgenos', path: '/book/alergenos', icon: Sprout },
+    { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
+];
+
+    
+export const bdNavLinks = [
+    { title: 'Personal Interno', path: '/bd/personal', icon: Users },
+    { title: 'Personal Externo', path: '/bd/personal-externo-db', icon: UserPlus },
+    { title: 'Proveedores', path: '/bd/proveedores', icon: Building },
+    { title: 'Catálogo Personal Externo', path: '/bd/tipos-personal', icon: Users },
+    { title: 'Espacios', path: '/bd/espacios', icon: Building },
+    { title: 'Artículos MICE', path: '/bd/articulos', icon: Package },
+    { title: 'Base de Datos ERP', path: '/bd/erp', icon: Database },
+    { title: 'Familias ERP', path: '/bd/familiasERP', icon: Layers },
+    { title: 'Categorías de Recetas', path: '/bd/categorias-recetas', icon: BookHeart },
+    { title: 'Formatos de Expedición', path: '/bd/formatos-expedicion', icon: Box },
+    { title: 'Centros y Ubicaciones', path: '/bd/centros', icon: Factory },
+    { title: 'Objetivos CPR', path: '/bd/objetivos-cpr', icon: CreditCard },
+    { title: 'Administración', path: '/bd/borrar', icon: Trash2 },
+];

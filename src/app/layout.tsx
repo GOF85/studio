@@ -1,3 +1,4 @@
+
 'use client';
 
 import './globals.css';
@@ -7,6 +8,7 @@ import { NProgressProvider } from '@/components/providers/nprogress-provider';
 import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
 import { Suspense } from 'react';
+import { Sidebar } from '@/components/layout/sidebar';
 
 export default function RootLayout({
   children,
@@ -31,9 +33,20 @@ export default function RootLayout({
             <NProgressProvider>
               <div className="relative flex min-h-screen flex-col">
                 <Header />
-                  <Suspense>
-                    {children}
-                  </Suspense>
+                <div className="flex-1">
+                  <div className="container mx-auto">
+                    <div className="grid lg:grid-cols-[250px_1fr] gap-12">
+                      <aside className="hidden w-[250px] flex-col lg:flex sticky top-14 h-[calc(100vh-3.5rem)]">
+                        <Sidebar />
+                      </aside>
+                      <main className="py-6">
+                        <Suspense>
+                          {children}
+                        </Suspense>
+                      </main>
+                    </div>
+                  </div>
+                </div>
               </div>
             </NProgressProvider>
           </ImpersonatedUserProvider>

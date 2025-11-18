@@ -2,43 +2,30 @@
 'use client';
 
 import Link from 'next/link';
-import { UtensilsCrossed, Leaf, Users, LogOut, Package, ClipboardList, Calendar, Database } from 'lucide-react';
+import { UtensilsCrossed, Package, Menu } from 'lucide-react';
 import { Button } from '../ui/button';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import type { User } from 'firebase/auth';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { UserSwitcher } from '../portal/user-switcher';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
+import { Sidebar } from './sidebar';
 
-export function Header({ user, onLogout }: { user?: User | null, onLogout?: () => void }) {
+export function Header() {
   const pathname = usePathname();
-  const [isMounted, setIsMounted] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-  
   const isEntregasModule = pathname.startsWith('/entregas');
   const isPortalModule = pathname.startsWith('/portal');
-  const isOsModule = pathname.startsWith('/os/');
-  const isHomePage = pathname === '/';
-  
-  if (isPortalModule) {
+
+   if (isPortalModule) {
       return (
         <header className="sticky top-0 z-40 w-full border-b bg-gray-900 text-white">
           <div className="container flex h-12 items-center">
             <Link href="/portal" className="flex items-center gap-3">
-              <Leaf className="h-6 w-6 text-green-500" />
+              <Package className="h-6 w-6 text-orange-500" />
               <h1 className="text-xl font-headline font-bold tracking-tight">
-                Colaboradores MiceCatering
+                Portal de Colaboradores
               </h1>
             </Link>
              <nav className="flex flex-1 items-center justify-end space-x-4">
@@ -48,55 +35,35 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
         </header>
       )
   }
-  
-  const getEntregasHeader = () => (
-    <header className="sticky top-0 z-40 w-full border-b bg-orange-500 text-white">
-      <div className="container flex h-12 items-center">
-        <Link href="/entregas" className="flex items-center gap-3">
-          <Package className="h-6 w-6" />
-          <h1 className="text-xl font-headline font-bold tracking-tight">
-            Entregas MICE
-          </h1>
-        </Link>
-         <nav className="flex flex-1 items-center justify-end space-x-2">
-            <Button asChild className="bg-emerald-700 text-white hover:bg-emerald-800">
-              <Link href="/">
-                <UtensilsCrossed className="mr-2 h-5 w-5"/>
-                Catering
-              </Link>
-            </Button>
-            <UserSwitcher />
-        </nav>
-      </div>
-    </header>
-  );
 
-  const getDefaultHeader = () => (
+  return (
     <header className={cn(
         "sticky top-0 z-40 w-full border-b",
-        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+        isEntregasModule ? "theme-orange bg-background" : "bg-background"
       )}>
-      <div className="container flex h-12 items-center">
-        <Link href="/" className="flex items-center gap-3">
-          <UtensilsCrossed className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-headline font-bold text-primary tracking-tight">
-            MICE Catering
-          </h1>
-        </Link>
-        <nav className="flex flex-1 items-center justify-end space-x-2">
-            {process.env.NODE_ENV === 'development' && (
-              <Button asChild variant="destructive">
-                <Link href="/debug/db">
-                  <Database className="mr-2 h-4 w-4" />
-                  DEBUG
-                </Link>
+      <div className="container flex h-14 items-center">
+        <div className="lg:hidden mr-4">
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Menu className="h-6 w-6" />
               </Button>
-            )}
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-72">
+              <Sidebar onLinkClick={() => setIsSheetOpen(false)} />
+            </SheetContent>
+          </Sheet>
+        </div>
+        <Link href="/" className="flex items-center gap-3">
+            {isEntregasModule ? <Package className="h-6 w-6 text-primary" /> : <UtensilsCrossed className="h-6 w-6 text-primary" />}
+            <h1 className="text-xl font-headline font-bold text-primary tracking-tight">
+                {isEntregasModule ? "Entregas MICE" : "MICE Catering"}
+            </h1>
+        </Link>
+        <div className="flex flex-1 items-center justify-end space-x-2">
             <UserSwitcher />
-        </nav>
+        </div>
       </div>
     </header>
   );
-  
-  return isEntregasModule ? getEntregasHeader() : getDefaultHeader();
 }
