@@ -1,7 +1,7 @@
 
 'use client';
 
-import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart, Database, UserPlus, Shuffle, UserCheck, LayoutDashboard, Component, Sprout, CheckSquare, TrendingUp, Printer, ListChecks, AlertTriangle, History, HistoryIcon, Calculator, Box, Layers, Percent, Target, Banknote, CreditCard, ChefHat } from 'lucide-react';
+import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart, Database, UserPlus, Shuffle, UserCheck, LayoutDashboard, Component, Sprout, CheckSquare, TrendingUp, Printer, ListChecks, AlertTriangle, History, HistoryIcon, Calculator, Box, Layers, Percent, Target, Banknote, CreditCard, ChefHat, Archive, CheckCircle } from 'lucide-react';
 
 export const mainNav = [
     { title: 'Previsión de Servicios', href: '/pes', icon: ClipboardList, exact: true },
@@ -27,7 +27,6 @@ export const cprNav = [
     { title: 'Stock Elaboraciones', href: '/cpr/excedentes', icon: PackagePlus, description: 'Consulta el inventario de elaboraciones.' },
     { title: 'Productividad', href: '/cpr/productividad', icon: BarChart3, description: 'Analiza los tiempos de producción.' },
     { title: 'Informe de Picking', href: '/cpr/informe-picking', icon: Printer, description: 'Consulta el picking completo de una OS.' },
-    // { title: 'Trazabilidad', href: '/cpr/trazabilidad', icon: History, description: 'Consulta lotes y su histórico.' }, // Temporalmente deshabilitado por rendimiento
     { title: 'Incidencias', href: '/cpr/incidencias', icon: AlertTriangle, description: 'Revisa las incidencias de producción e inventario.' },
 ];
 
