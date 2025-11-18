@@ -41,7 +41,29 @@ import {
     PackagePlus,
     Shield,
     Building,
-    Trash2
+    Trash2,
+    Wine,
+    Leaf,
+    Snowflake,
+    FilePlus,
+    Flower2,
+    ClipboardCheck,
+    FilePenLine,
+    Menu,
+    FileUp,
+    FileDown,
+    MoreHorizontal,
+    Pencil,
+    Copy,
+    RefreshCw,
+    Euro,
+    BrainCircuit,
+    Link as LinkIcon,
+    MapPin,
+    CircleX,
+    PanelLeft,
+    ChevronRight,
+    Star
 } from 'lucide-react';
 
 export const mainNav = [
@@ -109,3 +131,5 @@ export const bdNavLinks = [
     { title: 'Objetivos CPR', path: '/bd/objetivos-cpr', icon: CreditCard },
     { title: 'Administración', path: '/bd/borrar', icon: Trash2 },
 ];
+
+    

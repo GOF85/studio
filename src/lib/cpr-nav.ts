@@ -1,7 +1,7 @@
 
 'use client';
 
-import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare, Shield, Users, UserCheck, TrendingUp, Archive, HistoryIcon, Calculator } from 'lucide-react';
+import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare, Shield, TrendingUp, Users, UserCheck, Archive, HistoryIcon, Calculator } from 'lucide-react';
 
 export const cprNav = [
     { title: 'Dashboard CPR', href: '/cpr/dashboard', icon: LayoutDashboard, description: 'Vista general y KPIs del centro de producción.' },
