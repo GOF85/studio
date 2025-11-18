@@ -1,5 +1,5 @@
 
-'use client';
+      'use client';
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
@@ -33,19 +33,20 @@ const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' 
 };
 
 function PrevisionServiciosContent() {
-  const { data, isLoaded, loadKeys } = useDataStore();
+  const { data, loadKeys } = useDataStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   useEffect(() => {
     loadKeys(['serviceOrders']);
+    setIsDataLoaded(true);
   }, [loadKeys]);
 
   const availableMonths = useMemo(() => {
-    if (!isLoaded['serviceOrders']) return ['all'];
     const months = new Set<string>();
-    data.serviceOrders.forEach(os => {
+    (data.serviceOrders || []).forEach(os => {
       try {
         const month = format(new Date(os.startDate), 'yyyy-MM');
         months.add(month);
@@ -54,12 +55,12 @@ function PrevisionServiciosContent() {
       }
     });
     return ['all', ...Array.from(months).sort().reverse()];
-  }, [isLoaded, data.serviceOrders]);
-
+  }, [data.serviceOrders]);
+  
   const filteredAndSortedOrders = useMemo(() => {
-    if (!isLoaded['serviceOrders']) return [];
-    
     const today = startOfToday();
+    
+    if (!data.serviceOrders) return [];
     
     const filtered = data.serviceOrders.filter(os => {
       const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
@@ -88,9 +89,9 @@ function PrevisionServiciosContent() {
 
     return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
-  }, [isLoaded, data.serviceOrders, searchTerm, selectedMonth, showPastEvents]);
+  }, [data.serviceOrders, searchTerm, selectedMonth, showPastEvents]);
 
-  if (!isLoaded['serviceOrders']) {
+  if (!isDataLoaded) {
     return <LoadingSkeleton title="Cargando Previsión de Servicios..." />;
   }
 
@@ -189,7 +190,7 @@ function PrevisionServiciosContent() {
 
 export default function PrevisionServiciosPage() {
   return (
-    <Suspense fallback={<LoadingSkeleton title="Cargando..." />}>
+    <Suspense fallback={<LoadingSkeleton title="Cargando..." />} >
         <PrevisionServiciosContent />
     </Suspense>
   )

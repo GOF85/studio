@@ -1,5 +1,5 @@
 
-'use client';
+      'use client';
 
 import { create } from 'zustand';
 import type { 
@@ -75,15 +75,37 @@ type DataStore = {
         solicitudesPersonalCPR: SolicitudPersonalCPR[];
         incidenciasRetorno: any[];
     };
-    loadAllData: () => Promise<void>; // Kept for potential future use, but optimized
     loadKeys: (keys: DataKeys[]) => void;
+    loadAllData: () => void;
 };
+
+const ALL_DATA_KEYS: DataKeys[] = [
+    'serviceOrders', 'entregas', 'comercialBriefings', 'pedidosEntrega', 'gastronomyOrders', 
+    'materialOrders', 'transporteOrders', 'hieloOrders', 'decoracionOrders', 'atipicoOrders', 
+    'personalMiceOrders', 'personalExterno', 'pruebasMenu', 'pickingSheets', 'returnSheets', 
+    'ordenesFabricacion', 'pickingStates', 'excedentesProduccion', 'personalEntrega', 
+    'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 'ctaComentarios', 
+    'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 'familiasERP', 
+    'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers', 
+    'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones', 
+    'personalExternoAjustes', 'personalExternoDB', 'historicoPreciosERP', 'costesFijosCPR', 
+    'objetivosCPR', 'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposPersonal', 
+    'proveedores', 'tiposTransporte', 'decoracionDB', 'atipicosDB', 'pedidoPlantillas', 
+    'formatosExpedicionDB', 'solicitudesPersonalCPR', 'incidenciasRetorno'
+];
 
 const defaultValuesMap: { [key: string]: any } = {
     defaultObjetivoGastoId: null,
     pickingSheets: {}, returnSheets: {}, pickingStates: {}, partnerPedidosStatus: {},
     ctaRealCosts: {}, ctaComentarios: {}, comercialAjustes: {}, pickingEntregasState: {},
     stockElaboraciones: {}, personalExternoAjustes: {},
+};
+
+const createInitialData = (): DataStore['data'] => {
+    return ALL_DATA_KEYS.reduce((acc, key) => {
+        acc[key as keyof DataStore['data']] = defaultValuesMap[key] ?? [];
+        return acc;
+    }, {} as any);
 };
 
 const loadFromLocalStorage = (key: string) => {
@@ -101,7 +123,7 @@ const loadFromLocalStorage = (key: string) => {
 
 export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: {},
-    data: {} as DataStore['data'], // Start with an empty object
+    data: createInitialData(),
 
     loadKeys: (keys: DataKeys[]) => {
         const currentState = get();
@@ -125,30 +147,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
         }));
     },
     
-    loadAllData: async () => {
-        // This function is now optimized to run async and in a single batch.
-        if (typeof window === 'undefined') return;
-
-        const startTime = performance.now();
-        console.log("[PERF] Starting full data load...");
-        
-        const allDataKeys: DataKeys[] = Object.keys(get().data) as DataKeys[];
-
-        const allLoadedData = allDataKeys.reduce((acc, key) => {
-            acc[key] = loadFromLocalStorage(key);
-            return acc;
-        }, {} as Record<string, any>);
-
-        const newIsLoadedState = allDataKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {});
-        
-        set({
-            data: allLoadedData as DataStore['data'],
-            isLoaded: newIsLoadedState,
-        });
-
-        const endTime = performance.now();
-        console.log(`[PERF] Full data load completed in ${(endTime - startTime).toFixed(2)}ms`);
+    loadAllData: () => {
+       get().loadKeys(ALL_DATA_KEYS);
     },
 }));
+
 
     
