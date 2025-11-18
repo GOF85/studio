@@ -1,3 +1,4 @@
+
 'use client';
 
 import { create } from 'zustand';
@@ -110,15 +111,23 @@ export const useDataStore = create<DataStore>((set, get) => ({
     loadKeys: (keys: DataKeys[]) => {
         if (typeof window === 'undefined') return;
 
+        const overallStartTime = performance.now();
+        console.log(`[PERF] Starting data load for keys:`, keys);
+
         const currentState = get();
         const dataToLoad = keys.filter(key => !currentState.isLoaded[key]);
 
-        if (dataToLoad.length === 0) return;
+        if (dataToLoad.length === 0) {
+            console.log(`[PERF] All requested keys already loaded. Aborting.`);
+            return;
+        }
 
         const loadedData: Partial<DataStore['data']> = {};
         const newIsLoadedState: Record<string, boolean> = { ...currentState.isLoaded };
+        const individualTimings: Record<string, number> = {};
 
         dataToLoad.forEach(key => {
+            const keyStartTime = performance.now();
             const storedValue = localStorage.getItem(key);
             const defaultValue = defaultValuesMap[key] ?? [];
             try {
@@ -128,7 +137,15 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 (loadedData as any)[key] = defaultValue;
             }
             newIsLoadedState[key] = true;
+            const keyEndTime = performance.now();
+            individualTimings[key] = keyEndTime - keyStartTime;
         });
+        
+        const overallEndTime = performance.now();
+        const totalLoadTime = overallEndTime - overallStartTime;
+
+        console.log(`[PERF] Finished data load. Total Time: ${totalLoadTime.toFixed(2)}ms`);
+        console.table(individualTimings);
 
         set(state => ({
             data: { ...state.data, ...loadedData },
@@ -136,3 +153,5 @@ export const useDataStore = create<DataStore>((set, get) => ({
         }));
     },
 }));
+
+    
