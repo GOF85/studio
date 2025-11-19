@@ -690,714 +690,73 @@ export default function OfPageContent() {
 
     const numSelected = selectedNecesidades.size;
 }
+
 ```
 - src/hooks/use-os-data.ts:
 ```ts
 
+
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import type { ServiceOrder, ComercialBriefing } from '@/types';
+import { useEffect, useMemo, useState } from 'react';
+import type { ServiceOrder, ComercialBriefing, Espacio } from '@/types';
 
 export function useOsData(osId: string) {
-    const [isLoading, setIsLoading] = useState(true);
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
-    const [spaceAddress, setSpaceAddress] = useState<string>('');
+    const [spaceAddress, setSpaceAddress] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        setIsLoading(true);
-        try {
-            if (!osId) {
-                console.error("No OS ID provided to useOsData hook");
-                return;
-            };
+        const loadData = () => {
+            setIsLoading(true);
+            if (osId && typeof window !== 'undefined') {
+                const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+                const currentOS = allServiceOrders.find(os => os.id === osId);
+                setServiceOrder(currentOS || null);
 
-            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-            const currentOS = allServiceOrders.find(os => os.id === osId);
-            setServiceOrder(currentOS || null);
+                if (currentOS?.space) {
+                    const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
+                    const currentSpace = allEspacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
+                    setSpaceAddress(currentSpace?.identificacion.calle || '');
+                } else {
+                    setSpaceAddress('');
+                }
 
-            if (currentOS?.space) {
-                const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as { identificacion: { nombreEspacio: string; calle: string } }[];
-                const currentSpace = allEspacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
-                setSpaceAddress(currentSpace?.identificacion.calle || '');
+                const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+                const currentBriefing = allBriefings.find(b => b.osId === osId);
+                setBriefing(currentBriefing || null);
             }
-
-            const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-            const currentBriefing = allBriefings.find(b => b.osId === osId);
-            setBriefing(currentBriefing || null);
-
-        } catch (error) {
-            console.error("Failed to load OS data", error);
-        } finally {
             setIsLoading(false);
-        }
+        };
+        
+        loadData();
+        
+        const handleStorageChange = (e: StorageEvent) => {
+            // Re-load if any of the relevant keys change
+            if(e.key === 'serviceOrders' || e.key === 'espacios' || e.key === 'comercialBriefings') {
+                loadData();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+
     }, [osId]);
 
-    return { isLoading, serviceOrder, briefing, spaceAddress };
+    return { serviceOrder, briefing, spaceAddress, isLoading };
 }
 
-```
-- src/components/os/info-form.tsx:
-```tsx
-
-'use client';
-
-import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Card } from '@/components/ui/card';
-import { FormField, FormControl, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
-import { Combobox } from '@/components/ui/combobox';
-import type { ServiceOrder, Personal, Espacio } from '@/types';
-import { useMemo, useState, useEffect } from 'react';
-import { Phone, Mail } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import { useOsData } from '@/hooks/use-os-data';
-import { useDataStore } from '@/hooks/use-data-store';
-
-const ClienteTitle = () => {
-    const { watch } = useFormContext();
-    const client = watch('client');
-    const finalClient = watch('finalClient');
-    return (
-        <div className="flex w-full items-center justify-between p-4">
-            <h3 className="text-lg font-semibold">Cliente</h3>
-            {(client || finalClient) && (
-                 <span className="text-lg font-bold text-primary text-right">
-                    {client}{finalClient && ` / ${finalClient}`}
-                </span>
-            )}
-        </div>
-    )
-};
-
-const ClientInfo = () => {
-    const { control } = useFormContext();
-    return (
-        <AccordionContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 pt-2">
-                 <FormField control={control} name="client" render={({ field }) => (
-                    <FormItem><FormLabel>Cliente</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                 <FormField control={control} name="tipoCliente" render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Tipo Cliente</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                        <SelectContent>
-                            <SelectItem value="Empresa">Empresa</SelectItem>
-                            <SelectItem value="Agencia">Agencia</SelectItem>
-                            <SelectItem value="Particular">Particular</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    </FormItem>
-                )} />
-                 <FormField control={control} name="finalClient" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Cliente Final</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                    </FormItem>
-                )} />
-                <FormField control={control} name="contact" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contacto Principal</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                  </FormItem>
-                )} />
-                <FormField control={control} name="phone" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono Principal</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                  </FormItem>
-                )} />
-                 <FormField control={control} name="email" render={({ field }) => (
-                    <FormItem><FormLabel>Email Principal</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                 <FormField control={control} name="direccionPrincipal" render={({ field }) => (
-                    <FormItem className="col-span-full"><FormLabel>Dirección Principal de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                )} />
-            </div>
-        </AccordionContent>
-    );
-};
-
-const EspacioTitle = () => {
-    const { watch } = useFormContext();
-    const space = watch('space');
-    const spaceAddress = watch('spaceAddress');
-    
-    return (
-        <div className="flex w-full items-center justify-between p-4">
-            <h3 className="text-lg font-semibold">Espacio</h3>
-            {space && (
-                <span className="text-base font-semibold text-primary text-right">
-                    {space} {spaceAddress && <span className="font-normal text-muted-foreground">({spaceAddress})</span>}
-                </span>
-            )}
-        </div>
-    );
-};
-
-const ResponsablesTitle = () => {
-  const metre = useWatch({ name: 'respMetre' });
-  const pase = useWatch({ name: 'respPase' });
-
-  return (
-    <div className="flex w-full items-center justify-between p-4">
-        <h3 className="text-lg font-semibold">Responsables</h3>
-        {(metre || pase) && (
-            <div className="text-right">
-                {metre && <p className="text-sm"><span className="font-semibold text-muted-foreground">Metre:</span> <span className="font-semibold text-primary">{metre}</span></p>}
-                {pase && <p className="text-sm"><span className="font-semibold text-muted-foreground">Pase:</span> <span className="font-semibold text-primary">{pase}</span></p>}
-            </div>
-        )}
-    </div>
-  );
-};
-
-export const FinancialTitle = () => {
-    const { watch } = useFormContext();
-    const facturacion = watch('facturacion');
-    const comisionesAgencia = watch('comisionesAgencia');
-    const comisionesCanon = watch('comisionesCanon');
-    
-    const facturacionNeta = facturacion - (comisionesAgencia || 0) - (comisionesCanon || 0);
-
-    return (
-         <div className="flex w-full items-center justify-between p-4">
-            <h3 className="text-lg font-semibold">Información Financiera</h3>
-            <div className="text-right">
-                <p className="text-sm font-medium text-muted-foreground">Bruto: {formatCurrency(facturacion)}</p>
-                <p className="text-2xl font-bold text-green-600">Neto: {formatCurrency(facturacionNeta)}</p>
-            </div>
-        </div>
-    )
-}
-
-export function InfoForm({ form }: { form: any }) {
-    const { control, watch, setValue } = form;
-    const { data, isLoaded } = useDataStore();
-    const [personal, setPersonal] = useState<Personal[]>([]);
-    const [espacios, setEspacios] = useState<Espacio[]>([]);
-    
-    const getFullName = (p: Personal) => `${p.nombre} ${p.apellido1} ${p.apellido2 || ''}`.trim();
-
-    const personalSala = useMemo(() => personal.filter(p => p.departamento === 'Sala' && p.nombre && p.apellido1), [personal]);
-    const personalPase = useMemo(() => personal.filter(p => p.departamento === 'Pase' && p.nombre && p.apellido1), [personal]);
-    const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre && p.apellido1), [personal]);
-    const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'Comercial' && p.nombre && p.apellido1), [personal]);
-    const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre && p.apellido1), [personal]);
-    const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre && p.apellido1), [personal]);
-    const personalOperaciones = useMemo(() => personal.filter(p => p.departamento === 'Operaciones' && p.nombre && p.apellido1), [personal]);
-    const validEspacios = useMemo(() => espacios.filter(e => e.identificacion.nombreEspacio), [espacios]);
-    const espacioOptions = useMemo(() => validEspacios.map(e => ({label: e.identificacion.nombreEspacio, value: e.identificacion.nombreEspacio})), [validEspacios]);
-
-    const handlePersonalChange = (name: string, phoneField: keyof any, mailField: keyof any) => {
-        const person = personal.find(p => getFullName(p) === name);
-        setValue(phoneField, person?.telefono || '', { shouldDirty: true });
-        setValue(mailField, person?.email || '', { shouldDirty: true });
-    }
-
-    const handleEspacioChange = (name: string) => {
-        const espacio = espacios.find(e => e.identificacion.nombreEspacio === name);
-        setValue('spaceAddress', espacio?.identificacion.calle || '', { shouldDirty: true });
-        setValue('spaceContact', espacio?.contactos[0]?.nombre || '', { shouldDirty: true });
-        setValue('spacePhone', espacio?.contactos[0]?.telefono || '', { shouldDirty: true });
-        setValue('spaceMail', espacio?.contactos[0]?.email || '', { shouldDirty: true });
-    }
-
-    useEffect(() => {
-        if (!isLoaded) return;
-        setPersonal(data.personal || []);
-        setEspacios(data.espacios || []);
-    }, [isLoaded, data]);
-
-    return (
-         <Accordion type="multiple" defaultValue={['cliente', 'espacio']} className="w-full space-y-3 pt-3">
-            <AccordionItem value="cliente" className="border-none">
-            <Card>
-                <AccordionTrigger className="p-0"><ClienteTitle /></AccordionTrigger>
-                <ClientInfo />
-            </Card>
-            </AccordionItem>
-            <AccordionItem value="espacio" className="border-none">
-            <Card>
-                <AccordionTrigger className="p-0"><EspacioTitle /></AccordionTrigger>
-                <AccordionContent>
-                <div className="space-y-4 px-4 pb-4">
-                    <FormField control={control} name="space" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Espacio</FormLabel>
-                            <Combobox
-                                options={espacioOptions}
-                                value={field.value || ''}
-                                onChange={(value) => { field.onChange(value); handleEspacioChange(value); }}
-                                placeholder="Busca o selecciona un espacio..."
-                            />
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                    <FormField control={control} name="spaceAddress" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Dirección</FormLabel>
-                            <FormControl><Input {...field} placeholder="Dirección del espacio" /></FormControl>
-                        </FormItem>
-                    )} />
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormField control={control} name="spaceContact" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Contacto Espacio</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                        </FormItem>
-                        )} />
-                        <FormField control={control} name="spacePhone" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Tlf. Espacio</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                        </FormItem>
-                        )} />
-                        <FormField control={control} name="spaceMail" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Email Espacio</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
-                            </FormItem>
-                        )} />
-                        <FormField control={control} name="plane" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Plano</FormLabel>
-                            <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
-                        </FormItem>
-                        )} />
-                    </div>
-                </div>
-                </AccordionContent>
-            </Card>
-            </AccordionItem>
-            <AccordionItem value="responsables" className="border-none">
-                <Card>
-                <AccordionTrigger className="p-0"><ResponsablesTitle /></AccordionTrigger>
-                <AccordionContent>
-                <div className="space-y-4 px-4 pb-4">
-                    {[
-                        ['respMetre', 'respMetrePhone', 'respMetreMail', 'Resp. Metre', personalSala], 
-                        ['respPase', 'respPasePhone', 'respPaseMail', 'Resp. Pase', personalPase], 
-                        ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalCocina], 
-                        ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR],
-                        ['respProjectManager', 'respProjectManagerPhone', 'respProjectManagerMail', 'Resp. Project Manager', personalOperaciones],
-                    ].map(([name, phone, mail, label, personalList]) => (
-                    <div key={name as string} className="grid items-center grid-cols-[1fr_1.5fr_1.5fr] gap-4">
-                            <FormLabel>{label as string}</FormLabel>
-                            <FormField control={control} name={name as any} render={({ field }) => (
-                                <FormItem>
-                                    <Combobox options={(personalList as Personal[]).map(p => ({ label: getFullName(p), value: getFullName(p) }))}
-                                        value={field.value}
-                                        onChange={(value) => { field.onChange(value); handlePersonalChange(value, phone as any, mail as any); }}
-                                        placeholder="Seleccionar..." />
-                                </FormItem>
-                            )}/>
-                            <div className="flex gap-2 items-center text-sm text-muted-foreground"><Phone className="h-4 w-4"/> {watch(phone as any) || '-'} <Separator orientation="vertical" className="h-4"/> <Mail className="h-4 w-4"/> {watch(mail as any) || '-'}</div>
-                    </div>
-                    ))}
-                    <Separator />
-                    <div className="grid items-center grid-cols-[1fr_1.5fr_1.5fr] gap-4">
-                        <FormField control={control} name="comercialAsiste" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center gap-2">
-                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="comercial-asiste" /></FormControl>
-                                <FormLabel htmlFor="comercial-asiste">Comercial asiste al evento</FormLabel>
-                            </FormItem>
-                        )} />
-                        <FormField control={control} name="comercial" render={({ field }) => (
-                            <FormItem>
-                                <Combobox options={(personalComercial as Personal[]).map(p => ({ label: getFullName(p), value: getFullName(p) }))}
-                                value={field.value}
-                                onChange={(value) => { field.onChange(value); handlePersonalChange(value, 'comercialPhone', 'comercialMail'); }}
-                                placeholder="Seleccionar comercial..." />
-                            </FormItem>
-                        )}/>
-                        <div className="flex gap-2 items-center text-sm text-muted-foreground"><Phone className="h-4 w-4"/> {watch('comercialPhone') || '-'} <Separator orientation="vertical" className="h-4"/> <Mail className="h-4 w-4"/> {watch('comercialMail') || '-'}</div>
-                    </div>
-                    <Separator />
-                    <div className="grid items-center grid-cols-[1fr_1.5fr_1.5fr] gap-4">
-                        <FormField control={control} name="rrhhAsiste" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center gap-2">
-                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="rrhh-asiste" /></FormControl>
-                                <FormLabel htmlFor="rrhh-asiste">RRHH asiste al evento</FormLabel>
-                            </FormItem>
-                        )}/>
-                        <FormField control={control} name="respRRHH" render={({ field }) => (
-                            <FormItem>
-                                <Combobox options={(personalRRHH as Personal[]).map(p => ({ label: getFullName(p), value: getFullName(p) }))}
-                                value={field.value}
-                                onChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respRRHHPhone', 'respRRHHMail'); }}
-                                placeholder="Seleccionar responsable RRHH..." />
-                            </FormItem>
-                        )}/>
-                        <div className="flex gap-2 items-center text-sm text-muted-foreground"><Phone className="h-4 w-4"/> {watch('respRRHHPhone') || '-'} <Separator orientation="vertical" className="h-4"/> <Mail className="h-4 w-4"/> {watch('respRRHHMail') || '-'}</div>
-                    </div>
-                </div>
-                </AccordionContent>
-                </Card>
-            </AccordionItem>
-            
-            <AccordionItem value="comentarios" className="border-none">
-                <Card>
-                <AccordionTrigger className="p-4"><h3 className="text-lg font-semibold">Comentarios Generales</h3></AccordionTrigger>
-                <AccordionContent>
-                    <div className="px-4 pb-4">
-                    <FormField control={control} name="comments" render={({ field }) => (
-                        <FormItem><FormControl><Textarea {...field} rows={6} /></FormControl></FormItem>
-                    )} />
-                    </div>
-                </AccordionContent>
-                </Card>
-            </AccordionItem>
-         </Accordion>
-    );
-}
-
-```
-- src/hooks/use-impersonated-user.tsx:
-```tsx
-'use client';
-
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { PortalUser, Personal } from '@/types';
-import { usePathname } from 'next/navigation';
-
-type ImpersonatedUserContextType = {
-  impersonatedUser: PortalUser | null;
-  setImpersonatedUser: (user: PortalUser | null) => void;
-};
-
-const ImpersonatedUserContext = createContext<ImpersonatedUserContextType | undefined>(undefined);
-
-export function ImpersonatedUserProvider({ children }: { children: ReactNode }) {
-  const [impersonatedUser, setImpersonatedUserState] = useState<PortalUser | null>(null);
-  const pathname = usePathname();
-
-  useEffect(() => {
-    // On initial load, try to get the user from localStorage
-    const storedUser = localStorage.getItem('impersonatedUser');
-    if (storedUser) {
-      try {
-        setImpersonatedUserState(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Failed to parse impersonated user from localStorage", e);
-        localStorage.removeItem('impersonatedUser');
-      }
-    }
-  }, []);
-
-  const setImpersonatedUser = (user: PortalUser | null) => {
-    setImpersonatedUserState(user);
-    if (user) {
-      localStorage.setItem('impersonatedUser', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('impersonatedUser');
-    }
-  };
-  
-  useEffect(() => {
-    // If user navigates away from portal, clear impersonation
-    if (impersonatedUser && !pathname.startsWith('/portal') && !pathname.startsWith('/rrhh')) {
-        const isAdminOrComercial = impersonatedUser.roles.includes('Admin') || impersonatedUser.roles.includes('Comercial');
-        if (!isAdminOrComercial) {
-            // setImpersonatedUser(null);
-        }
-    }
-  }, [pathname, impersonatedUser]);
-
-  return (
-    <ImpersonatedUserContext.Provider value={{ impersonatedUser, setImpersonatedUser }}>
-      {children}
-    </ImpersonatedUserContext.Provider>
-  );
-}
-
-export function useImpersonatedUser() {
-  const context = useContext(ImpersonatedUserContext);
-  if (context === undefined) {
-    throw new Error('useImpersonatedUser must be used within a ImpersonatedUserProvider');
-  }
-  return context;
-}
-
-```
-- src/hooks/use-loading-store.ts:
-```ts
-import { create } from 'zustand';
-
-type LoadingState = {
-  isLoading: boolean;
-  setIsLoading: (isLoading: boolean) => void;
-};
-
-export const useLoadingStore = create<LoadingState>()((set) => ({
-  isLoading: false,
-  setIsLoading: (isLoading) => set({ isLoading }),
-}));
-
-```
-- src/hooks/use-sidebar-store.ts:
-```ts
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-
-type SidebarState = {
-  isCollapsed: boolean;
-  toggleSidebar: () => void;
-};
-
-export const useSidebarStore = create<SidebarState>()(
-  persist(
-    (set, get) => ({
-      isCollapsed: false,
-      toggleSidebar: () => set({ isCollapsed: !get().isCollapsed }),
-    }),
-    {
-      name: 'sidebar-storage', // name of the item in the storage (must be unique)
-      storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
-    }
-  )
-);
-
-```
-- src/hooks/use-toast.ts:
-```ts
-"use client"
-
-// Inspired by react-hot-toast library
-import * as React from "react"
-
-import type {
-  ToastActionElement,
-  ToastProps,
-} from "@/components/ui/toast"
-
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 2000
-
-type ToasterToast = ToastProps & {
-  id: string
-  title?: React.ReactNode
-  description?: React.ReactNode
-  action?: ToastActionElement
-}
-
-const actionTypes = {
-  ADD_TOAST: "ADD_TOAST",
-  UPDATE_TOAST: "UPDATE_TOAST",
-  DISMISS_TOAST: "DISMISS_TOAST",
-  REMOVE_TOAST: "REMOVE_TOAST",
-} as const
-
-let count = 0
-
-function genId() {
-  count = (count + 1) % Number.MAX_SAFE_INTEGER
-  return count.toString()
-}
-
-type ActionType = typeof actionTypes
-
-type Action =
-  | {
-      type: ActionType["ADD_TOAST"]
-      toast: ToasterToast
-    }
-  | {
-      type: ActionType["UPDATE_TOAST"]
-      toast: Partial<ToasterToast>
-    }
-  | {
-      type: ActionType["DISMISS_TOAST"]
-      toastId?: ToasterToast["id"]
-    }
-  | {
-      type: ActionType["REMOVE_TOAST"]
-      toastId?: ToasterToast["id"]
-    }
-
-interface State {
-  toasts: ToasterToast[]
-}
-
-const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
-
-const addToRemoveQueue = (toastId: string) => {
-  if (toastTimeouts.has(toastId)) {
-    return
-  }
-
-  const timeout = setTimeout(() => {
-    toastTimeouts.delete(toastId)
-    dispatch({
-      type: "REMOVE_TOAST",
-      toastId: toastId,
-    })
-  }, TOAST_REMOVE_DELAY)
-
-  toastTimeouts.set(toastId, timeout)
-}
-
-export const reducer = (state: State, action: Action): State => {
-  switch (action.type) {
-    case "ADD_TOAST":
-      return {
-        ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
-      }
-
-    case "UPDATE_TOAST":
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === action.toast.id ? { ...t, ...action.toast } : t
-        ),
-      }
-
-    case "DISMISS_TOAST": {
-      const { toastId } = action
-
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
-      if (toastId) {
-        addToRemoveQueue(toastId)
-      } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
-        })
-      }
-
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? {
-                ...t,
-                open: false,
-              }
-            : t
-        ),
-      }
-    }
-    case "REMOVE_TOAST":
-      if (action.toastId === undefined) {
-        return {
-          ...state,
-          toasts: [],
-        }
-      }
-      return {
-        ...state,
-        toasts: state.toasts.filter((t) => t.id !== action.toastId),
-      }
-  }
-}
-
-const listeners: Array<(state: State) => void> = []
-
-let memoryState: State = { toasts: [] }
-
-function dispatch(action: Action) {
-  memoryState = reducer(memoryState, action)
-  listeners.forEach((listener) => {
-    listener(memoryState)
-  })
-}
-
-type Toast = Omit<ToasterToast, "id">
-
-function toast({ ...props }: Toast) {
-  const id = genId()
-
-  const update = (props: ToasterToast) =>
-    dispatch({
-      type: "UPDATE_TOAST",
-      toast: { ...props, id },
-    })
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
-
-  dispatch({
-    type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
-      },
-    },
-  })
-  
-  // Auto-dismiss after a delay
-  setTimeout(() => {
-    dismiss()
-  }, props.duration || 3000); // Changed to 3000ms for a better user experience
-
-
-  return {
-    id: id,
-    dismiss,
-    update,
-  }
-}
-
-function useToast() {
-  const [state, setState] = React.useState<State>(memoryState)
-
-  React.useEffect(() => {
-    listeners.push(setState)
-    return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) {
-        listeners.splice(index, 1)
-      }
-    }
-  }, [state])
-
-  return {
-    ...state,
-    toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
-  }
-}
-
-export { useToast, toast }
-
-```
-- src/lib/bd-nav.ts:
-```ts
-'use client';
-
-import { Database, Users, Package, Building, Layers, Box, Percent, Target, Factory, CreditCard, Banknote, Trash2, UserPlus, MapPin, History } from 'lucide-react';
-
-export const bdNavLinks = [
-    { title: 'Personal Interno', href: '/bd/personal', icon: Users },
-    { title: 'Personal Externo', href: '/bd/personal-externo-db', icon: UserPlus },
-    { title: 'Proveedores', href: '/bd/proveedores', icon: Building },
-    { title: 'Catálogo Personal Externo', href: '/bd/tipos-personal', icon: Users },
-    { title: 'Espacios', href: '/bd/espacios', icon: Building },
-    { title: 'Artículos MICE', href: '/bd/articulos', icon: Package },
-    { title: 'Base de Datos ERP', href: '/bd/erp', icon: Database },
-    { title: 'Familias ERP', href: '/bd/familiasERP', icon: Layers },
-    { title: 'Categorías de Recetas', href: '/bd/categorias-recetas', icon: BookHeart },
-    { title: 'Formatos de Expedición', href: '/bd/formatos-expedicion', icon: Box },
-    { title: 'Centros y Ubicaciones', href: '/bd/centros', icon: Factory },
-    { title: 'Objetivos CPR', href: '/bd/objetivos-cpr', icon: CreditCard },
-    { title: 'Administración', href: '/bd/borrar', icon: Trash2 },
-];
 ```
 - src/lib/cpr-nav.ts:
 ```ts
+
+
 'use client';
 
-import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare, Shield, TrendingUp, Users, UserCheck, Archive, HistoryIcon, Calculator } from 'lucide-react';
+import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare, TrendingUp, Users, UserCheck, Archive, HistoryIcon, Calculator, Box, Layers, Percent, Target, Banknote, CreditCard } from 'lucide-react';
 
 export const cprNav = [
     { title: 'Dashboard CPR', href: '/cpr/dashboard', icon: LayoutDashboard, description: 'Vista general y KPIs del centro de producción.' },
@@ -1429,109 +788,29 @@ export const bookNavLinks = [
 ];
 
     
-```
-- src/lib/data.ts:
-```ts
-import type { CateringItem } from '@/types';
-
-export const CATERING_ITEMS: CateringItem[] = [
-  { itemCode: 'PLT01', description: 'Plato de cena', price: 0.5, stock: 500, imageUrl: 'https://picsum.photos/seed/plates/400/300', imageHint: 'white plates', category: 'BODEGA' },
-  { itemCode: 'GLS01', description: 'Copa de vino', price: 0.4, stock: 450, imageUrl: 'https://picsum.photos/seed/glasses/400/300', imageHint: 'wine glasses', category: 'BODEGA' },
-  { itemCode: 'CUT01', description: 'Juego de cubiertos', price: 0.75, stock: 400, imageUrl: 'https://picsum.photos/seed/cutlery/400/300', imageHint: 'silver cutlery', category: 'BODEGA' },
-  { itemCode: 'TBL01', description: 'Mesa redonda (8p)', price: 10, stock: 50, imageUrl: 'https://picsum.photos/seed/tables/400/300', imageHint: 'banquet table', category: 'BODEGA' },
-  { itemCode: 'CHR01', description: 'Silla plegable blanca', price: 1.5, stock: 300, imageUrl: 'https://picsum.photos/seed/chairs/400/300', imageHint: 'white chair', category: 'BODEGA' },
-  { itemCode: 'LIN01', description: 'Mantel blanco', price: 5, stock: 100, imageUrl: 'https://picsum.photos/seed/linens/400/300', imageHint: 'white linen', category: 'BODEGA' },
-  { itemCode: 'SRV01', description: 'Bandeja para servir', price: 2, stock: 80, imageUrl: 'https://picsum.photos/seed/serving/400/300', imageHint: 'serving tray', category: 'BODEGA' },
-  { itemCode: 'HTR01', description: 'Calentador de patio', price: 50, stock: 20, imageUrl: 'https://picsum.photos/seed/heater/400/300', imageHint: 'patio heater', category: 'BODEGA' },
-  { itemCode: 'PLT02', description: 'Plato de postre', price: 0.4, stock: 500, imageUrl: 'https://picsum.photos/seed/dessertplate/400/300', imageHint: 'dessert plates', category: 'BODEGA' },
-  { itemCode: 'GLS02', description: 'Vaso de agua', price: 0.3, stock: 600, imageUrl: 'https://picsum.photos/seed/waterglass/400/300', imageHint: 'water glasses', category: 'BODEGA' },
-  { itemCode: 'TBL02', description: 'Mesa rectangular', price: 12, stock: 40, imageUrl: 'https://picsum.photos/seed/recttable/400/300', imageHint: 'long table', category: 'BODEGA' },
+export const bdNavLinks = [
+    { title: 'Personal Interno', href: '/bd/personal', icon: Users },
+    { title: 'Personal Externo', href: '/bd/personal-externo-db', icon: UserPlus },
+    { title: 'Proveedores', href: '/bd/proveedores', icon: Building },
+    { title: 'Catálogo Personal Externo', href: '/bd/tipos-personal', icon: Users },
+    { title: 'Espacios', href: '/bd/espacios', icon: Building },
+    { title: 'Artículos MICE', href: '/bd/articulos', icon: Package },
+    { title: 'Base de Datos ERP', href: '/bd/erp', icon: Database },
+    { title: 'Familias ERP', href: '/bd/familiasERP', icon: Layers },
+    { title: 'Categorías de Recetas', href: '/bd/categorias-recetas', icon: BookHeart },
+    { title: 'Formatos de Expedición', href: '/bd/formatos-expedicion', icon: Box },
+    { title: 'Centros y Ubicaciones', href: '/bd/centros', icon: Factory },
+    { title: 'Objetivos CPR', href: '/bd/objetivos-cpr', icon: CreditCard },
+    { title: 'Administración', href: '/bd/borrar', icon: Trash2 },
 ];
-
-```
-- src/lib/fonts.ts:
-```ts
-import { Open_Sans, Roboto } from 'next/font/google';
-
-export const openSans = Open_Sans({
-  subsets: ['latin'],
-  variable: '--font-headline',
-});
-
-export const roboto = Roboto({
-  weight: ['400', '500'],
-  subsets: ['latin'],
-  variable: '--font-body',
-});
 ```
 - src/lib/nav-links.ts:
 ```ts
+
 'use client';
 
-import {
-    ClipboardList,
-    BookHeart,
-    Factory,
-    Settings,
-    Package,
-    Warehouse,
-    Users,
-    Truck,
-    LifeBuoy,
-    BarChart3,
-    Calendar,
-    AreaChart,
-    Database,
-    UserPlus,
-    Shuffle,
-    UserCheck,
-    LayoutDashboard,
-    Component,
-    Sprout,
-    CheckSquare,
-    TrendingUp,
-    Printer,
-    ListChecks,
-    AlertTriangle,
-    History,
-    HistoryIcon,
-    Calculator,
-    Box,
-    Layers,
-    Percent,
-    Target,
-    Banknote,
-    CreditCard,
-    CheckCircle,
-    Archive,
-    ChefHat,
-    PackagePlus,
-    Shield,
-    Building,
-    Trash2,
-    Wine,
-    Leaf,
-    Snowflake,
-    FilePlus,
-    Flower2,
-    ClipboardCheck,
-    FilePenLine,
-    Menu,
-    FileUp,
-    FileDown,
-    MoreHorizontal,
-    Pencil,
-    Copy,
-    RefreshCw,
-    Euro,
-    BrainCircuit,
-    Link as LinkIcon,
-    MapPin,
-    CircleX,
-    PanelLeft,
-    ChevronRight,
-    Star
-} from 'lucide-react';
+import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart } from 'lucide-react';
+import { cprNav, bookNavLinks, bdNavLinks, rrhhNav } from './cpr-nav';
 
 export const mainNav = [
     { title: 'Previsión de Servicios', href: '/pes', icon: ClipboardList, exact: true },
@@ -1543,201 +822,18 @@ export const mainNav = [
     { title: 'Configuración', href: '/configuracion', icon: Settings },
 ];
 
-export const cprNav = [
-    { title: 'Dashboard CPR', href: '/cpr/dashboard', icon: LayoutDashboard, description: 'Vista general y KPIs del centro de producción.' },
-    { title: 'Planificación y OFs', href: '/cpr/of', icon: Factory, description: 'Agrega necesidades y gestiona las O.F.' },
-    { title: 'Taller de Producción', href: '/cpr/produccion', icon: ChefHat, description: 'Interfaz para cocineros en tablets.' },
-    { title: 'Inventario de Materia Prima', href: '/cpr/inventario', icon: Archive, description: 'Gestiona el stock teórico y físico de ingredientes.'},
-    { title: 'Cierres de Inventario', href: '/cpr/cierres', icon: Calculator, description: 'Realiza y consulta los cierres de inventario mensuales.'},
-    { title: 'Movimientos de Inventario', href: '/cpr/inventario/movimientos', icon: HistoryIcon, description: 'Auditoría de todos los ajustes y movimientos de stock.'},
-    { title: 'Picking y Logística', href: '/cpr/picking', icon: ListChecks, description: 'Prepara las expediciones para eventos.' },
-    { title: 'Control de Calidad', href: '/cpr/calidad', icon: CheckCircle, description: 'Valida las elaboraciones.' },
-    { title: 'Solicitudes de Personal', href: '/cpr/solicitud-personal', icon: Users, description: 'Pide personal de apoyo para picos de trabajo.' },
-    { title: 'Validación de Horas', href: '/cpr/validacion-horas', icon: UserCheck, description: 'Cierra los turnos del personal de apoyo.'},
-    { title: 'Stock Elaboraciones', href: '/cpr/excedentes', icon: PackagePlus, description: 'Consulta el inventario de elaboraciones.' },
-    { title: 'Productividad', href: '/cpr/productividad', icon: BarChart3, description: 'Analiza los tiempos de producción.' },
-    { title: 'Informe de Picking', href: '/cpr/informe-picking', icon: Printer, description: 'Consulta el picking completo de una OS.' },
-    { title: 'Incidencias', href: '/cpr/incidencias', icon: AlertTriangle, description: 'Revisa las incidencias de producción e inventario.' },
-];
+export { cprNav, bookNavLinks, bdNavLinks, rrhhNav };
 
-export const rrhhNav = [
-    { title: 'Dashboard RRHH', href: '/rrhh', icon: LayoutDashboard, description: 'Vista general y accesos directos del módulo de RRHH.' },
-    { title: 'Solicitudes de Personal', href: '/rrhh/solicitudes', icon: ClipboardList, description: 'Gestiona las necesidades de personal para Eventos y CPR.' },
-    { title: 'Cesiones de Personal', href: '/rrhh/cesiones', icon: Shuffle, description: 'Gestiona la asignación de personal interno entre departamentos.' },
-    { title: 'Validación de Horas (Cesiones)', href: '/rrhh/validacion-cesiones', icon: UserCheck, description: 'Valida las horas reales del personal interno cedido.' },
-    { title: 'Base de Datos de Personal', href: '/bd/personal', icon: Users, description: 'Administra los empleados internos.', adminOnly: true },
-    { title: 'Base de Datos de ETTs', href: '/bd/personal-externo-db', icon: UserPlus, description: 'Administra los trabajadores externos.', adminOnly: true },
-    { title: 'Analítica de RRHH', href: '/rrhh/analitica', icon: BarChart3, description: 'Analiza costes, horas y productividad del personal.' },
-];
-
-export const bookNavLinks = [
-    { title: 'Dashboard', path: '/book', icon: BookHeart, exact: true },
-    { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
-    { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
-    { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
-    { title: 'Verificación de Ingredientes', path: '/book/verificacionIngredientes', icon: Shield },
-    { title: 'Revisión Gastronómica', path: '/book/revision-ingredientes', icon: CheckSquare },
-    { title: 'Evolución de Costes', path: '/book/evolucion-costes', icon: TrendingUp },
-    { title: 'Info. Alérgenos', path: '/book/alergenos', icon: Sprout },
-    { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
-];
-
-    
-export const bdNavLinks = [
-    { title: 'Personal Interno', href: '/bd/personal', icon: Users },
-    { title: 'Personal Externo', href: '/bd/personal-externo-db', icon: UserPlus },
-    { title: 'Proveedores', href: '/bd/proveedores', icon: Building },
-    { title: 'Catálogo Personal Externo', href: '/bd/tipos-personal', icon: Users },
-    { title: 'Espacios', href: '/bd/espacios', icon: Building },
-    { title: 'Artículos MICE', href: '/bd/articulos', icon: Package },
-    { title: 'Base de Datos ERP', href: '/bd/erp', icon: Database },
-    { title: 'Familias ERP', href: '/bd/familiasERP', icon: Layers },
-    { title: 'Categorías de Recetas', href: '/bd/categorias-recetas', icon: BookHeart },
-    { title: 'Formatos de Expedición', href: '/bd/formatos-expedicion', icon: Box },
-    { title: 'Centros y Ubicaciones', href: '/bd/centros', icon: Factory },
-    { title: 'Objetivos CPR', href: '/bd/objetivos-cpr', icon: CreditCard },
-    { title: 'Administración', href: '/bd/borrar', icon: Trash2 },
-];
 ```
-- src/lib/placeholder-images.json:
-```json
-{
-  "placeholderImages": [
-    { "id": "plates", "description": "Dinner plates", "imageUrl": "https://picsum.photos/seed/plates/400/300", "imageHint": "white plates", "category": "Vajilla" },
-    { "id": "glasses", "description": "Wine glasses", "imageUrl": "https://picsum.photos/seed/glasses/400/300", "imageHint": "wine glasses", "category": "Cristalería" },
-    { "id": "cutlery", "description": "Silverware set", "imageUrl": "https://picsum.photos/seed/cutlery/400/300", "imageHint": "silver cutlery", "category": "Cubertería" },
-    { "id": "tables", "description": "Round banquet table", "imageUrl": "https://picsum.photos/seed/tables/400/300", "imageHint": "banquet table", "category": "Mobiliario" },
-    { "id": "chairs", "description": "White folding chair", "imageUrl": "https://picsum.photos/seed/chairs/400/300", "imageHint": "white chair", "category": "Mobiliario" },
-    { "id": "linens", "description": "White tablecloth", "imageUrl": "https://picsum.photos/seed/linens/400/300", "imageHint": "white linen", "category": "Mantelería" },
-    { "id": "serving", "description": "Serving tray", "imageUrl": "https://picsum.photos/seed/serving/400/300", "imageHint": "serving tray", "category": "Servicio" },
-    { "id": "heater", "description": "Patio heater", "imageUrl": "https://picsum.photos/seed/heater/400/300", "imageHint": "patio heater", "category": "Equipamiento" },
-    { "id": "dessertplate", "description": "Dessert plates", "imageUrl": "https://picsum.photos/seed/dessertplate/400/300", "imageHint": "dessert plates", "category": "Vajilla" },
-    { "id": "waterglass", "description": "Water glasses", "imageUrl": "https://picsum.photos/seed/waterglass/400/300", "imageHint": "water glasses", "category": "Cristalería" },
-    { "id": "recttable", "description": "Long table", "imageUrl": "https://picsum.photos/seed/recttable/400/300", "imageHint": "long table", "category": "Mobiliario" }
-  ]
-}
-```
-- src/lib/placeholder-images.ts:
-```ts
-import data from './placeholder-images.json';
-
-export type ImagePlaceholder = {
-  id: string;
-  description: string;
-  imageUrl: string;
-  imageHint: string;
-  category: string;
-};
-
-export const PlaceHolderImages: ImagePlaceholder[] = data.placeholderImages;
-```
-- src/lib/rrhh-nav.ts:
-```ts
-'use client';
-
-import { Users, ClipboardList, BarChart3, UserPlus, Shuffle, UserCheck, LayoutDashboard } from 'lucide-react';
-
-export const rrhhNav = [
-    { title: 'Dashboard RRHH', href: '/rrhh', icon: LayoutDashboard, description: 'Vista general y accesos directos del módulo de RRHH.' },
-    { title: 'Solicitudes de Personal', href: '/rrhh/solicitudes', icon: ClipboardList, description: 'Gestiona las necesidades de personal para Eventos y CPR.' },
-    { title: 'Cesiones de Personal', href: '/rrhh/cesiones', icon: Shuffle, description: 'Gestiona la asignación de personal interno entre departamentos.' },
-    { title: 'Validación de Horas (Cesiones)', href: '/rrhh/validacion-cesiones', icon: UserCheck, description: 'Valida las horas reales del personal interno cedido.' },
-    { title: 'Base de Datos de Personal', href: '/bd/personal', icon: Users, description: 'Administra los empleados internos.', adminOnly: true },
-    { title: 'Base de Datos de ETTs', href: '/bd/personal-externo-db', icon: UserPlus, description: 'Administra los trabajadores externos.', adminOnly: true },
-    { title: 'Analítica de RRHH', href: '/rrhh/analitica', icon: BarChart3, description: 'Analiza costes, horas y productividad del personal.' },
-];
-```
-- src/lib/utils.ts:
-```ts
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
-import { parse, differenceInMinutes } from "date-fns";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
-
-export function formatCurrency(value: number | null | undefined) {
-  if (value === null || value === undefined || isNaN(value)) {
-    return (0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-  }
-  return value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-}
-
-export function formatNumber(value: number, decimals: number = 2) {
-    if (isNaN(value)) return '0';
-    return value.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-}
-
-export function formatUnit(unit: string) {
-    const unitMap: Record<string, string> = {
-        'KG': 'kg',
-        'L': 'l',
-        'UD': 'ud',
-    }
-    return unitMap[unit] || unit;
-}
-
-export function formatPercentage(value: number) {
-  if (isNaN(value)) return '0,00%';
-  return `${(value * 100).toFixed(2)}%`.replace('.',',');
-}
-
-export function calculateHours(start?: string, end?: string): number {
-    if (!start || !end) return 0;
-    try {
-        const startTime = parse(start, 'HH:mm', new Date());
-        const endTime = parse(end, 'HH:mm', new Date());
-
-        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-            console.error('Invalid time format for calculating hours:', { start, end });
-            return 0;
-        }
-        
-        if (endTime < startTime) {
-            endTime.setDate(endTime.getDate() + 1);
-        }
-
-        const diff = differenceInMinutes(endTime, startTime);
-        return diff > 0 ? diff / 60 : 0;
-    } catch (e) {
-        console.error("Error calculating hours:", e);
-        return 0;
-    }
-}
-
-export function formatDuration(hours: number) {
-    const totalMinutes = Math.round(hours * 60);
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-}
-```
-- src/app/produccion/page.tsx:
+- src/app/os/page.tsx:
 ```tsx
 
 'use client';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-// This page just redirects to the main OS page as transport is managed within an OS.
-export default function ProduccionRedirectPage() {
-    const router = useRouter();
-    useEffect(() => {
-        router.replace('/cpr/produccion');
-    }, [router]);
-    return null;
-}
-
-```
-- src/app/transporte/page.tsx:
-```tsx
-'use client';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-// This page just redirects to the main OS page as transport is managed within an OS.
-export default function TransporteRedirectPage() {
+// This page just redirects to the main service order overview page.
+export default function OsRedirectPage() {
     const router = useRouter();
     useEffect(() => {
         router.replace('/pes');
@@ -1745,15 +841,15 @@ export default function TransporteRedirectPage() {
     return null;
 }
 ```
-- src/app/os/transporte/page.tsx:
+- src/app/os/personal-mice/page.tsx:
 ```tsx
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Truck, Phone, Building } from 'lucide-react';
-import type { TransporteOrder, ServiceOrder, Espacio } from '@/types';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Users, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import type { PersonalMiceOrder, ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -1769,203 +865,189 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { format } from 'date-fns';
+import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { formatCurrency } from '@/lib/utils';
-import { useOsData } from '../os-context';
+import { Badge } from '@/components/ui/badge';
+import { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
-  Pendiente: 'secondary',
-  Confirmado: 'default',
-  'En Ruta': 'outline',
-  Entregado: 'outline',
-};
+const ITEMS_PER_PAGE = 20;
 
-export default function TransportePage() {
-  const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
+export default function PersonalMicePage() {
+  const [orders, setOrders] = useState<PersonalMiceOrder[]>([]);
+  const [serviceOrders, setServiceOrders] = useState<Map<string, ServiceOrder>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
   const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
-  const { serviceOrder, spaceAddress, isLoading: isOsDataLoading } = useOsData(osId);
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const osId = searchParams.get('osId');
 
   useEffect(() => {
-    if (!osId) return;
+    let storedOrders = localStorage.getItem('personalMiceOrders');
+    setOrders(storedOrders ? JSON.parse(storedOrders) : []);
 
-    const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-    const relatedOrders = allTransporteOrders.filter(order => order.osId === osId);
-    setTransporteOrders(relatedOrders);
+    let storedServiceOrders = localStorage.getItem('serviceOrders');
+    const osMap = new Map<string, ServiceOrder>();
+    if (storedServiceOrders) {
+        (JSON.parse(storedServiceOrders) as ServiceOrder[]).forEach(os => osMap.set(os.id, os));
+    }
+    setServiceOrders(osMap);
 
     setIsMounted(true);
-  }, [osId, router, toast]);
+  }, []);
 
-  const totalAmount = useMemo(() => {
-    return transporteOrders.reduce((sum, order) => sum + order.precio, 0);
-  }, [transporteOrders]);
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      if (osId && order.osId !== osId) return false;
+      
+      const os = serviceOrders.get(order.osId);
+      const searchMatch =
+        searchTerm === '' ||
+        order.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (order.dni || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.centroCoste.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (os && os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      let dateMatch = true;
+      if (dateRange?.from && os) {
+          const osDate = new Date(os.startDate);
+          if(dateRange.to) {
+              dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+          } else {
+              dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+          }
+      }
+
+      return searchMatch && dateMatch;
+    });
+  }, [orders, searchTerm, serviceOrders, osId, dateRange]);
+  
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredOrders, currentPage]);
+
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
 
   const handleDelete = () => {
     if (!orderToDelete) return;
-
-    let allOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-    const updatedOrders = allOrders.filter((o: TransporteOrder) => o.id !== orderToDelete);
-    localStorage.setItem('transporteOrders', JSON.stringify(updatedOrders));
-    setTransporteOrders(updatedOrders.filter((o: TransporteOrder) => o.osId === osId));
-    
-    toast({ title: 'Pedido de transporte eliminado' });
+    const updatedData = orders.filter(e => e.id !== orderToDelete);
+    localStorage.setItem('personalMiceOrders', JSON.stringify(updatedData));
+    setOrders(updatedData);
+    toast({ title: 'Asignación eliminada', description: 'El registro se ha eliminado correctamente.' });
     setOrderToDelete(null);
   };
   
-  if (!isMounted || isOsDataLoading) {
-    return <LoadingSkeleton title="Cargando Módulo de Transporte..." />;
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Personal MICE..." />;
   }
 
   return (
     <>
-      <div className="flex items-start justify-end mb-4">
-        <Button asChild>
-          <Link href={`/os/transporte/pedido?osId=${osId}`}>
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal MICE</h1>
+          <Button onClick={() => router.push(`/os/personal-mice/nuevo`)} disabled={!osId}>
             <PlusCircle className="mr-2" />
-            Nuevo Pedido de Transporte
-          </Link>
-        </Button>
-      </div>
+            Nueva Asignación
+          </Button>
+        </div>
 
-      <Card>
-          <CardHeader><CardTitle>Pedidos de Transporte Realizados</CardTitle></CardHeader>
-          <CardContent>
-               <div className="border rounded-lg">
-                  <Table>
-                      <TableHeader>
-                      <TableRow>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Proveedor</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Recogida</TableHead>
-                          <TableHead>Entrega</TableHead>
-                          <TableHead>Importe</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                      {transporteOrders.length > 0 ? (
-                          transporteOrders.map(order => (
-                          <TableRow key={order.id}>
-                              <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
-                              <TableCell>{order.proveedorNombre}</TableCell>
-                              <TableCell>{order.tipoTransporte}</TableCell>
-                              <TableCell>{order.lugarRecogida} a las {order.horaRecogida}</TableCell>
-                              <TableCell>{order.lugarEntrega} a las {order.horaEntrega}</TableCell>
-                              <TableCell>{formatCurrency(order.precio)}</TableCell>
-                              <TableCell>
-                              <Badge variant={statusVariant[order.status]}>
-                                  {order.status}
-                              </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                              <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                      <span className="sr-only">Abrir menú</span>
-                                      <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/os/transporte/pedido?osId=${osId}&orderId=${order.id}`)}>
-                                      <Pencil className="mr-2 h-4 w-4" />
-                                      Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Eliminar
-                                  </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                              </DropdownMenu>
-                              </TableCell>
-                          </TableRow>
-                          ))
-                      ) : (
-                          <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
-                              No hay pedidos de transporte para esta Orden de Servicio.
-                          </TableCell>
-                          </TableRow>
-                      )}
-                      </TableBody>
-                  </Table>
-              </div>
-              {transporteOrders.length > 0 && (
-                  <div className="flex justify-end mt-4 text-xl font-bold">
-                      Importe Total: {formatCurrency(totalAmount)}
-                  </div>
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <Input 
+            placeholder="Buscar por nombre, DNI, OS..."
+            className="flex-grow max-w-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Popover>
+            <PopoverTrigger asChild>
+                <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")} </>) : (format(dateRange.from, "LLL dd, y"))) : (<span>Filtrar por fecha de evento...</span>)}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+            </PopoverContent>
+          </Popover>
+          <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateRange(undefined); setCurrentPage(1); }}>Limpiar Filtros</Button>
+        </div>
+        
+         <div className="flex items-center justify-end gap-2 mb-4">
+            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight className="h-4 w-4" /></Button>
+          </div>
+
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>OS</TableHead>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Centro Coste</TableHead>
+                <TableHead>Tipo Servicio</TableHead>
+                <TableHead>Horario</TableHead>
+                <TableHead>€/hora</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedOrders.length > 0 ? (
+                paginatedOrders.map(item => {
+                  const os = serviceOrders.get(item.osId);
+                  return (
+                    <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/os/${item.osId}/personal-mice`)}>
+                        <TableCell><Badge variant="outline">{os?.serviceNumber}</Badge></TableCell>
+                        <TableCell className="font-medium">{item.nombre}</TableCell>
+                        <TableCell>{item.centroCoste}</TableCell>
+                        <TableCell>{item.tipoServicio}</TableCell>
+                        <TableCell>{item.horaEntrada} - {item.horaSalida}</TableCell>
+                        <TableCell>{item.precioHora.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/os/${item.osId}/personal-mice`)} }>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                    </TableRow>
+                  )
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center">
+                    No se encontraron registros.
+                  </TableCell>
+                </TableRow>
               )}
-          </CardContent>
-      </Card>
-
-      <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el pedido de transporte.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={handleDelete}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </TableBody>
+          </Table>
+        </div>
+      </main>
     </>
   );
 }
+
 ```
-- src/app/pes/page.tsx:
+- src/app/personal/page.tsx:
 ```tsx
+
 'use client';
 
-import { Suspense } from 'react';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { PrevisionServiciosContent } from '@/components/pes/prevision-servicios-content';
-
-export default function PrevisionServiciosPage() {
-    return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Previsión de Servicios..." />}>
-            <PrevisionServiciosContent />
-        </Suspense>
-    );
-}
-```
-- src/components/pes/prevision-servicios-content.tsx:
-```tsx
-'use client';
-
-import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, ClipboardList, AlertTriangle } from 'lucide-react';
-import type { ServiceOrder } from '@/types';
+import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown } from 'lucide-react';
+import type { Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -1975,305 +1057,1063 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { format, isBefore, startOfToday } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { useDataStore } from '@/hooks/use-data-store';
-import { LoadingSkeleton } from '../layout/loading-skeleton';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Papa from 'papaparse';
 
-const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
-  Borrador: 'secondary',
-  Pendiente: 'outline',
-  Confirmado: 'default',
-  Anulado: 'destructive'
-};
+const CSV_HEADERS = ["id", "nombre", "apellido1", "apellido2", "departamento", "categoria", "telefono", "email", "precioHora"];
 
-export function PrevisionServiciosContent() {
-  const { data, isLoaded } = useDataStore();
+
+function PersonalPageContent() {
+  const [items, setItems] = useState<Personal[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
-  const [showPastEvents, setShowPastEvents] = useState(false);
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   
-  const serviceOrders = data.serviceOrders || [];
+  const router = useRouter();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
-  const availableMonths = useMemo(() => {
-    if (!serviceOrders) return ['all'];
-    const months = new Set<string>();
-    serviceOrders.forEach(os => {
-      try {
-        const month = format(new Date(os.startDate), 'yyyy-MM');
-        months.add(month);
-      } catch (e) {
-        console.error(`Invalid start date for OS ${os.serviceNumber}: ${os.startDate}`);
-      }
+  useEffect(() => {
+    let storedData = localStorage.getItem('personal');
+    setItems(storedData ? JSON.parse(storedData) : []);
+    setIsMounted(true);
+  }, []);
+
+  const departments = useMemo(() => {
+    const allDepartments = new Set(items.map(item => item.departamento));
+    return ['all', ...Array.from(allDepartments).sort()];
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+        const searchMatch = 
+          (item.nombreCompleto || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const departmentMatch = departmentFilter === 'all' || item.departamento === departmentFilter;
+        return searchMatch && departmentMatch;
     });
-    return ['all', ...Array.from(months).sort().reverse()];
-  }, [serviceOrders]);
+  }, [items, searchTerm, departmentFilter]);
+
+  const handleDelete = () => {
+    if (!itemToDelete) return;
+    const updatedData = items.filter(i => i.id !== itemToDelete);
+    localStorage.setItem('personal', JSON.stringify(updatedData));
+    setItems(updatedData);
+    toast({ title: 'Empleado eliminado' });
+    setItemToDelete(null);
+  };
   
-  const filteredAndSortedOrders = useMemo(() => {
-    const today = startOfToday();
-    
-    const filtered = serviceOrders.filter(os => {
-      const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      let monthMatch = true;
-      if (selectedMonth !== 'all') {
-        try {
-          const osMonth = format(new Date(os.startDate), 'yyyy-MM');
-          monthMatch = osMonth === selectedMonth;
-        } catch (e) {
-          monthMatch = false;
+    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+        const file = event.target.files?.[0];
+        if (!file) {
+          setIsImportAlertOpen(false);
+          return;
         }
-      }
-      
-      let pastEventMatch = true;
-      if (!showPastEvents) {
-          try {
-              pastEventMatch = !isBefore(new Date(os.endDate), today);
-          } catch (e) {
-              pastEventMatch = true;
+
+        Papa.parse<any>(file, {
+          header: true,
+          skipEmptyLines: true,
+          delimiter,
+          complete: (results) => {
+            if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
+                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+                return;
+            }
+            
+            const importedData: Personal[] = results.data.map(item => {
+                const nombre = item.nombre || '';
+                const apellido1 = item.apellido1 || '';
+                const apellido2 = item.apellido2 || '';
+
+                return {
+                    ...item,
+                    nombre,
+                    apellido1,
+                    apellido2,
+                    nombreCompleto: `${nombre} ${apellido1} ${apellido2}`.trim(),
+                    nombreCompacto: `${nombre} ${apellido1}`.trim(),
+                    iniciales: `${nombre[0] || ''}${apellido1[0] || ''}`.toUpperCase(),
+                    precioHora: parseFloat(item.precioHora) || 0
+                }
+            });
+            
+            localStorage.setItem('personal', JSON.stringify(importedData));
+            setItems(importedData);
+            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+            setIsImportAlertOpen(false);
+          },
+          error: (error) => {
+            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+            setIsImportAlertOpen(false);
           }
-      }
+        });
+        if(event.target) {
+            event.target.value = '';
+        }
+    };
+    
+    const handleExportCSV = () => {
+        if (items.length === 0) {
+            toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
+            return;
+        }
+        
+        const dataToExport = items.map(item => ({
+            id: item.id,
+            nombre: item.nombre,
+            apellido1: item.apellido1,
+            apellido2: item.apellido2,
+            departamento: item.departamento,
+            categoria: item.categoria,
+            telefono: item.telefono,
+            email: item.email,
+            precioHora: item.precioHora
+        }));
 
-      return os.vertical !== 'Entregas' && searchMatch && monthMatch && pastEventMatch;
-    });
+        const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `personal.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Exportación completada' });
+    };
 
-    return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-
-  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents]);
-
-  if (!isLoaded) {
-    return <LoadingSkeleton title="Cargando Previsión..." />;
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Personal..." />;
   }
 
   return (
-    <main>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-          <ClipboardList />
-          Previsión de Servicios
-        </h1>
-        <Button asChild>
-          <Link href="/os/nuevo/info">
-            <PlusCircle className="mr-2" />
-            Nueva Orden
-          </Link>
-        </Button>
-      </div>
-
-       <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <Input
-                placeholder="Buscar por Nº de OS o Cliente..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-            />
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-full sm:w-[240px]">
-                <SelectValue placeholder="Filtrar por mes" />
-                </SelectTrigger>
-                <SelectContent>
-                <SelectItem value="all">Todos los meses</SelectItem>
-                {availableMonths.map(month => (
-                    <SelectItem key={month} value={month}>
-                    {month === 'all' ? 'Todos' : format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
-                    </SelectItem>
-                ))}
-                </SelectContent>
-            </Select>
-            <div className="flex items-center space-x-2 pt-2 sm:pt-0">
-                <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
-                <label
-                    htmlFor="show-past"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                    Mostrar eventos finalizados
-                </label>
-            </div>
+    <>
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <Input 
+          placeholder="Buscar por nombre, apellido o categoría..."
+          className="flex-grow max-w-lg"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <SelectTrigger className="w-full md:w-[240px]">
+                <SelectValue placeholder="Filtrar por departamento" />
+            </SelectTrigger>
+            <SelectContent>
+                {departments.map(d => <SelectItem key={d} value={d}>{d === 'all' ? 'Todos los Departamentos' : d}</SelectItem>)}
+            </SelectContent>
+        </Select>
+          <div className="flex-grow flex justify-end gap-2">
+            <Button onClick={() => router.push('/personal/nuevo')}>
+                <PlusCircle className="mr-2" />
+                Nuevo
+            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon"><Menu /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
+                        <FileUp size={16} className="mr-2"/>Importar CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportCSV}>
+                        <FileDown size={16} className="mr-2"/>Exportar CSV
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
       </div>
 
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nº Servicio</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Fecha Inicio</TableHead>
-              <TableHead>Fecha Fin</TableHead>
-              <TableHead>Nº Asistentes</TableHead>
-              <TableHead>Estado</TableHead>
+              <TableHead>Nombre Completo</TableHead>
+              <TableHead>Departamento</TableHead>
+              <TableHead>Categoría</TableHead>
+              <TableHead>Teléfono</TableHead>
+              <TableHead className="text-right w-24">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedOrders.length > 0 ? (
-              filteredAndSortedOrders.map(os => (
-                <TableRow key={os.id}>
-                  <TableCell className="font-medium">
-                    <Link href={`/os/${os.id}`} className="text-primary hover:underline">
-                      {os.serviceNumber}
-                       {os.isVip && <AlertTriangle className="inline-block w-4 h-4 ml-2 text-yellow-500" />}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{os.client}</TableCell>
-                  <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>{os.asistentes}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant[os.status]}>
-                      {os.status}
-                    </Badge>
+            {filteredItems.length > 0 ? (
+              filteredItems.map(item => (
+                <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/personal/${item.id}`)}>
+                  <TableCell className="font-medium">{item.nombreCompleto}</TableCell>
+                  <TableCell>{item.departamento}</TableCell>
+                  <TableCell>{item.categoria}</TableCell>
+                  <TableCell>{item.telefono}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                          <span className="sr-only">Abrir menú</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => router.push(`/personal/${item.id}`)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id)}}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No hay órdenes de servicio que coincidan con los filtros.
+                <TableCell colSpan={5} className="h-24 text-center">
+                  No se encontraron empleados.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-    </main>
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el registro del empleado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="!justify-center gap-4">
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    </>
   );
 }
+
+export default function PersonalPage() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando Personal..." />}>
+            <PersonalPageContent />
+        </Suspense>
+    )
+}
+
 ```
-- src/components/portal/feedback-dialog.tsx:
+- src/app/personal/nuevo/page.tsx:
+```tsx
+
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Loader2, Save, X, UserPlus } from 'lucide-react';
+import type { Personal } from '@/types';
+import { DEPARTAMENTOS_PERSONAL } from '@/types';
+
+import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
+import { useLoadingStore } from '@/hooks/use-loading-store';
+
+export const personalFormSchema = z.object({
+  id: z.string().min(1, 'El DNI es obligatorio'),
+  nombre: z.string().min(1, 'El nombre es obligatorio'),
+  apellido1: z.string().min(1, 'El primer apellido es obligatorio'),
+  apellido2: z.string().optional().default(''),
+  iniciales: z.string().optional(),
+  departamento: z.string().min(1, 'El departamento es obligatorio'),
+  categoria: z.string().min(1, 'La categoría es obligatoria'),
+  telefono: z.string().optional().default(''),
+  email: z.string().email('Debe ser un email válido'),
+  precioHora: z.coerce.number().min(0, 'El precio por hora no puede ser negativo'),
+});
+
+type PersonalFormValues = z.infer<typeof personalFormSchema>;
+
+export default function NuevoPersonalPage() {
+  const router = useRouter();
+  const { isLoading, setIsLoading } = useLoadingStore();
+  const { toast } = useToast();
+
+  const form = useForm<PersonalFormValues>({
+    resolver: zodResolver(personalFormSchema),
+    defaultValues: {
+      precioHora: 0,
+      apellido2: '',
+      telefono: '',
+    },
+  });
+
+  function onSubmit(data: PersonalFormValues) {
+    setIsLoading(true);
+
+    let allItems = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    
+    const existing = allItems.find(p => p.id.toLowerCase() === data.id.toLowerCase());
+    if (existing) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un empleado con este DNI.' });
+        setIsLoading(false);
+        return;
+    }
+    
+    const finalData: Personal = {
+        ...data,
+        nombreCompleto: `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim(),
+        nombreCompacto: `${data.nombre} ${data.apellido1}`,
+        iniciales: `${data.nombre[0]}${data.apellido1[0]}`.toUpperCase(),
+        email: data.email, // Ensure email is passed
+    }
+
+    allItems.push(finalData);
+    localStorage.setItem('personal', JSON.stringify(allItems));
+    
+    toast({ description: 'Nuevo empleado añadido correctamente.' });
+    router.push('/personal');
+    setIsLoading(false);
+  }
+
+  return (
+    <>
+      <main className="container mx-auto px-4 py-8">
+        <Form {...form}>
+          <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <UserPlus className="h-8 w-8" />
+                <h1 className="text-3xl font-headline font-bold">Nuevo Empleado</h1>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" type="button" onClick={() => router.push('/personal')}> <X className="mr-2"/> Cancelar</Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                  <span className="ml-2">Guardar</span>
+                </Button>
+              </div>
+            </div>
+            
+            <Card>
+              <CardHeader><CardTitle className="text-lg">Información del Empleado</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="nombre" render={({ field }) => (
+                    <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="apellido1" render={({ field }) => (
+                    <FormItem><FormLabel>Primer Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                   <FormField control={form.control} name="apellido2" render={({ field }) => (
+                    <FormItem><FormLabel>Segundo Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField control={form.control} name="departamento" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Departamento</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {DEPARTAMENTOS_PERSONAL.map(dep => <SelectItem key={dep} value={dep}>{dep}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="categoria" render={({ field }) => (
+                        <FormItem><FormLabel>Categoría / Puesto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="precioHora" render={({ field }) => (
+                        <FormItem><FormLabel>Precio/Hora</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <FormField control={form.control} name="telefono" render={({ field }) => (
+                        <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                     <FormField control={form.control} name="email" render={({ field }) => (
+                        <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="id" render={({ field }) => (
+                        <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                 </div>
+              </CardContent>
+            </Card>
+          </form>
+        </Form>
+      </main>
+    </>
+  );
+}
+
+```
+- src/app/personal/[id]/page.tsx:
+```tsx
+
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Loader2, Save, X, UserCog, Trash2 } from 'lucide-react';
+import type { Personal } from '@/types';
+import { DEPARTAMENTOS_PERSONAL } from '@/types';
+import { personalFormSchema } from '@/app/personal/nuevo/page';
+
+import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { useLoadingStore } from '@/hooks/use-loading-store';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
+type PersonalFormValues = z.infer<typeof personalFormSchema>;
+
+const defaultFormValues: PersonalFormValues = {
+  id: '',
+  nombre: '',
+  apellido1: '',
+  apellido2: '',
+  telefono: '',
+  iniciales: '',
+  email: '',
+  precioHora: 0,
+  departamento: '',
+  categoria: '',
+};
+
+export default function EditarPersonalPage() {
+  const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
+
+  const { isLoading, setIsLoading } = useLoadingStore();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<PersonalFormValues>({
+    resolver: zodResolver(personalFormSchema),
+    defaultValues,
+  });
+
+  useEffect(() => {
+    const allItems = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    const item = allItems.find(p => p.id === id);
+    if (item) {
+      form.reset({
+        ...defaultFormValues, // Ensure all fields have a default
+        ...item, // Overwrite with existing data
+        precioHora: item.precioHora || 0, // Ensure number is not undefined
+        apellido2: item.apellido2 || '',
+        telefono: item.telefono || '',
+        email: item.email || '',
+        iniciales: item.iniciales || '',
+      });
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el empleado.' });
+      router.push('/personal');
+    }
+  }, [id, form, router, toast]);
+
+  function onSubmit(data: PersonalFormValues) {
+    setIsLoading(true);
+
+    let allItems = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    const index = allItems.findIndex(p => p.id === id);
+
+    if (index !== -1) {
+       const finalData: Personal = {
+        ...data,
+        id,
+        nombreCompleto: `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim(),
+        nombreCompacto: `${data.nombre} ${data.apellido1}`,
+        iniciales: `${data.nombre[0] || ''}${data.apellido1[0] || ''}`.toUpperCase(),
+        email: data.email,
+        apellidos: `${data.apellido1} ${data.apellido2 || ''}`.trim(),
+    }
+      allItems[index] = finalData;
+      localStorage.setItem('personal', JSON.stringify(allItems));
+      toast({ description: 'Empleado actualizado correctamente.' });
+    }
+    
+    router.push('/personal');
+    setIsLoading(false);
+  }
+  
+  const handleDelete = () => {
+    let allItems = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    const updatedItems = allItems.filter(p => p.id !== id);
+    localStorage.setItem('personal', JSON.stringify(updatedItems));
+    toast({ title: 'Empleado eliminado' });
+    router.push('/personal');
+  };
+
+  return (
+    <>
+      <main className="container mx-auto px-4 py-8">
+        <Form {...form}>
+          <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <UserCog className="h-8 w-8" />
+                <h1 className="text-3xl font-headline font-bold">Editar Empleado</h1>
+              </div>
+              <div className="flex gap-2">
+                 <Button variant="outline" type="button" onClick={() => router.push('/personal')}> <X className="mr-2"/> Cancelar</Button>
+                 <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/> Borrar</Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                  <span className="ml-2">Guardar Cambios</span>
+                </Button>
+              </div>
+            </div>
+            
+            <Card>
+              <CardHeader><CardTitle className="text-lg">Información del Empleado</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="nombre" render={({ field }) => (
+                    <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                   <FormField control={form.control} name="apellido1" render={({ field }) => (
+                    <FormItem><FormLabel>Primer Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="apellido2" render={({ field }) => (
+                    <FormItem><FormLabel>Segundo Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField control={form.control} name="departamento" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Departamento</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {DEPARTAMENTOS_PERSONAL.map(dep => <SelectItem key={dep} value={dep}>{dep}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="categoria" render={({ field }) => (
+                        <FormItem><FormLabel>Categoría / Puesto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="precioHora" render={({ field }) => (
+                        <FormItem><FormLabel>Precio/Hora</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <FormField control={form.control} name="telefono" render={({ field }) => (
+                        <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                     <FormField control={form.control} name="email" render={({ field }) => (
+                        <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="id" render={({ field }) => (
+                        <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} readOnly /></FormControl><FormMessage /></FormItem>
+                    )} />
+                 </div>
+              </CardContent>
+            </Card>
+          </form>
+        </Form>
+      </main>
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Se eliminará permanentemente el registro del empleado.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    </>
+  );
+}
+
+```
+- src/app/produccion/page.tsx:
+```tsx
+
+'use client';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// This page just redirects to the main CPR page.
+export default function ProduccionRedirectPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/cpr');
+    }, [router]);
+    return null;
+}
+
+```
+- src/hooks/use-local-storage.ts:
+```ts
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+
+// This hook is currently NOT IN USE. Data management has been centralized in useDataStore.
+// It remains for potential future use cases or as a reference.
+function useLocalStorage<T>(key: string, initialValue: T) {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === 'undefined') {
+      return initialValue;
+    }
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.error(error);
+      return initialValue;
+    }
+  });
+
+  const setValue = (value: T | ((val: T) => T)) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        window.dispatchEvent(new StorageEvent('storage', { key }));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const refreshValue = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const item = window.localStorage.getItem(key);
+      setStoredValue(item ? JSON.parse(item) : initialValue);
+    } catch (error) {
+      console.error(error);
+      setStoredValue(initialValue);
+    }
+  }, [key, initialValue]);
+
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === key) {
+        refreshValue();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [key, refreshValue]);
+
+  return [storedValue, setValue, refreshValue] as const;
+}
+
+export default useLocalStorage;
+
+```
+- src/app/os/personal-mice/layout.tsx:
 ```tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Textarea } from '@/components/ui/textarea';
-import { Pencil } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { Input } from '../ui/input';
-import type { SolicitudPersonalCPR } from '@/types';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { Users } from 'lucide-react';
 
-interface FeedbackDialogProps {
-  initialRating?: number;
-  initialComment?: string;
-  initialHoraEntrada?: string;
-  initialHoraSalida?: string;
-  workerName: string;
-  turnoInfo?: SolicitudPersonalCPR | null;
-  onSave: (feedback: { rating: number; comment: string; horaEntradaReal?: string, horaSalidaReal?: string }) => void;
-  trigger?: React.ReactNode;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  title?: string;
-  description?: string;
-  saveButtonText?: string;
-}
-
-export function FeedbackDialog({
-  initialRating,
-  initialComment,
-  initialHoraEntrada,
-  initialHoraSalida,
-  workerName,
-  turnoInfo,
-  onSave,
-  trigger,
-  open,
-  onOpenChange,
-  title = "Valoración",
-  description = "Deja una valoración y comentarios sobre el desempeño.",
-  saveButtonText = "Guardar Valoración"
-}: FeedbackDialogProps) {
-    const [rating, setRating] = useState(initialRating || 3);
-    const [comment, setComment] = useState(initialComment || '');
-    const [horaEntrada, setHoraEntrada] = useState(initialHoraEntrada || '');
-    const [horaSalida, setHoraSalida] = useState(initialHoraSalida || '');
-    
-    useEffect(() => {
-        if(open) {
-            setRating(initialRating || 3);
-            setComment(initialComment || '');
-            setHoraEntrada(initialHoraEntrada || '');
-            setHoraSalida(initialHoraSalida || '');
-        }
-    }, [open, initialRating, initialComment, initialHoraEntrada, initialHoraSalida]);
-
-    const handleSave = () => {
-        onSave({ rating, comment, horaEntradaReal: horaEntrada, horaSalidaReal: horaSalida });
-        if (onOpenChange) {
-          onOpenChange(false);
-        }
-    };
-    
-    const dialogContent = (
-        <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-                <DialogTitle>{title}</DialogTitle>
-                <DialogDescription>{description}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6 py-4">
-                 <div className="text-sm p-2 bg-secondary rounded-md">
-                    <p><strong>Trabajador:</strong> {workerName}</p>
-                    {turnoInfo && (
-                        <>
-                        <p><strong>Categoría:</strong> {turnoInfo.categoria} ({turnoInfo.partida})</p>
-                        <p><strong>Fecha y Hora (Plan):</strong> {format(new Date(turnoInfo.fechaServicio), 'dd/MM/yyyy')} de {turnoInfo.horaInicio} a {turnoInfo.horaFin}</p>
-                        </>
-                    )}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                          <Label>Hora Entrada Real</Label>
-                          <Input type="time" value={horaEntrada} onChange={e => setHoraEntrada(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Hora Salida Real</Label>
-                        <Input type="time" value={horaSalida} onChange={e => setHoraSalida(e.target.value)} />
-                      </div>
-                </div>
-                <div className="space-y-2">
-                    <Label>Desempeño (1-5)</Label>
-                    <div className="flex items-center gap-4 pt-2">
-                        <span className="text-sm text-muted-foreground">Bajo</span>
-                        <Slider value={[rating]} onValueChange={(value) => setRating(value[0])} max={5} min={1} step={1} />
-                        <span className="text-sm text-muted-foreground">Alto</span>
-                    </div>
-                </div>
-                <div className="space-y-2">
-                    <Label>Comentarios Internos MICE</Label>
-                    <Textarea 
-                        value={comment} 
-                        onChange={(e) => setComment(e.target.value)}
-                        rows={4}
-                        placeholder="Añade aquí comentarios internos sobre el desempeño..."
-                    />
-                </div>
-            </div>
-            <DialogFooter>
-                <Button variant="secondary" onClick={() => onOpenChange?.(false)}>Cancelar</Button>
-                <Button onClick={handleSave}>{saveButtonText}</Button>
-            </DialogFooter>
-        </DialogContent>
-    );
-
+export default function PersonalMiceLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-            {open && dialogContent}
-        </Dialog>
-    );
+        <div>
+             <div className="flex items-center justify-between mb-8">
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Módulo de Personal MICE</h1>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/personal-externo/layout.tsx:
+```tsx
+'use client';
+
+import { Users } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function PersonalExternoLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Módulo de Personal Externo</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/transporte/layout.tsx:
+```tsx
+'use client';
+
+import { Truck } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function TransporteLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Truck />Módulo de Transporte</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/prueba-menu/layout.tsx:
+```tsx
+'use client';
+
+import { ClipboardCheck } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function PruebaMenuLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><ClipboardCheck />Prueba de Menú</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/hielo/layout.tsx:
+```tsx
+'use client';
+
+import { Snowflake } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function HieloLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Snowflake />Módulo de Hielo</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/decoracion/layout.tsx:
+```tsx
+'use client';
+
+import { Flower2 } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function DecoracionLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Flower2 />Módulo de Decoración</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/cta-explotacion/layout.tsx:
+```tsx
+'use client';
+
+import { Euro } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function CtaExplotacionLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Euro />Cuenta de Explotación</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/comercial/layout.tsx:
+```tsx
+'use client';
+
+import { Briefcase } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function ComercialLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Briefcase />Módulo Comercial</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/bodega/layout.tsx:
+```tsx
+'use client';
+
+import { Wine } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function BodegaLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Wine />Módulo de Bodega</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/bio/layout.tsx:
+```tsx
+'use client';
+
+import { Leaf } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function BioLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Leaf />Módulo de Bio (Consumibles)</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/alquiler/layout.tsx:
+```tsx
+'use client';
+
+import { Archive } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function AlquilerLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Archive />Módulo de Alquiler</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/almacen/layout.tsx:
+```tsx
+'use client';
+
+import { Warehouse } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function AlmacenLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Warehouse />Módulo de Almacén</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/page.tsx:
+```tsx
+'use client';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// This page just redirects to the main service order overview page.
+export default function OsRedirectPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/pes');
+    }, [router]);
+    return null;
 }
 ```
