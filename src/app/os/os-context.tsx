@@ -1,8 +1,9 @@
+
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useCallback } from 'react';
 import type { ServiceOrder, MaterialOrder, PickingSheet, ReturnSheet, OrderItem, ComercialBriefing, Entrega } from '@/types';
-import { useDataStore } from '@/hooks/use-data-store';
+import { useDataStore, logPerf } from '@/hooks/use-data-store';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -51,7 +52,11 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
     const { isLoaded, data } = useDataStore();
 
     const { serviceOrder, briefing, spaceAddress } = useMemo(() => {
-        if (!isLoaded || !osId || !data.serviceOrders) return { serviceOrder: null, briefing: null, spaceAddress: '' };
+        logPerf('OsContext', 'Start useMemo [serviceOrder, briefing, spaceAddress]');
+        if (!isLoaded || !osId || !data.serviceOrders) {
+            logPerf('OsContext', 'End useMemo (early exit)');
+            return { serviceOrder: null, briefing: null, spaceAddress: '' };
+        }
 
         const currentOS = data.serviceOrders.find(os => os.id === osId);
         let address = '';
@@ -61,7 +66,7 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
         }
         
         const currentBriefing = data.comercialBriefings?.find(b => b.osId === osId) || null;
-
+        logPerf('OsContext', 'End useMemo [serviceOrder, briefing, spaceAddress]');
         return { 
             serviceOrder: currentOS || null, 
             briefing: currentBriefing, 
@@ -70,9 +75,13 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
     }, [isLoaded, osId, data]);
     
     const getProcessedDataForType = useCallback((type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler'): ProcessedData => {
+        logPerf('getProcessedDataForType', `Start (${type})`);
         const emptyResult: ProcessedData = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
         
-        if (!isLoaded || !data.materialOrders || !data.pickingSheets || !data.returnSheets) return emptyResult;
+        if (!isLoaded || !data.materialOrders || !data.pickingSheets || !data.returnSheets) {
+             logPerf('getProcessedDataForType', `End (${type}) - early exit, not loaded`);
+            return emptyResult;
+        }
         
         const relatedOrders = data.materialOrders.filter(o => o.osId === osId && o.type === type);
         const relatedPickingSheets = Object.values(data.pickingSheets).filter(s => s.osId === osId);
@@ -144,7 +153,7 @@ export function OsContextProvider({ osId, children }: { osId: string; children: 
         statusItems['Asignado'] = pending;
 
         const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-
+        logPerf('getProcessedDataForType', `End (${type})`);
         return { 
             allItems: all, 
             blockedOrders: blocked,

@@ -109,43 +109,50 @@ export const defaultValuesMap: { [key in DataKeys]?: any } = {
     stockElaboraciones: {}, personalExternoAjustes: {}, stockArticuloUbicacion: {},
 };
 
+const performanceLog: { context: string, step: string, time: number }[] = [];
+let perfStart: number | null = null;
+
+export const logPerf = (context: string, step: string) => {
+    if (typeof window === 'undefined') return;
+    if (!perfStart) {
+        perfStart = performance.now();
+        performanceLog.push({ context, step, time: 0 });
+        console.log(`[PERF] [${context}] ${step}...`);
+        return;
+    }
+    const time = performance.now() - perfStart;
+    performanceLog.push({ context, step, time });
+    console.log(`[PERF] [${context}] ${step} finished in ${time.toFixed(2)}ms`);
+    perfStart = performance.now(); // Reset for next measurement
+};
+
 export const useDataStore = create<DataStore>((set, get) => ({
     data: {},
     isLoaded: false,
     setData: (data) => set({ data, isLoaded: true }),
     loadAllData: () => {
-        if (typeof window === 'undefined') {
+        if (get().isLoaded || typeof window === 'undefined') {
             return;
         }
 
-        const performanceLog: { key: string; read: number; parse: number }[] = [];
+        logPerf('loadAllData', 'Start');
         const loadedData: Partial<DataStoreData> = {};
 
         ALL_DATA_KEYS.forEach(key => {
-            let readTime = 0;
-            let parseTime = 0;
             try {
-                const readStart = performance.now();
                 const storedValue = localStorage.getItem(key);
-                readTime = performance.now() - readStart;
-                
-                const parseStart = performance.now();
                 if (storedValue) {
                     loadedData[key as keyof DataStoreData] = JSON.parse(storedValue);
                 } else {
                     loadedData[key as keyof DataStoreData] = defaultValuesMap[key] ?? [];
                 }
-                parseTime = performance.now() - parseStart;
-
             } catch(e) {
                 console.warn(`Could not parse key: ${key}. Setting to default.`, e);
                 loadedData[key as keyof DataStoreData] = defaultValuesMap[key] ?? [];
             }
-            performanceLog.push({ key, read: readTime, parse: parseTime });
         });
         
-        (window as any).__PERF_LOG = performanceLog;
-        
+        logPerf('loadAllData', 'Finish');
         set({ data: loadedData, isLoaded: true });
     }
 }));

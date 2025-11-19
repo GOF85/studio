@@ -6,9 +6,9 @@ import { Button } from '../ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 
 type PerfLog = {
-    key: string;
-    read: number;
-    parse: number;
+    context: string;
+    step: string;
+    time: number;
 };
 
 export function PerformanceMonitor() {
@@ -20,21 +20,19 @@ export function PerformanceMonitor() {
             if (typeof window !== 'undefined' && (window as any).__PERF_LOG) {
                 setLog((window as any).__PERF_LOG);
             }
-        }, 1000); // Check every second for the log to appear
+        }, 1000);
 
         return () => clearInterval(interval);
     }, []);
     
     if (!log) return null;
 
-    const totalRead = log.reduce((sum, item) => sum + item.read, 0);
-    const totalParse = log.reduce((sum, item) => sum + item.parse, 0);
-    const totalTime = totalRead + totalParse;
+    const totalTime = log.reduce((sum, item) => sum + item.time, 0);
     
     if (!isOpen) {
         return (
             <div className="fixed bottom-2 right-2 z-50">
-                <Button onClick={() => setIsOpen(true)} size="sm" variant="outline" className="bg-background shadow-lg">
+                <Button onClick={() => setIsOpen(true)} size="sm" variant="destructive" className="shadow-lg">
                     Carga: {totalTime.toFixed(2)}ms
                 </Button>
             </div>
@@ -56,19 +54,17 @@ export function PerformanceMonitor() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Clave (localStorage)</TableHead>
-                                <TableHead className="text-right">T. Lectura (ms)</TableHead>
-                                <TableHead className="text-right">T. Parseo (ms)</TableHead>
-                                <TableHead className="text-right">T. Total (ms)</TableHead>
+                                <TableHead>Contexto</TableHead>
+                                <TableHead>Paso</TableHead>
+                                <TableHead className="text-right">Tiempo (ms)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {log.sort((a,b) => (b.read + b.parse) - (a.read + a.parse)).map(item => (
-                                <TableRow key={item.key}>
-                                    <TableCell className="font-mono text-xs">{item.key}</TableCell>
-                                    <TableCell className="text-right font-mono text-xs">{item.read.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right font-mono text-xs">{item.parse.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right font-mono text-xs font-bold">{(item.read + item.parse).toFixed(2)}</TableCell>
+                            {log.map(item => (
+                                <TableRow key={`${item.context}-${item.step}`}>
+                                    <TableCell className="font-mono text-xs">{item.context}</TableCell>
+                                    <TableCell className="font-mono text-xs">{item.step}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs font-bold">{item.time.toFixed(2)}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
