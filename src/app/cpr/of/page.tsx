@@ -171,7 +171,7 @@ const partidaColorCircles: Record<PartidaProduccion, string> = {
 const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
 const statusOptions = Object.keys(statusVariant) as OrdenFabricacion['estado'][];
 
-function OfPageContent() {
+export default function OfPageContent() {
     const { data, isLoaded, loadAllData } = useDataStore();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -207,9 +207,8 @@ function OfPageContent() {
     };
     
     const { necesidades, necesidadesCubiertas } = useMemo(() => {
-        console.time('[PERF] Cálculo de Necesidades');
         if (!isLoaded || !data || !dateRange?.from) return { necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
-
+        console.time('[PERF] Cálculo de Necesidades de Producción');
         const {
             ordenesFabricacion, serviceOrders, comercialBriefings, gastronomyOrders, recetas,
             entregas, pedidosEntrega, productosVenta, stockElaboraciones, pickingStates
@@ -319,7 +318,7 @@ function OfPageContent() {
             else necesidadesCubiertas.push(itemCompleto);
         });
 
-        console.timeEnd('[PERF] Cálculo de Necesidades');
+        console.timeEnd('[PERF] Cálculo de Necesidades de Producción');
         return { 
             ordenes: ordenesFabricacion || [], 
             personalCPR: (data.personal || []).filter(p => p.departamento === 'CPR'), 
@@ -331,6 +330,7 @@ function OfPageContent() {
     }, [isLoaded, data, dateRange, elaboracionesMap]);
 
     useEffect(() => {
+        console.time('[PERF] Cálculo del Reporte');
         if (!necesidades || !dateRange?.from || !dateRange?.to || !data) {
             setReporteData(null);
             return;
@@ -427,12 +427,12 @@ function OfPageContent() {
             referencias: Array.from(allRecetasNecesarias.values()),
             elaboraciones: Array.from(allElaboracionesNecesarias.values()),
         });
-
+        console.timeEnd('[PERF] Cálculo del Reporte');
     }, [necesidades, dateRange, data, elaboracionesMap]);
     
     const { ingredientesMap, articulosErpMap, proveedoresMap } = useMemo(() => {
-        console.time('[PERF] Mapeo de Ingredientes y Proveedores');
         if (!isLoaded || !data) return { ingredientesMap: new Map(), articulosErpMap: new Map(), proveedoresMap: new Map() };
+        console.time('[PERF] Mapeo de Ingredientes y Proveedores');
         const { ingredientesInternos, articulosERP, proveedores } = data;
         const result = {
             ingredientesMap: new Map((ingredientesInternos || []).map(i => [i.id, i])),
@@ -444,10 +444,10 @@ function OfPageContent() {
     }, [isLoaded, data]);
     
     const listaDeLaCompraPorProveedor = useMemo(() => {
-        console.time('[PERF] Cálculo de Lista de la Compra');
         if (!isLoaded || !data || !necesidades) {
             return [];
         }
+        console.time('[PERF] Cálculo de Lista de la Compra');
 
         const ingredientesNecesarios = new Map<string, { cantidad: number; desgloseUso: { receta: string; elaboracion: string; cantidad: number }[] }>();
 
@@ -701,9 +701,131 @@ function OfPageContent() {
   
   const numSelected = selectedNecesidades.size;
 }
+```
+- src/hooks/use-impersonated-user.tsx:
+```tsx
+
+'use client';
+
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import type { PortalUser, Personal } from '@/types';
+import { usePathname } from 'next/navigation';
+import { useDataStore } from './use-data-store';
+
+type ImpersonatedUserContextType = {
+  impersonatedUser: PortalUser | null;
+  setImpersonatedUser: (user: PortalUser | null) => void;
+  allInternalUsers: PortalUser[];
+  allPortalUsers: PortalUser[];
+};
+
+const ImpersonatedUserContext = createContext<ImpersonatedUserContextType | undefined>(undefined);
+
+export function ImpersonatedUserProvider({ children }: { children: ReactNode }) {
+  const [impersonatedUser, setImpersonatedUserState] = useState<PortalUser | null>(null);
+  const pathname = usePathname();
+  const { data, isLoaded } = useDataStore();
+  
+  const allInternalUsers: PortalUser[] = React.useMemo(() => {
+    if (!isLoaded || !data.personal) return [];
+    return data.personal.map(p => ({
+        id: p.id,
+        nombre: p.nombreCompleto,
+        email: p.email,
+        roles: [p.departamento as PortalUser['roles'][0]],
+    }));
+  }, [isLoaded, data.personal]);
+  
+  const allPortalUsers: PortalUser[] = React.useMemo(() => {
+    if (!isLoaded || !data.portalUsers) return [];
+    return data.portalUsers;
+  }, [isLoaded, data.portalUsers]);
+
+
+  useEffect(() => {
+    // On initial load, try to get the user from localStorage
+    const storedUser = localStorage.getItem('impersonatedUser');
+    if (storedUser) {
+      try {
+        setImpersonatedUserState(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Failed to parse impersonated user from localStorage", e);
+        localStorage.removeItem('impersonatedUser');
+      }
+    }
+  }, []);
+
+  const setImpersonatedUser = (user: PortalUser | null) => {
+    setImpersonatedUserState(user);
+    if (user) {
+      localStorage.setItem('impersonatedUser', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('impersonatedUser');
+    }
+  };
+  
+  useEffect(() => {
+    if (impersonatedUser && !pathname.startsWith('/portal') && !pathname.startsWith('/rrhh')) {
+        const isAdminOrComercial = impersonatedUser.roles.includes('Admin') || impersonatedUser.roles.includes('Comercial');
+        if (!isAdminOrComercial) {
+            // setImpersonatedUser(null);
+        }
+    }
+  }, [pathname, impersonatedUser]);
+
+  return (
+    <ImpersonatedUserContext.Provider value={{ impersonatedUser, setImpersonatedUser, allInternalUsers, allPortalUsers }}>
+      {children}
+    </ImpersonatedUserContext.Provider>
+  );
+}
+
+export function useImpersonatedUser() {
+  const context = useContext(ImpersonatedUserContext);
+  if (context === undefined) {
+    throw new Error('useImpersonatedUser must be used within a ImpersonatedUserProvider');
+  }
+  return context;
+}
 
 ```
-- src/components/layout/loading-screen.tsx
-- src/components/debug/performance-monitor.tsx
 ```
+- src/components/layout/loading-screen.tsx:
+```tsx
 
+import { Loader2 } from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
+
+export function LoadingScreen({ title = "Cargando..."}: { title?: string}) {
+    return (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+            <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+            <p className="text-lg font-semibold">{title}</p>
+        </div>
+    )
+}
+
+```
+```
+- src/hooks/use-os-data.ts:
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import type { ServiceOrder, ComercialBriefing, Espacio } from '@/types';
+import { useToast } from './use-toast';
+import { useDataStore } from './use-data-store';
+
+export function useOsData(osId: string) {
+    const { data, isLoaded } = useDataStore();
+    const { toast } = useToast();
+
+    const serviceOrder = isLoaded ? data.serviceOrders.find(os => os.id === osId) || null : null;
+    const briefing = isLoaded ? data.comercialBriefings.find(b => b.osId === osId) || null : null;
+    const spaceAddress = isLoaded && serviceOrder?.space
+        ? data.espacios.find(e => e.identificacion.nombreEspacio === serviceOrder.space)?.identificacion.calle || ''
+        : '';
+    
+    return { serviceOrder, spaceAddress, briefing, isLoading: !isLoaded };
+}
+```
