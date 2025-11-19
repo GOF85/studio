@@ -9,22 +9,53 @@ import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
 import { Suspense, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { useDataStore } from '@/hooks/use-data-store';
+import { useDataStore, ALL_DATA_KEYS, defaultValuesMap } from '@/hooks/use-data-store';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { PerformanceMonitor } from '@/components/debug/performance-monitor';
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { isLoaded, loadAllData } = useDataStore();
+  const { isLoaded, setData } = useDataStore();
 
   useEffect(() => {
     // This effect runs once on initial mount and triggers the global data load.
-    if (!isLoaded) {
-      loadAllData();
+    const performanceLog: { key: string; read: number; parse: number }[] = [];
+    const loadedData: { [key: string]: any } = {};
+
+    ALL_DATA_KEYS.forEach(key => {
+        let readTime = 0;
+        let parseTime = 0;
+        try {
+            const readStart = performance.now();
+            const storedValue = localStorage.getItem(key);
+            readTime = performance.now() - readStart;
+            
+            const parseStart = performance.now();
+            if (storedValue) {
+                loadedData[key] = JSON.parse(storedValue);
+            } else {
+                loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
+            }
+            parseTime = performance.now() - parseStart;
+
+        } catch(e) {
+            console.warn(`Could not parse key: ${key}. Setting to default.`, e);
+            loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
+        }
+        performanceLog.push({ key, read: readTime, parse: parseTime });
+    });
+    
+    // Store performance log to be read by the component
+    if (typeof window !== 'undefined') {
+        (window as any).__PERF_LOG = performanceLog;
     }
-  }, [isLoaded, loadAllData]);
+    
+    setData(loadedData);
+
+  }, [setData]);
 
 
   return (
@@ -63,6 +94,7 @@ export default function RootLayout({
                 </div>
                 )}
               </div>
+              {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
             </NProgressProvider>
           </ImpersonatedUserProvider>
         <Toaster />
