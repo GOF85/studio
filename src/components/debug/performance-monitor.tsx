@@ -16,9 +16,13 @@ export function PerformanceMonitor() {
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
-        if (typeof window !== 'undefined' && (window as any).__PERF_LOG) {
-            setLog((window as any).__PERF_LOG);
-        }
+        const interval = setInterval(() => {
+            if (typeof window !== 'undefined' && (window as any).__PERF_LOG) {
+                setLog((window as any).__PERF_LOG);
+            }
+        }, 1000); // Check every second for the log to appear
+
+        return () => clearInterval(interval);
     }, []);
     
     if (!log) return null;

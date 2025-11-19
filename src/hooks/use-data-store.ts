@@ -114,6 +114,38 @@ export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: false,
     setData: (data) => set({ data, isLoaded: true }),
     loadAllData: () => {
-      console.log('loadAllData is being managed by the main layout now.');
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const performanceLog: { key: string; read: number; parse: number }[] = [];
+        const loadedData: Partial<DataStoreData> = {};
+
+        ALL_DATA_KEYS.forEach(key => {
+            let readTime = 0;
+            let parseTime = 0;
+            try {
+                const readStart = performance.now();
+                const storedValue = localStorage.getItem(key);
+                readTime = performance.now() - readStart;
+                
+                const parseStart = performance.now();
+                if (storedValue) {
+                    loadedData[key as keyof DataStoreData] = JSON.parse(storedValue);
+                } else {
+                    loadedData[key as keyof DataStoreData] = defaultValuesMap[key] ?? [];
+                }
+                parseTime = performance.now() - parseStart;
+
+            } catch(e) {
+                console.warn(`Could not parse key: ${key}. Setting to default.`, e);
+                loadedData[key as keyof DataStoreData] = defaultValuesMap[key] ?? [];
+            }
+            performanceLog.push({ key, read: readTime, parse: parseTime });
+        });
+        
+        (window as any).__PERF_LOG = performanceLog;
+        
+        set({ data: loadedData, isLoaded: true });
     }
 }));
