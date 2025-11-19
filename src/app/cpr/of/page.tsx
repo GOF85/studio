@@ -207,6 +207,7 @@ function OfPageContent() {
     };
     
     const { necesidades, necesidadesCubiertas } = useMemo(() => {
+        console.time('[PERF] Cálculo de Necesidades');
         if (!isLoaded || !data || !dateRange?.from) return { necesidades: [], necesidadesCubiertas: [], pickingStates: {} };
 
         const {
@@ -318,6 +319,7 @@ function OfPageContent() {
             else necesidadesCubiertas.push(itemCompleto);
         });
 
+        console.timeEnd('[PERF] Cálculo de Necesidades');
         return { 
             ordenes: ordenesFabricacion || [], 
             personalCPR: (data.personal || []).filter(p => p.departamento === 'CPR'), 
@@ -429,16 +431,20 @@ function OfPageContent() {
     }, [necesidades, dateRange, data, elaboracionesMap]);
     
     const { ingredientesMap, articulosErpMap, proveedoresMap } = useMemo(() => {
+        console.time('[PERF] Mapeo de Ingredientes y Proveedores');
         if (!isLoaded || !data) return { ingredientesMap: new Map(), articulosErpMap: new Map(), proveedoresMap: new Map() };
         const { ingredientesInternos, articulosERP, proveedores } = data;
-        return {
+        const result = {
             ingredientesMap: new Map((ingredientesInternos || []).map(i => [i.id, i])),
             articulosErpMap: new Map((articulosERP || []).map(a => [a.idreferenciaerp, a])),
             proveedoresMap: new Map((proveedores || []).map(p => [p.IdERP, p]))
         };
+        console.timeEnd('[PERF] Mapeo de Ingredientes y Proveedores');
+        return result;
     }, [isLoaded, data]);
     
     const listaDeLaCompraPorProveedor = useMemo(() => {
+        console.time('[PERF] Cálculo de Lista de la Compra');
         if (!isLoaded || !data || !necesidades) {
             return [];
         }
@@ -512,7 +518,8 @@ function OfPageContent() {
                 proveedorData.listaCompra.push(ingCompra);
             }
         });
-
+        
+        console.timeEnd('[PERF] Cálculo de Lista de la Compra');
         return Array.from(compraPorProveedor.values()).sort((a,b) => a.nombreComercial.localeCompare(b.nombreComercial));
     }, [isLoaded, data, necesidades, elaboracionesMap, ingredientesMap, articulosErpMap, proveedoresMap]);
 
@@ -698,3 +705,5 @@ function OfPageContent() {
 ```
 - src/components/layout/loading-screen.tsx
 - src/components/debug/performance-monitor.tsx
+```
+
