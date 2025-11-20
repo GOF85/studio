@@ -38,6 +38,7 @@ const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' 
 };
 
 export function PrevisionServiciosContent() {
+  console.log('[DEBUG] PrevisionServiciosContent: Component rendering start.');
   const { data, isLoaded } = useDataStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -60,6 +61,7 @@ export function PrevisionServiciosContent() {
   }, [serviceOrders]);
   
   const filteredAndSortedOrders = useMemo(() => {
+    console.log('[DEBUG] PrevisionServiciosContent: Recalculating filteredAndSortedOrders...');
     const today = startOfToday();
     
     const filtered = serviceOrders.filter(os => {
@@ -94,6 +96,8 @@ export function PrevisionServiciosContent() {
   if (!isLoaded) {
     return <LoadingSkeleton title="Cargando Previsión..." />;
   }
+  
+  console.log('[DEBUG] PrevisionServiciosContent: Component is about to return JSX.');
 
   return (
     <main>
