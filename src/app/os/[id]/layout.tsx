@@ -6,12 +6,11 @@ import { usePathname, useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
-import type { ServiceOrder } from '@/types';
+import type { ServiceOrder, Entrega } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ObjectiveDisplay } from '@/components/os/objective-display';
-import { OsContextProvider, useOsContext } from '../os-context';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar, LayoutDashboard, Phone, ChevronRight, FilePenLine } from 'lucide-react';
 import {
   Tooltip,
@@ -23,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { format, differenceInDays } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDataStore } from '@/hooks/use-data-store';
 
 
 type NavLink = {
@@ -61,8 +61,13 @@ const getInitials = (name: string) => {
 
 function OsHeaderContent({ osId }: { osId: string;}) {
     const pathname = usePathname();
-    const { serviceOrder, isLoading } = useOsContext();
+    const { data, isLoaded } = useDataStore();
     const [updateKey, setUpdateKey] = useState(Date.now());
+    
+    const serviceOrder = useMemo(() => {
+        if (!isLoaded || !data.serviceOrders) return null;
+        return data.serviceOrders.find(os => os.id === osId) || null;
+    }, [isLoaded, data.serviceOrders, osId, updateKey]);
 
     useEffect(() => {
         const handleStorageChange = () => {
@@ -70,7 +75,7 @@ function OsHeaderContent({ osId }: { osId: string;}) {
         };
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
-    }, [osId, updateKey]);
+    }, []);
     
     const {currentModule, isSubPage} = useMemo(() => {
         const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['os', '123', 'gastronomia', '456']
@@ -91,7 +96,7 @@ function OsHeaderContent({ osId }: { osId: string;}) {
         return { currentModule: { title: 'Panel de Control', icon: LayoutDashboard, path: '' }, isSubPage: false };
     }, [pathname]);
 
-    if (!serviceOrder) {
+    if (!isLoaded || !serviceOrder) {
         return (
              <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3">
@@ -189,53 +194,51 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     const dashboardHref = `/os/${osId}`;
 
     return (
-      <OsContextProvider osId={osId}>
-        <div className="container mx-auto">
-            <div className="sticky top-[56px] z-30 bg-background/95 backdrop-blur-sm py-2 border-b">
-                <div className="flex items-center gap-4">
-                    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                        <SheetTrigger asChild>
-                            <Button variant="outline">
-                                <Menu className="h-5 w-5 mr-2" />
-                                Módulos
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
-                            <SheetHeader className="p-4 border-b">
-                                <SheetTitle>Módulos de la OS</SheetTitle>
-                            </SheetHeader>
-                            <ScrollArea className="h-full p-4">
-                                <nav className="grid items-start gap-1 pb-4">
-                                    <Link href={dashboardHref} onClick={() => setIsSheetOpen(false)}>
-                                        <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === `/os/${osId}` ? "bg-accent" : "transparent")}>
-                                            <LayoutDashboard className="mr-2 h-4 w-4" />
-                                            <span>Panel de Control</span>
-                                        </span>
-                                    </Link>
-                                    {navLinks.map((item, index) => {
-                                        const href = `/os/${osId}/${item.path}`;
-                                        return (
-                                            <Link key={index} href={href} onClick={() => setIsSheetOpen(false)}>
-                                                <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname.startsWith(href) ? "bg-accent" : "transparent")}>
-                                                    <item.icon className="mr-2 h-4 w-4" />
-                                                    <span>{item.title}</span>
-                                                </span>
-                                            </Link>
-                                        )
-                                    })}
-                                </nav>
-                            </ScrollArea>
-                        </SheetContent>
-                    </Sheet>
-                    <div className="flex-grow">
-                        <OsHeaderContent osId={osId} />
-                    </div>
-                </div>
-            </div>
-            <main className="py-8">
-                {children}
-            </main>
-        </div>
-      </OsContextProvider>
+      <div className="container mx-auto">
+          <div className="sticky top-[56px] z-30 bg-background/95 backdrop-blur-sm py-2 border-b">
+              <div className="flex items-center gap-4">
+                  <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                      <SheetTrigger asChild>
+                          <Button variant="outline">
+                              <Menu className="h-5 w-5 mr-2" />
+                              Módulos
+                          </Button>
+                      </SheetTrigger>
+                      <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
+                          <SheetHeader className="p-4 border-b">
+                              <SheetTitle>Módulos de la OS</SheetTitle>
+                          </SheetHeader>
+                          <ScrollArea className="h-full p-4">
+                              <nav className="grid items-start gap-1 pb-4">
+                                  <Link href={dashboardHref} onClick={() => setIsSheetOpen(false)}>
+                                      <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === `/os/${osId}` ? "bg-accent" : "transparent")}>
+                                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                                          <span>Panel de Control</span>
+                                      </span>
+                                  </Link>
+                                  {navLinks.map((item, index) => {
+                                      const href = `/os/${osId}/${item.path}`;
+                                      return (
+                                          <Link key={index} href={href} onClick={() => setIsSheetOpen(false)}>
+                                              <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname.startsWith(href) ? "bg-accent" : "transparent")}>
+                                                  <item.icon className="mr-2 h-4 w-4" />
+                                                  <span>{item.title}</span>
+                                              </span>
+                                          </Link>
+                                      )
+                                  })}
+                              </nav>
+                          </ScrollArea>
+                      </SheetContent>
+                  </Sheet>
+                  <div className="flex-grow">
+                      <OsHeaderContent osId={osId} />
+                  </div>
+              </div>
+          </div>
+          <main className="py-8">
+              {children}
+          </main>
+      </div>
     );
 }

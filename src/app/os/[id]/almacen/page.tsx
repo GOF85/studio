@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { PlusCircle, Eye, FileText } from 'lucide-react';
-import type { OrderItem, PickingSheet, ComercialBriefingItem, ReturnSheet } from '@/types';
+import type { OrderItem, PickingSheet, ComercialBriefingItem, ReturnSheet, ServiceOrder, MaterialOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { useOsContext } from '../../os-context';
+import { useDataStore } from '@/hooks/use-data-store';
+import { useParams } from 'next/navigation';
+
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -26,11 +28,27 @@ type ItemWithOrderInfo = OrderItem & {
   ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
 };
 
+type BlockedOrderInfo = {
+    sheetId: string;
+    status: PickingSheet['status'];
+    items: OrderItem[];
+};
+
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
 
 
+const statusMap: Record<PickingSheet['status'], StatusColumn> = {
+    'Pendiente': 'En Preparación',
+    'En Proceso': 'En Preparación',
+    'Listo': 'Listo',
+}
+
 function BriefingSummaryDialog({ osId }: { osId: string }) {
-    const { briefing } = useOsContext();
+    const { data, isLoaded } = useDataStore();
+    const briefing = useMemo(() => {
+        if (!isLoaded) return null;
+        return data.comercialBriefings?.find(b => b.osId === osId) || null;
+    }, [isLoaded, data.comercialBriefings, osId]);
 
     const sortedItems = useMemo(() => {
         if (!briefing?.items) return [];
@@ -40,6 +58,8 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
             return a.horaInicio.localeCompare(b.horaInicio);
         });
     }, [briefing]);
+
+    if(!briefing) return null;
 
     return (
         <Dialog>
@@ -95,12 +115,92 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 
 export default function AlmacenPage() {
     const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-    const { osId, getProcessedDataForType, isLoading } = useOsContext();
+    const params = useParams();
+    const osId = params.id as string;
+    const { data, isLoaded } = useDataStore();
 
-    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(
-        () => getProcessedDataForType('Almacen'),
-        [getProcessedDataForType]
-    );
+    const { allItems, blockedOrders, pendingItems, itemsByStatus } = useMemo(() => {
+        const emptyResult = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] } };
+        if (!isLoaded || !osId) return emptyResult;
+
+        const { materialOrders = [], pickingSheets = {}, returnSheets = {} } = data;
+
+        const relatedOrders = materialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
+        const relatedPickingSheets = Object.values(pickingSheets).filter(sheet => sheet.osId === osId);
+        const relatedReturnSheets = Object.values(returnSheets).filter(s => s.osId === osId);
+        
+        // ... (resto de la lógica de cálculo)
+         const mermas: Record<string, number> = {};
+        relatedReturnSheets.forEach(sheet => {
+          Object.entries(sheet.itemStates).forEach(([key, state]) => {
+            const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
+            if (itemInfo && itemInfo.type === 'Almacen' && itemInfo.sentQuantity > state.returnedQuantity) {
+                const perdida = itemInfo.sentQuantity - state.returnedQuantity;
+                mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
+            }
+          });
+        });
+        
+        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+        const processedItemKeys = new Set<string>();
+        const blocked: BlockedOrderInfo[] = [];
+
+        relatedPickingSheets.forEach(sheet => {
+            const targetStatus = statusMap[sheet.status];
+            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
+
+            sheet.items.forEach(itemInSheet => {
+                if (itemInSheet.type !== 'Almacen') return;
+                
+                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
+                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
+                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
+
+                if (!originalItem) return;
+                
+                const itemWithInfo: ItemWithOrderInfo = {
+                    ...originalItem,
+                    orderId: sheet.id, 
+                    orderContract: orderRef?.contractNumber || 'N/A', 
+                    orderStatus: sheet.status, 
+                    solicita: orderRef?.solicita,
+                };
+
+                statusItems[targetStatus].push(itemWithInfo);
+                sheetInfo.items.push(itemWithInfo);
+
+                processedItemKeys.add(uniqueKey);
+            });
+
+            if (sheetInfo.items.length > 0) {
+                blocked.push(sheetInfo);
+            }
+        });
+
+        const all = relatedOrders.flatMap(order => 
+            order.items.map(item => {
+                return {
+                    ...item, 
+                    quantity: item.quantity,
+                    orderId: order.id, 
+                    contractNumber: order.contractNumber, 
+                    solicita: order.solicita, 
+                    tipo: item.tipo, 
+                    deliveryDate: order.deliveryDate,
+                    ajustes: item.ajustes
+                } as ItemWithOrderInfo
+            })
+        );
+        
+        const pending = all.filter(item => {
+          const uniqueKey = `${item.orderId}-${item.itemCode}`;
+          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+        });
+        
+        statusItems['Asignado'] = pending;
+
+        return { allItems: all, blockedOrders: blocked, pendingItems: pending, itemsByStatus: statusItems };
+    }, [osId, isLoaded, data]);
     
     const renderStatusModal = (status: StatusColumn) => {
         const items = itemsByStatus[status];
@@ -162,7 +262,7 @@ export default function AlmacenPage() {
       )
     }
 
-    if (isLoading) {
+    if (!isLoaded) {
         return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
     }
 
@@ -275,4 +375,3 @@ export default function AlmacenPage() {
     );
 }
 
-    
