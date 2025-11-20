@@ -86,8 +86,13 @@ type DataStore = {
     data: Partial<DataStoreData>;
     isLoaded: boolean;
     setData: (data: Partial<DataStoreData>) => void;
-    loadAllData: () => void;
 };
+
+export const useDataStore = create<DataStore>((set) => ({
+    data: {},
+    isLoaded: false,
+    setData: (data) => set({ data, isLoaded: true }),
+}));
 
 export const ALL_DATA_KEYS: DataKeys[] = [
     'serviceOrders', 'entregas', 'comercialBriefings', 'pedidosEntrega', 'gastronomyOrders', 'materialOrders',
@@ -108,51 +113,3 @@ export const defaultValuesMap: { [key in DataKeys]?: any } = {
     ctaRealCosts: {}, ctaComentarios: {}, comercialAjustes: {}, pickingEntregasState: {},
     stockElaboraciones: {}, personalExternoAjustes: {}, stockArticuloUbicacion: {},
 };
-
-const performanceLog: { context: string, step: string, time: number }[] = [];
-let perfStart: number | null = null;
-
-export const logPerf = (context: string, step: string) => {
-    if (typeof window === 'undefined') return;
-    if (!perfStart) {
-        perfStart = performance.now();
-        performanceLog.push({ context, step, time: 0 });
-        console.log(`[PERF] [${context}] ${step}...`);
-        return;
-    }
-    const time = performance.now() - perfStart;
-    performanceLog.push({ context, step, time });
-    console.log(`[PERF] [${context}] ${step} finished in ${time.toFixed(2)}ms`);
-    perfStart = performance.now(); // Reset for next measurement
-};
-
-export const useDataStore = create<DataStore>((set, get) => ({
-    data: {},
-    isLoaded: false,
-    setData: (data) => set({ data, isLoaded: true }),
-    loadAllData: () => {
-        if (get().isLoaded || typeof window === 'undefined') {
-            return;
-        }
-
-        logPerf('loadAllData', 'Start');
-        const loadedData: Partial<DataStoreData> = {};
-
-        ALL_DATA_KEYS.forEach(key => {
-            try {
-                const storedValue = localStorage.getItem(key);
-                if (storedValue) {
-                    loadedData[key as keyof DataStoreData] = JSON.parse(storedValue);
-                } else {
-                    loadedData[key as keyof DataStoreData] = defaultValuesMap[key] ?? [];
-                }
-            } catch(e) {
-                console.warn(`Could not parse key: ${key}. Setting to default.`, e);
-                loadedData[key as keyof DataStoreData] = defaultValuesMap[key] ?? [];
-            }
-        });
-        
-        logPerf('loadAllData', 'Finish');
-        set({ data: loadedData, isLoaded: true });
-    }
-}));
