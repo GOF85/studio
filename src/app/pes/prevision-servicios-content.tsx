@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -26,7 +27,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { format, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { LoadingSkeleton } from '../layout/loading-skeleton';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useDataStore } from '@/hooks/use-data-store';
 
 const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
