@@ -230,7 +230,7 @@ export type ImagenEspacio = {
 export type MultimediaEspacio = {
     imagenes?: ImagenEspacio[];
     carpetaDRIVE?: string;
-    visitaVirtual?: string;
+    visitaVirtual?: string
 }
 
 export type MetricasOperativas = {

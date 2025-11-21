@@ -1,7 +1,6 @@
 
-'use client';
-console.log(`[DEBUG] Module loaded: os/personal-externo/page.tsx at ${new Date().toLocaleTimeString()}`);
 
+'use client';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
@@ -515,7 +514,7 @@ export default function PersonalExternoPage() {
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1">
                                                     <FormField control={control} name={`turnos.${index}.solicitadoPor`} render={({ field: selectField }) => (
-                                                        <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{solicitadoPorOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
+                                                        <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{solicitadoPorOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</Select></FormItem>
                                                     )}/>
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1 min-w-48">
@@ -594,7 +593,7 @@ export default function PersonalExternoPage() {
                     </TabsContent>
                     <TabsContent value="aprobados">
                          <Card>
-                            <CardHeader className="py-3"><CardTitle className="text-lg">Cierre y Horas Reales</CardTitle></CardHeader>
+                            <CardHeader className="py-3"><CardTitle className="text-lg">Cierre y Horas Reales</CardHeader></CardHeader>
                             <CardContent className="p-2">
                                 <p className="text-sm text-muted-foreground p-2">Esta sección será completada por el responsable en el evento. Los datos aquí introducidos se usarán para el cálculo del coste real.</p>
                                 <Table>
@@ -762,73 +761,4 @@ export default function PersonalExternoPage() {
     </>
   );
 }
-
-```
-- src/app/os/page.tsx:
-```tsx
-'use client';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-// This page just redirects to the main service order overview page.
-export default function OsRedirectPage() {
-    const router = useRouter();
-    useEffect(() => {
-        router.replace('/pes');
-    }, [router]);
-    return null;
-}
-
-```
-- src/app/pes/page.tsx:
-```tsx
-'use client';
-
-import { Suspense } from 'react';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { PrevisionServiciosContent } from '@/components/pes/prevision-servicios-content';
-
-export default function PrevisionServiciosPage() {
-    return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Previsión de Servicios..." />}>
-            <PrevisionServiciosContent />
-        </Suspense>
-    );
-}
-```
-- src/app/produccion/page.tsx:
-```tsx
-
-'use client';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-// This page just redirects to the main CPR page.
-export default function ProduccionRedirectPage() {
-    const router = useRouter();
-    useEffect(() => {
-        router.replace('/cpr');
-    }, [router]);
-    return null;
-}
-
-```
-- src/app/transporte/page.tsx:
-```tsx
-
-'use client';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-// This page just redirects to the main OS page as transport is managed within an OS.
-export default function TransporteRedirectPage() {
-    const router = useRouter();
-    useEffect(() => {
-        router.replace('/pes');
-    }, [router]);
-    return null;
-}
-
-```
-```
 

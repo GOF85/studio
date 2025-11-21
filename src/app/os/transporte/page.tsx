@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -37,6 +38,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
+import { useOsData } from '../os-context';
 
 const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   Pendiente: 'secondary',
@@ -46,8 +48,6 @@ const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondar
 };
 
 export default function TransportePage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [spaceAddress, setSpaceAddress] = useState<string>('');
   const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
@@ -56,26 +56,10 @@ export default function TransportePage() {
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
+  const { serviceOrder, spaceAddress, isLoading } = useOsData();
 
   useEffect(() => {
     if (!osId) return;
-
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    
-    if (!currentOS) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
-        router.push('/pes');
-        return;
-    }
-    
-    setServiceOrder(currentOS);
-
-    if (currentOS?.space) {
-        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-        const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-        setSpaceAddress(currentSpace?.calle || '');
-    }
 
     const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
     const relatedOrders = allTransporteOrders.filter(order => order.osId === osId);
@@ -100,7 +84,7 @@ export default function TransportePage() {
     setOrderToDelete(null);
   };
   
-  if (!isMounted || !serviceOrder) {
+  if (isLoading || !isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Transporte..." />;
   }
 
@@ -108,7 +92,7 @@ export default function TransportePage() {
     <>
       <div className="flex items-start justify-end mb-4">
         <Button asChild>
-          <Link href={`/os/${osId}/transporte/pedido`}>
+          <Link href={`/transporte/pedido?osId=${osId}`}>
             <PlusCircle className="mr-2" />
             Nuevo Pedido de Transporte
           </Link>
@@ -156,7 +140,7 @@ export default function TransportePage() {
                                   </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/os/${osId}/transporte/pedido?orderId=${order.id}`)}>
+                                  <DropdownMenuItem onClick={() => router.push(`/transporte/pedido?osId=${osId}&orderId=${order.id}`)}>
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Editar
                                   </DropdownMenuItem>
@@ -209,3 +193,4 @@ export default function TransportePage() {
     </>
   );
 }
+

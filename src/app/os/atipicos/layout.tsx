@@ -1,10 +1,10 @@
 
 'use client';
 
-import { Wine } from 'lucide-react';
+import { FilePlus } from 'lucide-react';
 import { OsContextProvider } from '../os-context';
 
-export default function BodegaLayout({
+export default function AtipicosLayout({
     children,
   }: {
     children: React.ReactNode
@@ -14,7 +14,7 @@ export default function BodegaLayout({
         <div>
              <div className="flex items-start justify-between mb-8">
                 <div>
-                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Wine />Módulo de Bodega</h1>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><FilePlus />Módulo de Atípicos</h1>
                 </div>
              </div>
             {children}

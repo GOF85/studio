@@ -1,6 +1,5 @@
 
 'use client';
-console.log(`[DEBUG] Module loaded: prevision-servicios-content.tsx at ${new Date().toLocaleTimeString()}`);
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
@@ -97,19 +96,20 @@ export function PrevisionServiciosContent() {
   }
   
   return (
-    <main>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-          <ClipboardList />
-          Previsión de Servicios
-        </h1>
-        <Button asChild>
-          <Link href="/os/nuevo/info">
-            <PlusCircle className="mr-2" />
-            Nueva Orden
-          </Link>
-        </Button>
-      </div>
+    <>
+      <main>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+            <ClipboardList />
+            Previsión de Servicios
+          </h1>
+          <Button asChild>
+            <Link href="/os/nuevo/info">
+              <PlusCircle className="mr-2" />
+              Nueva Orden
+            </Link>
+          </Button>
+        </div>
 
        <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <Input
@@ -142,45 +142,50 @@ export function PrevisionServiciosContent() {
             </div>
       </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nº Servicio</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Fecha Inicio</TableHead>
-              <TableHead>Fecha Fin</TableHead>
-              <TableHead>Nº Asistentes</TableHead>
-              <TableHead>Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSortedOrders.length > 0 ? (
-              filteredAndSortedOrders.map(os => (
-                <TableRow key={os.id}>
-                  <TableCell className="font-medium">
-                    <Link href={`/os/${os.id}`} className="text-primary hover:underline">
-                      {os.serviceNumber}
-                       {os.isVip && <AlertTriangle className="inline-block w-4 h-4 ml-2 text-yellow-500" />}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{os.client}</TableCell>
-                  <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>{os.asistentes}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant[os.status]}>
-                      {os.status}
-                    </Badge>
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nº Servicio</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Fecha Inicio</TableHead>
+                <TableHead>Fecha Fin</TableHead>
+                <TableHead>Nº Asistentes</TableHead>
+                <TableHead>Estado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAndSortedOrders.length > 0 ? (
+                filteredAndSortedOrders.map(os => (
+                  <TableRow key={os.id}>
+                    <TableCell className="font-medium">
+                      <Link href={`/os/${os.id}`} className="text-primary hover:underline">
+                        {os.serviceNumber}
+                         {os.isVip && <AlertTriangle className="inline-block w-4 h-4 ml-2 text-yellow-500" />}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{os.client}</TableCell>
+                    <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
+                    <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
+                    <TableCell>{os.asistentes}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant[os.status]}>
+                        {os.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    No hay órdenes de servicio que coincidan con los filtros.
                   </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No hay órdenes de servicio que coincidan con los filtros.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </main>
+    </>
+  );
+}
