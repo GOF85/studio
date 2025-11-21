@@ -1,5 +1,4 @@
 
-
 import { z } from "zod";
 
 export const osFormSchema = z.object({
@@ -72,7 +71,6 @@ export const personalFormSchema = z.object({
   email: z.string().email('Debe ser un email válido'),
   precioHora: z.coerce.number().min(0, 'El precio por hora no puede ser negativo'),
 });
-
 
 export const articuloErpSchema = z.object({
   id: z.string(),
@@ -1189,4 +1187,5 @@ export type CierreInventario = {
     valorConsumoTrazado: number;
     valorMermaDesconocida: number;
     valorConsumoNoTrazado: number;
-    
+    snapshotInventario: InventarioSnapshotItem[];
+};

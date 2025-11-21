@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Layers, Trash2 } from 'lucide-react';
 import type { FamiliaERP } from '@/types';
-import { familiaERPSchema, type FamiliaERPFormValues } from '../nuevo/page';
+import { familiaERPSchema } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,6 +17,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
+export type FamiliaERPFormValues = z.infer<typeof familiaERPSchema>;
 
 export default function EditarFamiliaERPPage() {
   const router = useRouter();

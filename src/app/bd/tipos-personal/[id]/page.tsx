@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Save, X, UserCog, Trash2 } from 'lucide-react';
 import type { CategoriaPersonal, Proveedor } from '@/types';
-import { tipoPersonalSchema, type TipoPersonalFormValues } from '../nuevo/page';
+import { tipoPersonalSchema, type TipoPersonalFormValues } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';

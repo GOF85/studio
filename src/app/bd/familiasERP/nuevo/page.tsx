@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Layers } from 'lucide-react';
 import type { FamiliaERP } from '@/types';
+import { familiaERPSchema } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -14,13 +15,6 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
-
-export const familiaERPSchema = z.object({
-  id: z.string(),
-  familiaCategoria: z.string().min(1, 'El código de familia es obligatorio'),
-  Familia: z.string().min(1, 'El nombre de la familia es obligatorio'),
-  Categoria: z.string().min(1, 'La categoría es obligatoria'),
-});
 
 export type FamiliaERPFormValues = z.infer<typeof familiaERPSchema>;
 

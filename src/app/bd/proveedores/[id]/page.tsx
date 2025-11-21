@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -7,8 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Save, X, Building2, Trash2 } from 'lucide-react';
 import type { Proveedor, PortalUserRole } from '@/types';
-import { TIPO_PROVEEDOR_OPCIONES } from '@/types';
-import { proveedorSchema, type ProveedorFormValues } from '../nuevo/page';
+import { TIPO_PROVEEDOR_OPCIONES, proveedorSchema, type ProveedorFormValues } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';

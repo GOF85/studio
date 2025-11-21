@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, UserCog } from 'lucide-react';
 import type { CategoriaPersonal, Proveedor } from '@/types';
+import { tipoPersonalSchema } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,14 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-
-export const tipoPersonalSchema = z.object({
-  id: z.string(),
-  proveedorId: z.string().min(1, 'Debe seleccionar un proveedor.'),
-  nombreProveedor: z.string(),
-  categoria: z.string().min(1, 'El nombre de la categoría es obligatorio.'),
-  precioHora: z.coerce.number().min(0, 'El precio debe ser un número positivo').default(0),
-});
 
 export type TipoPersonalFormValues = z.infer<typeof tipoPersonalSchema>;
 

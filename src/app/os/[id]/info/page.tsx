@@ -553,7 +553,7 @@ export default function InfoPage() {
                 <AlertDialogHeader>
                     <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminará permanentemente la Orden de Servicio y todos sus datos asociados (briefing, pedidos de material, etc.).
+                        Esta acción es irreversible. Se eliminará permanentemente la Orden de Servicio y todos sus datos asociados (briefing, pedidos de material, etc.).
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -585,6 +585,3 @@ export default function InfoPage() {
     </>
   );
 }
-```
-```
-

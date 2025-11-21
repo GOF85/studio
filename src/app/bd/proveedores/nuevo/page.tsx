@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Building2 } from 'lucide-react';
 import type { Proveedor } from '@/types';
-import { TIPO_PROVEEDOR_OPCIONES } from '@/types';
+import { TIPO_PROVEEDOR_OPCIONES, proveedorSchema } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,24 +17,6 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { MultiSelect } from '@/components/ui/multi-select';
-
-export const proveedorSchema = z.object({
-  id: z.string(),
-  cif: z.string().min(1, "El CIF es obligatorio."),
-  IdERP: z.string().optional(),
-  nombreEmpresa: z.string().min(1, "El nombre fiscal es obligatorio."),
-  nombreComercial: z.string().min(1, "El nombre comercial es obligatorio."),
-  direccionFacturacion: z.string().min(1, "La dirección es obligatoria."),
-  codigoPostal: z.string().min(1, "El código postal es obligatorio."),
-  ciudad: z.string().min(1, "La ciudad es obligatoria."),
-  provincia: z.string().min(1, "La provincia es obligatoria."),
-  pais: z.string().min(1, "El país es obligatorio."),
-  emailContacto: z.string().email("Debe ser un email válido."),
-  telefonoContacto: z.string(),
-  iban: z.string().optional(),
-  formaDePagoHabitual: z.string().optional(),
-  tipos: z.array(z.string()).min(1, "Debe seleccionar al menos un tipo de servicio."),
-});
 
 export type ProveedorFormValues = z.infer<typeof proveedorSchema>;
 
