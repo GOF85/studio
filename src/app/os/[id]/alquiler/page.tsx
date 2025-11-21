@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -102,22 +103,22 @@ export default function AlquilerPage() {
     );
 
     const renderStatusModal = (status: StatusColumn) => {
-      const items = itemsByStatus[status];
-      return (
-          <DialogContent className="max-w-4xl">
-              <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
-              <div className="max-h-[60vh] overflow-y-auto">
-                  <Table>
-                      <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                      <TableBody>
-                          {items.length > 0 ? items.map((item, index) => (
-                              <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
-                          )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
-                      </TableBody>
-                  </Table>
-              </div>
-          </DialogContent>
-      )
+        const items = itemsByStatus[status];
+        return (
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {items.length > 0 ? items.map((item, index) => (
+                                <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
+                            )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        )
     }
     
     const renderSummaryModal = () => {
@@ -166,7 +167,7 @@ export default function AlquilerPage() {
     }
 
     return (
-      <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
         <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
                 <Dialog>
@@ -239,10 +240,10 @@ export default function AlquilerPage() {
               <CardHeader>
                   <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
               </CardHeader>
-              <CardContent>
-                  <div className="border rounded-lg">
+               <CardContent>
+                   <div className="border rounded-lg">
                       <Table>
-                          <TableHeader>
+                           <TableHeader>
                               <TableRow>
                                   <TableHead>Hoja Picking</TableHead>
                                   <TableHead>Estado</TableHead>
@@ -274,4 +275,4 @@ export default function AlquilerPage() {
     );
 }
 
-    
+

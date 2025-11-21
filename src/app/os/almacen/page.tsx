@@ -1,11 +1,11 @@
 
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Eye, FileText } from 'lucide-react';
-import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem, ReturnSheet } from '@/types';
+import type { OrderItem, PickingSheet, ComercialBriefingItem, ReturnSheet, ServiceOrder, MaterialOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { useDataStore } from '@/hooks/use-data-store';
+import { useParams } from 'next/navigation';
+
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -34,6 +37,7 @@ type BlockedOrderInfo = {
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
 
+
 const statusMap: Record<PickingSheet['status'], StatusColumn> = {
     'Pendiente': 'En Preparación',
     'En Proceso': 'En Preparación',
@@ -41,20 +45,22 @@ const statusMap: Record<PickingSheet['status'], StatusColumn> = {
 }
 
 function BriefingSummaryDialog({ osId }: { osId: string }) {
-    const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+    const { data, isLoaded } = useDataStore();
+    const briefing = useMemo(() => {
+        if (!isLoaded) return null;
+        return data.comercialBriefings?.find(b => b.osId === osId) || null;
+    }, [isLoaded, data.comercialBriefings, osId]);
 
-    useEffect(() => {
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const currentBriefing = allBriefings.find(b => b.osId === osId);
-        if (currentBriefing) {
-            const sortedItems = [...currentBriefing.items].sort((a, b) => {
-                const dateComparison = a.fecha.localeCompare(b.fecha);
-                if (dateComparison !== 0) return dateComparison;
-                return a.horaInicio.localeCompare(b.horaInicio);
-            });
-            setBriefingItems(sortedItems);
-        }
-    }, [osId]);
+    const sortedItems = useMemo(() => {
+        if (!briefing?.items) return [];
+        return [...briefing.items].sort((a, b) => {
+            const dateComparison = a.fecha.localeCompare(b.fecha);
+            if (dateComparison !== 0) return dateComparison;
+            return a.horaInicio.localeCompare(b.horaInicio);
+        });
+    }, [briefing]);
+
+    if(!briefing) return null;
 
     return (
         <Dialog>
@@ -75,7 +81,7 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {briefingItems.length > 0 ? briefingItems.map(item => (
+                            {sortedItems.length > 0 ? sortedItems.map(item => (
                                 <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
                                     <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
                                     <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
@@ -109,36 +115,20 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function AlmacenPage() {
-    const [isLoading, setIsLoading] = useState(true);
     const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-    const [updateTrigger, setUpdateTrigger] = useState(0);
-    const router = useRouter();
     const params = useParams();
     const osId = params.id as string;
+    const { data, isLoaded } = useDataStore();
 
-    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
-        if (typeof window === 'undefined') {
-            return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
-        }
-        
-        const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-        const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
+    const { allItems, blockedOrders, pendingItems, itemsByStatus } = useMemo(() => {
+        const emptyResult = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] } };
+        if (!isLoaded || !osId) return emptyResult;
 
-        const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
-        const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
+        const { materialOrders = [], pickingSheets = {}, returnSheets = {} } = data;
 
-        const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
-        
-        const mermas: Record<string, number> = {};
-        allReturnSheets.forEach(sheet => {
-          Object.entries(sheet.itemStates).forEach(([key, state]) => {
-            const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
-            if (itemInfo && itemInfo.type === 'Almacen' && itemInfo.sentQuantity > state.returnedQuantity) {
-                const perdida = itemInfo.sentQuantity - state.returnedQuantity;
-                mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
-            }
-          });
-        });
+        const relatedOrders = materialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
+        const relatedPickingSheets = Object.values(pickingSheets).filter(sheet => sheet.osId === osId);
+        const relatedReturnSheets = Object.values(returnSheets).filter(s => s.osId === osId);
         
         const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
         const processedItemKeys = new Set<string>();
@@ -156,12 +146,9 @@ export default function AlmacenPage() {
                 const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
 
                 if (!originalItem) return;
-
-                let cantidadReal = originalItem.quantity;
                 
                 const itemWithInfo: ItemWithOrderInfo = {
-                    ...originalItem, 
-                    quantity: cantidadReal,
+                    ...originalItem,
                     orderId: sheet.id, 
                     orderContract: orderRef?.contractNumber || 'N/A', 
                     orderStatus: sheet.status, 
@@ -196,42 +183,14 @@ export default function AlmacenPage() {
         
         const pending = all.filter(item => {
           const uniqueKey = `${item.orderId}-${item.itemCode}`;
-          let cantidadAjustada = item.quantity;
-          if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
-              const mermaAplicable = Math.min(cantidadAjustada, mermas[item.itemCode]);
-              cantidadAjustada -= mermaAplicable;
-              mermas[item.itemCode] -= mermaAplicable;
-          }
-          return !processedItemKeys.has(uniqueKey) && cantidadAjustada > 0;
-        }).map(item => {
-            let cantidadAjustada = item.quantity;
-            if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
-                cantidadAjustada -= mermas[item.itemCode];
-            }
-            return {...item, quantity: cantidadAjustada};
+          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
         });
         
         statusItems['Asignado'] = pending;
 
-        const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-
-        return { 
-            allItems: all, 
-            blockedOrders: blocked,
-            pendingItems: pending,
-            itemsByStatus: statusItems,
-            totalValoracionPendiente
-        };
-    }, [osId, updateTrigger]);
+        return { allItems: all, blockedOrders: blocked, pendingItems: pending, itemsByStatus: statusItems };
+    }, [osId, isLoaded, data]);
     
-    useEffect(() => {
-        setIsLoading(true);
-        const forceUpdate = () => setUpdateTrigger(prev => prev + 1);
-        window.addEventListener('storage', forceUpdate);
-        setIsLoading(false);
-        return () => window.removeEventListener('storage', forceUpdate);
-    }, []);
-
     const renderStatusModal = (status: StatusColumn) => {
         const items = itemsByStatus[status];
         return (
@@ -292,7 +251,7 @@ export default function AlmacenPage() {
       )
     }
 
-    if (isLoading) {
+    if (!isLoaded) {
         return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
     }
 
@@ -404,3 +363,5 @@ export default function AlmacenPage() {
         </Dialog>
     );
 }
+
+

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -127,19 +128,6 @@ export default function AlmacenPage() {
 
         const relatedOrders = materialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
         const relatedPickingSheets = Object.values(pickingSheets).filter(sheet => sheet.osId === osId);
-        const relatedReturnSheets = Object.values(returnSheets).filter(s => s.osId === osId);
-        
-        // ... (resto de la lógica de cálculo)
-         const mermas: Record<string, number> = {};
-        relatedReturnSheets.forEach(sheet => {
-          Object.entries(sheet.itemStates).forEach(([key, state]) => {
-            const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
-            if (itemInfo && itemInfo.type === 'Almacen' && itemInfo.sentQuantity > state.returnedQuantity) {
-                const perdida = itemInfo.sentQuantity - state.returnedQuantity;
-                mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
-            }
-          });
-        });
         
         const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
         const processedItemKeys = new Set<string>();
@@ -374,4 +362,5 @@ export default function AlmacenPage() {
         </Dialog>
     );
 }
+
 
