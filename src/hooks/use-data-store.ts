@@ -1,5 +1,4 @@
 'use client';
-console.log(`[DEBUG] Module loaded: use-data-store.ts at ${new Date().toLocaleTimeString()}`);
 
 import { create } from 'zustand';
 import type { 
@@ -111,13 +110,11 @@ export const useDataStore = create<DataStore>((set, get) => ({
     data: {},
     isLoaded: false,
     loadAllData: async () => {
-        console.log(`[DEBUG] useDataStore: loadAllData called at ${new Date().toLocaleTimeString()}`);
         if (get().isLoaded || typeof window === 'undefined') return;
 
         await Promise.resolve(); 
 
         const loadedData: { [key: string]: any } = {};
-        console.time("[DEBUG] useDataStore: Total data loading");
         
         for (const key of ALL_DATA_KEYS) {
             try {
@@ -132,8 +129,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
             }
         }
-        console.timeEnd("[DEBUG] useDataStore: Total data loading");
         
         set({ data: loadedData as Partial<DataStoreData>, isLoaded: true });
-    },
+    }
 }));

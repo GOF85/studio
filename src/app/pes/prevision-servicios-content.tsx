@@ -1,5 +1,6 @@
 
 'use client';
+console.log(`[DEBUG] Module loaded: prevision-servicios-content.tsx at ${new Date().toLocaleTimeString()}`);
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
@@ -182,8 +183,4 @@ export function PrevisionServiciosContent() {
               </TableRow>
             )}
           </TableBody>
-        </Table>
-      </div>
-    </main>
-  );
-}
+        </

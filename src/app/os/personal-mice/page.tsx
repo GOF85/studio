@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -45,14 +46,11 @@ import { personalMiceSchema } from '@/types';
 const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
 
-
 const formSchema = z.object({
     personal: z.array(personalMiceSchema)
 })
 
 type PersonalMiceFormValues = z.infer<typeof formSchema>;
-
-console.log(`[DEBUG] Module loaded: personal-mice/page.tsx at ${new Date().toLocaleTimeString()}`);
 
 
 export default function PersonalMiceFormPage() {
@@ -435,5 +433,3 @@ export default function PersonalMiceFormPage() {
     </>
   );
 }
-```
-

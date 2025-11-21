@@ -27,7 +27,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { format, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { LoadingSkeleton } from '../layout/loading-skeleton';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useDataStore } from '@/hooks/use-data-store';
 
 const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
@@ -38,7 +38,6 @@ const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' 
 };
 
 export function PrevisionServiciosContent() {
-  console.log(`[DEBUG] PrevisionServiciosContent: render start at ${new Date().toLocaleTimeString()}`);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
@@ -183,4 +182,8 @@ export function PrevisionServiciosContent() {
               </TableRow>
             )}
           </TableBody>
-        </
+        </Table>
+      </div>
+    </main>
+  );
+}

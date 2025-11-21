@@ -1,4 +1,5 @@
 import { z } from "zod";
+console.log(`[DEBUG] Module loaded: types/index.ts at ${new Date().toLocaleTimeString()}`);
 
 export const osFormSchema = z.object({
   id: z.string(),
