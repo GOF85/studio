@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 
 export const osFormSchema = z.object({
@@ -813,42 +811,40 @@ export type OrdenFabricacion = {
     consumosReales?: { componenteId: string; cantidadReal: number }[];
 }
 
-export type PickingItemState = {
-    itemCode: string;
-    checked: boolean;
-    pickedQuantity: number;
-    incidentComment?: string;
-    resolved?: boolean;
-};
+export const pickingSheetItemSchema = z.object({
+  itemCode: z.string(),
+  checked: z.boolean(),
+  pickedQuantity: z.coerce.number(),
+  incidentComment: z.string().optional(),
+  resolved: z.boolean().optional(),
+});
 
-export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
+export const pickingSheetSchema = z.object({
+  id: z.string(),
+  osId: z.string(),
+  fechaNecesidad: z.string(),
+  items: z.array(z.any()), // Simplified for now
+  status: z.enum(['Pendiente', 'En Proceso', 'Listo']),
+  itemStates: z.record(z.string(), pickingSheetItemSchema.omit({ itemCode: true })).optional(),
+});
+export type PickingItemState = z.infer<typeof pickingSheetItemSchema>;
+export type PickingSheet = z.infer<typeof pickingSheetSchema> & { os?: ServiceOrder, solicita?: 'Sala' | 'Cocina' };
 
-export type PickingSheet = {
-    id: string; // Composite key: osId + fechaNecesidad
-    osId: string;
-    fechaNecesidad: string;
-    items: (OrderItem & { type: MaterialOrderType })[];
-    status: 'Pendiente' | 'En Proceso' | 'Listo';
-    checkedItems?: string[];
-    itemStates?: Record<string, Omit<PickingItemState, 'itemCode'>>;
-    os?: ServiceOrder;
-    solicita?: 'Sala' | 'Cocina';
-};
+export const returnItemStateSchema = z.object({
+  returnedQuantity: z.coerce.number(),
+  incidentComment: z.string().optional(),
+  isReviewed: z.boolean().optional(),
+});
+export const returnSheetSchema = z.object({
+  id: z.string(), // osId
+  osId: z.string(),
+  items: z.array(z.any()), // Simplified for now
+  status: z.enum(['Pendiente', 'Procesando', 'Completado']),
+  itemStates: z.record(z.string(), returnItemStateSchema), // Key is `${orderId}_${itemCode}`
+});
+export type ReturnItemState = z.infer<typeof returnItemStateSchema>;
+export type ReturnSheet = z.infer<typeof returnSheetSchema> & { os?: ServiceOrder };
 
-export type ReturnItemState = {
-    returnedQuantity: number;
-    incidentComment?: string;
-    isReviewed?: boolean;
-};
-
-export type ReturnSheet = {
-    id: string; // osId
-    osId: string;
-    items: (OrderItem & { sentQuantity: number; orderId: string; type: MaterialOrderType; })[];
-    status: 'Pendiente' | 'Procesando' | 'Completado';
-    itemStates: Record<string, ReturnItemState>; // Key is `${orderId}_${itemCode}`
-    os?: ServiceOrder;
-}
 
 export type ContenedorIsotermo = {
     id: string;
@@ -970,7 +966,7 @@ export type PedidoPartner = {
     cantidad: number;
     unidad: UnidadMedida;
 }
-export type PedidoPartnerStatus = 'Pendiente' | 'En Producción' | 'Listo para Entrega';
+export type PedidoPartnerStatus = 'Pendiente' | 'Aceptado';
 export type PickingIncidencia = {
   itemId: string;
   comment: string;
@@ -1216,4 +1212,5 @@ export type CierreInventario = {
     valorConsumoTrazado: number;
     valorMermaDesconocida: number;
     valorConsumoNoTrazado: number;
-    snapshotInventario: InventarioSnapshotItem
+    snapshotInventario: InventarioSnapshotItem[]
+}
