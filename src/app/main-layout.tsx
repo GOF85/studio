@@ -1,11 +1,12 @@
-
 'use client';
+console.log(`[DEBUG] Module loaded: main-layout.tsx at ${new Date().toLocaleTimeString()}`);
 
 import { Suspense, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Header } from '@/components/layout/header';
 import { useDataStore } from '@/hooks/use-data-store';
+
 
 export function MainLayout({
   children,

@@ -1,13 +1,18 @@
-import { z } from "zod";
 console.log(`[DEBUG] Module loaded: types/index.ts at ${new Date().toLocaleTimeString()}`);
-import { osFormSchema } from "@/app/os/[id]/info/page";
-import { personalFormSchema } from "@/app/personal/nuevo/page";
-import { pickingSheetSchema, returnSheetSchema, pickingSheetItemSchema, returnItemStateSchema } from '@/app/os/[id]/almacen/page';
-import { personalMiceSchema } from '@/app/os/personal-mice/page';
-import { personalExternoSchema } from '@/app/os/personal-externo/page';
-import { articuloErpSchema, familiaERPSchema, tipoPersonalSchema, proveedorSchema } from '@/app/bd/schemas';
+import { z } from "zod";
+import { personalFormSchema as personalSchemaImported } from "@/app/personal/nuevo/page";
+import { osFormSchema as osSchemaImported } from "@/app/os/[id]/info/page";
+import { pickingSheetSchema, returnSheetSchema, pickingSheetItemSchema, returnItemStateSchema } from '@/app/almacen/retornos/[id]/page';
+import { personalMiceSchema as personalMiceSchemaImported } from '@/app/os/personal-mice/page';
+import { personalExternoSchema as personalExternoSchemaImported } from '@/app/os/personal-externo/page';
+
+export const osFormSchema = osSchemaImported;
+export const personalFormSchema = personalSchemaImported;
+export const personalMiceSchema = personalMiceSchemaImported;
+export const personalExternoSchema = personalExternoSchemaImported;
 
 
+// Re-export or define other types as needed
 export type CateringItem = {
   itemCode: string;
   description: string;
@@ -519,8 +524,37 @@ export type Precio = {
 export const UNIDADES_MEDIDA = ['KG', 'L', 'UD'] as const;
 export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
+export const articuloErpSchema = z.object({
+  id: z.string(),
+  idreferenciaerp: z.string().min(1, "El ID de referencia ERP es obligatorio."),
+  idProveedor: z.string().optional(),
+  nombreProveedor: z.string().optional(),
+  nombreProductoERP: z.string().min(1, "El nombre del producto es obligatorio."),
+  referenciaProveedor: z.string().optional(),
+  familiaCategoria: z.string().optional(),
+  precioCompra: z.coerce.number().default(0),
+  descuento: z.coerce.number().default(0),
+  unidadConversion: z.coerce.number().default(1),
+  precio: z.coerce.number().default(0),
+  precioAlquiler: z.coerce.number().default(0),
+  unidad: z.enum(UNIDADES_MEDIDA).default('UD'),
+  tipo: z.string().optional(),
+  categoriaMice: z.string().optional(),
+  alquiler: z.boolean().optional().default(false),
+  observaciones: z.string().optional(),
+  stockMinimo: z.coerce.number().optional().default(0),
+  proveedorPreferenteId: z.string().optional(),
+  gestionLote: z.boolean().optional().default(false),
+  ubicaciones: z.array(z.string()).optional(),
+});
 export type ArticuloERP = z.infer<typeof articuloErpSchema>;
 
+export const familiaERPSchema = z.object({
+  id: z.string(),
+  familiaCategoria: z.string().min(1, "El código es obligatorio"),
+  Familia: z.string().min(1, "La familia es obligatoria"),
+  Categoria: z.string().min(1, "La categoría es obligatoria"),
+});
 export type FamiliaERP = z.infer<typeof familiaERPSchema>;
 
 export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS DE CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
@@ -804,30 +838,35 @@ export type PickingEntregaState = {
   ordenItems?: string[];
 };
 
-export type Proveedor = {
-  id: string;
-  cif: string;
-  IdERP?: string;
-  nombreEmpresa: string;
-  nombreComercial: string;
-  direccionFacturacion: string;
-  codigoPostal: string;
-  ciudad: string;
-  provincia: string;
-  pais: string;
-  emailContacto: string;
-  telefonoContacto: string;
-  iban?: string;
-  formaDePagoHabitual?: string;
-  tipos: TipoProveedor[];
-};
+export const TIPO_PROVEEDOR_OPCIONES = ['Alquiler', 'Materia Prima', 'Transporte', 'Personal', 'Servicios', 'Otros'] as const;
+export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
+
+export const proveedorSchema = z.object({
+  id: z.string(),
+  cif: z.string().min(9, "El CIF/NIF debe tener al menos 9 caracteres."),
+  IdERP: z.string().optional(),
+  nombreEmpresa: z.string().min(1, "El nombre fiscal es obligatorio."),
+  nombreComercial: z.string().min(1, "El nombre comercial es obligatorio."),
+  direccionFacturacion: z.string().min(1, "La dirección es obligatoria."),
+  codigoPostal: z.string().min(5, "El código postal es obligatorio."),
+  ciudad: z.string().min(1, "La ciudad es obligatoria."),
+  provincia: z.string().min(1, "La provincia es obligatoria."),
+  pais: z.string().min(1, "El país es obligatorio."),
+  emailContacto: z.string().email("Debe ser un email válido."),
+  telefonoContacto: z.string().optional(),
+  iban: z.string().optional(),
+  formaDePagoHabitual: z.string().optional(),
+  tipos: z.array(z.string()).min(1, "Debe seleccionar al menos un tipo."),
+});
+
+export type Proveedor = z.infer<typeof proveedorSchema>;
 
 export type PersonalExternoDB = {
     id: string; // DNI
     proveedorId: string;
     nombre: string;
     apellido1: string;
-    apellido2: string;
+    apellido2?: string;
     nombreCompleto: string;
     nombreCompacto: string;
     telefono?: string;
@@ -1040,5 +1079,11 @@ export type CierreInventario = {
 
 // Ensure MaterialOrderType is exported
 export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
-
-export { osFormSchema, personalFormSchema };
+export const tipoPersonalSchema = z.object({
+  id: z.string(),
+  proveedorId: z.string().min(1, "El proveedor es obligatorio."),
+  nombreProveedor: z.string(),
+  categoria: z.string().min(1, 'La categoría es obligatoria'),
+  precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
+});
+export type TipoPersonalFormValues = z.infer<typeof tipoPersonalSchema>;
