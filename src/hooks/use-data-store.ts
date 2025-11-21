@@ -85,7 +85,7 @@ type DataKeys = keyof DataStoreData;
 type DataStore = {
     data: Partial<DataStoreData>;
     isLoaded: boolean;
-    loadAllData: () => Promise<void>;
+    loadAllData: () => void;
 };
 
 export const ALL_DATA_KEYS: DataKeys[] = [
@@ -112,28 +112,28 @@ export const defaultValuesMap: { [key in DataKeys]?: any } = {
 export const useDataStore = create<DataStore>((set, get) => ({
     data: {},
     isLoaded: false,
-    loadAllData: async () => {
+    loadAllData: () => {
         if (get().isLoaded || typeof window === 'undefined') return;
 
-        // Yield to the browser to render UI before starting heavy lifting
-        await new Promise(resolve => setTimeout(resolve, 0));
-
-        const loadedData: { [key: string]: any } = {};
-        
-        ALL_DATA_KEYS.forEach(key => {
-            try {
-                const storedValue = localStorage.getItem(key);
-                if (storedValue) {
-                    loadedData[key] = JSON.parse(storedValue);
-                } else {
+        // Use setTimeout to make the data loading asynchronous
+        setTimeout(() => {
+            const loadedData: { [key: string]: any } = {};
+            
+            ALL_DATA_KEYS.forEach(key => {
+                try {
+                    const storedValue = localStorage.getItem(key);
+                    if (storedValue) {
+                        loadedData[key] = JSON.parse(storedValue);
+                    } else {
+                        loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
+                    }
+                } catch(e) {
+                    console.warn(`Could not parse key: ${key}. Setting to default.`, e);
                     loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
                 }
-            } catch(e) {
-                console.warn(`Could not parse key: ${key}. Setting to default.`, e);
-                loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
-            }
-        });
-        
-        set({ data: loadedData, isLoaded: true });
+            });
+            
+            set({ data: loadedData, isLoaded: true });
+        }, 0);
     },
 }));
