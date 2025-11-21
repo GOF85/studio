@@ -389,7 +389,7 @@ export default function InfoPage() {
                             <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                             <SelectContent>
-                                {CATERING_VERTICALES.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                {['Recurrente', 'Grandes Eventos', 'Gran Cuenta'].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                             </SelectContent>
                             </Select>
                         <FormMessage /></FormItem>
@@ -569,173 +569,25 @@ export default function InfoPage() {
 }
 
 ```
-- src/app/personal/nuevo/page.tsx:
+- src/app/os/comercial/page.tsx:
 ```tsx
 
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter, useParams } from 'next/navigation';
+import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, UserPlus } from 'lucide-react';
-import type { Personal } from '@/types';
-import { DEPARTAMENTOS_PERSONAL, personalFormSchema } from '@/types';
+import { PlusCircle, Trash2, Save, Pencil, DollarSign, Check, Utensils } from 'lucide-react';
+import { format, differenceInMinutes, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio, ComercialAjuste } from '@/types';
+import { osFormSchema, type OsFormValues } from '@/app/os/[id]/info/page';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
-import { useLoadingStore } from '@/hooks/use-loading-store';
-
-type PersonalFormValues = z.infer<typeof personalFormSchema>;
-
-export default function NuevoPersonalPage() {
-  const router = useRouter();
-  const { isLoading, setIsLoading } = useLoadingStore();
-  const { toast } = useToast();
-
-  const form = useForm<PersonalFormValues>({
-    resolver: zodResolver(personalFormSchema),
-    defaultValues: {
-      precioHora: 0,
-      apellido2: '',
-      telefono: '',
-    },
-  });
-
-  function onSubmit(data: PersonalFormValues) {
-    setIsLoading(true);
-
-    let allItems = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-    
-    const existing = allItems.find(p => p.id.toLowerCase() === data.id.toLowerCase());
-    if (existing) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un empleado con este DNI.' });
-        setIsLoading(false);
-        return;
-    }
-    
-    const finalData: Personal = {
-        ...data,
-        nombreCompleto: `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim(),
-        nombreCompacto: `${data.nombre} ${data.apellido1}`,
-        iniciales: `${data.nombre[0]}${data.apellido1[0]}`.toUpperCase(),
-        email: data.email,
-    }
-
-    allItems.push(finalData);
-    localStorage.setItem('personal', JSON.stringify(allItems));
-    
-    toast({ description: 'Nuevo empleado añadido correctamente.' });
-    router.push('/bd/personal');
-    setIsLoading(false);
-  }
-
-  return (
-    <>
-      <main className="container mx-auto px-4 py-8">
-        <Form {...form}>
-          <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <UserPlus className="h-8 w-8" />
-                <h1 className="text-3xl font-headline font-bold">Nuevo Empleado</h1>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" type="button" onClick={() => router.push('/bd/personal')}> <X className="mr-2"/> Cancelar</Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                  <span className="ml-2">Guardar</span>
-                </Button>
-              </div>
-            </div>
-            
-            <Card>
-              <CardHeader><CardTitle className="text-lg">Información del Empleado</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField control={form.control} name="nombre" render={({ field }) => (
-                    <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="apellido1" render={({ field }) => (
-                    <FormItem><FormLabel>Primer Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                   <FormField control={form.control} name="apellido2" render={({ field }) => (
-                    <FormItem><FormLabel>Segundo Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField control={form.control} name="departamento" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Departamento</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    {DEPARTAMENTOS_PERSONAL.map(dep => <SelectItem key={dep} value={dep}>{dep}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                    <FormField control={form.control} name="categoria" render={({ field }) => (
-                        <FormItem><FormLabel>Categoría / Puesto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="precioHora" render={({ field }) => (
-                        <FormItem><FormLabel>Precio/Hora</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                     <FormField control={form.control} name="telefono" render={({ field }) => (
-                        <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                     <FormField control={form.control} name="email" render={({ field }) => (
-                        <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="id" render={({ field }) => (
-                        <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                 </div>
-              </CardContent>
-            </Card>
-          </form>
-        </Form>
-      </main>
-    </>
-  );
-}
-
-```
-- src/app/pes/page.tsx:
-```tsx
-
-'use client';
-
-import { Suspense } from 'react';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { PrevisionServiciosContent } from './prevision-servicios-content';
-
-export default function PrevisionServiciosPage() {
-    return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Previsión de Servicios..." />}>
-            <PrevisionServiciosContent />
-        </Suspense>
-    );
-}
-
-```
-- src/app/pes/prevision-servicios-content.tsx:
-```tsx
-'use client';
-
-import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
-import { PlusCircle, ClipboardList, AlertTriangle } from 'lucide-react';
-import type { ServiceOrder } from '@/types';
-import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -743,1835 +595,684 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { format, isBefore, startOfToday } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { LoadingSkeleton } from '../layout/loading-skeleton';
-import { useDataStore } from '@/hooks/use-data-store';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Combobox } from '@/components/ui/combobox';
+import { useOsContext } from '../os-context';
 
-const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
-  Borrador: 'secondary',
-  Pendiente: 'outline',
-  Confirmado: 'default',
-  Anulado: 'destructive'
-};
+const briefingItemSchema = z.object({
+  id: z.string(),
+  fecha: z.string().min(1, "La fecha es obligatoria"),
+  horaInicio: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  horaFin: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  conGastronomia: z.boolean().default(false),
+  descripcion: z.string().min(1, "La descripción es obligatoria"),
+  comentarios: z.string().optional(),
+  sala: z.string().optional(),
+  asistentes: z.coerce.number().min(0),
+  precioUnitario: z.coerce.number().min(0),
+  importeFijo: z.coerce.number().optional().default(0),
+});
 
-export function PrevisionServiciosContent() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
-  const [showPastEvents, setShowPastEvents] = useState(false);
-  const { data, isLoaded } = useDataStore();
+type BriefingItemFormValues = z.infer<typeof briefingItemSchema>;
 
-  const serviceOrders = useMemo(() => data.serviceOrders || [], [data.serviceOrders]);
+const financialSchema = osFormSchema.pick({
+    agencyPercentage: true,
+    spacePercentage: true,
+    agencyCommissionValue: true,
+    spaceCommissionValue: true,
+});
 
-  const availableMonths = useMemo(() => {
-    if (!serviceOrders) return ['all'];
-    const months = new Set<string>();
-    serviceOrders.forEach(os => {
-      try {
-        const month = format(new Date(os.startDate), 'yyyy-MM');
-        months.add(month);
-      } catch (e) {
-        console.error(`Invalid start date for OS ${os.serviceNumber}: ${os.startDate}`);
-      }
-    });
-    return ['all', ...Array.from(months).sort().reverse()];
-  }, [serviceOrders]);
+type FinancialFormValues = z.infer<typeof financialSchema>;
+
+function FinancialCalculator ({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net:number) => void }) {
+    const { control } = useFormContext();
+    const agencyPercentage = useWatch({ control, name: 'agencyPercentage' });
+    const spacePercentage = useWatch({ control, name: 'spacePercentage' });
   
-  const filteredAndSortedOrders = useMemo(() => {
-    const today = startOfToday();
-    
-    const filtered = serviceOrders.filter(os => {
-      const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      let monthMatch = true;
-      if (selectedMonth !== 'all') {
-        try {
-          const osMonth = format(new Date(os.startDate), 'yyyy-MM');
-          monthMatch = osMonth === selectedMonth;
-        } catch (e) {
-          monthMatch = false;
-        }
-      }
-      
-      let pastEventMatch = true;
-      if (!showPastEvents) {
-          try {
-              pastEventMatch = !isBefore(new Date(os.endDate), today);
-          } catch (e) {
-              pastEventMatch = true;
-          }
-      }
+    const facturacionNeta = useMemo(() => {
+      const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
+      const net = totalFacturacion * (1 - totalPercentage / 100);
+      return net;
+    }, [totalFacturacion, agencyPercentage, spacePercentage]);
+  
+    useEffect(() => {
+      onNetChange(facturacionNeta);
+    }, [facturacionNeta, onNetChange]);
+  
+  
+    return (
+      <FormItem className="mt-auto invisible">
+        <FormLabel className="text-lg">Facturación Neta</FormLabel>
+        <FormControl>
+          <Input
+            readOnly
+            value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            className="font-bold text-primary h-12 text-xl"
+          />
+        </FormControl>
+      </FormItem>
+    );
+  }
 
-      return os.vertical !== 'Entregas' && searchMatch && monthMatch && pastEventMatch;
+export default function ComercialPage() {
+    const { serviceOrder, briefing: initialBriefing, isLoading: isOsDataLoading, osId } = useOsContext();
+    const [briefing, setBriefing] = useState<ComercialBriefing | null>(initialBriefing);
+    const [ajustes, setAjustes] = useState<ComercialAjuste[]>([]);
+    const [isMounted, setIsMounted] = useState(false);
+    const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
+
+    const nuevoAjusteConceptoRef = useRef<HTMLInputElement>(null);
+    const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
+
+    const router = useRouter();
+    const { toast } = useToast();
+    
+    const totalBriefing = useMemo(() => {
+        return briefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
+    }, [briefing]);
+
+    const totalAjustes = useMemo(() => {
+        return ajustes.reduce((acc, ajuste) => acc + ajuste.importe, 0);
+    }, [ajustes]);
+
+    const facturacionFinal = useMemo(() => totalBriefing + totalAjustes, [totalBriefing, totalAjustes]);
+
+    const financialForm = useForm<FinancialFormValues>({
+        resolver: zodResolver(financialSchema),
+        defaultValues: {
+            agencyPercentage: 0,
+            spacePercentage: 0,
+            agencyCommissionValue: 0,
+            spaceCommissionValue: 0,
+        }
     });
 
-    return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    const watchedAgencyPercentage = financialForm.watch('agencyPercentage');
+    const watchedSpacePercentage = financialForm.watch('spacePercentage');
+    const watchedAgencyValue = financialForm.watch('agencyCommissionValue');
+    const watchedSpaceValue = financialForm.watch('spaceCommissionValue');
 
-  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents]);
+    const facturacionNeta = useMemo(() => {
+      const agencyCommission = (facturacionFinal * (watchedAgencyPercentage || 0) / 100) + (watchedAgencyValue || 0);
+      const spaceCommission = (facturacionFinal * (watchedSpacePercentage || 0) / 100) + (watchedSpaceValue || 0);
+      return facturacionFinal - agencyCommission - spaceCommission;
+    }, [facturacionFinal, watchedAgencyPercentage, watchedSpacePercentage, watchedAgencyValue, watchedSpaceValue]);
 
-  if (!isLoaded) {
-    return <LoadingSkeleton title="Cargando Previsión..." />;
+
+   const saveFinancials = useCallback(() => {
+    if (!serviceOrder) return;
+
+    const data = financialForm.getValues();
+    const agencyCommission = (facturacionFinal * (data.agencyPercentage || 0) / 100) + (data.agencyCommissionValue || 0);
+    const spaceCommission = (facturacionFinal * (data.spacePercentage || 0) / 100) + (data.spaceCommissionValue || 0);
+
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const index = allServiceOrders.findIndex(os => os.id === osId);
+    if (index !== -1) {
+        allServiceOrders[index] = { 
+            ...allServiceOrders[index], 
+            facturacion: facturacionFinal,
+            agencyPercentage: data.agencyPercentage,
+            spacePercentage: data.spacePercentage,
+            agencyCommissionValue: data.agencyCommissionValue,
+            spaceCommissionValue: data.spaceCommissionValue,
+            comisionesAgencia: agencyCommission,
+            comisionesCanon: spaceCommission,
+        };
+        localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+    }
+  }, [serviceOrder, osId, facturacionFinal, financialForm]);
+
+  useEffect(() => {
+    const storedTipos = localStorage.getItem('tipoServicio');
+    if (storedTipos) {
+      setTiposServicio(JSON.parse(storedTipos));
+    }
+    
+    const allAjustes = (JSON.parse(localStorage.getItem('comercialAjustes') || '{}') as {[key: string]: ComercialAjuste[]})[osId] || [];
+
+    if (serviceOrder) {
+        financialForm.reset({
+            agencyPercentage: serviceOrder.agencyPercentage || 0,
+            spacePercentage: serviceOrder.spacePercentage || 0,
+            agencyCommissionValue: serviceOrder.agencyCommissionValue || 0,
+            spaceCommissionValue: serviceOrder.spaceCommissionValue || 0,
+        });
+    }
+
+    setBriefing(initialBriefing || { osId, items: [] });
+    setAjustes(allAjustes);
+    setIsMounted(true);
+  }, [osId, financialForm, initialBriefing, serviceOrder]);
+
+   useEffect(() => {
+    if (serviceOrder && facturacionFinal !== serviceOrder.facturacion) {
+        saveFinancials();
+    }
+  }, [facturacionFinal, serviceOrder, saveFinancials]);
+
+  const sortedBriefingItems = useMemo(() => {
+    if (!briefing?.items) return [];
+    return [...briefing.items].sort((a, b) => {
+      const dateComparison = a.fecha.localeCompare(b.fecha);
+      if (dateComparison !== 0) return dateComparison;
+      return a.horaInicio.localeCompare(b.horaInicio);
+    });
+  }, [briefing]);
+
+  const saveBriefing = (newBriefing: ComercialBriefing) => {
+    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+    const index = allBriefings.findIndex(b => b.osId === osId);
+    if (index !== -1) {
+      allBriefings[index] = newBriefing;
+    } else {
+      allBriefings.push(newBriefing);
+    }
+    localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
+    setBriefing(newBriefing);
+  };
+  
+  const handleSaveFinancials = (data: FinancialFormValues) => {
+    saveFinancials();
+    toast({ title: 'Datos financieros actualizados' });
+  };
+
+  const handleRowClick = (item: ComercialBriefingItem) => {
+    setEditingItem(item);
+    setIsDialogOpen(true);
+  };
+
+  const handleNewClick = () => {
+    setEditingItem(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveItem = (data: BriefingItemFormValues) => {
+    if (!briefing) return false;
+    let newItems;
+    if (editingItem) {
+      newItems = briefing.items.map(item => item.id === editingItem.id ? data : item);
+      toast({ title: 'Hito actualizado' });
+    } else {
+      newItems = [...briefing.items, { ...data, id: Date.now().toString() }];
+      toast({ title: 'Hito añadido' });
+    }
+    saveBriefing({ ...briefing, items: newItems });
+    setEditingItem(null);
+    return true; // Indicate success to close dialog
+  };
+
+  const handleDeleteItem = (itemId: string) => {
+    if (!briefing) return;
+    const newItems = briefing.items.filter(item => item.id !== itemId);
+    saveBriefing({ ...briefing, items: newItems });
+    toast({ title: 'Hito eliminado' });
+  };
+  
+  const calculateDuration = (start: string, end: string) => {
+    try {
+      const startTime = parse(start, 'HH:mm', new Date());
+      const endTime = parse(end, 'HH:mm', new Date());
+      const diff = differenceInMinutes(endTime, startTime);
+      if (diff < 0) return 'N/A';
+      const hours = Math.floor(diff / 60);
+      const minutes = diff % 60;
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    } catch (e) {
+      return 'N/A';
+    }
+  };
+
+  const saveAjustes = (newAjustes: ComercialAjuste[]) => {
+      if(!osId) return;
+      const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}');
+      allAjustes[osId] = newAjustes;
+      localStorage.setItem('comercialAjustes', JSON.stringify(allAjustes));
+      setAjustes(newAjustes);
+  };
+
+  const handleAddAjuste = () => {
+    const concepto = nuevoAjusteConceptoRef.current?.value;
+    const importe = nuevoAjusteImporteRef.current?.value;
+
+    if (!concepto || !importe) {
+        toast({ variant: 'destructive', title: 'Error', description: 'El concepto y el importe son obligatorios.' });
+        return;
+    }
+    const newAjustes = [...ajustes, { id: Date.now().toString(), concepto, importe: parseFloat(importe) }];
+    saveAjustes(newAjustes);
+
+    if(nuevoAjusteConceptoRef.current) nuevoAjusteConceptoRef.current.value = '';
+    if(nuevoAjusteImporteRef.current) nuevoAjusteImporteRef.current.value = '';
+  };
+  
+  const handleDeleteAjuste = (id: string) => {
+      const newAjustes = ajustes.filter(a => a.id !== id);
+      saveAjustes(newAjustes);
   }
   
+  const handleAddLocation = (newLocation: string) => {
+    if (!serviceOrder) return;
+    
+    const updatedOS = {
+        ...serviceOrder,
+        deliveryLocations: [...(serviceOrder.deliveryLocations || []), newLocation]
+    };
+    
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const osIndex = allServiceOrders.findIndex(os => os.id === serviceOrder.id);
+    
+    if (osIndex !== -1) {
+        allServiceOrders[osIndex] = updatedOS;
+        localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+        // setServiceOrder(updatedOS); // This will be handled by context
+        toast({ title: 'Localización añadida', description: `Se ha guardado "${newLocation}" en la Orden de Servicio.`})
+    }
+  }
+
+  const BriefingItemDialog = ({ open, onOpenChange, item, onSave, serviceOrder, onAddLocation }: { open: boolean, onOpenChange: (open: boolean) => void, item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => boolean, serviceOrder: ServiceOrder | null, onAddLocation: (location: string) => void }) => {
+    const form = useForm<BriefingItemFormValues>({
+      resolver: zodResolver(briefingItemSchema),
+      defaultValues: {
+        id: item?.id || '',
+        fecha: item?.fecha || (serviceOrder?.startDate ? format(new Date(serviceOrder.startDate), 'yyyy-MM-dd') : ''),
+        horaInicio: item?.horaInicio || '09:00',
+        horaFin: item?.horaFin || '10:00',
+        conGastronomia: item?.conGastronomia || false,
+        descripcion: item?.descripcion || '',
+        comentarios: item?.comentarios || '',
+        sala: item?.sala || '',
+        asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
+        precioUnitario: item?.precioUnitario || 0,
+        importeFijo: item?.importeFijo || 0,
+      }
+    });
+    
+    useEffect(() => {
+        form.reset({
+            id: item?.id || '',
+            fecha: item?.fecha || (serviceOrder?.startDate ? format(new Date(serviceOrder.startDate), 'yyyy-MM-dd') : ''),
+            horaInicio: item?.horaInicio || '09:00',
+            horaFin: item?.horaFin || '10:00',
+            conGastronomia: item?.conGastronomia || false,
+            descripcion: item?.descripcion || '',
+            comentarios: item?.comentarios || '',
+            sala: item?.sala || '',
+            asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
+            precioUnitario: item?.precioUnitario || 0,
+            importeFijo: item?.importeFijo || 0,
+        })
+    }, [item, serviceOrder, form])
+
+
+    const asistentes = form.watch('asistentes');
+    const precioUnitario = form.watch('precioUnitario');
+    const importeFijo = form.watch('importeFijo');
+    const total = useMemo(() => (asistentes * precioUnitario) + (importeFijo || 0), [asistentes, precioUnitario, importeFijo]);
+    
+    const locationOptions = useMemo(() => {
+      return serviceOrder?.deliveryLocations?.map(loc => ({ label: loc, value: loc })) || [];
+    }, [serviceOrder]);
+
+    const handleLocationChange = (value: string) => {
+      const isNew = !locationOptions.some(opt => opt.value === value);
+      if (isNew && value) {
+        onAddLocation(value);
+      }
+      form.setValue('sala', value, { shouldDirty: true });
+    }
+
+    const onSubmit = (data: BriefingItemFormValues) => {
+      if (onSave(data)) {
+        onOpenChange(false);
+        form.reset();
+      }
+    };
+
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>{item ? 'Editar' : 'Nuevo'} Hito del Briefing</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <FormField control={form.control} name="fecha" render={({field}) => <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage/></FormItem> } />
+                <FormField control={form.control} name="horaInicio" render={({field}) => <FormItem><FormLabel>Hora Inicio</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage/></FormItem> } />
+                <FormField control={form.control} name="horaFin" render={({field}) => <FormItem><FormLabel>Hora Fin</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage/></FormItem> } />
+                <FormField control={form.control} name="sala" render={({field}) => (
+                    <FormItem className="flex flex-col"><FormLabel>Sala</FormLabel>
+                       <Combobox
+                          options={locationOptions}
+                          value={field.value || ''}
+                          onChange={handleLocationChange}
+                          placeholder="Busca o crea una sala..."
+                          searchPlaceholder="Buscar sala..."
+                      />
+                      <FormMessage />
+                    </FormItem>
+                 )} />
+                <FormField control={form.control} name="asistentes" render={({field}) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl><FormMessage/></FormItem> } />
+                <FormField control={form.control} name="precioUnitario" render={({field}) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem> } />
+                 <FormField control={form.control} name="importeFijo" render={({field}) => <FormItem><FormLabel>Importe Fijo</FormLabel><FormControl><Input placeholder="Importe Fijo" type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem> } />
+                <FormItem>
+                  <FormLabel>Total</FormLabel>
+                  <FormControl>
+                    <Input readOnly value={total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} />
+                  </FormControl>
+                </FormItem>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <FormField control={form.control} name="descripcion" render={({field}) => (
+                    <FormItem><FormLabel>Descripción</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un tipo de servicio" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                {tiposServicio.map(tipo => <SelectItem key={tipo.id} value={tipo.servicio}>{tipo.servicio}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage/>
+                    </FormItem> 
+                )} />
+                <FormField
+                    control={form.control}
+                    name="conGastronomia"
+                    render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3">
+                        <FormControl>
+                        <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                        />
+                        </FormControl>
+                        <FormLabel className="!m-0 text-base flex items-center gap-2">
+                            <Utensils/>
+                            Con gastronomía
+                        </FormLabel>
+                    </FormItem>
+                    )}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="comentarios" render={({field}) => <FormItem><FormLabel>Comentarios</FormLabel><FormControl><Textarea placeholder="Comentarios" {...field} /></FormControl></FormItem> } />
+              </div>
+              
+              <DialogFooter>
+                 <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                 <Button type="submit"><Save className="mr-2" /> Guardar</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  if (isOsDataLoading || !isMounted) {
+    return <LoadingSkeleton title="Cargando Módulo Comercial..." />;
+  }
+
   return (
-    <main>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-          <ClipboardList />
-          Previsión de Servicios
-        </h1>
-        <Button asChild>
-          <Link href="/os/nuevo/info">
-            <PlusCircle className="mr-2" />
-            Nueva Orden
-          </Link>
-        </Button>
-      </div>
+    <>
+      <FormProvider {...financialForm}>
+           <Accordion type="single" collapsible className="w-full mb-4">
+              <AccordionItem value="item-1">
+                  <Card>
+                      <AccordionTrigger className="p-2">
+                          <div className="flex items-center justify-between w-full">
+                              <CardTitle className="text-base flex items-center gap-2 px-2"><DollarSign/>Información Financiera y Ajustes</CardTitle>
+                               <div className="text-sm font-bold pr-4">
+                                  <span className="text-black dark:text-white">Facturación Neta: </span>
+                                  <span className="text-green-600">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                              </div>
+                          </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                           <div className="grid lg:grid-cols-2 gap-4 p-4 pt-0">
+                              <form onChange={handleSubmit(handleSaveFinancials)} className="flex flex-col space-y-2">
+                                  <h3 className="text-base font-semibold border-b pb-1">Información Financiera</h3>
+                                  <div className="grid grid-cols-2 gap-4 items-end">
+                                      <FormItem>
+                                          <FormLabel className="text-xs">Fact. Briefing</FormLabel>
+                                          <FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm" /></FormControl>
+                                      </FormItem>
+                                      <FormItem>
+                                          <FormLabel className="text-xs">Facturación Final</FormLabel>
+                                          <FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm"/></FormControl>
+                                      </FormItem>
+                                      <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel className="text-xs">% Agencia</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                      <FormField control={financialForm.control} name="agencyCommissionValue" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel className="text-xs">Comisión Agencia (€)</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                       <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel className="text-xs">% Espacio</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                        <FormField control={financialForm.control} name="spaceCommissionValue" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel className="text-xs">Canon Espacio (€)</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                  </div>
+                              </form>
+                              <div className="space-y-2">
+                                  <h3 className="text-base font-semibold border-b pb-1">Ajustes a la Facturación</h3>
+                                  <div className="border rounded-lg">
+                                      <Table>
+                                          <TableBody>
+                                              {ajustes.map(ajuste => (
+                                              <TableRow key={ajuste.id}>
+                                                  <TableCell className="font-medium p-1 text-sm">{ajuste.concepto}</TableCell>
+                                                  <TableCell className="text-right p-1 text-sm">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell>
+                                                  <TableCell className="w-12 text-right p-0 pr-1">
+                                                      <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteAjuste(ajuste.id)}>
+                                                          <Trash2 className="h-4 w-4" />
+                                                      </Button>
+                                                  </TableCell>
+                                              </TableRow>
+                                              ))}
+                                          </TableBody>
+                                          <TableFooter>
+                                          <TableRow>
+                                              <TableCell className="p-1">
+                                                  <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs"/>
+                                              </TableCell>
+                                              <TableCell className="text-right p-1">
+                                                  <Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-24 text-xs"/>
+                                              </TableCell>
+                                              <TableCell className="text-right p-1">
+                                                  <Button type="button" onClick={handleAddAjuste} size="sm" className="h-8 text-xs">Añadir</Button>
+                                              </TableCell>
+                                          </TableRow>
+                                      </TableFooter>
+                                      </Table>
+                                  </div>
+                              </div>
+                          </div>
+                      </AccordionContent>
+                  </Card>
+              </AccordionItem>
+          </Accordion>
+      </FormProvider>
 
-       <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <Input
-                placeholder="Buscar por Nº de OS o Cliente..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-            />
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-full sm:w-[240px]">
-                <SelectValue placeholder="Filtrar por mes" />
-                </SelectTrigger>
-                <SelectContent>
-                <SelectItem value="all">Todos los meses</SelectItem>
-                {availableMonths.map(month => (
-                    <SelectItem key={month} value={month}>
-                    {month === 'all' ? 'Todos' : format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
-                    </SelectItem>
-                ))}
-                </SelectContent>
-            </Select>
-            <div className="flex items-center space-x-2 pt-2 sm:pt-0">
-                <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
-                <label
-                    htmlFor="show-past"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                    Mostrar eventos finalizados
-                </label>
-            </div>
-      </div>
-
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nº Servicio</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Fecha Inicio</TableHead>
-              <TableHead>Fecha Fin</TableHead>
-              <TableHead>Nº Asistentes</TableHead>
-              <TableHead>Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSortedOrders.length > 0 ? (
-              filteredAndSortedOrders.map(os => (
-                <TableRow key={os.id}>
-                  <TableCell className="font-medium">
-                    <Link href={`/os/${os.id}`} className="text-primary hover:underline">
-                      {os.serviceNumber}
-                       {os.isVip && <AlertTriangle className="inline-block w-4 h-4 ml-2 text-yellow-500" />}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{os.client}</TableCell>
-                  <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>{os.asistentes}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant[os.status]}>
-                      {os.status}
-                    </Badge>
-                  </TableCell>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Briefing del Contrato</CardTitle>
+          <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-lg overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Inicio</TableHead>
+                  <TableHead>Fin</TableHead>
+                  <TableHead>Duración</TableHead>
+                  <TableHead>Gastro</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Comentarios</TableHead>
+                  <TableHead>Sala</TableHead>
+                  <TableHead>Asistentes</TableHead>
+                  <TableHead>P.Unitario</TableHead>
+                  <TableHead>Imp. Fijo</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No hay órdenes de servicio que coincidan con los filtros.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </main>
+              </TableHeader>
+              <TableBody>
+                {sortedBriefingItems.length > 0 ? (
+                  sortedBriefingItems.map(item => (
+                    <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
+                      <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{item.horaInicio}</TableCell>
+                      <TableCell>{item.horaFin}</TableCell>
+                      <TableCell>{calculateDuration(item.horaInicio, item.horaFin)}</TableCell>
+                      <TableCell>{item.conGastronomia ? <Check className="h-4 w-4" /> : null}</TableCell>
+                      <TableCell className="min-w-[200px]">{item.descripcion}</TableCell>
+                      <TableCell className="min-w-[200px]">{item.comentarios}</TableCell>
+                      <TableCell>{item.sala}</TableCell>
+                      <TableCell>{item.asistentes}</TableCell>
+                      <TableCell>{item.precioUnitario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell>{(item.importeFijo || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell>{((item.asistentes * item.precioUnitario) + (item.importeFijo || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(item.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={13} className="h-24 text-center">
+                      No hay hitos en el briefing. Añade uno para empezar.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+      <BriefingItemDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} item={editingItem} onSave={handleSaveItem} serviceOrder={serviceOrder} onAddLocation={handleAddLocation} />
+    </>
   );
 }
 
 ```
-- src/hooks/use-data-store.ts:
-```ts
-
-'use client';
-
-import { create } from 'zustand';
-import type { 
-    ServiceOrder, Entrega, ComercialBriefing, PedidoEntrega, GastronomyOrder, MaterialOrder, 
-    TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExterno, 
-    PruebaMenuData, PickingSheet, ReturnSheet, OrdenFabricacion, PickingState, ExcedenteProduccion, 
-    PersonalEntrega, PartnerPedidoStatus, ActivityLog, CtaRealCost, CtaComentario, 
-    ObjetivosGasto, IngredienteERP, FamiliaERP, IngredienteInterno, Elaboracion, Receta, 
-    CategoriaReceta, PortalUser, ComercialAjuste, ProductoVenta, PickingEntregaState, 
-    StockElaboracion, PersonalExternoAjuste, PersonalExternoDB, HistoricoPreciosERP, 
-    CosteFijoCPR, ObjetivoMensualCPR, SolicitudPersonalCPR, Personal, Espacio, ArticuloCatering, 
-    TipoServicio, CategoriaPersonal, Proveedor, TipoTransporte, DecoracionDBItem, 
-    AtipicoDBItem, PedidoPlantilla, FormatoExpedicion 
-} from '@/types';
-
-type DataStoreData = {
-    serviceOrders: ServiceOrder[];
-    entregas: Entrega[];
-    comercialBriefings: ComercialBriefing[];
-    pedidosEntrega: PedidoEntrega[];
-    gastronomyOrders: GastronomyOrder[];
-    materialOrders: MaterialOrder[];
-    transporteOrders: TransporteOrder[];
-    hieloOrders: HieloOrder[];
-    decoracionOrders: DecoracionOrder[];
-    atipicoOrders: AtipicoOrder[];
-    personalMiceOrders: PersonalMiceOrder[];
-    personalExterno: PersonalExterno[];
-    pruebasMenu: PruebaMenuData[];
-    pickingSheets: Record<string, PickingSheet>;
-    returnSheets: Record<string, ReturnSheet>;
-    ordenesFabricacion: OrdenFabricacion[];
-    pickingStates: Record<string, PickingState>;
-    excedentesProduccion: ExcedenteProduccion[];
-    personalEntrega: PersonalEntrega[];
-    partnerPedidosStatus: Record<string, any>;
-    activityLogs: ActivityLog[];
-    ctaRealCosts: Record<string, any>;
-    ctaComentarios: Record<string, any>;
-    objetivosGastoPlantillas: ObjetivosGasto[];
-    defaultObjetivoGastoId: string | null;
-    articulosERP: IngredienteERP[];
-    familiasERP: FamiliaERP[];
-    ingredientesInternos: IngredienteInterno[];
-    elaboraciones: Elaboracion[];
-    recetas: Receta[];
-    categoriasRecetas: CategoriaReceta[];
-    portalUsers: PortalUser[];
-    comercialAjustes: Record<string, ComercialAjuste[]>;
-    productosVenta: ProductoVenta[];
-    pickingEntregasState: Record<string, PickingEntregaState>;
-    stockElaboraciones: Record<string, StockElaboracion>;
-    personalExternoAjustes: Record<string, PersonalExternoAjuste[]>;
-    personalExternoDB: PersonalExternoDB[];
-    historicoPreciosERP: HistoricoPreciosERP[];
-    costesFijosCPR: CosteFijoCPR[];
-    objetivosCPR: ObjetivoMensualCPR[];
-    personal: Personal[];
-    espacios: Espacio[];
-    articulos: ArticuloCatering[];
-    tipoServicio: TipoServicio[];
-    tiposPersonal: CategoriaPersonal[];
-    proveedores: Proveedor[];
-    tiposTransporte: TipoTransporte[];
-    decoracionDB: DecoracionDBItem[];
-    atipicosDB: AtipicoDBItem[];
-    pedidoPlantillas: PedidoPlantilla[];
-    formatosExpedicionDB: FormatoExpedicion[];
-    solicitudesPersonalCPR: SolicitudPersonalCPR[];
-    incidenciasRetorno: any[];
-    cesionesPersonal: any[];
-    centros: any[];
-    ubicaciones: any[];
-    stockArticuloUbicacion: any;
-    stockMovimientos: any[];
-    incidenciasInventario: any[];
-    cierresInventario: any[];
-};
-
-type DataKeys = keyof DataStoreData;
-
-type DataStore = {
-    data: Partial<DataStoreData>;
-    isLoaded: boolean;
-    loadAllData: () => Promise<void>;
-};
-
-export const ALL_DATA_KEYS: DataKeys[] = [
-    'serviceOrders', 'entregas', 'comercialBriefings', 'pedidosEntrega', 'gastronomyOrders', 'materialOrders',
-    'transporteOrders', 'hieloOrders', 'decoracionOrders', 'atipicoOrders', 'personalMiceOrders', 'personalExterno',
-    'pruebasMenu', 'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates', 'excedentesProduccion',
-    'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 'ctaComentarios', 'objetivosGastoPlantillas',
-    'defaultObjetivoGastoId', 'articulosERP', 'familiasERP', 'ingredientesInternos', 'elaboraciones', 'recetas',
-    'categoriasRecetas', 'portalUsers', 'comercialAjustes', 'productosVenta', 'pickingEntregasState',
-    'stockElaboraciones', 'personalExternoAjustes', 'personalExternoDB', 'historicoPreciosERP', 'costesFijosCPR',
-    'objetivosCPR', 'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposPersonal', 'proveedores', 'tiposTransporte',
-    'decoracionDB', 'atipicosDB', 'pedidoPlantillas', 'formatosExpedicionDB', 'solicitudesPersonalCPR', 'incidenciasRetorno',
-    'cesionesPersonal', 'centros', 'ubicaciones', 'stockArticuloUbicacion', 'stockMovimientos', 'incidenciasInventario', 'cierresInventario'
-];
-
-export const defaultValuesMap: { [key in DataKeys]?: any } = {
-    defaultObjetivoGastoId: null,
-    pickingSheets: {}, returnSheets: {}, pickingStates: {}, partnerPedidosStatus: {},
-    ctaRealCosts: {}, ctaComentarios: {}, comercialAjustes: {}, pickingEntregasState: {},
-    stockElaboraciones: {}, personalExternoAjustes: {}, stockArticuloUbicacion: {},
-};
-
-export const useDataStore = create<DataStore>((set, get) => ({
-    data: {},
-    isLoaded: false,
-    loadAllData: async () => {
-        if (get().isLoaded || typeof window === 'undefined') return;
-
-        await Promise.resolve(); 
-
-        const loadedData: { [key: string]: any } = {};
-        
-        for (const key of ALL_DATA_KEYS) {
-            try {
-                const storedValue = localStorage.getItem(key);
-                if (storedValue) {
-                    loadedData[key] = JSON.parse(storedValue);
-                } else {
-                    loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
-                }
-            } catch(e) {
-                console.warn(`Could not parse key: ${key}. Setting to default.`, e);
-                loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
-            }
-        }
-        
-        set({ data: loadedData as Partial<DataStoreData>, isLoaded: true });
-    },
-}));
-
-```
-- src/app/os/[id]/os-context.tsx:
-```tsx
-'use client';
-
-import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
-import type { ServiceOrder, ComercialBriefing, Espacio, MaterialOrder, PickingSheet, ReturnSheet, OrderItem } from '@/types';
-import { useDataStore } from '@/hooks/use-data-store';
-
-type ItemWithOrderInfo = OrderItem & {
-  orderContract: string;
-  orderId: string;
-  orderStatus?: PickingSheet['status'];
-  solicita?: 'Sala' | 'Cocina';
-  tipo?: string;
-  deliveryDate?: string;
-  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
-};
-
-type BlockedOrderInfo = {
-    sheetId: string;
-    status: PickingSheet['status'];
-    items: OrderItem[];
-};
-
-type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
-
-const statusMap: Record<PickingSheet['status'], StatusColumn> = {
-    'Pendiente': 'En Preparación',
-    'En Proceso': 'En Preparación',
-    'Listo': 'Listo',
-}
-
-interface ProcessedData {
-    allItems: ItemWithOrderInfo[];
-    blockedOrders: BlockedOrderInfo[];
-    pendingItems: ItemWithOrderInfo[];
-    itemsByStatus: Record<StatusColumn, ItemWithOrderInfo[]>;
-    totalValoracionPendiente: number;
-}
-
-interface OsDataContextType {
-    osId: string;
-    serviceOrder: ServiceOrder | null;
-    briefing: ComercialBriefing | null;
-    spaceAddress: string;
-    isLoading: boolean;
-    updateKey: number;
-    getProcessedDataForType: (type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler') => ProcessedData;
-}
-
-const OsContext = createContext<OsDataContextType | undefined>(undefined);
-
-export function useOsContext() {
-    const context = useContext(OsContext);
-    if (!context) {
-        throw new Error('useOsContext must be used within an OsContextProvider');
-    }
-    return context;
-}
-
-export function OsContextProvider({ osId, children }: { osId: string; children: React.ReactNode }) {
-    const { data, isLoaded: isDataStoreLoaded } = useDataStore();
-    const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
-    const [spaceAddress, setSpaceAddress] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
-    const [updateKey, setUpdateKey] = useState(Date.now());
-    
-    useEffect(() => {
-        if (isDataStoreLoaded && osId) {
-            setIsLoading(true);
-            const currentOS = data.serviceOrders?.find(os => os.id === osId);
-            setServiceOrder(currentOS || null);
-
-            if (currentOS?.space) {
-                const currentSpace = data.espacios?.find(e => e.identificacion.nombreEspacio === currentOS.space);
-                setSpaceAddress(currentSpace?.identificacion.calle || '');
-            } else {
-                setSpaceAddress('');
-            }
-            setBriefing(data.comercialBriefings?.find(b => b.osId === osId) || null);
-            setIsLoading(false);
-        }
-    }, [osId, isDataStoreLoaded, data, updateKey]);
-    
-    const getProcessedDataForType = useCallback((type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler'): ProcessedData => {
-        const relatedOrders = (data.materialOrders || []).filter(order => order.osId === osId && order.type === type);
-        const relatedPickingSheets = Object.values(data.pickingSheets || {}).filter(sheet => sheet.osId === osId);
-        
-        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
-        const processedItemKeys = new Set<string>();
-        const blocked: BlockedOrderInfo[] = [];
-
-        relatedPickingSheets.forEach(sheet => {
-            const targetStatus = statusMap[sheet.status];
-            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
-
-            sheet.items.forEach(itemInSheet => {
-                if (itemInSheet.type !== type) return;
-                
-                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
-                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
-                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
-
-                if (!originalItem) return;
-                
-                const itemWithInfo: ItemWithOrderInfo = {
-                    ...originalItem,
-                    orderId: sheet.id, 
-                    orderContract: orderRef?.contractNumber || 'N/A', 
-                    orderStatus: sheet.status, 
-                    solicita: orderRef?.solicita,
-                };
-
-                statusItems[targetStatus].push(itemWithInfo);
-                sheetInfo.items.push(itemWithInfo);
-                processedItemKeys.add(uniqueKey);
-            });
-
-            if (sheetInfo.items.length > 0) {
-                blocked.push(sheetInfo);
-            }
-        });
-
-        const all = relatedOrders.flatMap(order => 
-            order.items.map(item => ({
-                ...item, 
-                orderId: order.id, 
-                contractNumber: order.contractNumber, 
-                solicita: order.solicita, 
-                tipo: item.tipo, 
-                deliveryDate: order.deliveryDate,
-                ajustes: item.ajustes
-            } as ItemWithOrderInfo))
-        );
-        
-        const pending = all.filter(item => {
-          const uniqueKey = `${item.orderId}-${item.itemCode}`;
-          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
-        });
-        
-        statusItems['Asignado'] = pending;
-
-        const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-
-        return { allItems: all, blockedOrders: blocked, pendingItems: pending, itemsByStatus: statusItems, totalValoracionPendiente };
-
-    }, [data, osId]);
-
-    const value = { osId, serviceOrder, briefing, spaceAddress, isLoading, updateKey, getProcessedDataForType };
-    
-    return <OsContext.Provider value={value}>{children}</OsContext.Provider>;
-}
-
-```
-- src/app/os/[id]/alquiler/page.tsx:
-```tsx
-
-'use client';
-
-import { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
-import { PlusCircle, Eye, FileText } from 'lucide-react';
-import type { OrderItem, PickingSheet, ComercialBriefingItem } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { formatCurrency } from '@/lib/utils';
-import { cn } from '@/lib/utils';
-import { useOsContext } from '../../os-context';
-
-type ItemWithOrderInfo = OrderItem & {
-  orderContract: string;
-  orderId: string;
-  orderStatus?: PickingSheet['status'];
-  solicita?: 'Sala' | 'Cocina';
-  tipo?: string;
-  deliveryDate?: string;
-  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
-};
-
-type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
-
-function BriefingSummaryDialog({ osId }: { osId: string }) {
-    const { briefing } = useOsContext();
-    
-    const sortedItems = useMemo(() => {
-        if (!briefing?.items) return [];
-        return [...briefing.items].sort((a, b) => {
-            const dateComparison = a.fecha.localeCompare(b.fecha);
-            if (dateComparison !== 0) return dateComparison;
-            return a.horaInicio.localeCompare(b.horaInicio);
-        });
-    }, [briefing]);
-
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Hora</TableHead>
-                                <TableHead>Descripción</TableHead>
-                                <TableHead>Observaciones</TableHead>
-                                <TableHead className="text-right">Asistentes</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedItems.length > 0 ? sortedItems.map(item => (
-                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
-                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
-                                    <TableCell>{item.descripcion}</TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
-                                    <TableCell className="text-right">{item.asistentes}</TableCell>
-                                </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
-    return (
-        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
-            <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">{title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
-                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
-            </CardContent>
-        </Card>
-    )
-}
-
-export default function AlquilerPage() {
-    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-    const { osId, getProcessedDataForType, isLoading } = useOsContext();
-  
-    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(
-        () => getProcessedDataForType('Alquiler'),
-        [getProcessedDataForType]
-    );
-
-    const renderStatusModal = (status: StatusColumn) => {
-        const items = itemsByStatus[status];
-        return (
-            <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {items.length > 0 ? items.map((item, index) => (
-                                <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
-                            )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
-                        </TableBody>
-                    </Table>
-                </div>
-            </DialogContent>
-        )
-    }
-    
-    const renderSummaryModal = () => {
-        const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
-         const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        return (
-          <DialogContent className="max-w-4xl">
-            <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
-            <div className="max-h-[70vh] overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Artículo</TableHead>
-                    <TableHead>Cantidad</TableHead>
-                    <TableHead>Cant. Cajas</TableHead>
-                    <TableHead>Valoración</TableHead>
-                    <TableHead>Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {all.map((item, index) => {
-                    const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
-                    const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
-                    return (
-                      <TableRow key={`${item.itemCode}-${index}`}>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{cajas}</TableCell>
-                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                        <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-             <div className="flex justify-end font-bold text-lg p-4">
-                Valoración Total: {formatCurrency(totalValue)}
-            </div>
-          </DialogContent>
-        )
-      }
-  
-    if (isLoading) {
-        return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
-    }
-
-    return (
-        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-                    </DialogTrigger>
-                    {renderSummaryModal()}
-                </Dialog>
-                <BriefingSummaryDialog osId={osId} />
-            </div>
-            <Button asChild>
-            <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
-                <PlusCircle className="mr-2" />
-                Nuevo Pedido de Alquiler
-            </Link>
-            </Button>
-        </div>
-        
-         <div className="grid md:grid-cols-3 gap-6 mb-8">
-              {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
-                  const items = itemsByStatus[status];
-                  const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                  return (
-                  <StatusCard 
-                      key={status}
-                      title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
-                      items={items.length}
-                      totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
-                      totalValue={totalValue}
-                      onClick={() => setActiveModal(status)}
-                  />
-              )})}
-          </div>
-        
-          <Card className="mb-6">
-              <div className="flex items-center justify-between p-4">
-                  <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
-              </div>
-              <CardContent>
-                  <div className="border rounded-lg">
-                      <Table>
-                           <TableHeader>
-                              <TableRow>
-                                  <TableHead>Artículo</TableHead>
-                                  <TableHead>Solicita</TableHead>
-                                  <TableHead>Fecha Entrega</TableHead>
-                                  <TableHead className="w-32">Cantidad</TableHead>
-                                  <TableHead>Valoración</TableHead>
-                              </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                              {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
-                                  <TableRow key={item.itemCode + item.orderId}>
-                                      <TableCell>{item.description}</TableCell>
-                                      <TableCell>{item.solicita}</TableCell>
-                                      <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
-                                      <TableCell>{item.quantity}</TableCell>
-                                      <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                                  </TableRow>
-                              )) : (
-                                  <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
-                              )}
-                          </TableBody>
-                      </Table>
-                  </div>
-              </CardContent>
-          </Card>
-  
-          <Card>
-              <CardHeader>
-                  <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
-              </CardHeader>
-               <CardContent>
-                   <div className="border rounded-lg">
-                      <Table>
-                           <TableHeader>
-                              <TableRow>
-                                  <TableHead>Hoja Picking</TableHead>
-                                  <TableHead>Estado</TableHead>
-                                  <TableHead>Contenido</TableHead>
-                              </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                              {blockedOrders.length > 0 ? blockedOrders.map(order => (
-                                  <TableRow key={order.sheetId}>
-                                      <TableCell>
-                                          <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
-                                              <Badge variant="secondary">{order.sheetId}</Badge>
-                                          </Link>
-                                      </TableCell>
-                                      <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
-                                      <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
-                                  </TableRow>
-                              )) : (
-                                  <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
-                              )}
-                          </TableBody>
-                      </Table>
-                  </div>
-              </CardContent>
-          </Card>
-  
-         {activeModal && renderStatusModal(activeModal)}
-      </Dialog>
-    );
-}
-
-
-```
-- src/app/os/almacen/[id]/page.tsx:
+- src/app/os/cta-explotacion/[id]/page.tsx:
 ```tsx
 'use client';
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function AlmacenIdRedirectPage({ params }: { params: { id: string } }) {
+export default function CtaExplotacionIdRedirectPage({ params }: { params: { id: string } }) {
     const router = useRouter();
     useEffect(() => {
-        router.replace(`/os/${params.id}/almacen`);
+        router.replace(`/os/${params.id}/cta-explotacion`);
     }, [router, params.id]);
     return null;
 }
 
 ```
-- src/app/os/almacen/layout.tsx:
+- src/app/os/personal-mice/[id]/page.tsx:
 ```tsx
 'use client';
 
-import { Warehouse } from 'lucide-react';
-import { useOsData } from '../os-context';
-
-
-export default function AlmacenLayout({
-    children,
-  }: {
-    children: React.ReactNode
-  }) {
-    const { serviceOrder } = useOsData();
-    return (
-        <div>
-             <div className="flex items-start justify-between mb-8">
-                <div>
-                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Warehouse />Módulo de Almacén</h1>
-                   <div className="text-muted-foreground mt-2 space-y-1">
-                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
-                  </div>
-                </div>
-             </div>
-            {children}
-        </div>
-    )
-}
-
-```
-- src/app/os/almacen/page.tsx:
-```tsx
-
-
-'use client';
-
-import { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
-import { PlusCircle, Eye, FileText } from 'lucide-react';
-import type { OrderItem, PickingSheet, ComercialBriefingItem, ReturnSheet, ServiceOrder, MaterialOrder } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { formatCurrency } from '@/lib/utils';
-import { cn } from '@/lib/utils';
-import { useDataStore } from '@/hooks/use-data-store';
-import { useParams } from 'next/navigation';
-
-
-type ItemWithOrderInfo = OrderItem & {
-  orderContract: string;
-  orderId: string;
-  orderStatus?: PickingSheet['status'];
-  solicita?: 'Sala' | 'Cocina';
-  tipo?: string;
-  deliveryDate?: string;
-  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
-};
-
-type BlockedOrderInfo = {
-    sheetId: string;
-    status: PickingSheet['status'];
-    items: OrderItem[];
-};
-
-type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
-
-
-const statusMap: Record<PickingSheet['status'], StatusColumn> = {
-    'Pendiente': 'En Preparación',
-    'En Proceso': 'En Preparación',
-    'Listo': 'Listo',
-}
-
-function BriefingSummaryDialog({ osId }: { osId: string }) {
-    const { data, isLoaded } = useDataStore();
-    const briefing = useMemo(() => {
-        if (!isLoaded) return null;
-        return data.comercialBriefings?.find(b => b.osId === osId) || null;
-    }, [isLoaded, data.comercialBriefings, osId]);
-
-    const sortedItems = useMemo(() => {
-        if (!briefing?.items) return [];
-        return [...briefing.items].sort((a, b) => {
-            const dateComparison = a.fecha.localeCompare(b.fecha);
-            if (dateComparison !== 0) return dateComparison;
-            return a.horaInicio.localeCompare(b.horaInicio);
-        });
-    }, [briefing]);
-
-    if(!briefing) return null;
-
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Hora</TableHead>
-                                <TableHead>Descripción</TableHead>
-                                <TableHead>Observaciones</TableHead>
-                                <TableHead className="text-right">Asistentes</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedItems.length > 0 ? sortedItems.map(item => (
-                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
-                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
-                                    <TableCell>{item.descripcion}</TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
-                                    <TableCell className="text-right">{item.asistentes}</TableCell>
-                                </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
-    return (
-        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
-            <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">{title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
-                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
-            </CardContent>
-        </Card>
-    )
-}
-
-export default function AlmacenPage() {
-    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-    const params = useParams();
-    const osId = params.id as string;
-    const { data, isLoaded } = useDataStore();
-
-    const { allItems, blockedOrders, pendingItems, itemsByStatus } = useMemo(() => {
-        const emptyResult = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] } };
-        if (!isLoaded || !osId) return emptyResult;
-
-        const { materialOrders = [], pickingSheets = {}, returnSheets = {} } = data;
-
-        const relatedOrders = materialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
-        const relatedPickingSheets = Object.values(pickingSheets).filter(sheet => sheet.osId === osId);
-        
-        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
-        const processedItemKeys = new Set<string>();
-        const blocked: BlockedOrderInfo[] = [];
-
-        relatedPickingSheets.forEach(sheet => {
-            const targetStatus = statusMap[sheet.status];
-            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
-
-            sheet.items.forEach(itemInSheet => {
-                if (itemInSheet.type !== 'Almacen') return;
-                
-                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
-                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
-                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
-
-                if (!originalItem) return;
-                
-                const itemWithInfo: ItemWithOrderInfo = {
-                    ...originalItem,
-                    orderId: sheet.id, 
-                    orderContract: orderRef?.contractNumber || 'N/A', 
-                    orderStatus: sheet.status, 
-                    solicita: orderRef?.solicita,
-                };
-
-                statusItems[targetStatus].push(itemWithInfo);
-                sheetInfo.items.push(itemWithInfo);
-
-                processedItemKeys.add(uniqueKey);
-            });
-
-            if (sheetInfo.items.length > 0) {
-                blocked.push(sheetInfo);
-            }
-        });
-
-        const all = relatedOrders.flatMap(order => 
-            order.items.map(item => {
-                return {
-                    ...item, 
-                    quantity: item.quantity,
-                    orderId: order.id, 
-                    contractNumber: order.contractNumber, 
-                    solicita: order.solicita, 
-                    tipo: item.tipo, 
-                    deliveryDate: order.deliveryDate,
-                    ajustes: item.ajustes
-                } as ItemWithOrderInfo
-            })
-        );
-        
-        const pending = all.filter(item => {
-          const uniqueKey = `${item.orderId}-${item.itemCode}`;
-          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
-        });
-        
-        statusItems['Asignado'] = pending;
-
-        return { allItems: all, blockedOrders: blocked, pendingItems: pending, itemsByStatus: statusItems };
-    }, [osId, isLoaded, data]);
-    
-    const renderStatusModal = (status: StatusColumn) => {
-        const items = itemsByStatus[status];
-        return (
-            <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {items.length > 0 ? items.map((item, index) => (
-                                <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
-                            )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
-                        </TableBody>
-                    </Table>
-                </div>
-            </DialogContent>
-        )
-    }
-    
-    const renderSummaryModal = () => {
-      const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
-       const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      return (
-        <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
-          <div className="max-h-[70vh] overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Artículo</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Cant. Cajas</TableHead>
-                  <TableHead>Valoración</TableHead>
-                  <TableHead>Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {all.map((item, index) => {
-                  const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
-                  const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
-                  return (
-                    <TableRow key={`${item.itemCode}-${index}`}>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{cajas}</TableCell>
-                      <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                      <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-           <div className="flex justify-end font-bold text-lg p-4">
-              Valoración Total: {formatCurrency(totalValue)}
-          </div>
-        </DialogContent>
-      )
-    }
-
-    if (!isLoaded) {
-        return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
-    }
-
-    return (
-        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-                    </DialogTrigger>
-                    {renderSummaryModal()}
-                </Dialog>
-                <BriefingSummaryDialog osId={osId} />
-            </div>
-            <Button asChild>
-            <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
-                <PlusCircle className="mr-2" />
-                Nuevo Pedido de Almacén
-            </Link>
-            </Button>
-        </div>
-        
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-                {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
-                    const items = itemsByStatus[status];
-                    const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                    return (
-                    <StatusCard 
-                        key={status}
-                        title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
-                        items={items.length}
-                        totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
-                        totalValue={totalValue}
-                        onClick={() => setActiveModal(status)}
-                    />
-                )})}
-            </div>
-        
-            <Card className="mb-6">
-                <div className="flex items-center justify-between p-4">
-                    <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
-                </div>
-                <CardContent>
-                    <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Artículo</TableHead>
-                                    <TableHead>Solicita</TableHead>
-                                    <TableHead>Fecha Entrega</TableHead>
-                                    <TableHead className="w-32">Cantidad</TableHead>
-                                    <TableHead>Valoración</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
-                                    <TableRow key={item.itemCode + item.orderId}>
-                                        <TableCell>{item.description}</TableCell>
-                                        <TableCell>{item.solicita}</TableCell>
-                                        <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
-                                        <TableCell>{item.quantity}</TableCell>
-                                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Hoja Picking</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    <TableHead>Contenido</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {blockedOrders.length > 0 ? blockedOrders.map(order => (
-                                    <TableRow key={order.sheetId}>
-                                        <TableCell>
-                                            <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
-                                                <Badge variant="secondary">{order.sheetId}</Badge>
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
-                                        <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-
-        {activeModal && renderStatusModal(activeModal)}
-        </Dialog>
-    );
-}
-
-
-
-```
-- src/app/os/[id]/alquiler/page.tsx:
-```tsx
-
-'use client';
-
-import { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
-import { PlusCircle, Eye, FileText } from 'lucide-react';
-import type { OrderItem, PickingSheet, ComercialBriefingItem } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { formatCurrency } from '@/lib/utils';
-import { cn } from '@/lib/utils';
-import { useOsContext } from '../../os-context';
-
-type ItemWithOrderInfo = OrderItem & {
-  orderContract: string;
-  orderId: string;
-  orderStatus?: PickingSheet['status'];
-  solicita?: 'Sala' | 'Cocina';
-  tipo?: string;
-  deliveryDate?: string;
-  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
-};
-
-type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
-
-function BriefingSummaryDialog({ osId }: { osId: string }) {
-    const { briefing } = useOsContext();
-    
-    const sortedItems = useMemo(() => {
-        if (!briefing?.items) return [];
-        return [...briefing.items].sort((a, b) => {
-            const dateComparison = a.fecha.localeCompare(b.fecha);
-            if (dateComparison !== 0) return dateComparison;
-            return a.horaInicio.localeCompare(b.horaInicio);
-        });
-    }, [briefing]);
-
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Hora</TableHead>
-                                <TableHead>Descripción</TableHead>
-                                <TableHead>Observaciones</TableHead>
-                                <TableHead className="text-right">Asistentes</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedItems.length > 0 ? sortedItems.map(item => (
-                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
-                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
-                                    <TableCell>{item.descripcion}</TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
-                                    <TableCell className="text-right">{item.asistentes}</TableCell>
-                                </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
-    return (
-        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
-            <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">{title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
-                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
-            </CardContent>
-        </Card>
-    )
-}
-
-export default function AlquilerPage() {
-    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-    const { osId, getProcessedDataForType, isLoading } = useOsContext();
-  
-    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(
-        () => getProcessedDataForType('Alquiler'),
-        [getProcessedDataForType]
-    );
-
-    const renderStatusModal = (status: StatusColumn) => {
-        const items = itemsByStatus[status];
-        return (
-            <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {items.length > 0 ? items.map((item, index) => (
-                                <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
-                            )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
-                        </TableBody>
-                    </Table>
-                </div>
-            </DialogContent>
-        )
-    }
-    
-    const renderSummaryModal = () => {
-        const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
-         const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        return (
-          <DialogContent className="max-w-4xl">
-            <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
-            <div className="max-h-[70vh] overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Artículo</TableHead>
-                    <TableHead>Cantidad</TableHead>
-                    <TableHead>Cant. Cajas</TableHead>
-                    <TableHead>Valoración</TableHead>
-                    <TableHead>Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {all.map((item, index) => {
-                    const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
-                    const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
-                    return (
-                      <TableRow key={`${item.itemCode}-${index}`}>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{cajas}</TableCell>
-                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                        <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-             <div className="flex justify-end font-bold text-lg p-4">
-                Valoración Total: {formatCurrency(totalValue)}
-            </div>
-          </DialogContent>
-        )
-      }
-  
-    if (isLoading) {
-        return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
-    }
-
-    return (
-        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-                    </DialogTrigger>
-                    {renderSummaryModal()}
-                </Dialog>
-                <BriefingSummaryDialog osId={osId} />
-            </div>
-            <Button asChild>
-            <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
-                <PlusCircle className="mr-2" />
-                Nuevo Pedido de Alquiler
-            </Link>
-            </Button>
-        </div>
-        
-         <div className="grid md:grid-cols-3 gap-6 mb-8">
-              {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
-                  const items = itemsByStatus[status];
-                  const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                  return (
-                  <StatusCard 
-                      key={status}
-                      title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
-                      items={items.length}
-                      totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
-                      totalValue={totalValue}
-                      onClick={() => setActiveModal(status)}
-                  />
-              )})}
-          </div>
-        
-          <Card className="mb-6">
-              <div className="flex items-center justify-between p-4">
-                  <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
-              </div>
-              <CardContent>
-                  <div className="border rounded-lg">
-                      <Table>
-                           <TableHeader>
-                              <TableRow>
-                                  <TableHead>Artículo</TableHead>
-                                  <TableHead>Solicita</TableHead>
-                                  <TableHead>Fecha Entrega</TableHead>
-                                  <TableHead className="w-32">Cantidad</TableHead>
-                                  <TableHead>Valoración</TableHead>
-                              </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                              {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
-                                  <TableRow key={item.itemCode + item.orderId}>
-                                      <TableCell>{item.description}</TableCell>
-                                      <TableCell>{item.solicita}</TableCell>
-                                      <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
-                                      <TableCell>{item.quantity}</TableCell>
-                                      <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                                  </TableRow>
-                              )) : (
-                                  <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
-                              )}
-                          </TableBody>
-                      </Table>
-                  </div>
-              </CardContent>
-          </Card>
-  
-          <Card>
-              <CardHeader>
-                  <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
-              </CardHeader>
-               <CardContent>
-                   <div className="border rounded-lg">
-                      <Table>
-                           <TableHeader>
-                              <TableRow>
-                                  <TableHead>Hoja Picking</TableHead>
-                                  <TableHead>Estado</TableHead>
-                                  <TableHead>Contenido</TableHead>
-                              </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                              {blockedOrders.length > 0 ? blockedOrders.map(order => (
-                                  <TableRow key={order.sheetId}>
-                                      <TableCell>
-                                          <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
-                                              <Badge variant="secondary">{order.sheetId}</Badge>
-                                          </Link>
-                                      </TableCell>
-                                      <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
-                                      <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
-                                  </TableRow>
-                              )) : (
-                                  <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
-                              )}
-                          </TableBody>
-                      </Table>
-                  </div>
-              </CardContent>
-          </Card>
-  
-         {activeModal && renderStatusModal(activeModal)}
-      </Dialog>
-    );
-}
-
-
-
-```
-- src/app/os/page.tsx:
-```tsx
-'use client';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-// This page just redirects to the main service order overview page.
-export default function OsRedirectPage() {
+export default function PersonalMiceIdRedirectPage({ params }: { params: { id: string } }) {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/pes');
-    }, [router]);
+        router.replace(`/os/${params.id}/personal-mice`);
+    }, [router, params.id]);
     return null;
 }
 
 ```
-- src/app/os/[id]/almacen/page.tsx:
+- src/app/os/personal-externo/[id]/page.tsx:
 ```tsx
-
-
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
-import { PlusCircle, Eye, FileText } from 'lucide-react';
-import type { OrderItem, PickingSheet, ComercialBriefingItem, ReturnSheet, ServiceOrder, MaterialOrder } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { formatCurrency } from '@/lib/utils';
-import { cn } from '@/lib/utils';
-import { useDataStore } from '@/hooks/use-data-store';
-import { useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
+export default function PersonalExternoIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/personal-externo`);
+    }, [router, params.id]);
+    return null;
+}
 
-type ItemWithOrderInfo = OrderItem & {
-  orderContract: string;
-  orderId: string;
-  orderStatus?: PickingSheet['status'];
-  solicita?: 'Sala' | 'Cocina';
-  tipo?: string;
-  deliveryDate?: string;
-  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
+```
+- src/app/os/prueba-menu/[id]/page.tsx:
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function PruebaMenuIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/prueba-menu`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/hooks/use-loading-store.ts:
+```ts
+import { create } from 'zustand';
+
+type LoadingState = {
+  isLoading: boolean;
+  setIsLoading: (isLoading: boolean) => void;
 };
 
-type BlockedOrderInfo = {
-    sheetId: string;
-    status: PickingSheet['status'];
-    items: OrderItem[];
-};
+export const useLoadingStore = create<LoadingState>()((set) => ({
+  isLoading: false,
+  setIsLoading: (isLoading) => set({ isLoading }),
+}));
 
-type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
-
-
-const statusMap: Record<PickingSheet['status'], StatusColumn> = {
-    'Pendiente': 'En Preparación',
-    'En Proceso': 'En Preparación',
-    'Listo': 'Listo',
-}
-
-function BriefingSummaryDialog({ osId }: { osId: string }) {
-    const { data, isLoaded } = useDataStore();
-    const briefing = useMemo(() => {
-        if (!isLoaded) return null;
-        return data.comercialBriefings?.find(b => b.osId === osId) || null;
-    }, [isLoaded, data.comercialBriefings, osId]);
-
-    const sortedItems = useMemo(() => {
-        if (!briefing?.items) return [];
-        return [...briefing.items].sort((a, b) => {
-            const dateComparison = a.fecha.localeCompare(b.fecha);
-            if (dateComparison !== 0) return dateComparison;
-            return a.horaInicio.localeCompare(b.horaInicio);
-        });
-    }, [briefing]);
-
-    if(!briefing) return null;
-
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Hora</TableHead>
-                                <TableHead>Descripción</TableHead>
-                                <TableHead>Observaciones</TableHead>
-                                <TableHead className="text-right">Asistentes</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedItems.length > 0 ? sortedItems.map(item => (
-                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
-                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
-                                    <TableCell>{item.descripcion}</TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
-                                    <TableCell className="text-right">{item.asistentes}</TableCell>
-                                </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
-    return (
-        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
-            <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">{title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
-                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
-            </CardContent>
-        </Card>
-    )
-}
-
-export default function AlmacenPage() {
-    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-    const params = useParams();
-    const osId = params.id as string;
-    const { data, isLoaded } = useDataStore();
-
-    const { allItems, blockedOrders, pendingItems, itemsByStatus } = useMemo(() => {
-        const emptyResult = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] } };
-        if (!isLoaded || !osId) return emptyResult;
-
-        const { materialOrders = [], pickingSheets = {}, returnSheets = {} } = data;
-
-        const relatedOrders = materialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
-        const relatedPickingSheets = Object.values(pickingSheets).filter(sheet => sheet.osId === osId);
-        
-        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
-        const processedItemKeys = new Set<string>();
-        const blocked: BlockedOrderInfo[] = [];
-
-        relatedPickingSheets.forEach(sheet => {
-            const targetStatus = statusMap[sheet.status];
-            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
-
-            sheet.items.forEach(itemInSheet => {
-                if (itemInSheet.type !== 'Almacen') return;
-                
-                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
-                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
-                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
-
-                if (!originalItem) return;
-                
-                const itemWithInfo: ItemWithOrderInfo = {
-                    ...originalItem,
-                    orderId: sheet.id, 
-                    orderContract: orderRef?.contractNumber || 'N/A', 
-                    orderStatus: sheet.status, 
-                    solicita: orderRef?.solicita,
-                };
-
-                statusItems[targetStatus].push(itemWithInfo);
-                sheetInfo.items.push(itemWithInfo);
-
-                processedItemKeys.add(uniqueKey);
-            });
-
-            if (sheetInfo.items.length > 0) {
-                blocked.push(sheetInfo);
-            }
-        });
-
-        const all = relatedOrders.flatMap(order => 
-            order.items.map(item => {
-                return {
-                    ...item, 
-                    quantity: item.quantity,
-                    orderId: order.id, 
-                    contractNumber: order.contractNumber, 
-                    solicita: order.solicita, 
-                    tipo: item.tipo, 
-                    deliveryDate: order.deliveryDate,
-                    ajustes: item.ajustes
-                } as ItemWithOrderInfo
-            })
-        );
-        
-        const pending = all.filter(item => {
-          const uniqueKey = `${item.orderId}-${item.itemCode}`;
-          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
-        });
-        
-        statusItems['Asignado'] = pending;
-
-        return { allItems: all, blockedOrders: blocked, pendingItems: pending, itemsByStatus: statusItems };
-    }, [osId, isLoaded, data]);
-    
-    const renderStatusModal = (status: StatusColumn) => {
-        const items = itemsByStatus[status];
-        return (
-            <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {items.length > 0 ? items.map((item, index) => (
-                                <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
-                            )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
-                        </TableBody>
-                    </Table>
-                </div>
-            </DialogContent>
-        )
-    }
-    
-    const renderSummaryModal = () => {
-      const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
-       const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      return (
-        <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
-          <div className="max-h-[70vh] overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Artículo</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Cant. Cajas</TableHead>
-                  <TableHead>Valoración</TableHead>
-                  <TableHead>Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {all.map((item, index) => {
-                  const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
-                  const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
-                  return (
-                    <TableRow key={`${item.itemCode}-${index}`}>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{cajas}</TableCell>
-                      <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                      <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-           <div className="flex justify-end font-bold text-lg p-4">
-              Valoración Total: {formatCurrency(totalValue)}
-          </div>
-        </DialogContent>
-      )
-    }
-
-    if (!isLoaded) {
-        return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
-    }
-
-    return (
-        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-                    </DialogTrigger>
-                    {renderSummaryModal()}
-                </Dialog>
-                <BriefingSummaryDialog osId={osId} />
-            </div>
-            <Button asChild>
-            <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
-                <PlusCircle className="mr-2" />
-                Nuevo Pedido de Almacén
-            </Link>
-            </Button>
-        </div>
-        
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-                {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
-                    const items = itemsByStatus[status];
-                    const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                    return (
-                    <StatusCard 
-                        key={status}
-                        title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
-                        items={items.length}
-                        totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
-                        totalValue={totalValue}
-                        onClick={() => setActiveModal(status)}
-                    />
-                )})}
-            </div>
-        
-            <Card className="mb-6">
-                <div className="flex items-center justify-between p-4">
-                    <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
-                </div>
-                <CardContent>
-                    <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Artículo</TableHead>
-                                    <TableHead>Solicita</TableHead>
-                                    <TableHead>Fecha Entrega</TableHead>
-                                    <TableHead className="w-32">Cantidad</TableHead>
-                                    <TableHead>Valoración</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
-                                    <TableRow key={item.itemCode + item.orderId}>
-                                        <TableCell>{item.description}</TableCell>
-                                        <TableCell>{item.solicita}</TableCell>
-                                        <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
-                                        <TableCell>{item.quantity}</TableCell>
-                                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Hoja Picking</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    <TableHead>Contenido</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {blockedOrders.length > 0 ? blockedOrders.map(order => (
-                                    <TableRow key={order.sheetId}>
-                                        <TableCell>
-                                            <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
-                                                <Badge variant="secondary">{order.sheetId}</Badge>
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
-                                        <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-
-        {activeModal && renderStatusModal(activeModal)}
-        </Dialog>
-    );
-}
-
-
-
+```
+- src/pes/page.tsx
+- src/components/pes/prevision-servicios-content.tsx

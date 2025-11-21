@@ -1,9 +1,8 @@
-
 'use client';
 
 import { Suspense } from 'react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { PrevisionServiciosContent } from '@/components/pes/prevision-servicios-content';
+import { PrevisionServiciosContent } from './prevision-servicios-content';
 
 export default function PrevisionServiciosPage() {
     return (

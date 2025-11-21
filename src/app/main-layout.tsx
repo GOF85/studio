@@ -1,5 +1,5 @@
+
 'use client';
-console.log(`[DEBUG] Module loaded: main-layout.tsx at ${new Date().toLocaleTimeString()}`);
 
 import { Suspense, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';

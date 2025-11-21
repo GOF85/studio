@@ -1,15 +1,118 @@
-console.log(`[DEBUG] Module loaded: types/index.ts at ${new Date().toLocaleTimeString()}`);
 import { z } from "zod";
-import { personalFormSchema as personalSchemaImported } from "@/app/personal/nuevo/page";
-import { osFormSchema as osSchemaImported } from "@/app/os/[id]/info/page";
-import { pickingSheetSchema, returnSheetSchema, pickingSheetItemSchema, returnItemStateSchema } from '@/app/almacen/retornos/[id]/page';
-import { personalMiceSchema as personalMiceSchemaImported } from '@/app/os/personal-mice/page';
-import { personalExternoSchema as personalExternoSchemaImported } from '@/app/os/personal-externo/page';
 
-export const osFormSchema = osSchemaImported;
-export const personalFormSchema = personalSchemaImported;
-export const personalMiceSchema = personalMiceSchemaImported;
-export const personalExternoSchema = personalExternoSchemaImported;
+export const osFormSchema = z.object({
+  id: z.string(),
+  serviceNumber: z.string().min(1, "El número de servicio es obligatorio"),
+  startDate: z.date({ required_error: "La fecha de inicio es obligatoria." }),
+  endDate: z.date({ required_error: "La fecha de fin es obligatoria." }),
+  client: z.string().min(1, "El cliente es obligatorio"),
+  asistentes: z.coerce.number().min(0, "El número de asistentes debe ser positivo"),
+  contact: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email({ message: "Email inválido." }).optional().or(z.literal('')),
+  finalClient: z.string().optional(),
+  status: z.enum(['Borrador', 'Confirmado', 'Pendiente', 'Anulado']),
+  tarifa: z.enum(['Empresa', 'IFEMA']).optional(),
+  tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']),
+  comercial: z.string().optional(),
+  comercialPhone: z.string().optional(),
+  comercialMail: z.string().optional(),
+  space: z.string().optional(),
+  spaceAddress: z.string().optional(),
+  spaceContact: z.string().optional(),
+  spacePhone: z.string().optional(),
+  spaceMail: z.string().optional(),
+  respMetre: z.string().optional(),
+  respMetrePhone: z.string().optional(),
+  respMetreMail: z.string().optional(),
+  respPase: z.string().optional(),
+  respPasePhone: z.string().optional(),
+  respPaseMail: z.string().optional(),
+  respCocinaPase: z.string().optional(),
+  respCocinaPasePhone: z.string().optional(),
+  respCocinaPaseMail: z.string().optional(),
+  respCocinaCPR: z.string().optional(),
+  respCocinaCPRPhone: z.string().optional(),
+  respCocinaCPRMail: z.string().optional(),
+  respProjectManager: z.string().optional(),
+  respProjectManagerPhone: z.string().optional(),
+  respProjectManagerMail: z.string().optional(),
+  comercialAsiste: z.boolean().optional(),
+  rrhhAsiste: z.boolean().optional(),
+  respRRHH: z.string().optional(),
+  respRRHHPhone: z.string().optional(),
+  respRRHHMail: z.string().optional(),
+  agencyPercentage: z.coerce.number().optional(),
+  spacePercentage: z.coerce.number().optional(),
+  agencyCommissionValue: z.coerce.number().optional(),
+  spaceCommissionValue: z.coerce.number().optional(),
+  facturacion: z.number().optional(),
+  comisionesAgencia: z.number().optional(),
+  comisionesCanon: z.number().optional(),
+  plane: z.string().optional(),
+  comments: z.string().optional(),
+  isVip: z.boolean().optional(),
+  anulacionMotivo: z.string().optional(),
+  deliveryTime: z.string().optional(),
+  cateringVertical: z.string().optional(),
+  deliveryLocations: z.array(z.string()).optional(),
+  direccionPrincipal: z.string().optional(),
+  objetivoGastoId: z.string().optional(),
+});
+
+export const personalFormSchema = z.object({
+  id: z.string().min(1, 'El DNI es obligatorio'),
+  nombre: z.string().min(1, 'El nombre es obligatorio'),
+  apellido1: z.string().min(1, 'El primer apellido es obligatorio'),
+  apellido2: z.string().optional().default(''),
+  iniciales: z.string().optional(),
+  departamento: z.string().min(1, 'El departamento es obligatorio'),
+  categoria: z.string().min(1, 'La categoría es obligatoria'),
+  telefono: z.string().optional().default(''),
+  email: z.string().email('Debe ser un email válido'),
+  precioHora: z.coerce.number().min(0, 'El precio por hora no puede ser negativo'),
+});
+
+export const personalMiceSchema = z.object({
+  id: z.string(),
+  osId: z.string(),
+  centroCoste: z.enum(['SALA', 'COCINA', 'LOGISTICA', 'RRHH']),
+  nombre: z.string().min(1, 'El nombre es obligatorio'),
+  dni: z.string().optional().default(''),
+  tipoServicio: z.enum(['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga']),
+  horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
+  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+});
+
+export const personalExternoSchema = z.object({
+  id: z.string(),
+  proveedorId: z.string().min(1, "El proveedor es obligatorio"),
+  categoria: z.string().min(1, 'La categoría es obligatoria'),
+  precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
+  fecha: z.date({ required_error: "La fecha es obligatoria."}),
+  horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  solicitadoPor: z.enum(['Sala', 'Pase', 'Otro']),
+  tipoServicio: z.enum(['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga']),
+  observaciones: z.string().optional().default(''),
+  statusPartner: z.enum(['Pendiente Asignación', 'Gestionado']),
+  asignaciones: z.array(z.object({
+    id: z.string(),
+    nombre: z.string(),
+    dni: z.string().optional(),
+    telefono: z.string().optional(),
+    email: z.string().email().optional().or(z.literal('')),
+    comentarios: z.string().optional(),
+    rating: z.number().optional(),
+    comentariosMice: z.string().optional(),
+    horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+    horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  })).optional(),
+  requiereActualizacion: z.boolean().optional(),
+});
 
 
 // Re-export or define other types as needed
@@ -75,21 +178,11 @@ export type MaterialOrder = {
 export const DEPARTAMENTOS_PERSONAL = ['Sala', 'Pase', 'CPR', 'RRHH', 'Almacén', 'Comercial', 'Operaciones', 'Marketing', 'HQ'] as const;
 export type DepartamentoPersonal = typeof DEPARTAMENTOS_PERSONAL[number];
 
-export type Personal = {
-    id: string; // DNI
-    nombre: string;
-    apellido1: string;
-    apellido2: string;
+export type Personal = z.infer<typeof personalFormSchema> & {
     nombreCompleto: string;
     nombreCompacto: string;
-    iniciales: string;
-    departamento: string;
-    categoria: string;
-    telefono: string;
-    email: string;
-    precioHora: number;
     apellidos?: string;
-}
+};
 
 export const TIPO_ESPACIO = ['Hotel', 'Espacio Singular', 'Finca', 'Restaurante', 'Auditorio', 'Corporativo', 'Centro de Congresos', 'Exterior'] as const;
 export const ESTILOS_ESPACIO = ['Clásico', 'Industrial', 'Moderno', 'Rústico', 'Lujoso', 'Minimalista', 'Tecnológico', 'Exterior/Jardín'] as const;
@@ -670,31 +763,33 @@ export type Receta = {
     estadoEscandallo?: 'COMPLETO' | 'PROVISIONAL' | 'PENDIENTE';
 }
 
-export type OrdenFabricacion = {
-    id: string;
-    fechaCreacion: string;
-    fechaProduccionPrevista: string;
-    fechaAsignacion?: string;
-    fechaInicioProduccion?: string;
-    fechaFinalizacion?: string;
-    elaboracionId: string;
-    elaboracionNombre: string;
-    cantidadTotal: number;
-    cantidadReal?: number;
-    necesidadTotal?: number;
-    unidad: UnidadMedida;
-    partidaAsignada: PartidaProduccion;
-    responsable?: string;
-    estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado' | 'Validado' | 'Incidencia';
-    osIDs: string[];
-    incidencia: boolean;
-    incidenciaObservaciones?: string;
-    okCalidad: boolean;
-    responsableCalidad?: string;
-    fechaValidacionCalidad?: string;
-    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
-    consumosReales?: { componenteId: string; cantidadReal: number }[];
-}
+export const pickingSheetItemSchema = z.object({
+  itemCode: z.string(),
+  checked: z.boolean(),
+  pickedQuantity: z.number(),
+  incidentComment: z.string().optional(),
+  resolved: z.boolean().optional(),
+});
+export const pickingSheetSchema = z.object({
+  id: z.string(),
+  osId: z.string(),
+  fechaNecesidad: z.string(),
+  items: z.array(z.any()), // Simplified for now
+  status: z.enum(['Pendiente', 'En Proceso', 'Listo']),
+  itemStates: z.record(pickingSheetItemSchema).optional(),
+});
+export const returnItemStateSchema = z.object({
+  returnedQuantity: z.number(),
+  incidentComment: z.string().optional(),
+  isReviewed: z.boolean().optional(),
+});
+export const returnSheetSchema = z.object({
+  id: z.string(),
+  osId: z.string(),
+  status: z.enum(['Pendiente', 'Procesando', 'Completado']),
+  items: z.array(z.any()),
+  itemStates: z.record(returnItemStateSchema),
+});
 
 export type PickingItemState = z.infer<typeof pickingSheetItemSchema>;
 export type PickingSheet = z.infer<typeof pickingSheetSchema> & { os?: ServiceOrder, solicita?: 'Sala' | 'Cocina' };
@@ -721,7 +816,7 @@ export type ContenedorDinamico = {
     tipo: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
     numero: number;
 }
-export type PickingStatus = 'Pendiente' | 'Preparado' | 'Enviado' | 'Entregado' | 'Retornado';
+export type PickingStatus = 'Pendiente' | 'Preparado';
 export type PickingState = {
     osId: string;
     status: PickingStatus;
