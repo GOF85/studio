@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -59,8 +60,8 @@ export function PerformanceMonitor() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {log.map(item => (
-                                <TableRow key={`${item.context}-${item.step}`}>
+                            {log.map((item, index) => (
+                                <TableRow key={`${item.context}-${item.step}-${index}`}>
                                     <TableCell className="font-mono text-xs">{item.context}</TableCell>
                                     <TableCell className="font-mono text-xs">{item.step}</TableCell>
                                     <TableCell className="text-right font-mono text-xs font-bold">{item.time.toFixed(2)}</TableCell>

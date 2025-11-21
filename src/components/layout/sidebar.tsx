@@ -28,14 +28,15 @@ export function Sidebar({ onLinkClick }: { onLinkClick?: () => void }) {
                         </h2>
                         <div className="space-y-1">
                              {section.links.map((item, index) => {
+                                const href = item.path || item.href;
                                 const isActive = item.exact 
-                                    ? pathname === item.href || (item.href === '/pes' && pathname === '/')
-                                    : pathname.startsWith(item.href);
+                                    ? pathname === href || (href === '/pes' && pathname === '/')
+                                    : pathname.startsWith(href);
                                 
                                 return (
                                 <Link
-                                    key={`${item.href}-${index}`}
-                                    href={item.href}
+                                    key={`${href}-${index}`}
+                                    href={href}
                                     onClick={onLinkClick}
                                 >
                                     <span

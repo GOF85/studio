@@ -20,7 +20,10 @@ if (typeof window !== 'undefined' && !(window as any).__PERF_LOG) {
     (window as any).__PERF_LOG = [];
 }
 const perfLog = (context: string, step: string, time: number) => {
-    (window as any).__PERF_LOG.push({ context, step, time });
+    // Only log if the window object is available
+    if(typeof window !== 'undefined' && (window as any).__PERF_LOG) {
+        (window as any).__PERF_LOG.push({ context, step, time });
+    }
 };
 
 type DataStoreData = {
@@ -93,7 +96,7 @@ type DataKeys = keyof DataStoreData;
 type DataStore = {
     data: Partial<DataStoreData>;
     isLoaded: boolean;
-    loadAllData: () => void;
+    loadAllData: () => Promise<void>;
 };
 
 export const ALL_DATA_KEYS: DataKeys[] = [
@@ -120,11 +123,14 @@ export const defaultValuesMap: { [key in DataKeys]?: any } = {
 export const useDataStore = create<DataStore>((set, get) => ({
     data: {},
     isLoaded: false,
-    loadAllData: () => {
+    loadAllData: async () => {
         if (get().isLoaded || typeof window === 'undefined') return;
         
         const totalStart = performance.now();
-        (window as any).__PERF_LOG = []; // Clear log on each load
+        if((window as any).__PERF_LOG) (window as any).__PERF_LOG = [];
+
+        // Yield to the event loop to allow UI to update (e.g., show skeleton)
+        await new Promise(resolve => setTimeout(resolve, 0));
 
         const loadedData: { [key: string]: any } = {};
         

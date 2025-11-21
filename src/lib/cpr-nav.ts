@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare, Shield, TrendingUp, Users, UserCheck, Archive, HistoryIcon, Calculator } from 'lucide-react';
+import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare, Shield, TrendingUp, Users, UserCheck, Archive, HistoryIcon, Calculator, Box, Layers, Percent, Target, Banknote, CreditCard, Building, Trash2, UserPlus, Database } from 'lucide-react';
 
 export const cprNav = [
     { title: 'Dashboard CPR', href: '/cpr/dashboard', icon: LayoutDashboard, description: 'Vista general y KPIs del centro de producción.' },
@@ -20,6 +21,16 @@ export const cprNav = [
     { title: 'Incidencias', href: '/cpr/incidencias', icon: AlertTriangle, description: 'Revisa las incidencias de producción e inventario.' },
 ];
 
+export const rrhhNav = [
+    { title: 'Dashboard RRHH', href: '/rrhh', icon: LayoutDashboard, description: 'Vista general y accesos directos del módulo de RRHH.' },
+    { title: 'Solicitudes de Personal', href: '/rrhh/solicitudes', icon: ClipboardList, description: 'Gestiona las necesidades de personal para Eventos y CPR.' },
+    { title: 'Cesiones de Personal', href: '/rrhh/cesiones', icon: Users, description: 'Gestiona la asignación de personal interno entre departamentos.' },
+    { title: 'Validación de Horas (Cesiones)', href: '/rrhh/validacion-cesiones', icon: UserCheck, description: 'Valida las horas reales del personal interno cedido.' },
+    { title: 'Base de Datos de Personal', href: '/bd/personal', icon: Users, description: 'Administra los empleados internos.', adminOnly: true },
+    { title: 'Base de Datos de ETTs', href: '/bd/personal-externo-db', icon: UserPlus, description: 'Administra los trabajadores externos.', adminOnly: true },
+    { title: 'Analítica de RRHH', href: '/rrhh/analitica', icon: BarChart3, description: 'Analiza costes, horas y productividad del personal.' },
+];
+
 export const bookNavLinks = [
     { title: 'Dashboard', path: '/book', icon: BookHeart, exact: true },
     { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
@@ -33,3 +44,18 @@ export const bookNavLinks = [
 ];
 
     
+export const bdNavLinks = [
+    { title: 'Personal Interno', href: '/bd/personal', icon: Users },
+    { title: 'Personal Externo', href: '/bd/personal-externo-db', icon: UserPlus },
+    { title: 'Proveedores', href: '/bd/proveedores', icon: Building },
+    { title: 'Catálogo Personal Externo', href: '/bd/tipos-personal', icon: Users },
+    { title: 'Espacios', href: '/bd/espacios', icon: Building },
+    { title: 'Artículos MICE', href: '/bd/articulos', icon: Package },
+    { title: 'Base de Datos ERP', href: '/bd/erp', icon: Database },
+    { title: 'Familias ERP', href: '/bd/familiasERP', icon: Layers },
+    { title: 'Categorías de Recetas', href: '/bd/categorias-recetas', icon: BookHeart },
+    { title: 'Formatos de Expedición', href: '/bd/formatos-expedicion', icon: Box },
+    { title: 'Centros y Ubicaciones', href: '/bd/centros', icon: Factory },
+    { title: 'Objetivos CPR', href: '/bd/objetivos-cpr', icon: CreditCard },
+    { title: 'Administración', href: '/bd/borrar', icon: Trash2 },
+];
