@@ -548,26 +548,7 @@ export default function InfoPage() {
         </FormProvider>
       </main>
 
-        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Esta acción es irreversible. Se eliminará permanentemente la Orden de Servicio y todos sus datos asociados (briefing, pedidos de material, etc.).
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                        className="bg-destructive hover:bg-destructive/90"
-                    >
-                        Eliminar
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-
-         <AlertDialog open={isAnulacionDialogOpen} onOpenChange={setIsAnulacionDialogOpen}>
+        <AlertDialog open={isAnulacionDialogOpen} onOpenChange={setIsAnulacionDialogOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Anular Orden de Servicio</AlertDialogTitle>
@@ -585,3 +566,801 @@ export default function InfoPage() {
     </>
   );
 }
+
+```
+- src/app/os/alquiler/[id]/page.tsx:
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function AlquilerIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/alquiler`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/app/os/almacen/[id]/page.tsx:
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function AlmacenIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/almacen`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/app/os/alquiler/page.tsx:
+```tsx
+
+'use client';
+
+import { useState, useMemo } from 'react';
+import Link from 'next/link';
+import { PlusCircle, Eye, FileText } from 'lucide-react';
+import type { OrderItem, PickingSheet, ComercialBriefingItem, MaterialOrder } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { useOsContext } from '../../os-context';
+
+type ItemWithOrderInfo = OrderItem & {
+  orderContract: string;
+  orderId: string;
+  orderStatus?: PickingSheet['status'];
+  solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
+  deliveryDate?: string;
+  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
+};
+
+type BlockedOrderInfo = {
+    sheetId: string;
+    status: PickingSheet['status'];
+    items: OrderItem[];
+};
+
+type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
+
+function BriefingSummaryDialog({ osId }: { osId: string }) {
+    const { briefing } = useOsContext();
+    
+    const sortedItems = useMemo(() => {
+        if (!briefing?.items) return [];
+        return [...briefing.items].sort((a, b) => {
+            const dateComparison = a.fecha.localeCompare(b.fecha);
+            if (dateComparison !== 0) return dateComparison;
+            return a.horaInicio.localeCompare(b.horaInicio);
+        });
+    }, [briefing]);
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Hora</TableHead>
+                                <TableHead>Descripción</TableHead>
+                                <TableHead>Observaciones</TableHead>
+                                <TableHead className="text-right">Asistentes</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedItems.length > 0 ? sortedItems.map(item => (
+                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
+                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
+                                    <TableCell>{item.descripcion}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
+                                    <TableCell className="text-right">{item.asistentes}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
+    return (
+        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
+                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
+            </CardContent>
+        </Card>
+    )
+}
+
+export default function AlquilerPage() {
+    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+    const { osId, getProcessedDataForType, isLoading } = useOsContext();
+  
+    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(
+        () => getProcessedDataForType('Alquiler'),
+        [getProcessedDataForType]
+    );
+
+    const renderStatusModal = (status: StatusColumn) => {
+      const items = itemsByStatus[status];
+      return (
+          <DialogContent className="max-w-4xl">
+              <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
+              <div className="max-h-[60vh] overflow-y-auto">
+                  <Table>
+                      <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                          {items.length > 0 ? items.map((item, index) => (
+                              <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
+                          )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
+                      </TableBody>
+                  </Table>
+              </div>
+          </DialogContent>
+      )
+    }
+    
+    const renderSummaryModal = () => {
+        const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
+         const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        return (
+          <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
+            <div className="max-h-[70vh] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Artículo</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Cant. Cajas</TableHead>
+                    <TableHead>Valoración</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {all.map((item, index) => {
+                    const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
+                    const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                    return (
+                      <TableRow key={`${item.itemCode}-${index}`}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{cajas}</TableCell>
+                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                        <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+             <div className="flex justify-end font-bold text-lg p-4">
+                Valoración Total: {formatCurrency(totalValue)}
+            </div>
+          </DialogContent>
+        )
+      }
+  
+    if (isLoading) {
+        return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
+    }
+
+    return (
+        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                    </DialogTrigger>
+                    {renderSummaryModal()}
+                </Dialog>
+                <BriefingSummaryDialog osId={osId} />
+            </div>
+            <Button asChild>
+            <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
+                <PlusCircle className="mr-2" />
+                Nuevo Pedido de Alquiler
+            </Link>
+            </Button>
+        </div>
+        
+         <div className="grid md:grid-cols-3 gap-6 mb-8">
+              {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
+                  const items = itemsByStatus[status];
+                  const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                  return (
+                  <StatusCard 
+                      key={status}
+                      title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
+                      items={items.length}
+                      totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
+                      totalValue={totalValue}
+                      onClick={() => setActiveModal(status)}
+                  />
+              )})}
+          </div>
+        
+          <Card className="mb-6">
+              <div className="flex items-center justify-between p-4">
+                  <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
+              </div>
+              <CardContent>
+                  <div className="border rounded-lg">
+                      <Table>
+                           <TableHeader>
+                              <TableRow>
+                                  <TableHead>Artículo</TableHead>
+                                  <TableHead>Solicita</TableHead>
+                                  <TableHead>Fecha Entrega</TableHead>
+                                  <TableHead className="w-32">Cantidad</TableHead>
+                                  <TableHead>Valoración</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                                  <TableRow key={item.itemCode + item.orderId}>
+                                      <TableCell>{item.description}</TableCell>
+                                      <TableCell>{item.solicita}</TableCell>
+                                      <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
+                                      <TableCell>{item.quantity}</TableCell>
+                                      <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                                  </TableRow>
+                              )) : (
+                                  <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                              )}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </CardContent>
+          </Card>
+  
+          <Card>
+              <CardHeader>
+                  <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <div className="border rounded-lg">
+                      <Table>
+                          <TableHeader>
+                              <TableRow>
+                                  <TableHead>Hoja Picking</TableHead>
+                                  <TableHead>Estado</TableHead>
+                                  <TableHead>Contenido</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {blockedOrders.length > 0 ? blockedOrders.map(order => (
+                                  <TableRow key={order.sheetId}>
+                                      <TableCell>
+                                          <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
+                                              <Badge variant="secondary">{order.sheetId}</Badge>
+                                          </Link>
+                                      </TableCell>
+                                      <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
+                                      <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
+                                  </TableRow>
+                              )) : (
+                                  <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
+                              )}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </CardContent>
+          </Card>
+  
+         {activeModal && renderStatusModal(activeModal)}
+      </Dialog>
+    );
+}
+
+
+```
+- src/app/os/atipicos/layout.tsx:
+```tsx
+'use client';
+
+import { FilePlus } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+export default function AtipicosLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><FilePlus />Módulo de Atípicos</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+```
+- src/app/os/atipicos/[id]/page.tsx:
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function AtipicosIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/atipicos`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/app/os/hielo/[id]/page.tsx:
+```tsx
+
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function HieloIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/hielo`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/app/os/bio/[id]/page.tsx:
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function BioIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/bio`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/app/almacen/layout.tsx:
+```tsx
+
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { ListChecks, Repeat, AlertTriangle, Warehouse } from 'lucide-react';
+
+const almacenNavLinks = [
+    { title: 'Gestión de Picking', href: '/almacen/picking', icon: ListChecks },
+    { title: 'Gestión de Retornos', href: '/almacen/retornos', icon: Repeat },
+    { title: 'Incidencias Picking', href: '/almacen/incidencias', icon: AlertTriangle },
+    { title: 'Incidencias Retorno', href: '/almacen/incidencias-retorno', icon: AlertTriangle },
+];
+
+export default function AlmacenLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+    const pathname = usePathname();
+
+    return (
+        <div className="grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-8">
+            <aside className="w-[220px] flex-col">
+                <div className="flex items-center gap-3 mb-8">
+                    <Warehouse className="w-8 h-8"/>
+                    <h1 className="text-2xl font-headline font-bold">Almacén</h1>
+                </div>
+                <nav className="grid gap-1 text-sm text-muted-foreground">
+                    {almacenNavLinks.map(link => (
+                         <Link 
+                            key={link.href} 
+                            href={link.href}
+                            className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${pathname.startsWith(link.href) ? 'bg-muted font-semibold text-primary' : ''}`}
+                        >
+                            <link.icon className="h-4 w-4" />
+                            {link.title}
+                        </Link>
+                    ))}
+                </nav>
+            </aside>
+             <main>
+                {children}
+            </main>
+        </div>
+    )
+}
+```
+- src/app/analitica/layout.tsx:
+```tsx
+
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { BarChart3, Factory, Package } from 'lucide-react';
+
+const analiticaNavLinks = [
+    { title: 'Visión General', href: '/analitica', icon: BarChart3, exact: true },
+    { title: 'Rentabilidad Catering', href: '/analitica/catering', icon: Factory },
+    { title: 'Rentabilidad Entregas', href: '/analitica/entregas', icon: Package },
+];
+
+export default function AnaliticaLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+    const pathname = usePathname();
+
+    return (
+        <div className="grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-8">
+            <aside className="w-[220px] flex-col">
+                <div className="flex items-center gap-3 mb-8">
+                    <BarChart3 className="w-8 h-8"/>
+                    <h1 className="text-2xl font-headline font-bold">Analítica</h1>
+                </div>
+                <nav className="grid gap-1 text-sm text-muted-foreground">
+                    {analiticaNavLinks.map(link => {
+                        const isActive = link.exact ? pathname === link.href : pathname.startsWith(link.href);
+                        return (
+                         <Link 
+                            key={link.href} 
+                            href={link.href}
+                            className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${isActive ? 'bg-muted font-semibold text-primary' : ''}`}
+                        >
+                            <link.icon className="h-4 w-4" />
+                            {link.title}
+                        </Link>
+                    )})}
+                </nav>
+            </aside>
+             <main>
+                {children}
+            </main>
+        </div>
+    )
+}
+```
+- src/app/book/layout.tsx:
+```tsx
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { BookHeart } from 'lucide-react';
+import { bookNavLinks } from '@/lib/nav-links';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { useMemo } from 'react';
+
+
+export default function BookLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+    const pathname = usePathname();
+    const { impersonatedUser } = useImpersonatedUser();
+    
+    const visibleNav = useMemo(() => {
+        if (!impersonatedUser) return bookNavLinks;
+        const isAdmin = impersonatedUser.roles.includes('Admin');
+        return bookNavLinks.filter(item => !item.adminOnly || isAdmin);
+    }, [impersonatedUser]);
+
+    return (
+        <div className="grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-8">
+            <aside className="w-[220px] flex-col">
+                <div className="flex items-center gap-3 mb-8">
+                    <BookHeart className="w-8 h-8"/>
+                    <h1 className="text-2xl font-headline font-bold">Book Gastronómico</h1>
+                </div>
+                <nav className="grid gap-1 text-sm text-muted-foreground">
+                    {visibleNav.map(link => {
+                        const isActive = link.exact ? pathname === link.path : pathname.startsWith(link.path);
+                        return (
+                         <Link 
+                            key={link.path} 
+                            href={link.path}
+                            className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${isActive ? 'bg-muted font-semibold text-primary' : ''}`}
+                        >
+                            <link.icon className="h-4 w-4" />
+                            {link.title}
+                        </Link>
+                    )})}
+                </nav>
+            </aside>
+             <main>
+                {children}
+            </main>
+        </div>
+    )
+}
+```
+- src/app/bd/layout.tsx:
+```tsx
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Database, Users, Building, Package, Layers, Box, Trash2, UserPlus, Factory, CreditCard, Banknote } from 'lucide-react';
+import { bdNavLinks } from '@/lib/nav-links';
+
+export default function BdLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+    const pathname = usePathname();
+
+    return (
+        <div className="grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-8">
+            <aside className="w-[220px] flex-col">
+                <div className="flex items-center gap-3 mb-8">
+                    <Database className="w-8 h-8"/>
+                    <h1 className="text-2xl font-headline font-bold">Bases de Datos</h1>
+                </div>
+                <nav className="grid gap-1 text-sm text-muted-foreground">
+                    {bdNavLinks.map(link => {
+                        const isActive = pathname.startsWith(link.href);
+                        return (
+                         <Link 
+                            key={link.href} 
+                            href={link.href}
+                            className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${isActive ? 'bg-muted font-semibold text-primary' : ''}`}
+                        >
+                            <link.icon className="h-4 w-4" />
+                            {link.title}
+                        </Link>
+                    )})}
+                </nav>
+            </aside>
+             <main>
+                {children}
+            </main>
+        </div>
+    )
+}
+```
+- src/app/cpr/layout.tsx:
+```tsx
+
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Factory } from 'lucide-react';
+import { cprNav } from '@/lib/nav-links';
+
+export default function CprLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+    const pathname = usePathname();
+
+    return (
+        <div className="grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-8">
+            <aside className="w-[220px] flex-col">
+                <div className="flex items-center gap-3 mb-8">
+                    <Factory className="w-8 h-8"/>
+                    <h1 className="text-2xl font-headline font-bold">Producción (CPR)</h1>
+                </div>
+                <nav className="grid gap-1 text-sm text-muted-foreground">
+                    {cprNav.map(link => (
+                         <Link 
+                            key={link.href} 
+                            href={link.href}
+                            className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${pathname.startsWith(link.href) ? 'bg-muted font-semibold text-primary' : ''}`}
+                        >
+                            <link.icon className="h-4 w-4" />
+                            {link.title}
+                        </Link>
+                    ))}
+                </nav>
+            </aside>
+             <main>
+                {children}
+            </main>
+        </div>
+    )
+}
+```
+- src/app/entregas/layout.tsx:
+```tsx
+
+'use client';
+
+import { Suspense } from 'react';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+
+export default function EntregasLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="theme-orange">
+            <Suspense fallback={<LoadingSkeleton title="Cargando Módulo de Entregas..." />}>
+                 {children}
+            </Suspense>
+        </div>
+    )
+}
+
+```
+- src/app/rrhh/layout.tsx:
+```tsx
+
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Users } from 'lucide-react';
+import { rrhhNav } from '@/lib/nav-links';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { useMemo } from 'react';
+
+
+export default function RrhhLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+    const pathname = usePathname();
+    const { impersonatedUser } = useImpersonatedUser();
+    
+    const visibleNav = useMemo(() => {
+        if (!impersonatedUser) return [];
+        const isAdmin = impersonatedUser.roles.includes('Admin');
+        return rrhhNav.filter(item => !item.adminOnly || isAdmin);
+    }, [impersonatedUser]);
+
+    return (
+        <div className="grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-8">
+            <aside className="w-[220px] flex-col">
+                <div className="flex items-center gap-3 mb-8">
+                    <Users className="w-8 h-8"/>
+                    <h1 className="text-2xl font-headline font-bold">RRHH</h1>
+                </div>
+                <nav className="grid gap-1 text-sm text-muted-foreground">
+                    {visibleNav.map(link => {
+                        const isActive = pathname.startsWith(link.href);
+                        return (
+                         <Link 
+                            key={link.href} 
+                            href={link.href}
+                            className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${isActive ? 'bg-muted font-semibold text-primary' : ''}`}
+                        >
+                            <link.icon className="h-4 w-4" />
+                            {link.title}
+                        </Link>
+                    )})}
+                </nav>
+            </aside>
+             <main>
+                {children}
+            </main>
+        </div>
+    )
+}
+
+```
+- src/lib/nav-links.ts:
+```ts
+'use client';
+
+import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart } from 'lucide-react';
+import { cprNav, bookNavLinks, bdNavLinks, rrhhNav } from './cpr-nav';
+
+export const mainNav = [
+    { title: 'Previsión de Servicios', href: '/pes', icon: ClipboardList, exact: true },
+    { title: 'Calendario de Servicios', href: '/calendario', icon: Calendar, exact: true },
+    { title: 'Entregas MICE', href: '/entregas', icon: Truck },
+    { title: 'Almacén', href: '/almacen', icon: Warehouse },
+    { title: 'Analítica', href: '/analitica', icon: BarChart3 },
+    { title: 'Control de Explotación', href: '/control-explotacion', icon: AreaChart },
+    { title: 'Configuración', href: '/configuracion', icon: Settings },
+];
+
+export { cprNav, bookNavLinks, bdNavLinks, rrhhNav };
+```
+- src/lib/cpr-nav.ts:
+```ts
+'use client';
+
+import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer, ChefHat, BookHeart, Component, Sprout, CheckSquare, Shield, TrendingUp, Users, UserCheck, Archive, HistoryIcon, Calculator, Box, Layers, Percent, Target, Banknote, CreditCard, Building, Trash2, UserPlus, Database } from 'lucide-react';
+
+export const cprNav = [
+    { title: 'Dashboard CPR', href: '/cpr/dashboard', icon: LayoutDashboard, description: 'Vista general y KPIs del centro de producción.' },
+    { title: 'Planificación y OFs', href: '/cpr/of', icon: Factory, description: 'Agrega necesidades y gestiona las O.F.' },
+    { title: 'Taller de Producción', href: '/cpr/produccion', icon: ChefHat, description: 'Interfaz para cocineros en tablets.' },
+    { title: 'Inventario de Materia Prima', href: '/cpr/inventario', icon: Archive, description: 'Gestiona el stock teórico y físico de ingredientes.'},
+    { title: 'Cierres de Inventario', href: '/cpr/cierres', icon: Calculator, description: 'Realiza y consulta los cierres de inventario mensuales.'},
+    { title: 'Movimientos de Inventario', href: '/cpr/inventario/movimientos', icon: HistoryIcon, description: 'Auditoría de todos los ajustes y movimientos de stock.'},
+    { title: 'Picking y Logística', href: '/cpr/picking', icon: ListChecks, description: 'Prepara las expediciones para eventos.' },
+    { title: 'Control de Calidad', href: '/cpr/calidad', icon: CheckCircle, description: 'Valida las elaboraciones.' },
+    { title: 'Solicitudes de Personal', href: '/cpr/solicitud-personal', icon: Users, description: 'Pide personal de apoyo para picos de trabajo.' },
+    { title: 'Validación de Horas', href: '/cpr/validacion-horas', icon: UserCheck, description: 'Cierra los turnos del personal de apoyo.'},
+    { title: 'Stock Elaboraciones', href: '/cpr/excedentes', icon: PackagePlus, description: 'Consulta el inventario de elaboraciones.' },
+    { title: 'Productividad', href: '/cpr/productividad', icon: BarChart3, description: 'Analiza los tiempos de producción.' },
+    { title: 'Informe de Picking', href: '/cpr/informe-picking', icon: Printer, description: 'Consulta el picking completo de una OS.' },
+    { title: 'Incidencias', href: '/cpr/incidencias', icon: AlertTriangle, description: 'Revisa las incidencias de producción e inventario.' },
+];
+
+export const rrhhNav = [
+    { title: 'Dashboard RRHH', href: '/rrhh', icon: LayoutDashboard, description: 'Vista general y accesos directos del módulo de RRHH.' },
+    { title: 'Solicitudes de Personal', href: '/rrhh/solicitudes', icon: ClipboardList, description: 'Gestiona las necesidades de personal para Eventos y CPR.' },
+    { title: 'Cesiones de Personal', href: '/rrhh/cesiones', icon: Users, description: 'Gestiona la asignación de personal interno entre departamentos.' },
+    { title: 'Validación de Horas (Cesiones)', href: '/rrhh/validacion-cesiones', icon: UserCheck, description: 'Valida las horas reales del personal interno cedido.' },
+    { title: 'Analítica de RRHH', href: '/rrhh/analitica', icon: BarChart3, description: 'Analiza costes, horas y productividad del personal.' },
+];
+
+export const bookNavLinks = [
+    { title: 'Dashboard', path: '/book', icon: BookHeart, exact: true },
+    { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
+    { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
+    { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
+    { title: 'Verificación de Ingredientes', path: '/book/verificacionIngredientes', icon: Shield },
+    { title: 'Revisión Gastronómica', path: '/book/revision-ingredientes', icon: CheckSquare },
+    { title: 'Evolución de Costes', path: '/book/evolucion-costes', icon: TrendingUp },
+    { title: 'Info. Alérgenos', path: '/book/alergenos', icon: Sprout },
+    { title: 'Informe Gastronómico', path: '/book/informe', icon: BarChart3, exact: true },
+];
+
+    
+export const bdNavLinks = [
+    { title: 'Personal Interno', href: '/bd/personal', icon: Users },
+    { title: 'Personal Externo', href: '/bd/personal-externo-db', icon: UserPlus },
+    { title: 'Proveedores', href: '/bd/proveedores', icon: Building },
+    { title: 'Catálogo Personal Externo', href: '/bd/tipos-personal', icon: Users },
+    { title: 'Espacios', href: '/bd/espacios', icon: Building },
+    { title: 'Artículos MICE', href: '/bd/articulos', icon: Package },
+    { title: 'Base de Datos ERP', href: '/bd/erp', icon: Database },
+    { title: 'Familias ERP', href: '/bd/familiasERP', icon: Layers },
+    { title: 'Categorías de Recetas', href: '/bd/categorias-recetas', icon: BookHeart },
+    { title: 'Formatos de Expedición', href: '/bd/formatos-expedicion', icon: Box },
+    { title: 'Centros y Ubicaciones', href: '/bd/centros', icon: Factory },
+    { title: 'Objetivos CPR', href: '/bd/objetivos-cpr', icon: CreditCard },
+    { title: 'Administración', href: '/bd/borrar', icon: Trash2 },
+];
+```
+

@@ -1,4 +1,5 @@
 
+
 import { z } from "zod";
 
 export const osFormSchema = z.object({
@@ -96,6 +97,41 @@ export const articuloErpSchema = z.object({
   proveedorPreferenteId: z.string().optional(),
 });
 
+export const familiaERPSchema = z.object({
+  id: z.string(),
+  familiaCategoria: z.string().min(1, 'El código de familia es obligatorio.'),
+  Familia: z.string().min(1, 'El nombre de la familia es obligatorio.'),
+  Categoria: z.string().optional(),
+});
+
+export const tipoPersonalSchema = z.object({
+  id: z.string(),
+  proveedorId: z.string().min(1, 'El proveedor es obligatorio'),
+  nombreProveedor: z.string(),
+  categoria: z.string().min(1, 'La categoría es obligatoria'),
+  precioHora: z.coerce.number().min(0, "El precio debe ser positivo"),
+});
+
+export const TIPO_PROVEEDOR_OPCIONES = ['Transporte', 'Hielo', 'Gastronomia', 'Personal', 'Atipicos', 'Decoracion', 'Servicios', 'Otros', 'Alquiler'] as const;
+export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
+
+export const proveedorSchema = z.object({
+    id: z.string(),
+    cif: z.string().min(1, 'El CIF/NIF es obligatorio.'),
+    IdERP: z.string().optional(),
+    nombreEmpresa: z.string().min(1, 'El nombre fiscal es obligatorio.'),
+    nombreComercial: z.string().optional(),
+    direccionFacturacion: z.string().optional(),
+    codigoPostal: z.string().optional(),
+    ciudad: z.string().optional(),
+    provincia: z.string().optional(),
+    pais: z.string().optional(),
+    emailContacto: z.string().email('Debe ser un email válido.'),
+    telefonoContacto: z.string().optional(),
+    iban: z.string().optional(),
+    formaDePagoHabitual: z.string().optional(),
+    tipos: z.array(z.string()).min(1, 'Debes seleccionar al menos un tipo de proveedor.'),
+});
 
 export type CateringItem = {
   itemCode: string;
@@ -172,6 +208,7 @@ export type Personal = {
     telefono: string;
     email: string;
     precioHora: number;
+    apellidos?: string;
 }
 
 export const TIPO_ESPACIO = ['Hotel', 'Espacio Singular', 'Finca', 'Restaurante', 'Auditorio', 'Corporativo', 'Centro de Congresos', 'Exterior'] as const;
@@ -635,12 +672,7 @@ export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
 export type ArticuloERP = z.infer<typeof articuloErpSchema>;
 
-export type FamiliaERP = {
-    id: string;
-    familiaCategoria: string;
-    Familia: string;
-    Categoria: string;
-}
+export type FamiliaERP = z.infer<typeof familiaERPSchema>;
 
 export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS DE CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
 export type Alergeno = typeof ALERGENOS[number];
@@ -953,9 +985,6 @@ export type PickingEntregaState = {
   ordenItems?: string[];
 };
 
-export const TIPO_PROVEEDOR_OPCIONES = ['Transporte', 'Hielo', 'Gastronomia', 'Personal', 'Atipicos', 'Decoracion', 'Servicios', 'Otros', 'Alquiler'] as const;
-export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
-
 export type Proveedor = {
   id: string;
   cif: string;
@@ -1187,5 +1216,4 @@ export type CierreInventario = {
     valorConsumoTrazado: number;
     valorMermaDesconocida: number;
     valorConsumoNoTrazado: number;
-    snapshotInventario: InventarioSnapshotItem[];
-};
+    
