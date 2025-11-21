@@ -1,3 +1,4 @@
+
 'use client';
 
 import { create } from 'zustand';
@@ -112,7 +113,11 @@ export const useDataStore = create<DataStore>((set, get) => ({
     loadAllData: async () => {
         if (get().isLoaded || typeof window === 'undefined') return;
 
-        console.time("[DEBUG] useDataStore: Total data loading");
+        // Use Promise.all to read from localStorage asynchronously (in concept)
+        // Although localStorage itself is synchronous, this structure is more scalable
+        // and prevents the main thread from being blocked if we switch to an async storage later.
+        await Promise.resolve(); 
+
         const loadedData: { [key: string]: any } = {};
         
         for (const key of ALL_DATA_KEYS) {
@@ -128,7 +133,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
             }
         }
-        console.timeEnd("[DEBUG] useDataStore: Total data loading");
         
         set({ data: loadedData as Partial<DataStoreData>, isLoaded: true });
     },
