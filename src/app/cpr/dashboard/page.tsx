@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useState, useEffect, useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
@@ -12,8 +12,6 @@ import { Factory, AlertTriangle, List, Clock, CheckCircle, UserCheck } from 'luc
 import { isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { OrdenFabricacion, SolicitudPersonalCPR } from '@/types';
-import { useDataStore } from '@/hooks/use-data-store';
-
 
 const workflowSections = {
   planificar: {
@@ -78,30 +76,44 @@ function WorkflowSection({ title, modules }: { title: string, modules: (typeof c
 }
 
 export default function CprDashboardPage() {
-    console.time("CprDashboardPage: full render");
-    const { data, isLoaded } = useDataStore();
-    
-    const kpiData = useMemo(() => {
-        console.time("CprDashboardPage: kpi calculation");
-        if (!isLoaded) {
-            console.timeEnd("CprDashboardPage: kpi calculation");
-            return { pendientes: 0, enProceso: 0, finalizadasHoy: 0, incidencias: 0, turnosPorValidar: 0 };
-        }
-        
-        const ordenesFabricacion = data.ordenesFabricacion || [];
-        const solicitudesPersonalCPR = data.solicitudesPersonalCPR || [];
-        const today = new Date();
-        
-        const pendientes = ordenesFabricacion.filter(of => of.estado === 'Pendiente' || of.estado === 'Asignada').length;
-        const enProceso = ordenesFabricacion.filter(of => of.estado === 'En Proceso').length;
-        const finalizadasHoy = ordenesFabricacion.filter(of => of.fechaFinalizacion && isToday(parseISO(of.fechaFinalizacion))).length;
-        const incidencias = ordenesFabricacion.filter(of => of.estado === 'Incidencia').length;
-        const turnosPorValidar = solicitudesPersonalCPR.filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada').length;
+    const [kpiData, setKpiData] = useState({
+        pendientes: 0,
+        enProceso: 0,
+        finalizadasHoy: 0,
+        incidencias: 0,
+        turnosPorValidar: 0,
+    });
+    const [isMounted, setIsMounted] = useState(false);
 
-        const result = { pendientes, enProceso, finalizadasHoy, incidencias, turnosPorValidar };
-        console.timeEnd("CprDashboardPage: kpi calculation");
-        return result;
-    }, [isLoaded, data]);
+    useEffect(() => {
+        console.time("[DEBUG] CprDashboardPage: Data loading and KPI calculation");
+        
+        try {
+            const storedOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+            const storedSolicitudes = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[])
+                .filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada');
+            
+            const today = new Date();
+            
+            const pendientes = storedOFs.filter(of => of.estado === 'Pendiente' || of.estado === 'Asignada').length;
+            const enProceso = storedOFs.filter(of => of.estado === 'En Proceso').length;
+            const finalizadasHoy = storedOFs.filter(of => of.fechaFinalizacion && isToday(parseISO(of.fechaFinalizacion))).length;
+            const incidencias = storedOFs.filter(of => of.estado === 'Incidencia').length;
+            
+            setKpiData({
+                pendientes,
+                enProceso,
+                finalizadasHoy,
+                incidencias,
+                turnosPorValidar: storedSolicitudes.length
+            });
+        } catch (e) {
+            console.error("Error calculating KPIs:", e);
+        }
+
+        setIsMounted(true);
+        console.timeEnd("[DEBUG] CprDashboardPage: Data loading and KPI calculation");
+    }, []);
 
     const navSections = {
       planificar: cprNav.filter(item => workflowSections.planificar.modules.includes(item.title)),
@@ -109,11 +121,10 @@ export default function CprDashboardPage() {
       analizar: cprNav.filter(item => workflowSections.analizar.modules.includes(item.title))
     };
 
-    if (!isLoaded) {
+    if (!isMounted) {
         return <LoadingSkeleton title="Cargando Panel de control de Producción..." />;
     }
     
-    console.timeEnd("CprDashboardPage: full render");
     return (
         <main>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">

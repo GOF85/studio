@@ -5,7 +5,6 @@ import { Suspense, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { useDataStore } from '@/hooks/use-data-store';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { PerformanceMonitor } from '@/components/debug/performance-monitor';
 import { Header } from '@/components/layout/header';
 
 
@@ -41,7 +40,6 @@ export function MainLayout({
           </div>
         </div>
       </div>
-       {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
     </div>
   );
 }

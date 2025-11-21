@@ -15,16 +15,6 @@ import type {
     AtipicoDBItem, PedidoPlantilla, FormatoExpedicion 
 } from '@/types';
 
-// Performance logging setup
-if (typeof window !== 'undefined' && !(window as any).__PERF_LOG) {
-    (window as any).__PERF_LOG = [];
-}
-const perfLog = (context: string, step: string, time: number) => {
-    if(typeof window !== 'undefined' && (window as any).__PERF_LOG) {
-        (window as any).__PERF_LOG.push({ context, step, time });
-    }
-};
-
 type DataStoreData = {
     serviceOrders: ServiceOrder[];
     entregas: Entrega[];
@@ -121,17 +111,21 @@ export const useDataStore = create<DataStore>((set, get) => ({
     data: {},
     isLoaded: false,
     loadAllData: async () => {
-        if (get().isLoaded || typeof window === 'undefined') return;
+        if (typeof window === 'undefined') {
+             set({ isLoaded: true }); // Mark as loaded on server to prevent mismatches
+             return;
+        }
 
-        const totalStart = performance.now();
-        if((window as any).__PERF_LOG) (window as any).__PERF_LOG = [];
-
+        // Only run once on the client
+        if (get().isLoaded) return;
+        
+        // Ensure this runs after the main thread is free
         await new Promise(resolve => setTimeout(resolve, 0));
-
+        
+        console.time("[DEBUG] useDataStore: Total data loading");
         const loadedData: { [key: string]: any } = {};
         
         ALL_DATA_KEYS.forEach(key => {
-            const keyStart = performance.now();
             try {
                 const storedValue = localStorage.getItem(key);
                 if (storedValue) {
@@ -143,13 +137,9 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 console.warn(`Could not parse key: ${key}. Setting to default.`, e);
                 loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
             }
-            const keyEnd = performance.now();
-            perfLog('useDataStore', `load(${key})`, keyEnd - keyStart);
         });
         
         set({ data: loadedData, isLoaded: true });
-        
-        const totalEnd = performance.now();
-        perfLog('useDataStore', 'loadAllData (Total)', totalEnd - totalStart);
+        console.timeEnd("[DEBUG] useDataStore: Total data loading");
     },
 }));
