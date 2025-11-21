@@ -569,246 +569,2009 @@ export default function InfoPage() {
 }
 
 ```
-- src/app/os/[id]/layout.tsx:
+- src/app/personal/nuevo/page.tsx:
+```tsx
+
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Loader2, Save, X, UserPlus } from 'lucide-react';
+import type { Personal } from '@/types';
+import { DEPARTAMENTOS_PERSONAL, personalFormSchema } from '@/types';
+
+import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
+import { useLoadingStore } from '@/hooks/use-loading-store';
+
+type PersonalFormValues = z.infer<typeof personalFormSchema>;
+
+export default function NuevoPersonalPage() {
+  const router = useRouter();
+  const { isLoading, setIsLoading } = useLoadingStore();
+  const { toast } = useToast();
+
+  const form = useForm<PersonalFormValues>({
+    resolver: zodResolver(personalFormSchema),
+    defaultValues: {
+      precioHora: 0,
+      apellido2: '',
+      telefono: '',
+    },
+  });
+
+  function onSubmit(data: PersonalFormValues) {
+    setIsLoading(true);
+
+    let allItems = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    
+    const existing = allItems.find(p => p.id.toLowerCase() === data.id.toLowerCase());
+    if (existing) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un empleado con este DNI.' });
+        setIsLoading(false);
+        return;
+    }
+    
+    const finalData: Personal = {
+        ...data,
+        nombreCompleto: `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim(),
+        nombreCompacto: `${data.nombre} ${data.apellido1}`,
+        iniciales: `${data.nombre[0]}${data.apellido1[0]}`.toUpperCase(),
+        email: data.email,
+    }
+
+    allItems.push(finalData);
+    localStorage.setItem('personal', JSON.stringify(allItems));
+    
+    toast({ description: 'Nuevo empleado añadido correctamente.' });
+    router.push('/bd/personal');
+    setIsLoading(false);
+  }
+
+  return (
+    <>
+      <main className="container mx-auto px-4 py-8">
+        <Form {...form}>
+          <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <UserPlus className="h-8 w-8" />
+                <h1 className="text-3xl font-headline font-bold">Nuevo Empleado</h1>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" type="button" onClick={() => router.push('/bd/personal')}> <X className="mr-2"/> Cancelar</Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                  <span className="ml-2">Guardar</span>
+                </Button>
+              </div>
+            </div>
+            
+            <Card>
+              <CardHeader><CardTitle className="text-lg">Información del Empleado</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="nombre" render={({ field }) => (
+                    <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="apellido1" render={({ field }) => (
+                    <FormItem><FormLabel>Primer Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                   <FormField control={form.control} name="apellido2" render={({ field }) => (
+                    <FormItem><FormLabel>Segundo Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField control={form.control} name="departamento" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Departamento</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {DEPARTAMENTOS_PERSONAL.map(dep => <SelectItem key={dep} value={dep}>{dep}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="categoria" render={({ field }) => (
+                        <FormItem><FormLabel>Categoría / Puesto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="precioHora" render={({ field }) => (
+                        <FormItem><FormLabel>Precio/Hora</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <FormField control={form.control} name="telefono" render={({ field }) => (
+                        <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                     <FormField control={form.control} name="email" render={({ field }) => (
+                        <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="id" render={({ field }) => (
+                        <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                 </div>
+              </CardContent>
+            </Card>
+          </form>
+        </Form>
+      </main>
+    </>
+  );
+}
+
+```
+- src/app/pes/page.tsx:
 ```tsx
 
 'use client';
 
 import { Suspense } from 'react';
-import { usePathname, useParams } from 'next/navigation';
-import type { LucideIcon } from 'lucide-react';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { ObjectiveDisplay } from '@/components/os/objective-display';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar, LayoutDashboard, Phone, ChevronRight, FilePenLine } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { Badge } from '@/components/ui/badge';
-import { format, differenceInDays } from 'date-fns';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { OsContextProvider, useOsContext } from './os-context';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { PrevisionServiciosContent } from './prevision-servicios-content';
 
-type NavLink = {
-    path: string;
-    title: string;
-    icon: LucideIcon;
-    moduleName?: Parameters<typeof ObjectiveDisplay>[0]['moduleName'];
+export default function PrevisionServiciosPage() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando Previsión de Servicios..." />}>
+            <PrevisionServiciosContent />
+        </Suspense>
+    );
 }
 
-const navLinks: NavLink[] = [
-    { path: 'info', title: 'Información OS', icon: FileText },
-    { path: 'comercial', title: 'Comercial', icon: Briefcase },
-    { path: 'gastronomia', title: 'Gastronomía', icon: Utensils, moduleName: 'gastronomia' },
-    { path: 'bodega', title: 'Bebida', icon: Wine, moduleName: 'bodega' },
-    { path: 'hielo', title: 'Hielo', icon: Snowflake, moduleName: 'hielo' },
-    { path: 'bio', title: 'Bio (Consumibles)', icon: Leaf, moduleName: 'consumibles' },
-    { path: 'almacen', title: 'Almacén', icon: Warehouse, moduleName: 'almacen' },
-    { path: 'alquiler', title: 'Alquiler', icon: Archive, moduleName: 'alquiler' },
-    { path: 'decoracion', title: 'Decoración', icon: Flower2, moduleName: 'decoracion' },
-    { path: 'atipicos', title: 'Atípicos', icon: FilePlus, moduleName: 'atipicos' },
-    { path: 'personal-mice', title: 'Personal MICE', icon: Users, moduleName: 'personalMice' },
-    { path: 'personal-externo', title: 'Personal Externo', icon: UserPlus, moduleName: 'personalExterno' },
-    { path: 'transporte', title: 'Transporte', icon: Truck, moduleName: 'transporte' },
-    { path: 'prueba-menu', title: 'Prueba de Menu', icon: ClipboardCheck, moduleName: 'costePruebaMenu' },
-    { path: 'cta-explotacion', title: 'Cta. Explotación', icon: Euro },
+```
+- src/app/pes/prevision-servicios-content.tsx:
+```tsx
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { PlusCircle, ClipboardList, AlertTriangle } from 'lucide-react';
+import type { ServiceOrder } from '@/types';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { format, isBefore, startOfToday } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { LoadingSkeleton } from '../layout/loading-skeleton';
+import { useDataStore } from '@/hooks/use-data-store';
+
+const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
+  Borrador: 'secondary',
+  Pendiente: 'outline',
+  Confirmado: 'default',
+  Anulado: 'destructive'
+};
+
+export function PrevisionServiciosContent() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [showPastEvents, setShowPastEvents] = useState(false);
+  const { data, isLoaded } = useDataStore();
+
+  const serviceOrders = useMemo(() => data.serviceOrders || [], [data.serviceOrders]);
+
+  const availableMonths = useMemo(() => {
+    if (!serviceOrders) return ['all'];
+    const months = new Set<string>();
+    serviceOrders.forEach(os => {
+      try {
+        const month = format(new Date(os.startDate), 'yyyy-MM');
+        months.add(month);
+      } catch (e) {
+        console.error(`Invalid start date for OS ${os.serviceNumber}: ${os.startDate}`);
+      }
+    });
+    return ['all', ...Array.from(months).sort().reverse()];
+  }, [serviceOrders]);
+  
+  const filteredAndSortedOrders = useMemo(() => {
+    const today = startOfToday();
+    
+    const filtered = serviceOrders.filter(os => {
+      const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      let monthMatch = true;
+      if (selectedMonth !== 'all') {
+        try {
+          const osMonth = format(new Date(os.startDate), 'yyyy-MM');
+          monthMatch = osMonth === selectedMonth;
+        } catch (e) {
+          monthMatch = false;
+        }
+      }
+      
+      let pastEventMatch = true;
+      if (!showPastEvents) {
+          try {
+              pastEventMatch = !isBefore(new Date(os.endDate), today);
+          } catch (e) {
+              pastEventMatch = true;
+          }
+      }
+
+      return os.vertical !== 'Entregas' && searchMatch && monthMatch && pastEventMatch;
+    });
+
+    return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
+  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents]);
+
+  if (!isLoaded) {
+    return <LoadingSkeleton title="Cargando Previsión..." />;
+  }
+  
+  return (
+    <main>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+          <ClipboardList />
+          Previsión de Servicios
+        </h1>
+        <Button asChild>
+          <Link href="/os/nuevo/info">
+            <PlusCircle className="mr-2" />
+            Nueva Orden
+          </Link>
+        </Button>
+      </div>
+
+       <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <Input
+                placeholder="Buscar por Nº de OS o Cliente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+            />
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-full sm:w-[240px]">
+                <SelectValue placeholder="Filtrar por mes" />
+                </SelectTrigger>
+                <SelectContent>
+                <SelectItem value="all">Todos los meses</SelectItem>
+                {availableMonths.map(month => (
+                    <SelectItem key={month} value={month}>
+                    {month === 'all' ? 'Todos' : format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
+                    </SelectItem>
+                ))}
+                </SelectContent>
+            </Select>
+            <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+                <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
+                <label
+                    htmlFor="show-past"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                    Mostrar eventos finalizados
+                </label>
+            </div>
+      </div>
+
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nº Servicio</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Fecha Inicio</TableHead>
+              <TableHead>Fecha Fin</TableHead>
+              <TableHead>Nº Asistentes</TableHead>
+              <TableHead>Estado</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredAndSortedOrders.length > 0 ? (
+              filteredAndSortedOrders.map(os => (
+                <TableRow key={os.id}>
+                  <TableCell className="font-medium">
+                    <Link href={`/os/${os.id}`} className="text-primary hover:underline">
+                      {os.serviceNumber}
+                       {os.isVip && <AlertTriangle className="inline-block w-4 h-4 ml-2 text-yellow-500" />}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{os.client}</TableCell>
+                  <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>{os.asistentes}</TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant[os.status]}>
+                      {os.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  No hay órdenes de servicio que coincidan con los filtros.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </main>
+  );
+}
+
+```
+- src/hooks/use-data-store.ts:
+```ts
+
+'use client';
+
+import { create } from 'zustand';
+import type { 
+    ServiceOrder, Entrega, ComercialBriefing, PedidoEntrega, GastronomyOrder, MaterialOrder, 
+    TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExterno, 
+    PruebaMenuData, PickingSheet, ReturnSheet, OrdenFabricacion, PickingState, ExcedenteProduccion, 
+    PersonalEntrega, PartnerPedidoStatus, ActivityLog, CtaRealCost, CtaComentario, 
+    ObjetivosGasto, IngredienteERP, FamiliaERP, IngredienteInterno, Elaboracion, Receta, 
+    CategoriaReceta, PortalUser, ComercialAjuste, ProductoVenta, PickingEntregaState, 
+    StockElaboracion, PersonalExternoAjuste, PersonalExternoDB, HistoricoPreciosERP, 
+    CosteFijoCPR, ObjetivoMensualCPR, SolicitudPersonalCPR, Personal, Espacio, ArticuloCatering, 
+    TipoServicio, CategoriaPersonal, Proveedor, TipoTransporte, DecoracionDBItem, 
+    AtipicoDBItem, PedidoPlantilla, FormatoExpedicion 
+} from '@/types';
+
+type DataStoreData = {
+    serviceOrders: ServiceOrder[];
+    entregas: Entrega[];
+    comercialBriefings: ComercialBriefing[];
+    pedidosEntrega: PedidoEntrega[];
+    gastronomyOrders: GastronomyOrder[];
+    materialOrders: MaterialOrder[];
+    transporteOrders: TransporteOrder[];
+    hieloOrders: HieloOrder[];
+    decoracionOrders: DecoracionOrder[];
+    atipicoOrders: AtipicoOrder[];
+    personalMiceOrders: PersonalMiceOrder[];
+    personalExterno: PersonalExterno[];
+    pruebasMenu: PruebaMenuData[];
+    pickingSheets: Record<string, PickingSheet>;
+    returnSheets: Record<string, ReturnSheet>;
+    ordenesFabricacion: OrdenFabricacion[];
+    pickingStates: Record<string, PickingState>;
+    excedentesProduccion: ExcedenteProduccion[];
+    personalEntrega: PersonalEntrega[];
+    partnerPedidosStatus: Record<string, any>;
+    activityLogs: ActivityLog[];
+    ctaRealCosts: Record<string, any>;
+    ctaComentarios: Record<string, any>;
+    objetivosGastoPlantillas: ObjetivosGasto[];
+    defaultObjetivoGastoId: string | null;
+    articulosERP: IngredienteERP[];
+    familiasERP: FamiliaERP[];
+    ingredientesInternos: IngredienteInterno[];
+    elaboraciones: Elaboracion[];
+    recetas: Receta[];
+    categoriasRecetas: CategoriaReceta[];
+    portalUsers: PortalUser[];
+    comercialAjustes: Record<string, ComercialAjuste[]>;
+    productosVenta: ProductoVenta[];
+    pickingEntregasState: Record<string, PickingEntregaState>;
+    stockElaboraciones: Record<string, StockElaboracion>;
+    personalExternoAjustes: Record<string, PersonalExternoAjuste[]>;
+    personalExternoDB: PersonalExternoDB[];
+    historicoPreciosERP: HistoricoPreciosERP[];
+    costesFijosCPR: CosteFijoCPR[];
+    objetivosCPR: ObjetivoMensualCPR[];
+    personal: Personal[];
+    espacios: Espacio[];
+    articulos: ArticuloCatering[];
+    tipoServicio: TipoServicio[];
+    tiposPersonal: CategoriaPersonal[];
+    proveedores: Proveedor[];
+    tiposTransporte: TipoTransporte[];
+    decoracionDB: DecoracionDBItem[];
+    atipicosDB: AtipicoDBItem[];
+    pedidoPlantillas: PedidoPlantilla[];
+    formatosExpedicionDB: FormatoExpedicion[];
+    solicitudesPersonalCPR: SolicitudPersonalCPR[];
+    incidenciasRetorno: any[];
+    cesionesPersonal: any[];
+    centros: any[];
+    ubicaciones: any[];
+    stockArticuloUbicacion: any;
+    stockMovimientos: any[];
+    incidenciasInventario: any[];
+    cierresInventario: any[];
+};
+
+type DataKeys = keyof DataStoreData;
+
+type DataStore = {
+    data: Partial<DataStoreData>;
+    isLoaded: boolean;
+    loadAllData: () => Promise<void>;
+};
+
+export const ALL_DATA_KEYS: DataKeys[] = [
+    'serviceOrders', 'entregas', 'comercialBriefings', 'pedidosEntrega', 'gastronomyOrders', 'materialOrders',
+    'transporteOrders', 'hieloOrders', 'decoracionOrders', 'atipicoOrders', 'personalMiceOrders', 'personalExterno',
+    'pruebasMenu', 'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates', 'excedentesProduccion',
+    'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 'ctaComentarios', 'objetivosGastoPlantillas',
+    'defaultObjetivoGastoId', 'articulosERP', 'familiasERP', 'ingredientesInternos', 'elaboraciones', 'recetas',
+    'categoriasRecetas', 'portalUsers', 'comercialAjustes', 'productosVenta', 'pickingEntregasState',
+    'stockElaboraciones', 'personalExternoAjustes', 'personalExternoDB', 'historicoPreciosERP', 'costesFijosCPR',
+    'objetivosCPR', 'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposPersonal', 'proveedores', 'tiposTransporte',
+    'decoracionDB', 'atipicosDB', 'pedidoPlantillas', 'formatosExpedicionDB', 'solicitudesPersonalCPR', 'incidenciasRetorno',
+    'cesionesPersonal', 'centros', 'ubicaciones', 'stockArticuloUbicacion', 'stockMovimientos', 'incidenciasInventario', 'cierresInventario'
 ];
 
-const getInitials = (name: string) => {
-    if (!name) return '';
-    const nameParts = name.split(' ');
-    if (nameParts.length > 1) {
-        return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-}
+export const defaultValuesMap: { [key in DataKeys]?: any } = {
+    defaultObjetivoGastoId: null,
+    pickingSheets: {}, returnSheets: {}, pickingStates: {}, partnerPedidosStatus: {},
+    ctaRealCosts: {}, ctaComentarios: {}, comercialAjustes: {}, pickingEntregasState: {},
+    stockElaboraciones: {}, personalExternoAjustes: {}, stockArticuloUbicacion: {},
+};
 
-function OsHeaderContent() {
-    const pathname = usePathname();
-    const { serviceOrder, isLoading, updateKey } = useOsContext();
-    
-    const {currentModule, isSubPage} = useMemo(() => {
-        const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['os', '123', 'gastronomia', '456']
-        const osIndex = pathSegments.indexOf('os');
-        const moduleSegment = pathSegments[osIndex + 2];
-        const subPageSegment = pathSegments[osIndex + 3];
+export const useDataStore = create<DataStore>((set, get) => ({
+    data: {},
+    isLoaded: false,
+    loadAllData: async () => {
+        if (get().isLoaded || typeof window === 'undefined') return;
 
-        const module = navLinks.find(link => link.path === moduleSegment);
+        await Promise.resolve(); 
+
+        const loadedData: { [key: string]: any } = {};
         
-        if (module) {
-            return { currentModule: module, isSubPage: !!subPageSegment };
+        for (const key of ALL_DATA_KEYS) {
+            try {
+                const storedValue = localStorage.getItem(key);
+                if (storedValue) {
+                    loadedData[key] = JSON.parse(storedValue);
+                } else {
+                    loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
+                }
+            } catch(e) {
+                console.warn(`Could not parse key: ${key}. Setting to default.`, e);
+                loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
+            }
         }
+        
+        set({ data: loadedData as Partial<DataStoreData>, isLoaded: true });
+    },
+}));
 
-        if (moduleSegment === 'info' || !moduleSegment) {
-            return { currentModule: { title: 'Información OS', icon: FileText, path: 'info'}, isSubPage: false};
-        }
+```
+- src/app/os/[id]/os-context.tsx:
+```tsx
+'use client';
 
-        return { currentModule: { title: 'Panel de Control', icon: LayoutDashboard, path: '' }, isSubPage: false };
-    }, [pathname]);
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import type { ServiceOrder, ComercialBriefing, Espacio, MaterialOrder, PickingSheet, ReturnSheet, OrderItem } from '@/types';
+import { useDataStore } from '@/hooks/use-data-store';
 
-    if (isLoading || !serviceOrder) {
-        return (
-             <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                    <Skeleton className="h-6 w-32" />
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    <Skeleton className="h-6 w-36" />
-                </div>
-                 <div className="flex justify-between items-center text-sm text-muted-foreground bg-secondary px-3 py-1 rounded-md h-9">
-                    <Skeleton className="h-5 w-1/3" />
-                    <Skeleton className="h-5 w-1/4" />
-                </div>
-             </div>
-        );
+type ItemWithOrderInfo = OrderItem & {
+  orderContract: string;
+  orderId: string;
+  orderStatus?: PickingSheet['status'];
+  solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
+  deliveryDate?: string;
+  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
+};
+
+type BlockedOrderInfo = {
+    sheetId: string;
+    status: PickingSheet['status'];
+    items: OrderItem[];
+};
+
+type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
+
+const statusMap: Record<PickingSheet['status'], StatusColumn> = {
+    'Pendiente': 'En Preparación',
+    'En Proceso': 'En Preparación',
+    'Listo': 'Listo',
+}
+
+interface ProcessedData {
+    allItems: ItemWithOrderInfo[];
+    blockedOrders: BlockedOrderInfo[];
+    pendingItems: ItemWithOrderInfo[];
+    itemsByStatus: Record<StatusColumn, ItemWithOrderInfo[]>;
+    totalValoracionPendiente: number;
+}
+
+interface OsDataContextType {
+    osId: string;
+    serviceOrder: ServiceOrder | null;
+    briefing: ComercialBriefing | null;
+    spaceAddress: string;
+    isLoading: boolean;
+    updateKey: number;
+    getProcessedDataForType: (type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler') => ProcessedData;
+}
+
+const OsContext = createContext<OsDataContextType | undefined>(undefined);
+
+export function useOsContext() {
+    const context = useContext(OsContext);
+    if (!context) {
+        throw new Error('useOsContext must be used within an OsContextProvider');
     }
-    
-    const durationDays = serviceOrder.startDate && serviceOrder.endDate ? differenceInDays(new Date(serviceOrder.endDate), new Date(serviceOrder.startDate)) + 1 : 0;
-    
-    const responsables = [
-        {label: 'Comercial', name: serviceOrder.comercial},
-        {label: 'Metre', name: serviceOrder.respMetre},
-        {label: 'PM', name: serviceOrder.respProjectManager},
-        {label: 'Pase', name: serviceOrder.respPase},
-    ].filter(r => r.name);
-
-    return (
-        <TooltipProvider>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Link href={`/os/${serviceOrder.id}`} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-                        <ClipboardList className="h-5 w-5"/>
-                        <span>{serviceOrder.serviceNumber}</span>
-                    </Link>
-                    {currentModule && (
-                        <>
-                         <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                         <Link href={`/os/${serviceOrder.id}/${currentModule.path}`} className="flex items-center gap-2 hover:text-primary transition-colors">
-                            <currentModule.icon className="h-5 w-5"/>
-                            <span>{currentModule.title}</span>
-                         </Link>
-                        </>
-                    )}
-                    {isSubPage && (
-                         <>
-                             <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                             <span className="flex items-center gap-2 font-bold text-primary">
-                                 <FilePenLine className="h-5 w-5"/>
-                                 <span>Edición</span>
-                             </span>
-                         </>
-                    )}
-                </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  {(currentModule?.moduleName) && <ObjectiveDisplay osId={serviceOrder.id} moduleName={currentModule.moduleName} updateKey={updateKey} />}
-                  {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
-                </div>
-              </div>
-               <div className="flex justify-between items-center text-sm text-muted-foreground bg-secondary px-3 py-1 rounded-md">
-                    <div className="flex items-center gap-3">
-                       {responsables.map(resp => (
-                           <Tooltip key={resp.label}>
-                                <TooltipTrigger className="flex items-center gap-2 cursor-default">
-                                    <span className="font-semibold">{resp.label}:</span>
-                                    <Avatar className="h-6 w-6 text-xs">
-                                        <AvatarFallback>{getInitials(resp.name || '')}</AvatarFallback>
-                                    </Avatar>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>{resp.name}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                       ))}
-                    </div>
-                    <div className="flex items-center gap-4">
-                        {serviceOrder.startDate && serviceOrder.endDate && (
-                            <div className="flex items-center gap-2 font-semibold">
-                                <Calendar className="h-4 w-4"/>
-                                <span>{format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')} - {format(new Date(serviceOrder.endDate), 'dd/MM/yyyy')}</span>
-                                {durationDays > 0 && <Badge variant="outline">{durationDays} día{durationDays > 1 && 's'}</Badge>}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </TooltipProvider>
-    );
+    return context;
 }
 
-function OSDetailsLayoutContent({ children }: { children: React.ReactNode }) {
-    const params = useParams();
-    const pathname = usePathname();
-    const osId = params.id as string;
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
+export function OsContextProvider({ osId, children }: { osId: string; children: React.ReactNode }) {
+    const { data, isLoaded: isDataStoreLoaded } = useDataStore();
+    const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+    const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
+    const [spaceAddress, setSpaceAddress] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [updateKey, setUpdateKey] = useState(Date.now());
+    
+    useEffect(() => {
+        if (isDataStoreLoaded && osId) {
+            setIsLoading(true);
+            const currentOS = data.serviceOrders?.find(os => os.id === osId);
+            setServiceOrder(currentOS || null);
 
-    const dashboardHref = `/os/${osId}`;
+            if (currentOS?.space) {
+                const currentSpace = data.espacios?.find(e => e.identificacion.nombreEspacio === currentOS.space);
+                setSpaceAddress(currentSpace?.identificacion.calle || '');
+            } else {
+                setSpaceAddress('');
+            }
+            setBriefing(data.comercialBriefings?.find(b => b.osId === osId) || null);
+            setIsLoading(false);
+        }
+    }, [osId, isDataStoreLoaded, data, updateKey]);
+    
+    const getProcessedDataForType = useCallback((type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler'): ProcessedData => {
+        const relatedOrders = (data.materialOrders || []).filter(order => order.osId === osId && order.type === type);
+        const relatedPickingSheets = Object.values(data.pickingSheets || {}).filter(sheet => sheet.osId === osId);
+        
+        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+        const processedItemKeys = new Set<string>();
+        const blocked: BlockedOrderInfo[] = [];
 
-    return (
-      <div className="container mx-auto">
-          <div className="sticky top-[56px] z-30 bg-background/95 backdrop-blur-sm py-2 border-b">
-              <div className="flex items-center gap-4">
-                  <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                      <SheetTrigger asChild>
-                          <Button variant="outline">
-                              <Menu className="h-5 w-5 mr-2" />
-                              Módulos
-                          </Button>
-                      </SheetTrigger>
-                      <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
-                          <SheetHeader className="p-4 border-b">
-                              <SheetTitle>Módulos de la OS</SheetTitle>
-                          </SheetHeader>
-                          <ScrollArea className="h-full p-4">
-                              <nav className="grid items-start gap-1 pb-4">
-                                  <Link href={dashboardHref} onClick={() => setIsSheetOpen(false)}>
-                                      <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === `/os/${osId}` ? "bg-accent" : "transparent")}>
-                                          <LayoutDashboard className="mr-2 h-4 w-4" />
-                                          <span>Panel de Control</span>
-                                      </span>
-                                  </Link>
-                                  {navLinks.map((item, index) => {
-                                      const href = `/os/${osId}/${item.path}`;
-                                      return (
-                                          <Link key={index} href={href} onClick={() => setIsSheetOpen(false)}>
-                                              <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname.startsWith(href) ? "bg-accent" : "transparent")}>
-                                                  <item.icon className="mr-2 h-4 w-4" />
-                                                  <span>{item.title}</span>
-                                              </span>
-                                          </Link>
-                                      )
-                                  })}
-                              </nav>
-                          </ScrollArea>
-                      </SheetContent>
-                  </Sheet>
-                  <div className="flex-grow">
-                      <OsHeaderContent />
-                  </div>
-              </div>
-          </div>
-          <main className="py-8">
-              {children}
-          </main>
-      </div>
-    );
+        relatedPickingSheets.forEach(sheet => {
+            const targetStatus = statusMap[sheet.status];
+            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
+
+            sheet.items.forEach(itemInSheet => {
+                if (itemInSheet.type !== type) return;
+                
+                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
+                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
+                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
+
+                if (!originalItem) return;
+                
+                const itemWithInfo: ItemWithOrderInfo = {
+                    ...originalItem,
+                    orderId: sheet.id, 
+                    orderContract: orderRef?.contractNumber || 'N/A', 
+                    orderStatus: sheet.status, 
+                    solicita: orderRef?.solicita,
+                };
+
+                statusItems[targetStatus].push(itemWithInfo);
+                sheetInfo.items.push(itemWithInfo);
+                processedItemKeys.add(uniqueKey);
+            });
+
+            if (sheetInfo.items.length > 0) {
+                blocked.push(sheetInfo);
+            }
+        });
+
+        const all = relatedOrders.flatMap(order => 
+            order.items.map(item => ({
+                ...item, 
+                orderId: order.id, 
+                contractNumber: order.contractNumber, 
+                solicita: order.solicita, 
+                tipo: item.tipo, 
+                deliveryDate: order.deliveryDate,
+                ajustes: item.ajustes
+            } as ItemWithOrderInfo))
+        );
+        
+        const pending = all.filter(item => {
+          const uniqueKey = `${item.orderId}-${item.itemCode}`;
+          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+        });
+        
+        statusItems['Asignado'] = pending;
+
+        const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
+        return { allItems: all, blockedOrders: blocked, pendingItems: pending, itemsByStatus: statusItems, totalValoracionPendiente };
+
+    }, [data, osId]);
+
+    const value = { osId, serviceOrder, briefing, spaceAddress, isLoading, updateKey, getProcessedDataForType };
+    
+    return <OsContext.Provider value={value}>{children}</OsContext.Provider>;
 }
 
-export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
-    const params = useParams();
-    const osId = params.id as string;
+```
+- src/app/os/[id]/alquiler/page.tsx:
+```tsx
+
+'use client';
+
+import { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
+import { PlusCircle, Eye, FileText } from 'lucide-react';
+import type { OrderItem, PickingSheet, ComercialBriefingItem } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { useOsContext } from '../../os-context';
+
+type ItemWithOrderInfo = OrderItem & {
+  orderContract: string;
+  orderId: string;
+  orderStatus?: PickingSheet['status'];
+  solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
+  deliveryDate?: string;
+  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
+};
+
+type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
+
+function BriefingSummaryDialog({ osId }: { osId: string }) {
+    const { briefing } = useOsContext();
     
+    const sortedItems = useMemo(() => {
+        if (!briefing?.items) return [];
+        return [...briefing.items].sort((a, b) => {
+            const dateComparison = a.fecha.localeCompare(b.fecha);
+            if (dateComparison !== 0) return dateComparison;
+            return a.horaInicio.localeCompare(b.horaInicio);
+        });
+    }, [briefing]);
+
     return (
-        <OsContextProvider osId={osId}>
-            <OSDetailsLayoutContent>{children}</OSDetailsLayoutContent>
-        </OsContextProvider>
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Hora</TableHead>
+                                <TableHead>Descripción</TableHead>
+                                <TableHead>Observaciones</TableHead>
+                                <TableHead className="text-right">Asistentes</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedItems.length > 0 ? sortedItems.map(item => (
+                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
+                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
+                                    <TableCell>{item.descripcion}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
+                                    <TableCell className="text-right">{item.asistentes}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }
+
+function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
+    return (
+        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
+                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
+            </CardContent>
+        </Card>
+    )
+}
+
+export default function AlquilerPage() {
+    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+    const { osId, getProcessedDataForType, isLoading } = useOsContext();
+  
+    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(
+        () => getProcessedDataForType('Alquiler'),
+        [getProcessedDataForType]
+    );
+
+    const renderStatusModal = (status: StatusColumn) => {
+        const items = itemsByStatus[status];
+        return (
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {items.length > 0 ? items.map((item, index) => (
+                                <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
+                            )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        )
+    }
+    
+    const renderSummaryModal = () => {
+        const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
+         const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        return (
+          <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
+            <div className="max-h-[70vh] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Artículo</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Cant. Cajas</TableHead>
+                    <TableHead>Valoración</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {all.map((item, index) => {
+                    const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
+                    const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                    return (
+                      <TableRow key={`${item.itemCode}-${index}`}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{cajas}</TableCell>
+                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                        <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+             <div className="flex justify-end font-bold text-lg p-4">
+                Valoración Total: {formatCurrency(totalValue)}
+            </div>
+          </DialogContent>
+        )
+      }
+  
+    if (isLoading) {
+        return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
+    }
+
+    return (
+        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                    </DialogTrigger>
+                    {renderSummaryModal()}
+                </Dialog>
+                <BriefingSummaryDialog osId={osId} />
+            </div>
+            <Button asChild>
+            <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
+                <PlusCircle className="mr-2" />
+                Nuevo Pedido de Alquiler
+            </Link>
+            </Button>
+        </div>
+        
+         <div className="grid md:grid-cols-3 gap-6 mb-8">
+              {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
+                  const items = itemsByStatus[status];
+                  const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                  return (
+                  <StatusCard 
+                      key={status}
+                      title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
+                      items={items.length}
+                      totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
+                      totalValue={totalValue}
+                      onClick={() => setActiveModal(status)}
+                  />
+              )})}
+          </div>
+        
+          <Card className="mb-6">
+              <div className="flex items-center justify-between p-4">
+                  <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
+              </div>
+              <CardContent>
+                  <div className="border rounded-lg">
+                      <Table>
+                           <TableHeader>
+                              <TableRow>
+                                  <TableHead>Artículo</TableHead>
+                                  <TableHead>Solicita</TableHead>
+                                  <TableHead>Fecha Entrega</TableHead>
+                                  <TableHead className="w-32">Cantidad</TableHead>
+                                  <TableHead>Valoración</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                                  <TableRow key={item.itemCode + item.orderId}>
+                                      <TableCell>{item.description}</TableCell>
+                                      <TableCell>{item.solicita}</TableCell>
+                                      <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
+                                      <TableCell>{item.quantity}</TableCell>
+                                      <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                                  </TableRow>
+                              )) : (
+                                  <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                              )}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </CardContent>
+          </Card>
+  
+          <Card>
+              <CardHeader>
+                  <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
+              </CardHeader>
+               <CardContent>
+                   <div className="border rounded-lg">
+                      <Table>
+                           <TableHeader>
+                              <TableRow>
+                                  <TableHead>Hoja Picking</TableHead>
+                                  <TableHead>Estado</TableHead>
+                                  <TableHead>Contenido</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {blockedOrders.length > 0 ? blockedOrders.map(order => (
+                                  <TableRow key={order.sheetId}>
+                                      <TableCell>
+                                          <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
+                                              <Badge variant="secondary">{order.sheetId}</Badge>
+                                          </Link>
+                                      </TableCell>
+                                      <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
+                                      <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
+                                  </TableRow>
+                              )) : (
+                                  <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
+                              )}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </CardContent>
+          </Card>
+  
+         {activeModal && renderStatusModal(activeModal)}
+      </Dialog>
+    );
+}
+
+
 ```
+- src/app/os/almacen/[id]/page.tsx:
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function AlmacenIdRedirectPage({ params }: { params: { id: string } }) {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace(`/os/${params.id}/almacen`);
+    }, [router, params.id]);
+    return null;
+}
+
+```
+- src/app/os/almacen/layout.tsx:
+```tsx
+'use client';
+
+import { Warehouse } from 'lucide-react';
+import { useOsData } from '../os-context';
+
+
+export default function AlmacenLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    const { serviceOrder } = useOsData();
+    return (
+        <div>
+             <div className="flex items-start justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Warehouse />Módulo de Almacén</h1>
+                   <div className="text-muted-foreground mt-2 space-y-1">
+                      <p>OS: {serviceOrder?.serviceNumber} - {serviceOrder?.client}</p>
+                  </div>
+                </div>
+             </div>
+            {children}
+        </div>
+    )
+}
+
+```
+- src/app/os/almacen/page.tsx:
+```tsx
+
+
+'use client';
+
+import { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
+import { PlusCircle, Eye, FileText } from 'lucide-react';
+import type { OrderItem, PickingSheet, ComercialBriefingItem, ReturnSheet, ServiceOrder, MaterialOrder } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { useDataStore } from '@/hooks/use-data-store';
+import { useParams } from 'next/navigation';
+
+
+type ItemWithOrderInfo = OrderItem & {
+  orderContract: string;
+  orderId: string;
+  orderStatus?: PickingSheet['status'];
+  solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
+  deliveryDate?: string;
+  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
+};
+
+type BlockedOrderInfo = {
+    sheetId: string;
+    status: PickingSheet['status'];
+    items: OrderItem[];
+};
+
+type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
+
+
+const statusMap: Record<PickingSheet['status'], StatusColumn> = {
+    'Pendiente': 'En Preparación',
+    'En Proceso': 'En Preparación',
+    'Listo': 'Listo',
+}
+
+function BriefingSummaryDialog({ osId }: { osId: string }) {
+    const { data, isLoaded } = useDataStore();
+    const briefing = useMemo(() => {
+        if (!isLoaded) return null;
+        return data.comercialBriefings?.find(b => b.osId === osId) || null;
+    }, [isLoaded, data.comercialBriefings, osId]);
+
+    const sortedItems = useMemo(() => {
+        if (!briefing?.items) return [];
+        return [...briefing.items].sort((a, b) => {
+            const dateComparison = a.fecha.localeCompare(b.fecha);
+            if (dateComparison !== 0) return dateComparison;
+            return a.horaInicio.localeCompare(b.horaInicio);
+        });
+    }, [briefing]);
+
+    if(!briefing) return null;
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Hora</TableHead>
+                                <TableHead>Descripción</TableHead>
+                                <TableHead>Observaciones</TableHead>
+                                <TableHead className="text-right">Asistentes</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedItems.length > 0 ? sortedItems.map(item => (
+                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
+                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
+                                    <TableCell>{item.descripcion}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
+                                    <TableCell className="text-right">{item.asistentes}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
+    return (
+        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
+                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
+            </CardContent>
+        </Card>
+    )
+}
+
+export default function AlmacenPage() {
+    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+    const params = useParams();
+    const osId = params.id as string;
+    const { data, isLoaded } = useDataStore();
+
+    const { allItems, blockedOrders, pendingItems, itemsByStatus } = useMemo(() => {
+        const emptyResult = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] } };
+        if (!isLoaded || !osId) return emptyResult;
+
+        const { materialOrders = [], pickingSheets = {}, returnSheets = {} } = data;
+
+        const relatedOrders = materialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
+        const relatedPickingSheets = Object.values(pickingSheets).filter(sheet => sheet.osId === osId);
+        
+        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+        const processedItemKeys = new Set<string>();
+        const blocked: BlockedOrderInfo[] = [];
+
+        relatedPickingSheets.forEach(sheet => {
+            const targetStatus = statusMap[sheet.status];
+            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
+
+            sheet.items.forEach(itemInSheet => {
+                if (itemInSheet.type !== 'Almacen') return;
+                
+                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
+                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
+                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
+
+                if (!originalItem) return;
+                
+                const itemWithInfo: ItemWithOrderInfo = {
+                    ...originalItem,
+                    orderId: sheet.id, 
+                    orderContract: orderRef?.contractNumber || 'N/A', 
+                    orderStatus: sheet.status, 
+                    solicita: orderRef?.solicita,
+                };
+
+                statusItems[targetStatus].push(itemWithInfo);
+                sheetInfo.items.push(itemWithInfo);
+
+                processedItemKeys.add(uniqueKey);
+            });
+
+            if (sheetInfo.items.length > 0) {
+                blocked.push(sheetInfo);
+            }
+        });
+
+        const all = relatedOrders.flatMap(order => 
+            order.items.map(item => {
+                return {
+                    ...item, 
+                    quantity: item.quantity,
+                    orderId: order.id, 
+                    contractNumber: order.contractNumber, 
+                    solicita: order.solicita, 
+                    tipo: item.tipo, 
+                    deliveryDate: order.deliveryDate,
+                    ajustes: item.ajustes
+                } as ItemWithOrderInfo
+            })
+        );
+        
+        const pending = all.filter(item => {
+          const uniqueKey = `${item.orderId}-${item.itemCode}`;
+          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+        });
+        
+        statusItems['Asignado'] = pending;
+
+        return { allItems: all, blockedOrders: blocked, pendingItems: pending, itemsByStatus: statusItems };
+    }, [osId, isLoaded, data]);
+    
+    const renderStatusModal = (status: StatusColumn) => {
+        const items = itemsByStatus[status];
+        return (
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {items.length > 0 ? items.map((item, index) => (
+                                <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
+                            )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        )
+    }
+    
+    const renderSummaryModal = () => {
+      const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
+       const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      return (
+        <DialogContent className="max-w-4xl">
+          <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
+          <div className="max-h-[70vh] overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Artículo</TableHead>
+                  <TableHead>Cantidad</TableHead>
+                  <TableHead>Cant. Cajas</TableHead>
+                  <TableHead>Valoración</TableHead>
+                  <TableHead>Estado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {all.map((item, index) => {
+                  const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
+                  const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                  return (
+                    <TableRow key={`${item.itemCode}-${index}`}>
+                      <TableCell>{item.description}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>{cajas}</TableCell>
+                      <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                      <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+           <div className="flex justify-end font-bold text-lg p-4">
+              Valoración Total: {formatCurrency(totalValue)}
+          </div>
+        </DialogContent>
+      )
+    }
+
+    if (!isLoaded) {
+        return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
+    }
+
+    return (
+        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                    </DialogTrigger>
+                    {renderSummaryModal()}
+                </Dialog>
+                <BriefingSummaryDialog osId={osId} />
+            </div>
+            <Button asChild>
+            <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
+                <PlusCircle className="mr-2" />
+                Nuevo Pedido de Almacén
+            </Link>
+            </Button>
+        </div>
+        
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+                {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
+                    const items = itemsByStatus[status];
+                    const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    return (
+                    <StatusCard 
+                        key={status}
+                        title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
+                        items={items.length}
+                        totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
+                        totalValue={totalValue}
+                        onClick={() => setActiveModal(status)}
+                    />
+                )})}
+            </div>
+        
+            <Card className="mb-6">
+                <div className="flex items-center justify-between p-4">
+                    <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
+                </div>
+                <CardContent>
+                    <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Artículo</TableHead>
+                                    <TableHead>Solicita</TableHead>
+                                    <TableHead>Fecha Entrega</TableHead>
+                                    <TableHead className="w-32">Cantidad</TableHead>
+                                    <TableHead>Valoración</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                                    <TableRow key={item.itemCode + item.orderId}>
+                                        <TableCell>{item.description}</TableCell>
+                                        <TableCell>{item.solicita}</TableCell>
+                                        <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
+                                        <TableCell>{item.quantity}</TableCell>
+                                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Hoja Picking</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                    <TableHead>Contenido</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {blockedOrders.length > 0 ? blockedOrders.map(order => (
+                                    <TableRow key={order.sheetId}>
+                                        <TableCell>
+                                            <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
+                                                <Badge variant="secondary">{order.sheetId}</Badge>
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
+                                        <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+
+        {activeModal && renderStatusModal(activeModal)}
+        </Dialog>
+    );
+}
+
+
+
+```
+- src/app/os/[id]/alquiler/page.tsx:
+```tsx
+
+'use client';
+
+import { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
+import { PlusCircle, Eye, FileText } from 'lucide-react';
+import type { OrderItem, PickingSheet, ComercialBriefingItem } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { useOsContext } from '../../os-context';
+
+type ItemWithOrderInfo = OrderItem & {
+  orderContract: string;
+  orderId: string;
+  orderStatus?: PickingSheet['status'];
+  solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
+  deliveryDate?: string;
+  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
+};
+
+type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
+
+function BriefingSummaryDialog({ osId }: { osId: string }) {
+    const { briefing } = useOsContext();
+    
+    const sortedItems = useMemo(() => {
+        if (!briefing?.items) return [];
+        return [...briefing.items].sort((a, b) => {
+            const dateComparison = a.fecha.localeCompare(b.fecha);
+            if (dateComparison !== 0) return dateComparison;
+            return a.horaInicio.localeCompare(b.horaInicio);
+        });
+    }, [briefing]);
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Hora</TableHead>
+                                <TableHead>Descripción</TableHead>
+                                <TableHead>Observaciones</TableHead>
+                                <TableHead className="text-right">Asistentes</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedItems.length > 0 ? sortedItems.map(item => (
+                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
+                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
+                                    <TableCell>{item.descripcion}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
+                                    <TableCell className="text-right">{item.asistentes}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
+    return (
+        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
+                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
+            </CardContent>
+        </Card>
+    )
+}
+
+export default function AlquilerPage() {
+    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+    const { osId, getProcessedDataForType, isLoading } = useOsContext();
+  
+    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(
+        () => getProcessedDataForType('Alquiler'),
+        [getProcessedDataForType]
+    );
+
+    const renderStatusModal = (status: StatusColumn) => {
+        const items = itemsByStatus[status];
+        return (
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {items.length > 0 ? items.map((item, index) => (
+                                <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
+                            )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        )
+    }
+    
+    const renderSummaryModal = () => {
+        const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
+         const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        return (
+          <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
+            <div className="max-h-[70vh] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Artículo</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Cant. Cajas</TableHead>
+                    <TableHead>Valoración</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {all.map((item, index) => {
+                    const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
+                    const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                    return (
+                      <TableRow key={`${item.itemCode}-${index}`}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{cajas}</TableCell>
+                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                        <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+             <div className="flex justify-end font-bold text-lg p-4">
+                Valoración Total: {formatCurrency(totalValue)}
+            </div>
+          </DialogContent>
+        )
+      }
+  
+    if (isLoading) {
+        return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
+    }
+
+    return (
+        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                    </DialogTrigger>
+                    {renderSummaryModal()}
+                </Dialog>
+                <BriefingSummaryDialog osId={osId} />
+            </div>
+            <Button asChild>
+            <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
+                <PlusCircle className="mr-2" />
+                Nuevo Pedido de Alquiler
+            </Link>
+            </Button>
+        </div>
+        
+         <div className="grid md:grid-cols-3 gap-6 mb-8">
+              {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
+                  const items = itemsByStatus[status];
+                  const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                  return (
+                  <StatusCard 
+                      key={status}
+                      title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
+                      items={items.length}
+                      totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
+                      totalValue={totalValue}
+                      onClick={() => setActiveModal(status)}
+                  />
+              )})}
+          </div>
+        
+          <Card className="mb-6">
+              <div className="flex items-center justify-between p-4">
+                  <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
+              </div>
+              <CardContent>
+                  <div className="border rounded-lg">
+                      <Table>
+                           <TableHeader>
+                              <TableRow>
+                                  <TableHead>Artículo</TableHead>
+                                  <TableHead>Solicita</TableHead>
+                                  <TableHead>Fecha Entrega</TableHead>
+                                  <TableHead className="w-32">Cantidad</TableHead>
+                                  <TableHead>Valoración</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                                  <TableRow key={item.itemCode + item.orderId}>
+                                      <TableCell>{item.description}</TableCell>
+                                      <TableCell>{item.solicita}</TableCell>
+                                      <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
+                                      <TableCell>{item.quantity}</TableCell>
+                                      <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                                  </TableRow>
+                              )) : (
+                                  <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                              )}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </CardContent>
+          </Card>
+  
+          <Card>
+              <CardHeader>
+                  <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
+              </CardHeader>
+               <CardContent>
+                   <div className="border rounded-lg">
+                      <Table>
+                           <TableHeader>
+                              <TableRow>
+                                  <TableHead>Hoja Picking</TableHead>
+                                  <TableHead>Estado</TableHead>
+                                  <TableHead>Contenido</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {blockedOrders.length > 0 ? blockedOrders.map(order => (
+                                  <TableRow key={order.sheetId}>
+                                      <TableCell>
+                                          <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
+                                              <Badge variant="secondary">{order.sheetId}</Badge>
+                                          </Link>
+                                      </TableCell>
+                                      <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
+                                      <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
+                                  </TableRow>
+                              )) : (
+                                  <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
+                              )}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </CardContent>
+          </Card>
+  
+         {activeModal && renderStatusModal(activeModal)}
+      </Dialog>
+    );
+}
+
+
+
+```
+- src/app/os/page.tsx:
+```tsx
+'use client';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// This page just redirects to the main service order overview page.
+export default function OsRedirectPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/pes');
+    }, [router]);
+    return null;
+}
+
+```
+- src/app/os/[id]/almacen/page.tsx:
+```tsx
+
+
+'use client';
+
+import { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
+import { PlusCircle, Eye, FileText } from 'lucide-react';
+import type { OrderItem, PickingSheet, ComercialBriefingItem, ReturnSheet, ServiceOrder, MaterialOrder } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { useDataStore } from '@/hooks/use-data-store';
+import { useParams } from 'next/navigation';
+
+
+type ItemWithOrderInfo = OrderItem & {
+  orderContract: string;
+  orderId: string;
+  orderStatus?: PickingSheet['status'];
+  solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
+  deliveryDate?: string;
+  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
+};
+
+type BlockedOrderInfo = {
+    sheetId: string;
+    status: PickingSheet['status'];
+    items: OrderItem[];
+};
+
+type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
+
+
+const statusMap: Record<PickingSheet['status'], StatusColumn> = {
+    'Pendiente': 'En Preparación',
+    'En Proceso': 'En Preparación',
+    'Listo': 'Listo',
+}
+
+function BriefingSummaryDialog({ osId }: { osId: string }) {
+    const { data, isLoaded } = useDataStore();
+    const briefing = useMemo(() => {
+        if (!isLoaded) return null;
+        return data.comercialBriefings?.find(b => b.osId === osId) || null;
+    }, [isLoaded, data.comercialBriefings, osId]);
+
+    const sortedItems = useMemo(() => {
+        if (!briefing?.items) return [];
+        return [...briefing.items].sort((a, b) => {
+            const dateComparison = a.fecha.localeCompare(b.fecha);
+            if (dateComparison !== 0) return dateComparison;
+            return a.horaInicio.localeCompare(b.horaInicio);
+        });
+    }, [briefing]);
+
+    if(!briefing) return null;
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Hora</TableHead>
+                                <TableHead>Descripción</TableHead>
+                                <TableHead>Observaciones</TableHead>
+                                <TableHead className="text-right">Asistentes</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedItems.length > 0 ? sortedItems.map(item => (
+                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
+                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
+                                    <TableCell>{item.descripcion}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
+                                    <TableCell className="text-right">{item.asistentes}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
+    return (
+        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
+                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
+            </CardContent>
+        </Card>
+    )
+}
+
+export default function AlmacenPage() {
+    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+    const params = useParams();
+    const osId = params.id as string;
+    const { data, isLoaded } = useDataStore();
+
+    const { allItems, blockedOrders, pendingItems, itemsByStatus } = useMemo(() => {
+        const emptyResult = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] } };
+        if (!isLoaded || !osId) return emptyResult;
+
+        const { materialOrders = [], pickingSheets = {}, returnSheets = {} } = data;
+
+        const relatedOrders = materialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
+        const relatedPickingSheets = Object.values(pickingSheets).filter(sheet => sheet.osId === osId);
+        
+        const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+        const processedItemKeys = new Set<string>();
+        const blocked: BlockedOrderInfo[] = [];
+
+        relatedPickingSheets.forEach(sheet => {
+            const targetStatus = statusMap[sheet.status];
+            const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
+
+            sheet.items.forEach(itemInSheet => {
+                if (itemInSheet.type !== 'Almacen') return;
+                
+                const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
+                const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
+                const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
+
+                if (!originalItem) return;
+                
+                const itemWithInfo: ItemWithOrderInfo = {
+                    ...originalItem,
+                    orderId: sheet.id, 
+                    orderContract: orderRef?.contractNumber || 'N/A', 
+                    orderStatus: sheet.status, 
+                    solicita: orderRef?.solicita,
+                };
+
+                statusItems[targetStatus].push(itemWithInfo);
+                sheetInfo.items.push(itemWithInfo);
+
+                processedItemKeys.add(uniqueKey);
+            });
+
+            if (sheetInfo.items.length > 0) {
+                blocked.push(sheetInfo);
+            }
+        });
+
+        const all = relatedOrders.flatMap(order => 
+            order.items.map(item => {
+                return {
+                    ...item, 
+                    quantity: item.quantity,
+                    orderId: order.id, 
+                    contractNumber: order.contractNumber, 
+                    solicita: order.solicita, 
+                    tipo: item.tipo, 
+                    deliveryDate: order.deliveryDate,
+                    ajustes: item.ajustes
+                } as ItemWithOrderInfo
+            })
+        );
+        
+        const pending = all.filter(item => {
+          const uniqueKey = `${item.orderId}-${item.itemCode}`;
+          return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+        });
+        
+        statusItems['Asignado'] = pending;
+
+        return { allItems: all, blockedOrders: blocked, pendingItems: pending, itemsByStatus: statusItems };
+    }, [osId, isLoaded, data]);
+    
+    const renderStatusModal = (status: StatusColumn) => {
+        const items = itemsByStatus[status];
+        return (
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {items.length > 0 ? items.map((item, index) => (
+                                <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
+                            )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        )
+    }
+    
+    const renderSummaryModal = () => {
+      const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
+       const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      return (
+        <DialogContent className="max-w-4xl">
+          <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
+          <div className="max-h-[70vh] overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Artículo</TableHead>
+                  <TableHead>Cantidad</TableHead>
+                  <TableHead>Cant. Cajas</TableHead>
+                  <TableHead>Valoración</TableHead>
+                  <TableHead>Estado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {all.map((item, index) => {
+                  const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
+                  const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                  return (
+                    <TableRow key={`${item.itemCode}-${index}`}>
+                      <TableCell>{item.description}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>{cajas}</TableCell>
+                      <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                      <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+           <div className="flex justify-end font-bold text-lg p-4">
+              Valoración Total: {formatCurrency(totalValue)}
+          </div>
+        </DialogContent>
+      )
+    }
+
+    if (!isLoaded) {
+        return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
+    }
+
+    return (
+        <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                    </DialogTrigger>
+                    {renderSummaryModal()}
+                </Dialog>
+                <BriefingSummaryDialog osId={osId} />
+            </div>
+            <Button asChild>
+            <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
+                <PlusCircle className="mr-2" />
+                Nuevo Pedido de Almacén
+            </Link>
+            </Button>
+        </div>
+        
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+                {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
+                    const items = itemsByStatus[status];
+                    const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    return (
+                    <StatusCard 
+                        key={status}
+                        title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
+                        items={items.length}
+                        totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
+                        totalValue={totalValue}
+                        onClick={() => setActiveModal(status)}
+                    />
+                )})}
+            </div>
+        
+            <Card className="mb-6">
+                <div className="flex items-center justify-between p-4">
+                    <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
+                </div>
+                <CardContent>
+                    <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Artículo</TableHead>
+                                    <TableHead>Solicita</TableHead>
+                                    <TableHead>Fecha Entrega</TableHead>
+                                    <TableHead className="w-32">Cantidad</TableHead>
+                                    <TableHead>Valoración</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                                    <TableRow key={item.itemCode + item.orderId}>
+                                        <TableCell>{item.description}</TableCell>
+                                        <TableCell>{item.solicita}</TableCell>
+                                        <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
+                                        <TableCell>{item.quantity}</TableCell>
+                                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Hoja Picking</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                    <TableHead>Contenido</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {blockedOrders.length > 0 ? blockedOrders.map(order => (
+                                    <TableRow key={order.sheetId}>
+                                        <TableCell>
+                                            <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
+                                                <Badge variant="secondary">{order.sheetId}</Badge>
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
+                                        <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+
+        {activeModal && renderStatusModal(activeModal)}
+        </Dialog>
+    );
+}
+
+
 

@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 export const osFormSchema = z.object({
@@ -129,6 +130,37 @@ export const proveedorSchema = z.object({
     iban: z.string().optional(),
     formaDePagoHabitual: z.string().optional(),
     tipos: z.array(z.string()).min(1, 'Debes seleccionar al menos un tipo de proveedor.'),
+});
+
+export const pickingSheetItemSchema = z.object({
+  itemCode: z.string(),
+  checked: z.boolean(),
+  pickedQuantity: z.coerce.number(),
+  incidentComment: z.string().optional(),
+  resolved: z.boolean().optional(),
+});
+
+export const pickingSheetSchema = z.object({
+  id: z.string(),
+  osId: z.string(),
+  fechaNecesidad: z.string(),
+  items: z.array(z.any()), // Simplified for now
+  status: z.enum(['Pendiente', 'En Proceso', 'Listo']),
+  itemStates: z.record(z.string(), pickingSheetItemSchema.omit({ itemCode: true })).optional(),
+});
+
+export const returnItemStateSchema = z.object({
+  returnedQuantity: z.coerce.number(),
+  incidentComment: z.string().optional(),
+  isReviewed: z.boolean().optional(),
+});
+
+export const returnSheetSchema = z.object({
+  id: z.string(), // osId
+  osId: z.string(),
+  items: z.array(z.any()), // Simplified for now
+  status: z.enum(['Pendiente', 'Procesando', 'Completado']),
+  itemStates: z.record(z.string(), returnItemStateSchema), // Key is `${orderId}_${itemCode}`
 });
 
 export type CateringItem = {
@@ -811,37 +843,9 @@ export type OrdenFabricacion = {
     consumosReales?: { componenteId: string; cantidadReal: number }[];
 }
 
-export const pickingSheetItemSchema = z.object({
-  itemCode: z.string(),
-  checked: z.boolean(),
-  pickedQuantity: z.coerce.number(),
-  incidentComment: z.string().optional(),
-  resolved: z.boolean().optional(),
-});
-
-export const pickingSheetSchema = z.object({
-  id: z.string(),
-  osId: z.string(),
-  fechaNecesidad: z.string(),
-  items: z.array(z.any()), // Simplified for now
-  status: z.enum(['Pendiente', 'En Proceso', 'Listo']),
-  itemStates: z.record(z.string(), pickingSheetItemSchema.omit({ itemCode: true })).optional(),
-});
 export type PickingItemState = z.infer<typeof pickingSheetItemSchema>;
 export type PickingSheet = z.infer<typeof pickingSheetSchema> & { os?: ServiceOrder, solicita?: 'Sala' | 'Cocina' };
 
-export const returnItemStateSchema = z.object({
-  returnedQuantity: z.coerce.number(),
-  incidentComment: z.string().optional(),
-  isReviewed: z.boolean().optional(),
-});
-export const returnSheetSchema = z.object({
-  id: z.string(), // osId
-  osId: z.string(),
-  items: z.array(z.any()), // Simplified for now
-  status: z.enum(['Pendiente', 'Procesando', 'Completado']),
-  itemStates: z.record(z.string(), returnItemStateSchema), // Key is `${orderId}_${itemCode}`
-});
 export type ReturnItemState = z.infer<typeof returnItemStateSchema>;
 export type ReturnSheet = z.infer<typeof returnSheetSchema> & { os?: ServiceOrder };
 
