@@ -1216,5 +1216,4 @@ export type CierreInventario = {
     valorConsumoTrazado: number;
     valorMermaDesconocida: number;
     valorConsumoNoTrazado: number;
-    snapshotInventario: InventarioSnapshotItem[];
-};
+    snapshotInventario: InventarioSnapshotItem
