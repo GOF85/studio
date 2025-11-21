@@ -38,7 +38,6 @@ const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' 
 };
 
 export function PrevisionServiciosContent() {
-  console.time('PrevisionServiciosContent: render');
   const { data, isLoaded } = useDataStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -61,7 +60,6 @@ export function PrevisionServiciosContent() {
   }, [serviceOrders]);
   
   const filteredAndSortedOrders = useMemo(() => {
-    console.time('PrevisionServiciosContent: useMemo calculation');
     const today = startOfToday();
     
     const filtered = serviceOrders.filter(os => {
@@ -89,9 +87,7 @@ export function PrevisionServiciosContent() {
       return os.vertical !== 'Entregas' && searchMatch && monthMatch && pastEventMatch;
     });
 
-    const result = filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-    console.timeEnd('PrevisionServiciosContent: useMemo calculation');
-    return result;
+    return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   }, [serviceOrders, searchTerm, selectedMonth, showPastEvents]);
 
@@ -99,8 +95,6 @@ export function PrevisionServiciosContent() {
     return <LoadingSkeleton title="Cargando Previsión..." />;
   }
   
-  console.timeEnd('PrevisionServiciosContent: render');
-
   return (
     <main>
       <div className="flex items-center justify-between mb-8">
