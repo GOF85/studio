@@ -78,14 +78,19 @@ function WorkflowSection({ title, modules }: { title: string, modules: (typeof c
 }
 
 export default function CprDashboardPage() {
+    console.time("CprDashboardPage: full render");
     const { data, isLoaded } = useDataStore();
     
     const kpiData = useMemo(() => {
-        if (!isLoaded) return { pendientes: 0, enProceso: 0, finalizadasHoy: 0, incidencias: 0, turnosPorValidar: 0 };
+        console.time("CprDashboardPage: kpi calculation");
+        if (!isLoaded) {
+            console.timeEnd("CprDashboardPage: kpi calculation");
+            return { pendientes: 0, enProceso: 0, finalizadasHoy: 0, incidencias: 0, turnosPorValidar: 0 };
+        }
         
-        const today = new Date();
         const ordenesFabricacion = data.ordenesFabricacion || [];
         const solicitudesPersonalCPR = data.solicitudesPersonalCPR || [];
+        const today = new Date();
         
         const pendientes = ordenesFabricacion.filter(of => of.estado === 'Pendiente' || of.estado === 'Asignada').length;
         const enProceso = ordenesFabricacion.filter(of => of.estado === 'En Proceso').length;
@@ -93,20 +98,22 @@ export default function CprDashboardPage() {
         const incidencias = ordenesFabricacion.filter(of => of.estado === 'Incidencia').length;
         const turnosPorValidar = solicitudesPersonalCPR.filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada').length;
 
-        return { pendientes, enProceso, finalizadasHoy, incidencias, turnosPorValidar };
+        const result = { pendientes, enProceso, finalizadasHoy, incidencias, turnosPorValidar };
+        console.timeEnd("CprDashboardPage: kpi calculation");
+        return result;
     }, [isLoaded, data]);
 
-    if (!isLoaded) {
-        return <LoadingSkeleton title="Cargando Panel de control de Producción..." />;
-    }
-    
     const navSections = {
       planificar: cprNav.filter(item => workflowSections.planificar.modules.includes(item.title)),
       ejecutar: cprNav.filter(item => workflowSections.ejecutar.modules.includes(item.title)),
       analizar: cprNav.filter(item => workflowSections.analizar.modules.includes(item.title))
     };
 
-
+    if (!isLoaded) {
+        return <LoadingSkeleton title="Cargando Panel de control de Producción..." />;
+    }
+    
+    console.timeEnd("CprDashboardPage: full render");
     return (
         <main>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">

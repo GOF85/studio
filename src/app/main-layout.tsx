@@ -17,7 +17,6 @@ export function MainLayout({
   const { isLoaded, loadAllData } = useDataStore();
 
   useEffect(() => {
-    // This effect runs once on initial client-side mount and triggers the global data load.
     loadAllData();
   }, [loadAllData]);
 
