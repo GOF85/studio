@@ -3,7 +3,7 @@
 
 import { Suspense, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { useDataStore, ALL_DATA_KEYS, defaultValuesMap } from '@/hooks/use-data-store';
+import { useDataStore } from '@/hooks/use-data-store';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 export function MainLayout({
@@ -11,26 +11,12 @@ export function MainLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { isLoaded, setData } = useDataStore();
+  const { isLoaded, loadAllData } = useDataStore();
 
   useEffect(() => {
     // This effect runs once on initial client-side mount and triggers the global data load.
-    const loadedData: { [key: string]: any } = {};
-    ALL_DATA_KEYS.forEach(key => {
-        try {
-            const storedValue = localStorage.getItem(key);
-            if (storedValue) {
-                loadedData[key] = JSON.parse(storedValue);
-            } else {
-                loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
-            }
-        } catch(e) {
-            console.warn(`Could not parse key: ${key}. Setting to default.`, e);
-            loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
-        }
-    });
-    setData(loadedData);
-  }, [setData]);
+    loadAllData();
+  }, [loadAllData]);
 
   return (
     <>

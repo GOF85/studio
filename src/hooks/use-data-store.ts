@@ -85,14 +85,8 @@ type DataKeys = keyof DataStoreData;
 type DataStore = {
     data: Partial<DataStoreData>;
     isLoaded: boolean;
-    setData: (data: Partial<DataStoreData>) => void;
+    loadAllData: () => void;
 };
-
-export const useDataStore = create<DataStore>((set) => ({
-    data: {},
-    isLoaded: false,
-    setData: (data) => set({ data, isLoaded: true }),
-}));
 
 export const ALL_DATA_KEYS: DataKeys[] = [
     'serviceOrders', 'entregas', 'comercialBriefings', 'pedidosEntrega', 'gastronomyOrders', 'materialOrders',
@@ -113,3 +107,33 @@ export const defaultValuesMap: { [key in DataKeys]?: any } = {
     ctaRealCosts: {}, ctaComentarios: {}, comercialAjustes: {}, pickingEntregasState: {},
     stockElaboraciones: {}, personalExternoAjustes: {}, stockArticuloUbicacion: {},
 };
+
+
+export const useDataStore = create<DataStore>((set, get) => ({
+    data: {},
+    isLoaded: false,
+    loadAllData: () => {
+        if (get().isLoaded) return;
+        
+        console.time('DataStore: Total Load Time');
+        const loadedData: { [key: string]: any } = {};
+        ALL_DATA_KEYS.forEach(key => {
+            console.time(`DataStore: Load ${key}`);
+            try {
+                const storedValue = localStorage.getItem(key);
+                if (storedValue) {
+                    loadedData[key] = JSON.parse(storedValue);
+                } else {
+                    loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
+                }
+            } catch(e) {
+                console.warn(`Could not parse key: ${key}. Setting to default.`, e);
+                loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
+            }
+             console.timeEnd(`DataStore: Load ${key}`);
+        });
+        console.timeEnd('DataStore: Total Load Time');
+        
+        set({ data: loadedData, isLoaded: true });
+    },
+}));
