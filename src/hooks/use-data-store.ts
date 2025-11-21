@@ -2,7 +2,6 @@
 'use client';
 
 import { create } from 'zustand';
-console.log(`[DEBUG] Module loaded: use-data-store.ts at ${new Date().toLocaleTimeString()}`);
 import type { 
     ServiceOrder, Entrega, ComercialBriefing, PedidoEntrega, GastronomyOrder, MaterialOrder, 
     TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExterno, 
@@ -113,7 +112,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: false,
     loadAllData: async () => {
         if (get().isLoaded || typeof window === 'undefined') return;
-        console.time("[DEBUG] useDataStore: Total data loading");
+
         await Promise.resolve(); 
 
         const loadedData: { [key: string]: any } = {};
@@ -132,4 +131,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
             }
         }
         
-        set({ data: loadedData as
+        set({ data: loadedData as Partial<DataStoreData>, isLoaded: true });
+    },
+}));

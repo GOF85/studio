@@ -7,18 +7,14 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Header } from '@/components/layout/header';
 import { useDataStore } from '@/hooks/use-data-store';
 
-console.log(`[DEBUG] Module loaded: main-layout.tsx at ${new Date().toLocaleTimeString()}`);
-
 export function MainLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  console.log(`[DEBUG] Component rendered: MainLayout at ${new Date().toLocaleTimeString()}`);
   const { isLoaded, loadAllData } = useDataStore();
 
   useEffect(() => {
-    console.log(`[DEBUG] MainLayout useEffect triggered at ${new Date().toLocaleTimeString()}`);
     loadAllData();
   }, [loadAllData]);
 
@@ -42,3 +38,8 @@ export function MainLayout({
               </Suspense>
             </main>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
