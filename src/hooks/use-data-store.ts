@@ -15,6 +15,14 @@ import type {
     AtipicoDBItem, PedidoPlantilla, FormatoExpedicion 
 } from '@/types';
 
+// Performance logging setup
+if (typeof window !== 'undefined' && !(window as any).__PERF_LOG) {
+    (window as any).__PERF_LOG = [];
+}
+const perfLog = (context: string, step: string, time: number) => {
+    (window as any).__PERF_LOG.push({ context, step, time });
+};
+
 type DataStoreData = {
     serviceOrders: ServiceOrder[];
     entregas: Entrega[];
@@ -114,26 +122,32 @@ export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: false,
     loadAllData: () => {
         if (get().isLoaded || typeof window === 'undefined') return;
+        
+        const totalStart = performance.now();
+        (window as any).__PERF_LOG = []; // Clear log on each load
 
-        // Use setTimeout to make the data loading asynchronous
-        setTimeout(() => {
-            const loadedData: { [key: string]: any } = {};
-            
-            ALL_DATA_KEYS.forEach(key => {
-                try {
-                    const storedValue = localStorage.getItem(key);
-                    if (storedValue) {
-                        loadedData[key] = JSON.parse(storedValue);
-                    } else {
-                        loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
-                    }
-                } catch(e) {
-                    console.warn(`Could not parse key: ${key}. Setting to default.`, e);
+        const loadedData: { [key: string]: any } = {};
+        
+        ALL_DATA_KEYS.forEach(key => {
+            const keyStart = performance.now();
+            try {
+                const storedValue = localStorage.getItem(key);
+                if (storedValue) {
+                    loadedData[key] = JSON.parse(storedValue);
+                } else {
                     loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
                 }
-            });
-            
-            set({ data: loadedData, isLoaded: true });
-        }, 0);
+            } catch(e) {
+                console.warn(`Could not parse key: ${key}. Setting to default.`, e);
+                loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
+            }
+            const keyEnd = performance.now();
+            perfLog('useDataStore', `load(${key})`, keyEnd - keyStart);
+        });
+        
+        set({ data: loadedData, isLoaded: true });
+        
+        const totalEnd = performance.now();
+        perfLog('useDataStore', 'loadAllData (Total)', totalEnd - totalStart);
     },
 }));
