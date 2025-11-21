@@ -1,8 +1,7 @@
-
 'use client';
 
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useState, useEffect, useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';

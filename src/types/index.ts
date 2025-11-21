@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 
 export const osFormSchema = z.object({
@@ -1218,3 +1217,6 @@ export type CierreInventario = {
     valorConsumoNoTrazado: number;
     snapshotInventario: InventarioSnapshotItem[]
 }
+
+// Ensure MaterialOrderType is exported
+export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';

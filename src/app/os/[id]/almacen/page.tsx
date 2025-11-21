@@ -17,6 +17,7 @@ import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { useDataStore } from '@/hooks/use-data-store';
 import { useParams } from 'next/navigation';
+import { useOsContext } from '../os-context';
 
 
 type ItemWithOrderInfo = OrderItem & {
@@ -124,7 +125,7 @@ export default function AlmacenPage() {
         const emptyResult = { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] } };
         if (!isLoaded || !osId) return emptyResult;
 
-        const { materialOrders = [], pickingSheets = {}, returnSheets = {} } = data;
+        const { materialOrders = [], pickingSheets = {} } = data;
 
         const relatedOrders = materialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
         const relatedPickingSheets = Object.values(pickingSheets).filter(sheet => sheet.osId === osId);
@@ -362,5 +363,6 @@ export default function AlmacenPage() {
         </Dialog>
     );
 }
+
 
 

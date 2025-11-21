@@ -1,8 +1,6 @@
-
-
 'use client';
 
-import { Database, Users, Package, Building, Layers, Box, Percent, Target, Factory, CreditCard, Banknote, Trash2, UserPlus, MapPin, History } from 'lucide-react';
+import { Database, Users, Package, Building, Layers, Box, Percent, Target, Factory, CreditCard, Banknote, Trash2, UserPlus, MapPin, History, BookHeart } from 'lucide-react';
 
 export const bdNavLinks = [
     { title: 'Personal Interno', href: '/bd/personal', icon: Users },
@@ -19,4 +17,3 @@ export const bdNavLinks = [
     { title: 'Objetivos CPR', href: '/bd/objetivos-cpr', icon: CreditCard },
     { title: 'Administración', href: '/bd/borrar', icon: Trash2 },
 ];
-

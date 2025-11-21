@@ -1,9 +1,10 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Header } from '@/components/layout/header';
+import { useDataStore } from '@/hooks/use-data-store';
 
 
 export function MainLayout({
@@ -11,6 +12,16 @@ export function MainLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { isLoaded, loadAllData } = useDataStore();
+
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
+
+
+  if (!isLoaded) {
+    return <LoadingSkeleton title="Cargando datos de la aplicación..." />;
+  }
 
   return (
     <div className="relative flex min-h-screen flex-col">

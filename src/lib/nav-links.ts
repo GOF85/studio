@@ -1,8 +1,11 @@
-
 'use client';
 
 import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart } from 'lucide-react';
-import { cprNav, bookNavLinks, bdNavLinks, rrhhNav } from './cpr-nav';
+import { cprNav } from './cpr-nav';
+import { bookNavLinks } from './book-nav';
+import { bdNavLinks } from './bd-nav';
+import { rrhhNav } from './rrhh-nav';
+
 
 export const mainNav = [
     { title: 'Previsión de Servicios', href: '/pes', icon: ClipboardList, exact: true },
