@@ -2,6 +2,7 @@
 'use client';
 
 import { create } from 'zustand';
+console.log(`[DEBUG] Module loaded: use-data-store.ts at ${new Date().toLocaleTimeString()}`);
 import type { 
     ServiceOrder, Entrega, ComercialBriefing, PedidoEntrega, GastronomyOrder, MaterialOrder, 
     TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExterno, 
@@ -112,10 +113,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: false,
     loadAllData: async () => {
         if (get().isLoaded || typeof window === 'undefined') return;
-
-        // Use Promise.all to read from localStorage asynchronously (in concept)
-        // Although localStorage itself is synchronous, this structure is more scalable
-        // and prevents the main thread from being blocked if we switch to an async storage later.
+        console.time("[DEBUG] useDataStore: Total data loading");
         await Promise.resolve(); 
 
         const loadedData: { [key: string]: any } = {};
@@ -134,6 +132,4 @@ export const useDataStore = create<DataStore>((set, get) => ({
             }
         }
         
-        set({ data: loadedData as Partial<DataStoreData>, isLoaded: true });
-    },
-}));
+        set({ data: loadedData as

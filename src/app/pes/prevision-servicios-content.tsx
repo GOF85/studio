@@ -30,6 +30,8 @@ import { es } from 'date-fns/locale';
 import { LoadingSkeleton } from '../layout/loading-skeleton';
 import { useDataStore } from '@/hooks/use-data-store';
 
+console.log(`[DEBUG] Module loaded: prevision-servicios-content.tsx at ${new Date().toLocaleTimeString()}`);
+
 const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   Borrador: 'secondary',
   Pendiente: 'outline',
@@ -38,6 +40,7 @@ const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' 
 };
 
 export function PrevisionServiciosContent() {
+  console.log(`[DEBUG] Component rendered: PrevisionServiciosContent at ${new Date().toLocaleTimeString()}`);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
@@ -60,6 +63,7 @@ export function PrevisionServiciosContent() {
   }, [serviceOrders]);
   
   const filteredAndSortedOrders = useMemo(() => {
+    console.time("[DEBUG] PrevisionServiciosContent: useMemo calculation");
     const today = startOfToday();
     
     const filtered = serviceOrders.filter(os => {
@@ -86,6 +90,7 @@ export function PrevisionServiciosContent() {
 
       return os.vertical !== 'Entregas' && searchMatch && monthMatch && pastEventMatch;
     });
+    console.timeEnd("[DEBUG] PrevisionServiciosContent: useMemo calculation");
 
     return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
@@ -95,7 +100,8 @@ export function PrevisionServiciosContent() {
     return <LoadingSkeleton title="Cargando Previsión..." />;
   }
   
-  return (
+  console.time("[DEBUG] PrevisionServiciosContent: render");
+  const component = (
     <main>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
@@ -184,6 +190,4 @@ export function PrevisionServiciosContent() {
           </TableBody>
         </Table>
       </div>
-    </main>
-  );
-}
+    </

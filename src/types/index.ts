@@ -1,166 +1,12 @@
 import { z } from "zod";
+console.log(`[DEBUG] Module loaded: types/index.ts at ${new Date().toLocaleTimeString()}`);
+import { osFormSchema } from "@/app/os/[id]/info/page";
+import { personalFormSchema } from "@/app/personal/nuevo/page";
+import { pickingSheetSchema, returnSheetSchema, pickingSheetItemSchema, returnItemStateSchema } from '@/app/os/[id]/almacen/page';
+import { personalMiceSchema } from '@/app/os/personal-mice/page';
+import { personalExternoSchema } from '@/app/os/personal-externo/page';
+import { articuloErpSchema, familiaERPSchema, tipoPersonalSchema, proveedorSchema } from '@/app/bd/schemas';
 
-export const osFormSchema = z.object({
-  id: z.string().min(1),
-  serviceNumber: z.string().min(1, 'El Nº de Servicio es obligatorio'),
-  startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
-  client: z.string().min(1, 'El cliente es obligatorio.'),
-  tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
-  asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
-  cateringVertical: z.enum(['Recurrente', 'Grandes Eventos', 'Gran Cuenta'], { required_error: 'La vertical de catering es obligatoria.' }),
-  contact: z.string().optional().default(''),
-  phone: z.string().optional().default(''),
-  finalClient: z.string().optional().default(''),
-  endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
-  space: z.string().optional().default(''),
-  spaceAddress: z.string().optional().default(''),
-  spaceContact: z.string().optional().default(''),
-  spacePhone: z.string().optional().default(''),
-  spaceMail: z.string().email().optional().or(z.literal('')),
-  respMetre: z.string().optional().default(''),
-  respMetrePhone: z.string().optional().default(''),
-  respMetreMail: z.string().email().optional().or(z.literal('')),
-  respCocinaCPR: z.string().optional().default(''),
-  respCocinaCPRPhone: z.string().optional().default(''),
-  respCocinaCPRMail: z.string().email().optional().or(z.literal('')),
-  respPase: z.string().optional().default(''),
-  respPasePhone: z.string().optional().default(''),
-  respPaseMail: z.string().email().optional().or(z.literal('')),
-  respCocinaPase: z.string().optional().default(''),
-  respCocinaPasePhone: z.string().optional().default(''),
-  respCocinaPaseMail: z.string().email().optional().or(z.literal('')),
-  respProjectManager: z.string().optional().default(''),
-  respProjectManagerPhone: z.string().optional().default(''),
-  respProjectManagerMail: z.string().email().optional().or(z.literal('')),
-  comercialAsiste: z.boolean().optional().default(false),
-  comercial: z.string().optional().default(''),
-  comercialPhone: z.string().optional().default(''),
-  comercialMail: z.string().email().optional().or(z.literal('')),
-  rrhhAsiste: z.boolean().optional().default(false),
-  respRRHH: z.string().optional().default(''),
-  respRRHHPhone: z.string().optional().default(''),
-  respRRHHMail: z.string().email().optional().or(z.literal('')),
-  agencyPercentage: z.coerce.number().optional().default(0),
-  agencyCommissionValue: z.coerce.number().optional().default(0),
-  spacePercentage: z.coerce.number().optional().default(0),
-  spaceCommissionValue: z.coerce.number().optional().default(0),
-  comisionesAgencia: z.coerce.number().optional().default(0),
-  comisionesCanon: z.coerce.number().optional().default(0),
-  facturacion: z.coerce.number().optional().default(0),
-  plane: z.string().optional().default(''),
-  comments: z.string().optional().default(''),
-  status: z.enum(['Borrador', 'Pendiente', 'Confirmado', 'Anulado']).default('Borrador'),
-  anulacionMotivo: z.string().optional(),
-  deliveryLocations: z.array(z.string()).optional().default([]),
-  objetivoGastoId: z.string().optional(),
-  direccionPrincipal: z.string().optional().default(''),
-  isVip: z.boolean().optional().default(false),
-  email: z.string().email().optional().or(z.literal('')),
-});
-
-export const personalFormSchema = z.object({
-  id: z.string().min(1, 'El DNI es obligatorio'),
-  nombre: z.string().min(1, 'El nombre es obligatorio'),
-  apellido1: z.string().min(1, 'El primer apellido es obligatorio'),
-  apellido2: z.string().optional().default(''),
-  iniciales: z.string().optional(),
-  departamento: z.string().min(1, 'El departamento es obligatorio'),
-  categoria: z.string().min(1, 'La categoría es obligatoria'),
-  telefono: z.string().optional().default(''),
-  email: z.string().email('Debe ser un email válido'),
-  precioHora: z.coerce.number().min(0, 'El precio por hora no puede ser negativo'),
-});
-
-export const articuloErpSchema = z.object({
-  id: z.string(),
-  idreferenciaerp: z.string().optional(),
-  idProveedor: z.string().optional(),
-  nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
-  referenciaProveedor: z.string().optional(),
-  nombreProveedor: z.string().optional(),
-  familiaCategoria: z.string().optional(),
-  precioCompra: z.coerce.number().min(0, "Debe ser un valor positivo."),
-  descuento: z.coerce.number().min(0).max(100).optional(),
-  unidadConversion: z.coerce.number().min(1).default(1),
-  precio: z.coerce.number().min(0),
-  precioAlquiler: z.coerce.number().min(0).optional(),
-  unidad: z.enum(['KG', 'L', 'UD']),
-  tipo: z.string().optional(),
-  categoriaMice: z.string().optional(),
-  alquiler: z.boolean().default(false),
-  observaciones: z.string().optional(),
-  loc: z.string().optional(),
-  gestionLote: z.boolean().default(false),
-  stockMinimo: z.coerce.number().optional(),
-  proveedorPreferenteId: z.string().optional(),
-});
-
-export const familiaERPSchema = z.object({
-  id: z.string(),
-  familiaCategoria: z.string().min(1, 'El código de familia es obligatorio.'),
-  Familia: z.string().min(1, 'El nombre de la familia es obligatorio.'),
-  Categoria: z.string().optional(),
-});
-
-export const tipoPersonalSchema = z.object({
-  id: z.string(),
-  proveedorId: z.string().min(1, 'El proveedor es obligatorio'),
-  nombreProveedor: z.string(),
-  categoria: z.string().min(1, 'La categoría es obligatoria'),
-  precioHora: z.coerce.number().min(0, "El precio debe ser positivo"),
-});
-
-export const TIPO_PROVEEDOR_OPCIONES = ['Transporte', 'Hielo', 'Gastronomia', 'Personal', 'Atipicos', 'Decoracion', 'Servicios', 'Otros', 'Alquiler'] as const;
-export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
-
-export const proveedorSchema = z.object({
-    id: z.string(),
-    cif: z.string().min(1, 'El CIF/NIF es obligatorio.'),
-    IdERP: z.string().optional(),
-    nombreEmpresa: z.string().min(1, 'El nombre fiscal es obligatorio.'),
-    nombreComercial: z.string().optional(),
-    direccionFacturacion: z.string().optional(),
-    codigoPostal: z.string().optional(),
-    ciudad: z.string().optional(),
-    provincia: z.string().optional(),
-    pais: z.string().optional(),
-    emailContacto: z.string().email('Debe ser un email válido.'),
-    telefonoContacto: z.string().optional(),
-    iban: z.string().optional(),
-    formaDePagoHabitual: z.string().optional(),
-    tipos: z.array(z.string()).min(1, 'Debes seleccionar al menos un tipo de proveedor.'),
-});
-
-export const pickingSheetItemSchema = z.object({
-  itemCode: z.string(),
-  checked: z.boolean(),
-  pickedQuantity: z.coerce.number(),
-  incidentComment: z.string().optional(),
-  resolved: z.boolean().optional(),
-});
-
-export const pickingSheetSchema = z.object({
-  id: z.string(),
-  osId: z.string(),
-  fechaNecesidad: z.string(),
-  items: z.array(z.any()), // Simplified for now
-  status: z.enum(['Pendiente', 'En Proceso', 'Listo']),
-  itemStates: z.record(z.string(), pickingSheetItemSchema.omit({ itemCode: true })).optional(),
-});
-
-export const returnItemStateSchema = z.object({
-  returnedQuantity: z.coerce.number(),
-  incidentComment: z.string().optional(),
-  isReviewed: z.boolean().optional(),
-});
-
-export const returnSheetSchema = z.object({
-  id: z.string(), // osId
-  osId: z.string(),
-  items: z.array(z.any()), // Simplified for now
-  status: z.enum(['Pendiente', 'Procesando', 'Completado']),
-  itemStates: z.record(z.string(), returnItemStateSchema), // Key is `${orderId}_${itemCode}`
-});
 
 export type CateringItem = {
   itemCode: string;
@@ -577,19 +423,7 @@ export type AtipicoOrder = {
   status: 'Pendiente' | 'Aprobado' | 'Rechazado';
 };
 
-export type PersonalMiceOrder = {
-    id: string;
-    osId: string;
-    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
-    nombre: string;
-    dni: string;
-    tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
-    horaEntrada: string;
-    horaSalida: string;
-    precioHora: number;
-    horaEntradaReal: string;
-    horaSalidaReal: string;
-}
+export type PersonalMiceOrder = z.infer<typeof personalMiceSchema>;
 
 export type AsignacionPersonal = {
   id: string; // DNI del trabajador
@@ -605,21 +439,7 @@ export type AsignacionPersonal = {
   idPersonal: string; // ID del registro de personal externo
 };
 
-export type PersonalExternoTurno = {
-  id: string;
-  proveedorId: string;
-  categoria: string;
-  precioHora: number;
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string;
-  solicitadoPor: 'Sala' | 'Pase' | 'Otro';
-  tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
-  observaciones?: string;
-  statusPartner: 'Pendiente Asignación' | 'Gestionado';
-  asignaciones?: AsignacionPersonal[];
-  requiereActualizacion?: boolean;
-};
+export type PersonalExternoTurno = z.infer<typeof personalExternoSchema>;
 
 export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
 export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
@@ -1220,3 +1040,5 @@ export type CierreInventario = {
 
 // Ensure MaterialOrderType is exported
 export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
+
+export { osFormSchema, personalFormSchema };
