@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -27,7 +26,6 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { format, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useDataStore } from '@/hooks/use-data-store';
 import { LoadingSkeleton } from '../layout/loading-skeleton';
 
 const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
@@ -38,12 +36,19 @@ const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' 
 };
 
 export function PrevisionServiciosContent() {
-  const { data, isLoaded } = useDataStore();
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
   
-  const serviceOrders = data.serviceOrders || [];
+  useEffect(() => {
+    console.time("[DEBUG] PrevisionServiciosContent: localStorage read");
+    const storedData = localStorage.getItem('serviceOrders');
+    setServiceOrders(storedData ? JSON.parse(storedData) : []);
+    console.timeEnd("[DEBUG] PrevisionServiciosContent: localStorage read");
+    setIsMounted(true);
+  }, []);
 
   const availableMonths = useMemo(() => {
     if (!serviceOrders) return ['all'];
@@ -60,6 +65,7 @@ export function PrevisionServiciosContent() {
   }, [serviceOrders]);
   
   const filteredAndSortedOrders = useMemo(() => {
+    console.time("[DEBUG] PrevisionServiciosContent: useMemo calculation");
     const today = startOfToday();
     
     const filtered = serviceOrders.filter(os => {
@@ -86,16 +92,18 @@ export function PrevisionServiciosContent() {
 
       return os.vertical !== 'Entregas' && searchMatch && monthMatch && pastEventMatch;
     });
+    console.timeEnd("[DEBUG] PrevisionServiciosContent: useMemo calculation");
 
     return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   }, [serviceOrders, searchTerm, selectedMonth, showPastEvents]);
 
-  if (!isLoaded) {
+  if (!isMounted) {
     return <LoadingSkeleton title="Cargando Previsión..." />;
   }
   
-  return (
+  console.time("[DEBUG] PrevisionServiciosContent: render");
+  const component = (
     <main>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
@@ -186,4 +194,6 @@ export function PrevisionServiciosContent() {
       </div>
     </main>
   );
+  console.timeEnd("[DEBUG] PrevisionServiciosContent: render");
+  return component;
 }

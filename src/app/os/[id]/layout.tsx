@@ -1,12 +1,10 @@
 
 'use client';
 
-import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
-import type { ServiceOrder, Entrega } from '@/types';
+import type { ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,8 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { format, differenceInDays } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useDataStore } from '@/hooks/use-data-store';
-
+import { cn } from '@/lib/utils';
+import { OsContextProvider, useOsContext } from './os-context';
 
 type NavLink = {
     path: string;
@@ -59,23 +57,9 @@ const getInitials = (name: string) => {
     return name.substring(0, 2).toUpperCase();
 }
 
-function OsHeaderContent({ osId }: { osId: string;}) {
+function OsHeaderContent() {
     const pathname = usePathname();
-    const { data, isLoaded } = useDataStore();
-    const [updateKey, setUpdateKey] = useState(Date.now());
-    
-    const serviceOrder = useMemo(() => {
-        if (!isLoaded || !data.serviceOrders) return null;
-        return data.serviceOrders.find(os => os.id === osId) || null;
-    }, [isLoaded, data.serviceOrders, osId, updateKey]);
-
-    useEffect(() => {
-        const handleStorageChange = () => {
-            setUpdateKey(Date.now());
-        };
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, []);
+    const { serviceOrder, isLoading, updateKey } = useOsContext();
     
     const {currentModule, isSubPage} = useMemo(() => {
         const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['os', '123', 'gastronomia', '456']
@@ -96,7 +80,7 @@ function OsHeaderContent({ osId }: { osId: string;}) {
         return { currentModule: { title: 'Panel de Control', icon: LayoutDashboard, path: '' }, isSubPage: false };
     }, [pathname]);
 
-    if (!isLoaded || !serviceOrder) {
+    if (isLoading || !serviceOrder) {
         return (
              <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3">
@@ -126,14 +110,14 @@ function OsHeaderContent({ osId }: { osId: string;}) {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Link href={`/os/${osId}`} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                    <Link href={`/os/${serviceOrder.id}`} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
                         <ClipboardList className="h-5 w-5"/>
                         <span>{serviceOrder.serviceNumber}</span>
                     </Link>
                     {currentModule && (
                         <>
                          <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                         <Link href={`/os/${osId}/${currentModule.path}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                         <Link href={`/os/${serviceOrder.id}/${currentModule.path}`} className="flex items-center gap-2 hover:text-primary transition-colors">
                             <currentModule.icon className="h-5 w-5"/>
                             <span>{currentModule.title}</span>
                          </Link>
@@ -150,7 +134,7 @@ function OsHeaderContent({ osId }: { osId: string;}) {
                     )}
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  {(currentModule?.moduleName) && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
+                  {(currentModule?.moduleName) && <ObjectiveDisplay osId={serviceOrder.id} moduleName={currentModule.moduleName} updateKey={updateKey} />}
                   {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
                 </div>
               </div>
@@ -185,7 +169,7 @@ function OsHeaderContent({ osId }: { osId: string;}) {
     );
 }
 
-export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
+function OSDetailsLayoutContent({ children }: { children: React.ReactNode }) {
     const params = useParams();
     const pathname = usePathname();
     const osId = params.id as string;
@@ -232,7 +216,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                       </SheetContent>
                   </Sheet>
                   <div className="flex-grow">
-                      <OsHeaderContent osId={osId} />
+                      <OsHeaderContent />
                   </div>
               </div>
           </div>
@@ -241,4 +225,15 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
           </main>
       </div>
     );
+}
+
+export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
+    const params = useParams();
+    const osId = params.id as string;
+    
+    return (
+        <OsContextProvider osId={osId}>
+            <OSDetailsLayoutContent>{children}</OSDetailsLayoutContent>
+        </OsContextProvider>
+    )
 }

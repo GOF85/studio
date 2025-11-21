@@ -2,6 +2,103 @@
 
 import { z } from "zod";
 
+export const osFormSchema = z.object({
+  id: z.string().min(1),
+  serviceNumber: z.string().min(1, 'El Nº de Servicio es obligatorio'),
+  startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
+  client: z.string().min(1, 'El cliente es obligatorio.'),
+  tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
+  asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
+  cateringVertical: z.enum(['Recurrente', 'Grandes Eventos', 'Gran Cuenta'], { required_error: 'La vertical de catering es obligatoria.' }),
+  contact: z.string().optional().default(''),
+  phone: z.string().optional().default(''),
+  finalClient: z.string().optional().default(''),
+  endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
+  space: z.string().optional().default(''),
+  spaceAddress: z.string().optional().default(''),
+  spaceContact: z.string().optional().default(''),
+  spacePhone: z.string().optional().default(''),
+  spaceMail: z.string().email().optional().or(z.literal('')),
+  respMetre: z.string().optional().default(''),
+  respMetrePhone: z.string().optional().default(''),
+  respMetreMail: z.string().email().optional().or(z.literal('')),
+  respCocinaCPR: z.string().optional().default(''),
+  respCocinaCPRPhone: z.string().optional().default(''),
+  respCocinaCPRMail: z.string().email().optional().or(z.literal('')),
+  respPase: z.string().optional().default(''),
+  respPasePhone: z.string().optional().default(''),
+  respPaseMail: z.string().email().optional().or(z.literal('')),
+  respCocinaPase: z.string().optional().default(''),
+  respCocinaPasePhone: z.string().optional().default(''),
+  respCocinaPaseMail: z.string().email().optional().or(z.literal('')),
+  respProjectManager: z.string().optional().default(''),
+  respProjectManagerPhone: z.string().optional().default(''),
+  respProjectManagerMail: z.string().email().optional().or(z.literal('')),
+  comercialAsiste: z.boolean().optional().default(false),
+  comercial: z.string().optional().default(''),
+  comercialPhone: z.string().optional().default(''),
+  comercialMail: z.string().email().optional().or(z.literal('')),
+  rrhhAsiste: z.boolean().optional().default(false),
+  respRRHH: z.string().optional().default(''),
+  respRRHHPhone: z.string().optional().default(''),
+  respRRHHMail: z.string().email().optional().or(z.literal('')),
+  agencyPercentage: z.coerce.number().optional().default(0),
+  agencyCommissionValue: z.coerce.number().optional().default(0),
+  spacePercentage: z.coerce.number().optional().default(0),
+  spaceCommissionValue: z.coerce.number().optional().default(0),
+  comisionesAgencia: z.coerce.number().optional().default(0),
+  comisionesCanon: z.coerce.number().optional().default(0),
+  facturacion: z.coerce.number().optional().default(0),
+  plane: z.string().optional().default(''),
+  comments: z.string().optional().default(''),
+  status: z.enum(['Borrador', 'Pendiente', 'Confirmado', 'Anulado']).default('Borrador'),
+  anulacionMotivo: z.string().optional(),
+  deliveryLocations: z.array(z.string()).optional().default([]),
+  objetivoGastoId: z.string().optional(),
+  direccionPrincipal: z.string().optional().default(''),
+  isVip: z.boolean().optional().default(false),
+  email: z.string().email().optional().or(z.literal('')),
+});
+
+export const personalFormSchema = z.object({
+  id: z.string().min(1, 'El DNI es obligatorio'),
+  nombre: z.string().min(1, 'El nombre es obligatorio'),
+  apellido1: z.string().min(1, 'El primer apellido es obligatorio'),
+  apellido2: z.string().optional().default(''),
+  iniciales: z.string().optional(),
+  departamento: z.string().min(1, 'El departamento es obligatorio'),
+  categoria: z.string().min(1, 'La categoría es obligatoria'),
+  telefono: z.string().optional().default(''),
+  email: z.string().email('Debe ser un email válido'),
+  precioHora: z.coerce.number().min(0, 'El precio por hora no puede ser negativo'),
+});
+
+
+export const articuloErpSchema = z.object({
+  id: z.string(),
+  idreferenciaerp: z.string().optional(),
+  idProveedor: z.string().optional(),
+  nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
+  referenciaProveedor: z.string().optional(),
+  nombreProveedor: z.string().optional(),
+  familiaCategoria: z.string().optional(),
+  precioCompra: z.coerce.number().min(0, "Debe ser un valor positivo."),
+  descuento: z.coerce.number().min(0).max(100).optional(),
+  unidadConversion: z.coerce.number().min(1).default(1),
+  precio: z.coerce.number().min(0),
+  precioAlquiler: z.coerce.number().min(0).optional(),
+  unidad: z.enum(['KG', 'L', 'UD']),
+  tipo: z.string().optional(),
+  categoriaMice: z.string().optional(),
+  alquiler: z.boolean().default(false),
+  observaciones: z.string().optional(),
+  loc: z.string().optional(),
+  gestionLote: z.boolean().default(false),
+  stockMinimo: z.coerce.number().optional(),
+  proveedorPreferenteId: z.string().optional(),
+});
+
+
 export type CateringItem = {
   itemCode: string;
   description: string;
@@ -40,65 +137,10 @@ export type OrderCompletionAssistantOutput = {
 export const CATERING_VERTICALES = ['Recurrente', 'Grandes Eventos', 'Gran Cuenta'] as const;
 export type CateringVertical = typeof CATERING_VERTICALES[number];
 
-export type ServiceOrder = {
-    id: string;
-    serviceNumber: string;
-    startDate: string;
-    endDate: string;
-    client: string;
-    tipoCliente?: 'Empresa' | 'Agencia' | 'Particular';
-    finalClient: string;
-    contact: string;
-    phone: string;
-    asistentes: number;
-    cateringVertical?: CateringVertical;
-    space: string;
-    spaceAddress: string;
-    spaceContact: string;
-    spacePhone: string;
-    spaceMail: string;
-    respMetre: string;
-    respMetrePhone: string;
-    respMetreMail: string;
-    respCocinaCPR: string;
-    respCocinaCPRPhone: string;
-    respCocinaCPRMail: string;
-    respPase: string;
-    respPasePhone: string;
-    respPaseMail: string;
-    respCocinaPase: string;
-    respCocinaPasePhone: string;
-    respCocinaPaseMail: string;
-    comercialAsiste: boolean;
-    comercial: string;
-    comercialPhone: string;
-    comercialMail: string;
-    rrhhAsiste: boolean;
-    respRRHH: string;
-    respRRHHPhone: string;
-    respRRHHMail: string;
-    agencyPercentage: number;
-    agencyCommissionValue?: number;
-    spacePercentage: number;
-    spaceCommissionValue?: number;
-    comisionesAgencia?: number;
-    comisionesCanon?: number;
-    facturacion: number;
-    plane: string;
-    comments: string;
-    status: 'Borrador' | 'Pendiente' | 'Confirmado' | 'Anulado';
-    anulacionMotivo?: string;
-    deliveryTime?: string;
-    deliveryLocations?: string[];
-    objetivoGastoId?: string;
+export type ServiceOrder = z.infer<typeof osFormSchema> & {
     vertical?: 'Catering' | 'Entregas';
-    direccionPrincipal?: string;
-    isVip?: boolean;
-    email?: string;
-    respProjectManager?: string;
-    respProjectManagerPhone?: string;
-    respProjectManagerMail?: string;
 };
+
 
 export type MaterialOrder = {
     id: string;
@@ -592,30 +634,6 @@ export type Precio = {
 
 export const UNIDADES_MEDIDA = ['KG', 'L', 'UD'] as const;
 export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
-
-export const articuloErpSchema = z.object({
-  id: z.string(),
-  idreferenciaerp: z.string().optional(),
-  idProveedor: z.string().optional(),
-  nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
-  referenciaProveedor: z.string().optional(),
-  nombreProveedor: z.string().optional(),
-  familiaCategoria: z.string().optional(),
-  precioCompra: z.coerce.number().min(0, "Debe ser un valor positivo."),
-  descuento: z.coerce.number().min(0).max(100).optional(),
-  unidadConversion: z.coerce.number().min(1).default(1),
-  precio: z.coerce.number().min(0),
-  precioAlquiler: z.coerce.number().min(0).optional(),
-  unidad: z.enum(UNIDADES_MEDIDA),
-  tipo: z.string().optional(),
-  categoriaMice: z.string().optional(),
-  alquiler: z.boolean().default(false),
-  observaciones: z.string().optional(),
-  loc: z.string().optional(),
-  gestionLote: z.boolean().default(false),
-  stockMinimo: z.coerce.number().optional(),
-  proveedorPreferenteId: z.string().optional(),
-});
 
 export type ArticuloERP = z.infer<typeof articuloErpSchema>;
 
@@ -1171,6 +1189,4 @@ export type CierreInventario = {
     valorConsumoTrazado: number;
     valorMermaDesconocida: number;
     valorConsumoNoTrazado: number;
-    snapshotInventario?: InventarioSnapshotItem[];
-};
     

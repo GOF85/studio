@@ -1,4 +1,3 @@
-
 'use client';
 
 import { create } from 'zustand';
@@ -84,7 +83,7 @@ type DataKeys = keyof DataStoreData;
 type DataStore = {
     data: Partial<DataStoreData>;
     isLoaded: boolean;
-    loadAllData: () => void;
+    loadAllData: () => Promise<void>;
 };
 
 export const ALL_DATA_KEYS: DataKeys[] = [
@@ -110,31 +109,27 @@ export const defaultValuesMap: { [key in DataKeys]?: any } = {
 export const useDataStore = create<DataStore>((set, get) => ({
     data: {},
     isLoaded: false,
-    loadAllData: () => {
+    loadAllData: async () => {
         if (get().isLoaded || typeof window === 'undefined') return;
 
-        // Use a promise to ensure this is async and doesn't block the main thread.
-        new Promise<Partial<DataStoreData>>(resolve => {
-            console.time("[DEBUG] useDataStore: Total data loading");
-            const loadedData: { [key: string]: any } = {};
-            
-            ALL_DATA_KEYS.forEach(key => {
-                try {
-                    const storedValue = localStorage.getItem(key);
-                    if (storedValue) {
-                        loadedData[key] = JSON.parse(storedValue);
-                    } else {
-                        loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
-                    }
-                } catch(e) {
-                    console.warn(`Could not parse key: ${key}. Setting to default.`, e);
+        console.time("[DEBUG] useDataStore: Total data loading");
+        const loadedData: { [key: string]: any } = {};
+        
+        for (const key of ALL_DATA_KEYS) {
+            try {
+                const storedValue = localStorage.getItem(key);
+                if (storedValue) {
+                    loadedData[key] = JSON.parse(storedValue);
+                } else {
                     loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
                 }
-            });
-            console.timeEnd("[DEBUG] useDataStore: Total data loading");
-            resolve(loadedData as Partial<DataStoreData>);
-        }).then(loadedData => {
-            set({ data: loadedData, isLoaded: true });
-        });
+            } catch(e) {
+                console.warn(`Could not parse key: ${key}. Setting to default.`, e);
+                loadedData[key] = defaultValuesMap[key as keyof typeof defaultValuesMap] ?? [];
+            }
+        }
+        console.timeEnd("[DEBUG] useDataStore: Total data loading");
+        
+        set({ data: loadedData as Partial<DataStoreData>, isLoaded: true });
     },
 }));

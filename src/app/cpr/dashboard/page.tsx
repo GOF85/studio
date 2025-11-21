@@ -12,7 +12,7 @@ import { Factory, AlertTriangle, List, Clock, CheckCircle, UserCheck } from 'luc
 import { isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { OrdenFabricacion, SolicitudPersonalCPR } from '@/types';
-import { useDataStore } from '@/hooks/use-data-store';
+
 
 const workflowSections = {
   planificar: {
@@ -77,29 +77,32 @@ function WorkflowSection({ title, modules }: { title: string, modules: (typeof c
 }
 
 export default function CprDashboardPage() {
-    const { data, isLoaded } = useDataStore();
+    const [isMounted, setIsMounted] = useState(false);
+    const [kpiData, setKpiData] = useState({
+        pendientes: 0,
+        enProceso: 0,
+        finalizadasHoy: 0,
+        incidencias: 0,
+        turnosPorValidar: 0,
+    });
 
-    const kpiData = useMemo(() => {
-        console.time("[DEBUG] CprDashboardPage: KPI Calculation");
-        if (!isLoaded || !data.ordenesFabricacion || !data.solicitudesPersonalCPR) {
-          return { pendientes: 0, enProceso: 0, finalizadasHoy: 0, incidencias: 0, turnosPorValidar: 0 };
-        }
-
-        const storedOFs = data.ordenesFabricacion;
-        const storedSolicitudes = data.solicitudesPersonalCPR.filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada');
-        
+    useEffect(() => {
+        console.time("[DEBUG] CprDashboardPage: Data processing");
+        const storedOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
         const today = new Date();
         
-        const kpis = {
-          pendientes: storedOFs.filter(of => of.estado === 'Pendiente' || of.estado === 'Asignada').length,
-          enProceso: storedOFs.filter(of => of.estado === 'En Proceso').length,
-          finalizadasHoy: storedOFs.filter(of => of.fechaFinalizacion && isToday(parseISO(of.fechaFinalizacion))).length,
-          incidencias: storedOFs.filter(of => of.estado === 'Incidencia').length,
-          turnosPorValidar: storedSolicitudes.length
-        };
-        console.timeEnd("[DEBUG] CprDashboardPage: KPI Calculation");
-        return kpis;
-    }, [isLoaded, data]);
+        const pendientes = storedOFs.filter(of => of.estado === 'Pendiente' || of.estado === 'Asignada').length;
+        const enProceso = storedOFs.filter(of => of.estado === 'En Proceso').length;
+        const finalizadasHoy = storedOFs.filter(of => of.fechaFinalizacion && isToday(parseISO(of.fechaFinalizacion))).length;
+        const incidencias = storedOFs.filter(of => of.estado === 'Incidencia').length;
+
+        const storedSolicitudes = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[])
+            .filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada');
+        
+        setKpiData({ pendientes, enProceso, finalizadasHoy, incidencias, turnosPorValidar: storedSolicitudes.length });
+        setIsMounted(true);
+        console.timeEnd("[DEBUG] CprDashboardPage: Data processing");
+    }, []);
 
     const navSections = {
       planificar: cprNav.filter(item => workflowSections.planificar.modules.includes(item.title)),
@@ -107,7 +110,7 @@ export default function CprDashboardPage() {
       analizar: cprNav.filter(item => workflowSections.analizar.modules.includes(item.title))
     };
 
-    if (!isLoaded) {
+    if (!isMounted) {
         return <LoadingSkeleton title="Cargando Panel de control de Producción..." />;
     }
     
