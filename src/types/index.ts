@@ -2,38 +2,38 @@
 import { z } from "zod";
 
 export type CateringItem = {
-  itemCode: string;
-  description: string;
-  price: number;
-  stock: number;
-  imageUrl: string;
-  imageHint: string;
-  category: string;
-  tipo?: string;
-  unidadVenta?: number;
+    itemCode: string;
+    description: string;
+    price: number;
+    stock: number;
+    imageUrl: string;
+    imageHint: string;
+    category: string;
+    tipo?: string;
+    unidadVenta?: number;
 };
 
 export type OrderItem = CateringItem & {
-  quantity: number;
-  orderId?: string;
-  tipo?: string;
-  ajustes?: {
-      tipo: 'merma' | 'exceso' | 'ajuste manual' | 'devolucion';
-      cantidad: number;
-      fecha: string;
-      comentario: string;
-  }[];
+    quantity: number;
+    orderId?: string;
+    tipo?: string;
+    ajustes?: {
+        tipo: 'merma' | 'exceso' | 'ajuste manual' | 'devolucion';
+        cantidad: number;
+        fecha: string;
+        comentario: string;
+    }[];
 };
 
 export type OrderCompletionAssistantInput = {
-  eventDescription: string;
+    eventDescription: string;
 };
 
 export type OrderCompletionAssistantOutput = {
-  itemCode: string;
-  description: string;
-  price: number;
-  quantity: number;
+    itemCode: string;
+    description: string;
+    price: number;
+    quantity: number;
 }[];
 
 export const CATERING_VERTICALES = ['Recurrente', 'Grandes Eventos', 'Gran Cuenta'] as const;
@@ -141,18 +141,18 @@ export type RelacionComercial = 'Exclusividad' | 'Homologado Preferente' | 'Homo
 
 
 export type Sala = {
-  id: string;
-  nombreSala: string;
-  m2?: number;
-  dimensiones?: string;
-  alturaMax?: number;
-  alturaMin?: number;
-  aforoTeatro?: number;
-  aforoEscuela?: number;
-  aforoCabaret?: number;
-  aforoCocktailSala?: number;
-  esDiafana: boolean;
-  tieneLuzNatural: boolean;
+    id: string;
+    nombreSala: string;
+    m2?: number;
+    dimensiones?: string;
+    alturaMax?: number;
+    alturaMin?: number;
+    aforoTeatro?: number;
+    aforoEscuela?: number;
+    aforoCabaret?: number;
+    aforoCocktailSala?: number;
+    esDiafana: boolean;
+    tieneLuzNatural: boolean;
 };
 
 export type ContactoEspacio = {
@@ -202,113 +202,113 @@ export type FlowInvitado = {
 };
 
 export type Espacio = {
-  id: string;
-  
-  identificacion: {
-    nombreEspacio: string;
-    tipoDeEspacio: (typeof TIPO_ESPACIO[number])[];
-    descripcionCorta?: string;
-    descripcionLarga?: string;
-    ciudad: string;
-    provincia: string;
-    calle: string;
-    codigoPostal: string;
-    zona?: string; 
-    estilos: (typeof ESTILOS_ESPACIO[number])[];
-    tags: (typeof TAGS_ESPACIO[number])[];
-    idealPara: (typeof IDEAL_PARA[number])[];
-  };
-  
-  capacidades: {
-    aforoMaximoCocktail: number;
-    aforoMaximoBanquete: number;
-    salas: Sala[];
-  };
+    id: string;
 
-  logistica: {
-    accesoVehiculos?: string;
-    horarioMontajeDesmontaje?: string;
-    montacargas: boolean;
-    dimensionesMontacargas?: string;
-    accesoServicioIndependiente: boolean;
-    potenciaTotal?: string;
-    cuadrosElectricos?: CuadroElectrico[];
-    tomasAgua?: string[];
-    desagues?: string[];
-    tipoCocina: 'Cocina completa' | 'Office de regeneración' | 'Sin cocina';
-    equipamientoCocina?: string[];
-    potenciaElectricaCocina?: string;
-    tomasAguaCocina: boolean;
-    desaguesCocina: boolean;
-    extraccionHumos: boolean;
-    descripcionOffice?: string;
-    zonaAlmacenaje?: string;
-    limitadorSonido: boolean;
-    permiteMusicaExterior: boolean;
-    politicaDecoracion?: string;
-    puntosAnclaje: boolean;
-    metricasOperativas?: {
-        dificultadMontaje: number;
-        penalizacionPersonalMontaje: number;
-        notasDificultadMontaje?: string;
+    identificacion: {
+        nombreEspacio: string;
+        tipoDeEspacio: (typeof TIPO_ESPACIO[number])[];
+        descripcionCorta?: string;
+        descripcionLarga?: string;
+        ciudad: string;
+        provincia: string;
+        calle: string;
+        codigoPostal: string;
+        zona?: string;
+        estilos: (typeof ESTILOS_ESPACIO[number])[];
+        tags: (typeof TAGS_ESPACIO[number])[];
+        idealPara: (typeof IDEAL_PARA[number])[];
     };
-  };
 
-  evaluacionMICE: {
-    proveedorId?: string;
-    relacionComercial: RelacionComercial;
-    valoracionComercial: number; 
-    puntosFuertes: string[];
-    puntosDebiles: string[];
-    perfilClienteIdeal?: string;
-    argumentarioVentaRapido?: string[];
-    exclusividadMusica: boolean;
-    exclusividadAudiovisuales: boolean;
-    otrosProveedoresExclusivos?: string;
-    notasComerciales?: string;
-    resumenEjecutivoIA?: string;
-    valoracionOperaciones: number; 
-    factoresCriticosExito: string[];
-    riesgosPotenciales: string[];
-  };
+    capacidades: {
+        aforoMaximoCocktail: number;
+        aforoMaximoBanquete: number;
+        salas: Sala[];
+    };
 
-  experienciaInvitado: {
-    flow: FlowInvitado;
-    equipamientoAudiovisuales?: string;
-    pantalla?: string;
-    sistemaSonido?: string;
-    escenario?: string;
-    conexionWifi?: string;
-  };
+    logistica: {
+        accesoVehiculos?: string;
+        horarioMontajeDesmontaje?: string;
+        montacargas: boolean;
+        dimensionesMontacargas?: string;
+        accesoServicioIndependiente: boolean;
+        potenciaTotal?: string;
+        cuadrosElectricos?: CuadroElectrico[];
+        tomasAgua?: string[];
+        desagues?: string[];
+        tipoCocina: 'Cocina completa' | 'Office de regeneración' | 'Sin cocina';
+        equipamientoCocina?: string[];
+        potenciaElectricaCocina?: string;
+        tomasAguaCocina: boolean;
+        desaguesCocina: boolean;
+        extraccionHumos: boolean;
+        descripcionOffice?: string;
+        zonaAlmacenaje?: string;
+        limitadorSonido: boolean;
+        permiteMusicaExterior: boolean;
+        politicaDecoracion?: string;
+        puntosAnclaje: boolean;
+        metricasOperativas?: {
+            dificultadMontaje: number;
+            penalizacionPersonalMontaje: number;
+            notasDificultadMontaje?: string;
+        };
+    };
 
-  contactos: ContactoEspacio[];
-  multimedia?: MultimediaEspacio;
-  
-  espacio: string; 
-  escaparateMICE?: string;
-  carpetaDRIVE?: string;
-  nombreContacto1?: string;
-  telefonoContacto1?: string;
-  emailContacto1?: string;
-  canonEspacioPorcentaje?: number;
-  canonEspacioFijo?: number;
-  canonMcPorcentaje?: number;
-  canonMcFijo?: number;
-  comisionAlquilerMcPorcentaje?: number;
-  precioOrientativoAlquiler?: string;
-  horaLimiteCierre?: string;
-  aforoCocktail?: number;
-  aforoBanquete?: number;
-  auditorio?: string;
-  aforoAuditorio?: number;
-  zonaExterior?: string;
-  capacidadesPorSala?: string;
-  directorio?: string;
-  comentariosVarios?: string;
-  cocina?: string;
-  plato?: string; 
-  homologacion?: string;
-  comentariosMarketing?: string;
+    evaluacionMICE: {
+        proveedorId?: string;
+        relacionComercial: RelacionComercial;
+        valoracionComercial: number;
+        puntosFuertes: string[];
+        puntosDebiles: string[];
+        perfilClienteIdeal?: string;
+        argumentarioVentaRapido?: string[];
+        exclusividadMusica: boolean;
+        exclusividadAudiovisuales: boolean;
+        otrosProveedoresExclusivos?: string;
+        notasComerciales?: string;
+        resumenEjecutivoIA?: string;
+        valoracionOperaciones: number;
+        factoresCriticosExito: string[];
+        riesgosPotenciales: string[];
+    };
+
+    experienciaInvitado: {
+        flow: FlowInvitado;
+        equipamientoAudiovisuales?: string;
+        pantalla?: string;
+        sistemaSonido?: string;
+        escenario?: string;
+        conexionWifi?: string;
+    };
+
+    contactos: ContactoEspacio[];
+    multimedia?: MultimediaEspacio;
+
+    espacio: string;
+    escaparateMICE?: string;
+    carpetaDRIVE?: string;
+    nombreContacto1?: string;
+    telefonoContacto1?: string;
+    emailContacto1?: string;
+    canonEspacioPorcentaje?: number;
+    canonEspacioFijo?: number;
+    canonMcPorcentaje?: number;
+    canonMcFijo?: number;
+    comisionAlquilerMcPorcentaje?: number;
+    precioOrientativoAlquiler?: string;
+    horaLimiteCierre?: string;
+    aforoCocktail?: number;
+    aforoBanquete?: number;
+    auditorio?: string;
+    aforoAuditorio?: number;
+    zonaExterior?: string;
+    capacidadesPorSala?: string;
+    directorio?: string;
+    comentariosVarios?: string;
+    cocina?: string;
+    plato?: string;
+    homologacion?: string;
+    comentariosMarketing?: string;
 };
 
 
@@ -331,7 +331,7 @@ export type ArticuloCatering = {
     imagen?: string;
     producidoPorPartner?: boolean;
     partnerId?: string;
-    recetaId?: string; 
+    recetaId?: string;
     subcategoria?: string;
 }
 
@@ -351,11 +351,11 @@ export type ProveedorTransporte = {
 }
 
 export type CategoriaPersonal = {
-  id: string;
-  proveedorId: string;
-  nombreProveedor: string;
-  categoria: string;
-  precioHora: number;
+    id: string;
+    proveedorId: string;
+    nombreProveedor: string;
+    categoria: string;
+    precioHora: number;
 };
 
 export type GastronomyOrderItem = {
@@ -435,34 +435,34 @@ export type HieloOrder = {
 };
 
 export type DecoracionDBItem = {
-  id: string;
-  concepto: string;
-  precio: number;
+    id: string;
+    concepto: string;
+    precio: number;
 };
 
 export type DecoracionOrder = {
-  id: string;
-  osId: string;
-  fecha: string;
-  concepto: string;
-  precio: number;
-  observaciones?: string;
+    id: string;
+    osId: string;
+    fecha: string;
+    concepto: string;
+    precio: number;
+    observaciones?: string;
 };
 
 export type AtipicoDBItem = {
-  id: string;
-  concepto: string;
-  precio: number;
+    id: string;
+    concepto: string;
+    precio: number;
 };
 
 export type AtipicoOrder = {
-  id: string;
-  osId: string;
-  fecha: string;
-  concepto: string;
-  observaciones?: string;
-  precio: number;
-  status: 'Pendiente' | 'Aprobado' | 'Rechazado';
+    id: string;
+    osId: string;
+    fecha: string;
+    concepto: string;
+    observaciones?: string;
+    precio: number;
+    status: 'Pendiente' | 'Aprobado' | 'Rechazado';
 };
 
 export type PersonalMiceOrder = {
@@ -480,32 +480,32 @@ export type PersonalMiceOrder = {
 }
 
 export type AsignacionPersonal = {
-  id: string;
-  nombre: string;
-  dni?: string;
-  telefono?: string;
-  email?: string;
-  comentarios?: string;
-  rating?: number; // From 1 to 5
-  comentariosMice?: string;
-  horaEntradaReal: string;
-  horaSalidaReal: string;
+    id: string;
+    nombre: string;
+    dni?: string;
+    telefono?: string;
+    email?: string;
+    comentarios?: string;
+    rating?: number; // From 1 to 5
+    comentariosMice?: string;
+    horaEntradaReal: string;
+    horaSalidaReal: string;
 };
 
 export type PersonalExternoTurno = {
-  id: string;
-  proveedorId: string;
-  categoria: string;
-  precioHora: number;
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string;
-  solicitadoPor: 'Sala' | 'Pase' | 'Otro';
-  tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
-  observaciones?: string;
-  statusPartner: 'Pendiente Asignación' | 'Gestionado';
-  asignaciones?: AsignacionPersonal[];
-  requiereActualizacion?: boolean;
+    id: string;
+    proveedorId: string;
+    categoria: string;
+    precioHora: number;
+    fecha: string;
+    horaEntrada: string;
+    horaSalida: string;
+    solicitadoPor: 'Sala' | 'Pase' | 'Otro';
+    tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
+    observaciones?: string;
+    statusPartner: 'Pendiente Asignación' | 'Gestionado';
+    asignaciones?: AsignacionPersonal[];
+    requiereActualizacion?: boolean;
 };
 
 export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
@@ -587,23 +587,23 @@ export const UNIDADES_MEDIDA = ['KG', 'L', 'UD'] as const;
 export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
 export const articuloErpSchema = z.object({
-  id: z.string(),
-  idreferenciaerp: z.string().optional(),
-  idProveedor: z.string().optional(),
-  nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
-  referenciaProveedor: z.string().optional(),
-  nombreProveedor: z.string().optional(),
-  familiaCategoria: z.string().optional(),
-  precioCompra: z.coerce.number().min(0, "Debe ser un valor positivo."),
-  descuento: z.coerce.number().min(0).max(100).optional(),
-  unidadConversion: z.coerce.number().min(1).default(1),
-  precio: z.coerce.number().min(0),
-  precioAlquiler: z.coerce.number().min(0).optional(),
-  unidad: z.enum(UNIDADES_MEDIDA),
-  tipo: z.string().optional(),
-  categoriaMice: z.string().optional(),
-  alquiler: z.boolean().default(false),
-  observaciones: z.string().optional(),
+    id: z.string(),
+    idreferenciaerp: z.string().optional(),
+    idProveedor: z.string().optional(),
+    nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
+    referenciaProveedor: z.string().optional(),
+    nombreProveedor: z.string().optional(),
+    familiaCategoria: z.string().optional(),
+    precioCompra: z.coerce.number().min(0, "Debe ser un valor positivo."),
+    descuento: z.coerce.number().min(0).max(100).optional(),
+    unidadConversion: z.coerce.number().min(1).default(1),
+    precio: z.coerce.number().min(0),
+    precioAlquiler: z.coerce.number().min(0).optional(),
+    unidad: z.enum(UNIDADES_MEDIDA),
+    tipo: z.string().optional(),
+    categoriaMice: z.string().optional(),
+    alquiler: z.boolean().default(false),
+    observaciones: z.string().optional(),
 });
 
 export type ArticuloERP = z.infer<typeof articuloErpSchema>;
@@ -661,15 +661,15 @@ export type Elaboracion = {
 }
 
 export type ElaboracionEnReceta = {
-  id: string;
-  elaboracionId: string;
-  nombre: string;
-  cantidad: number;
-  coste: number;
-  gramaje: number;
-  alergenos?: Alergeno[];
-  unidad: UnidadMedida;
-  merma: number;
+    id: string;
+    elaboracionId: string;
+    nombre: string;
+    cantidad: number;
+    coste: number;
+    gramaje: number;
+    alergenos?: Alergeno[];
+    unidad: UnidadMedida;
+    merma: number;
 }
 
 export const SABORES_PRINCIPALES = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
@@ -691,8 +691,8 @@ export type Receta = {
     categoria: string;
     partidaProduccion?: string; // Calculated field
     gramajeTotal?: number;
-    estacionalidad: 'INVIERNO' | 'VERANO', 'MIXTO';
-    tipoDieta: 'VEGETARIANO' | 'VEGANO', 'AMBOS', 'NINGUNO';
+    estacionalidad: 'INVIERNO' | 'VERANO' | 'MIXTO';
+    tipoDieta: 'VEGETARIANO' | 'VEGANO' | 'AMBOS' | 'NINGUNO';
     porcentajeCosteProduccion: number;
     elaboraciones: ElaboracionEnReceta[];
     menajeAsociado: { id: string; menajeId: string; descripcion: string; ratio: number }[];
@@ -708,14 +708,14 @@ export type Receta = {
     perfilTextura?: string[];
     tipoCocina?: string[];
     recetaOrigen?: string;
-    temperaturaServicio?: 'CALIENTE' | 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO';
+    temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE' | 'FRIO' | 'HELADO';
     tecnicaCoccionPrincipal?: TecnicaCoccion;
-    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL', 'AL_MOMENTO';
+    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL' | 'AL_MOMENTO';
     formatoServicioIdeal?: string[];
     equipamientoCritico?: string[];
     dificultadProduccion?: number; // 1-5
     estabilidadBuffet?: number; // 1-5
-    escalabilidad?: 'FACIL' | 'MEDIA', 'DIFICIL';
+    escalabilidad?: 'FACIL' | 'MEDIA' | 'DIFICIL';
     etiquetasTendencia?: string[];
     costeMateriaPrima?: number;
     precioVenta?: number;
@@ -825,8 +825,8 @@ export type PedidoPlantilla = {
     items: PedidoPlantillaItem[];
 };
 export type FormatoExpedicion = {
-  id: string;
-  nombre: string;
+    id: string;
+    nombre: string;
 };
 
 export type StockLote = {
@@ -857,9 +857,9 @@ export const CATEGORIAS_PRODUCTO_VENTA = ['Gastronomía', 'Bodega', 'Consumibles
 export type CategoriaProductoVenta = typeof CATEGORIAS_PRODUCTO_VENTA[number];
 
 export type ImagenProducto = {
-  id: string;
-  url: string;
-  isPrincipal: boolean;
+    id: string;
+    url: string;
+    isPrincipal: boolean;
 }
 
 export type ProductoVentaComponente = {
@@ -932,38 +932,38 @@ export type PedidoPartner = {
 }
 export type PedidoPartnerStatus = 'Pendiente' | 'En Producción' | 'Listo para Entrega';
 export type PickingIncidencia = {
-  itemId: string;
-  comment: string;
-  timestamp: string;
+    itemId: string;
+    comment: string;
+    timestamp: string;
 };
 export type PickingEntregaState = {
-  hitoId: string;
-  status: 'Pendiente' | 'En Proceso' | 'Preparado';
-  checkedItems: Set<string>;
-  incidencias: PickingIncidencia[];
-  fotoUrl: string | null;
-  ordenItems?: string[];
+    hitoId: string;
+    status: 'Pendiente' | 'En Proceso' | 'Preparado';
+    checkedItems: Set<string>;
+    incidencias: PickingIncidencia[];
+    fotoUrl: string | null;
+    ordenItems?: string[];
 };
 
 export const TIPO_PROVEEDOR_OPCIONES = ['Transporte', 'Hielo', 'Gastronomia', 'Personal', 'Atipicos', 'Decoracion', 'Servicios', 'Otros', 'Alquiler'] as const;
 export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
 
 export type Proveedor = {
-  id: string;
-  cif: string;
-  IdERP?: string;
-  nombreEmpresa: string;
-  nombreComercial: string;
-  direccionFacturacion: string;
-  codigoPostal: string;
-  ciudad: string;
-  provincia: string;
-  pais: string;
-  emailContacto: string;
-  telefonoContacto: string;
-  iban?: string;
-  formaDePagoHabitual?: string;
-  tipos: TipoProveedor[];
+    id: string;
+    cif: string;
+    IdERP?: string;
+    nombreEmpresa: string;
+    nombreComercial: string;
+    direccionFacturacion: string;
+    codigoPostal: string;
+    ciudad: string;
+    provincia: string;
+    pais: string;
+    emailContacto: string;
+    telefonoContacto: string;
+    iban?: string;
+    formaDePagoHabitual?: string;
+    tipos: TipoProveedor[];
 };
 
 export type PersonalExternoDB = {
@@ -983,22 +983,22 @@ export type PortalUserRole = 'Admin' | 'Comercial' | 'CPR' | 'Pase' | 'Direcció
 export const PORTAL_ROLES: PortalUserRole[] = ['Admin', 'Comercial', 'CPR', 'Pase', 'Dirección', 'Almacen', 'Operaciones', 'Project Manager', 'Partner Gastronomia', 'Partner Personal', 'Transporte'];
 
 export type PortalUser = {
-  id: string;
-  nombre: string;
-  email: string;
-  roles: PortalUserRole[];
-  proveedorId?: string;
+    id: string;
+    nombre: string;
+    email: string;
+    roles: PortalUserRole[];
+    proveedorId?: string;
 };
 
 export type ActivityLog = {
-  id: string;
-  timestamp: string;
-  userId: string;
-  userName: string;
-  userRole: PortalUserRole;
-  action: string;
-  details: string;
-  entityId: string; // e.g., osId, turnoId, etc.
+    id: string;
+    timestamp: string;
+    userId: string;
+    userName: string;
+    userRole: PortalUserRole;
+    action: string;
+    details: string;
+    entityId: string; // e.g., osId, turnoId, etc.
 };
 
 
@@ -1047,30 +1047,30 @@ export const ESTADO_SOLICITUD_PERSONAL_CPR = ['Solicitado', 'Aprobada', 'Rechaza
 export type EstadoSolicitudPersonalCPR = typeof ESTADO_SOLICITUD_PERSONAL_CPR[number];
 
 export type AsignacionPersonalCPR = {
-  idPersonal: string;
-  nombre: string;
-  horaEntradaReal?: string;
-  horaSalidaReal?: string;
-  rating?: number;
-  comentariosMice?: string;
+    idPersonal: string;
+    nombre: string;
+    horaEntradaReal?: string;
+    horaSalidaReal?: string;
+    rating?: number;
+    comentariosMice?: string;
 };
 
 export type SolicitudPersonalCPR = {
-  id: string;
-  fechaSolicitud: string; // ISO Date
-  solicitadoPor: string;
-  fechaServicio: string; // ISO Date
-  horaInicio: string;
-  horaFin: string;
-  partida: PartidaProduccion;
-  categoria: string;
-  cantidad: number;
-  motivo: string;
-  estado: EstadoSolicitudPersonalCPR;
-  proveedorId?: string; // ID del tipo de personal (que incluye el proveedor)
-  costeImputado?: number;
-  observacionesRRHH?: string;
-  personalAsignado?: AsignacionPersonalCPR[];
+    id: string;
+    fechaSolicitud: string; // ISO Date
+    solicitadoPor: string;
+    fechaServicio: string; // ISO Date
+    horaInicio: string;
+    horaFin: string;
+    partida: PartidaProduccion;
+    categoria: string;
+    cantidad: number;
+    motivo: string;
+    estado: EstadoSolicitudPersonalCPR;
+    proveedorId?: string; // ID del tipo de personal (que incluye el proveedor)
+    costeImputado?: number;
+    observacionesRRHH?: string;
+    personalAsignado?: AsignacionPersonalCPR[];
 };
 
 export const ESTADO_CESION_PERSONAL = ['Solicitado', 'Aprobado', 'Asignado', 'Cerrado', 'Rechazado'] as const;
@@ -1079,19 +1079,19 @@ export const CENTRO_COSTE_OPCIONES = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'AL
 export type CentroCoste = typeof CENTRO_COSTE_OPCIONES[number];
 
 export type CesionStorage = {
-  id: string;
-  fecha: string;
-  centroCoste: CentroCoste;
-  nombre: string;
-  dni?: string;
-  tipoServicio?: string;
-  horaEntrada: string;
-  horaSalida: string;
-  precioHora: number;
-  horaEntradaReal?: string;
-  horaSalidaReal?: string;
-  comentarios?: string;
-  estado: EstadoCesionPersonal;
+    id: string;
+    fecha: string;
+    centroCoste: CentroCoste;
+    nombre: string;
+    dni?: string;
+    tipoServicio?: string;
+    horaEntrada: string;
+    horaSalida: string;
+    precioHora: number;
+    horaEntradaReal?: string;
+    horaSalidaReal?: string;
+    comentarios?: string;
+    estado: EstadoCesionPersonal;
 };
 
-    
+

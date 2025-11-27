@@ -34,10 +34,14 @@ import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown } from 'lucide-react';
 import { downloadCSVTemplate } from '@/lib/utils';
 
+import { useDataStore } from '@/hooks/use-data-store';
+import { supabase } from '@/lib/supabase';
+
 const CSV_HEADERS = ["id", "nombre", "categoria", "precioVenta", "precioAlquiler", "producidoPorPartner", "partnerId", "recetaId"];
 
 function ArticulosPageContent() {
-  const [items, setItems] = useState<ArticuloCatering[]>([]);
+  const { data, loadAllData } = useDataStore();
+  const items = data.articulos || [];
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -50,8 +54,6 @@ function ArticulosPageContent() {
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
-    let storedData = localStorage.getItem('articulos');
-    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
   }, []);
 
@@ -67,16 +69,25 @@ function ArticulosPageContent() {
     });
   }, [items, searchTerm, categoryFilter, isPartnerFilter]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!itemToDelete) return;
-    const updatedData = items.filter(i => i.id !== itemToDelete);
-    localStorage.setItem('articulos', JSON.stringify(updatedData));
-    setItems(updatedData);
+
+    const { error } = await supabase
+      .from('articulos')
+      .delete()
+      .eq('id', itemToDelete);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el artículo.' });
+      return;
+    }
+
+    await loadAllData();
     toast({ title: 'Artículo eliminado' });
     setItemToDelete(null);
   };
 
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
     if (!file) {
       setIsImportAlertOpen(false);
@@ -87,31 +98,34 @@ function ArticulosPageContent() {
       header: true,
       skipEmptyLines: true,
       delimiter,
-      complete: (results) => {
+      complete: async (results) => {
         if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
           toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
           return;
         }
 
-        const existingIds = new Set(items.map(item => item.id));
-        const importedData: ArticuloCatering[] = results.data.map((item: any, index: number) => {
-          let id = item.id;
-          if (!id || id.trim() === '' || existingIds.has(id)) {
-            id = `${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`;
-          }
-          existingIds.add(id);
+        const importedData = results.data.map((item: any) => ({
+          id: item.id || crypto.randomUUID(),
+          nombre: item.nombre,
+          categoria: item.categoria,
+          precio_venta: parseFloat(item.precioVenta) || 0,
+          precio_alquiler: parseFloat(item.precioAlquiler) || 0,
+          producido_por_partner: item.producidoPorPartner === 'true',
+          partner_id: item.partnerId || null,
+          receta_id: item.recetaId || null
+        }));
 
-          return {
-            ...item,
-            id,
-            precioVenta: parseFloat(item.precioVenta) || 0,
-            precioAlquiler: parseFloat(item.precioAlquiler) || 0,
-            producidoPorPartner: item.producidoPorPartner === 'true'
-          };
-        });
+        const { error } = await supabase
+          .from('articulos')
+          .upsert(importedData, { onConflict: 'id' });
 
-        localStorage.setItem('articulos', JSON.stringify(importedData));
-        setItems(importedData);
+        if (error) {
+          toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+          setIsImportAlertOpen(false);
+          return;
+        }
+
+        await loadAllData();
         toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
         setIsImportAlertOpen(false);
       },

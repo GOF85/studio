@@ -87,8 +87,7 @@ CREATE TABLE clientes (
 CREATE TABLE espacios (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nombre TEXT NOT NULL,
-    direccion TEXT,
-    aforo_maximo INT,
+    data JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

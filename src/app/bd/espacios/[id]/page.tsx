@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { Loader2, Save, X, Building, Trash2 } from 'lucide-react';
 import type { Espacio, ContactoEspacio, Sala } from '@/types';
 import { TIPO_ESPACIO, ESTILOS_ESPACIO, TAGS_ESPACIO, IDEAL_PARA, type RelacionComercial } from '@/types';
+import { supabase } from '@/lib/supabase';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -61,9 +62,9 @@ const espacioFormSchema = z.object({
   }),
   contactos: z.array(contactoSchema).optional().default([]),
   evaluacionMICE: z.object({
-      relacionComercial: z.enum(['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación']),
-      exclusividadMusica: z.boolean().default(false),
-      exclusividadAudiovisuales: z.boolean().default(false),
+    relacionComercial: z.enum(['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación']),
+    exclusividadMusica: z.boolean().default(false),
+    exclusividadAudiovisuales: z.boolean().default(false),
   }),
 });
 
@@ -81,7 +82,7 @@ export default function EditarEspacioPage() {
   const form = useForm<EspacioFormValues>({
     resolver: zodResolver(espacioFormSchema),
   });
-  
+
   const { control, reset } = form;
 
   const { fields: salaFields, append: appendSala, remove: removeSala } = useFieldArray({ control, name: "capacidades.salas" });
@@ -89,79 +90,99 @@ export default function EditarEspacioPage() {
 
 
   useEffect(() => {
-    const allItems = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-    const item = allItems.find(p => p.id === id);
-    if (item) {
-        // Ensure all optional fields have default values to prevent uncontrolled to controlled error
-        const defaultEvaluacionMICE = {
-            relacionComercial: 'Sin Relación',
-            exclusividadMusica: false,
-            exclusividadAudiovisuales: false,
-            ...item.evaluacionMICE,
-        };
+    async function loadEspacio() {
+      const { data, error } = await supabase
+        .from('espacios')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-        const defaultCapacidades = {
-            aforoMaximoCocktail: 0,
-            aforoMaximoBanquete: 0,
-            salas: [],
-            ...item.capacidades,
-        };
-        
-        const defaultIdentificacion = {
-            nombreEspacio: '',
-            tipoDeEspacio: [],
-            ciudad: '',
-            provincia: '',
-            calle: '',
-            codigoPostal: '',
-            estilos: [],
-            tags: [],
-            idealPara: [],
-            ...item.identificacion,
-        }
+      if (error || !data) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el espacio.' });
+        router.push('/bd/espacios');
+        return;
+      }
 
-        const dataToReset = {
-            ...item,
-            identificacion: defaultIdentificacion,
-            capacidades: defaultCapacidades,
-            contactos: item.contactos || [],
-            evaluacionMICE: defaultEvaluacionMICE,
-        };
-        
-        reset(dataToReset);
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el espacio.' });
-      router.push('/bd/espacios');
+      const item = { id: data.id, ...data.data } as Espacio;
+
+      // Ensure all optional fields have default values to prevent uncontrolled to controlled error
+      const defaultEvaluacionMICE = {
+        relacionComercial: 'Sin Relación' as RelacionComercial,
+        exclusividadMusica: false,
+        exclusividadAudiovisuales: false,
+      };
+
+      const defaultCapacidades = {
+        aforoMaximoCocktail: 0,
+        aforoMaximoBanquete: 0,
+        salas: [],
+      };
+
+      const defaultIdentificacion = {
+        nombreEspacio: '',
+        tipoDeEspacio: [],
+        ciudad: '',
+        provincia: '',
+        calle: '',
+        codigoPostal: '',
+        estilos: [],
+        tags: [],
+        idealPara: [],
+      };
+
+      const dataToReset = {
+        ...item,
+        identificacion: { ...defaultIdentificacion, ...item.identificacion },
+        capacidades: { ...defaultCapacidades, ...item.capacidades },
+        contactos: item.contactos || [],
+        evaluacionMICE: { ...defaultEvaluacionMICE, ...item.evaluacionMICE },
+      };
+
+      reset(dataToReset);
     }
+
+    loadEspacio();
   }, [id, reset, router, toast]);
 
-  function onSubmit(data: EspacioFormValues) {
+  async function onSubmit(data: EspacioFormValues) {
     setIsLoading(true);
 
-    let allItems = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-    const index = allItems.findIndex(p => p.id === id);
+    try {
+      const { error } = await supabase
+        .from('espacios')
+        .update({
+          nombre: data.identificacion.nombreEspacio,
+          data: data,
+        })
+        .eq('id', id);
 
-    if (index !== -1) {
-      // Reconstruct the full object before saving
-      const fullItem: Espacio = {
-          ...allItems[index], // Keep old fields
-          ...data, // Overwrite with new form data
-      };
-      allItems[index] = fullItem;
-      localStorage.setItem('espacios', JSON.stringify(allItems));
+      if (error) throw error;
+
       toast({ description: 'Espacio actualizado correctamente.' });
+      router.push('/bd/espacios');
+    } catch (error: any) {
+      console.error('Error updating espacio:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Error al actualizar el espacio.' });
+    } finally {
+      setIsLoading(false);
     }
-    
-    router.push('/bd/espacios');
-    setIsLoading(false);
   }
-  
-  const handleDelete = () => {
-    let allItems = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-    const updatedItems = allItems.filter(p => p.id !== id);
-    localStorage.setItem('espacios', JSON.stringify(updatedItems));
-    toast({ title: 'Espacio eliminado' });
-    router.push('/bd/espacios');
+
+  const handleDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from('espacios')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({ title: 'Espacio eliminado' });
+      router.push('/bd/espacios');
+    } catch (error: any) {
+      console.error('Error deleting espacio:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Error al eliminar el espacio.' });
+    }
   };
 
   return (
@@ -175,16 +196,16 @@ export default function EditarEspacioPage() {
                 <h1 className="text-3xl font-headline font-bold">Editar Espacio</h1>
               </div>
               <div className="flex gap-2">
-                 <Button variant="outline" type="button" onClick={() => router.push('/bd/espacios')}> <X className="mr-2"/> Cancelar</Button>
-                 <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/> Borrar</Button>
+                <Button variant="outline" type="button" onClick={() => router.push('/bd/espacios')}> <X className="mr-2" /> Cancelar</Button>
+                <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2" /> Borrar</Button>
                 <Button type="submit" disabled={isLoading}>
                   {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                   <span className="ml-2">Guardar Cambios</span>
                 </Button>
               </div>
             </div>
-            
-             <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full space-y-4">
+
+            <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full space-y-4">
               <AccordionItem value="item-1">
                 <Card>
                   <AccordionTrigger className="p-4"><CardTitle className="text-lg">Identificación y Localización</CardTitle></AccordionTrigger>
@@ -195,21 +216,21 @@ export default function EditarEspacioPage() {
                       )} />
                       <div className="grid md:grid-cols-2 gap-4">
                         <FormField control={control} name="identificacion.tipoDeEspacio" render={({ field }) => (
-                            <FormItem><FormLabel>Tipo de Espacio</FormLabel><MultiSelect options={TIPO_ESPACIO.map(t => ({label:t, value: t}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar tipo..."/><FormMessage /></FormItem>
+                          <FormItem><FormLabel>Tipo de Espacio</FormLabel><MultiSelect options={TIPO_ESPACIO.map(t => ({ label: t, value: t }))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar tipo..." /><FormMessage /></FormItem>
                         )} />
                         <FormField control={control} name="evaluacionMICE.relacionComercial" render={({ field }) => (
-                           <FormItem><FormLabel>Relación Comercial</FormLabel>
+                          <FormItem><FormLabel>Relación Comercial</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    <SelectItem value="Exclusividad">Exclusividad</SelectItem>
-                                    <SelectItem value="Homologado Preferente">Homologado Preferente</SelectItem>
-                                    <SelectItem value="Homologado">Homologado</SelectItem>
-                                    <SelectItem value="Puntual">Puntual</SelectItem>
-                                    <SelectItem value="Sin Relación">Sin Relación</SelectItem>
-                                </SelectContent>
+                              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                <SelectItem value="Exclusividad">Exclusividad</SelectItem>
+                                <SelectItem value="Homologado Preferente">Homologado Preferente</SelectItem>
+                                <SelectItem value="Homologado">Homologado</SelectItem>
+                                <SelectItem value="Puntual">Puntual</SelectItem>
+                                <SelectItem value="Sin Relación">Sin Relación</SelectItem>
+                              </SelectContent>
                             </Select>
-                           </FormItem>
+                          </FormItem>
                         )} />
                       </div>
                       <div className="grid md:grid-cols-4 gap-4">
@@ -223,34 +244,34 @@ export default function EditarEspacioPage() {
                 </Card>
               </AccordionItem>
               <AccordionItem value="item-2">
-                 <Card>
-                    <AccordionTrigger className="p-4"><CardTitle className="text-lg">Capacidades y Salas</CardTitle></AccordionTrigger>
-                    <AccordionContent className="p-4 pt-0">
-                      <div className="grid md:grid-cols-2 gap-4">
-                           <FormField control={control} name="capacidades.aforoMaximoCocktail" render={({ field }) => (<FormItem><FormLabel>Aforo Máximo Cocktail</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                           <FormField control={control} name="capacidades.aforoMaximoBanquete" render={({ field }) => (<FormItem><FormLabel>Aforo Máximo Banquete</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                      </div>
-                    </AccordionContent>
-                 </Card>
+                <Card>
+                  <AccordionTrigger className="p-4"><CardTitle className="text-lg">Capacidades y Salas</CardTitle></AccordionTrigger>
+                  <AccordionContent className="p-4 pt-0">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField control={control} name="capacidades.aforoMaximoCocktail" render={({ field }) => (<FormItem><FormLabel>Aforo Máximo Cocktail</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                      <FormField control={control} name="capacidades.aforoMaximoBanquete" render={({ field }) => (<FormItem><FormLabel>Aforo Máximo Banquete</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    </div>
+                  </AccordionContent>
+                </Card>
               </AccordionItem>
             </Accordion>
           </form>
         </FormProvider>
       </main>
-        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminará permanentemente el registro del espacio.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el registro del espacio.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

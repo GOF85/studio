@@ -35,11 +35,15 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import Papa from 'papaparse';
+import { useDataStore } from '@/hooks/use-data-store';
+import { supabase } from '@/lib/supabase';
 
 const CSV_HEADERS = ["id", "familiaCategoria", "Familia", "Categoria"];
 
 function FamiliasERPPageContent() {
-  const [items, setItems] = useState<FamiliaERP[]>([]);
+  const { data, loadAllData } = useDataStore();
+  const familiasERP = data.familiasERP;
+
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -50,13 +54,12 @@ function FamiliasERPPageContent() {
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
-    let storedData = localStorage.getItem('familiasERP');
-    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, []);
+    loadAllData();
+  }, [loadAllData]);
 
   const filteredItems = useMemo(() => {
-    return items.filter(item => {
+    return familiasERP.filter(item => {
       const term = searchTerm.toLowerCase();
       const searchMatch =
         (item.familiaCategoria || '').toLowerCase().includes(term) ||
@@ -64,18 +67,27 @@ function FamiliasERPPageContent() {
         (item.Categoria || '').toLowerCase().includes(term);
       return searchMatch;
     });
-  }, [items, searchTerm]);
+  }, [familiasERP, searchTerm]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!itemToDelete) return;
-    const updatedData = items.filter(i => i.id !== itemToDelete);
-    localStorage.setItem('familiasERP', JSON.stringify(updatedData));
-    setItems(updatedData);
+
+    const { error } = await supabase
+      .from('familias')
+      .delete()
+      .eq('id', itemToDelete);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el registro.' });
+      return;
+    }
+
+    await loadAllData();
     toast({ title: 'Registro eliminado' });
     setItemToDelete(null);
   };
 
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
     if (!file) {
       setIsImportAlertOpen(false);
@@ -86,27 +98,30 @@ function FamiliasERPPageContent() {
       header: true,
       skipEmptyLines: true,
       delimiter,
-      complete: (results) => {
+      complete: async (results) => {
         if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
           toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
           return;
         }
 
-        const existingIds = new Set(items.map(item => item.id));
-        const importedData: FamiliaERP[] = results.data.map((item: any, index: number) => {
-          let id = item.id;
-          if (!id || id.trim() === '' || existingIds.has(id)) {
-            id = `${Date.now()}-${index}-${Math.random()}`;
-          }
-          existingIds.add(id);
-          return {
-            ...item,
-            id,
-          };
-        });
+        const importedData = results.data.map((item: any) => ({
+          id: item.id || crypto.randomUUID(),
+          codigo: item.familiaCategoria,
+          nombre: item.Familia,
+          categoria_padre: item.Categoria,
+        }));
 
-        localStorage.setItem('familiasERP', JSON.stringify(importedData));
-        setItems(importedData);
+        const { error } = await supabase
+          .from('familias')
+          .upsert(importedData, { onConflict: 'id' });
+
+        if (error) {
+          toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+          setIsImportAlertOpen(false);
+          return;
+        }
+
+        await loadAllData();
         toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
         setIsImportAlertOpen(false);
       },
@@ -119,12 +134,12 @@ function FamiliasERPPageContent() {
   };
 
   const handleExportCSV = () => {
-    if (items.length === 0) {
+    if (familiasERP.length === 0) {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
       return;
     }
 
-    const csv = Papa.unparse(items, { columns: CSV_HEADERS });
+    const csv = Papa.unparse(familiasERP, { columns: CSV_HEADERS });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);

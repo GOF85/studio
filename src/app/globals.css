@@ -102,6 +102,9 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-padding-top: 8rem;
+  }
   body {
     @apply bg-background text-foreground;
   }

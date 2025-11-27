@@ -15,29 +15,30 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
     const pathname = usePathname();
     return (
         <div className="w-full">
-             <SheetHeader className="p-4 border-b">
-                <SheetTitle className="flex items-center gap-2 text-lg"><Database/>Bases de Datos</SheetTitle>
+            <SheetHeader className="p-4 border-b">
+                <SheetTitle className="flex items-center gap-2 text-lg"><Database />Bases de Datos</SheetTitle>
             </SheetHeader>
             <nav className="grid items-start gap-1 p-4">
                 {bdNavLinks.map((item, index) => {
                     const isActive = pathname.startsWith(item.path);
                     return (
-                    <Link
-                        key={index}
-                        href={item.path}
-                        onClick={closeSheet}
-                    >
-                        <span
-                            className={cn(
-                                "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                isActive ? "bg-accent" : "transparent"
-                            )}
+                        <Link
+                            key={index}
+                            href={item.path}
+                            onClick={closeSheet}
                         >
-                            <item.icon className="mr-2 h-4 w-4" />
-                            <span>{item.title}</span>
-                        </span>
-                    </Link>
-                )})}
+                            <span
+                                className={cn(
+                                    "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                                    isActive ? "bg-accent" : "transparent"
+                                )}
+                            >
+                                <item.icon className="mr-2 h-4 w-4" />
+                                <span>{item.title}</span>
+                            </span>
+                        </Link>
+                    )
+                })}
             </nav>
         </div>
     );
@@ -48,7 +49,7 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isMounted, setIsMounted] = useState(false);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
-    
+
     useEffect(() => {
         setIsMounted(true);
     }, [])
@@ -70,7 +71,7 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
                             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                                 <SheetTrigger asChild>
                                     <Button variant="outline" size="icon" className="mr-2">
-                                        <Menu className="h-5 w-5"/>
+                                        <Menu className="h-5 w-5" />
                                     </Button>
                                 </SheetTrigger>
                                 <SheetContent side="left" className="w-[280px] p-0">
@@ -78,13 +79,13 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
                                 </SheetContent>
                             </Sheet>
                             <Link href="/bd" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-                                <Database className="h-5 w-5"/>
+                                <Database className="h-5 w-5" />
                                 <span>Bases de datos</span>
                             </Link>
                             {currentPage && (
                                 <>
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                    <currentPage.icon className="h-5 w-5 text-muted-foreground"/>
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    <currentPage.icon className="h-5 w-5 text-muted-foreground" />
                                     <span>{currentPage.title}</span>
                                 </>
                             )}
@@ -92,7 +93,7 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
             </div>
-             <main className="py-4">
+            <main className="container mx-auto px-4 py-4">
                 {children}
             </main>
         </>

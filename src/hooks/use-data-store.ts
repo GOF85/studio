@@ -123,7 +123,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 { data: recetas },
                 { data: eventoLineas },
                 { data: elaboracionComponentes },
-                { data: recetaDetalles }
+                { data: recetaDetalles },
+                { data: articulosData }
             ] = await Promise.all([
                 supabase.from('eventos').select('*'),
                 supabase.from('familias').select('*'),
@@ -133,7 +134,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 supabase.from('recetas').select('*'),
                 supabase.from('evento_lineas').select('*'),
                 supabase.from('elaboracion_componentes').select('*'),
-                supabase.from('receta_detalles').select('*')
+                supabase.from('receta_detalles').select('*'),
+                supabase.from('articulos').select('*')
             ]);
 
             // Map Supabase 'eventos' to 'ServiceOrder'
@@ -252,7 +254,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 })),
                 familiasERP: (familias || []).map((f: any) => ({
                     id: f.id,
-                    familiaCategoria: f.categoria_padre || '',
+                    familiaCategoria: f.codigo || '',
                     Familia: f.nombre,
                     Categoria: f.categoria_padre || ''
                 })),
@@ -303,7 +305,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                             cantidad: d.cantidad,
                             coste: 0,
                             gramaje: 0,
-                            unidad: 'UD',
+                            unidad: 'UD' as 'UD' | 'KG' | 'L',
                             merma: 0
                         })),
                     menajeAsociado: [],
@@ -325,7 +327,25 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 objetivosCPR: loadFromLocalStorage<ObjetivoMensualCPR[]>('objetivosCPR', []),
                 personal: loadFromLocalStorage<Personal[]>('personal', []),
                 espacios: loadFromLocalStorage<Espacio[]>('espacios', []),
-                articulos: loadFromLocalStorage<ArticuloCatering[]>('articulos', []),
+                articulos: (articulosData || []).map((a: any) => ({
+                    id: a.id,
+                    erpId: a.erp_id,
+                    nombre: a.nombre,
+                    categoria: a.categoria,
+                    esHabitual: a.es_habitual,
+                    precioVenta: a.precio_venta,
+                    precioAlquiler: a.precio_alquiler,
+                    precioReposicion: a.precio_reposicion,
+                    unidadVenta: a.unidad_venta,
+                    stockSeguridad: a.stock_seguridad,
+                    tipo: a.tipo,
+                    loc: a.loc,
+                    imagen: a.imagen,
+                    producidoPorPartner: a.producido_por_partner,
+                    partnerId: a.partner_id,
+                    recetaId: a.receta_id,
+                    subcategoria: a.subcategoria
+                })),
                 tipoServicio: loadFromLocalStorage<TipoServicio[]>('tipoServicio', []),
                 tiposPersonal: loadFromLocalStorage<CategoriaPersonal[]>('tiposPersonal', []),
                 proveedores: (proveedores || []).map((p: any) => ({

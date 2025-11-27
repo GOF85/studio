@@ -39,6 +39,7 @@ import Papa from 'papaparse';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { downloadCSVTemplate } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
 
 const CSV_HEADERS = ["id", "nombreEspacio", "ciudad", "provincia", "aforoMaximoCocktail", "aforoMaximoBanquete", "relacionComercial"];
@@ -55,10 +56,28 @@ function EspaciosPageContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    let storedData = localStorage.getItem('espacios');
-    setItems(storedData ? JSON.parse(storedData) : []);
-    setIsMounted(true);
-  }, []);
+    async function loadEspacios() {
+      const { data, error } = await supabase
+        .from('espacios')
+        .select('*');
+
+      if (error) {
+        console.error('Error loading espacios:', error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Error al cargar los espacios.' });
+        setItems([]);
+      } else {
+        // Map Supabase data to Espacio type
+        const espacios = (data || []).map((row: any) => ({
+          id: row.id,
+          ...row.data,
+        })) as Espacio[];
+        setItems(espacios);
+      }
+      setIsMounted(true);
+    }
+
+    loadEspacios();
+  }, [toast]);
 
   const filteredItems = useMemo(() => {
     return items.filter(item =>
@@ -67,12 +86,22 @@ function EspaciosPageContent() {
     );
   }, [items, searchTerm]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!itemToDelete) return;
-    const updatedData = items.filter(i => i.id !== itemToDelete);
-    localStorage.setItem('espacios', JSON.stringify(updatedData));
-    setItems(updatedData);
-    toast({ title: 'Espacio eliminado' });
+
+    const { error } = await supabase
+      .from('espacios')
+      .delete()
+      .eq('id', itemToDelete);
+
+    if (error) {
+      console.error('Error deleting espacio:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Error al eliminar el espacio.' });
+    } else {
+      const updatedData = items.filter(i => i.id !== itemToDelete);
+      setItems(updatedData);
+      toast({ title: 'Espacio eliminado' });
+    }
     setItemToDelete(null);
   };
 

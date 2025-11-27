@@ -15,6 +15,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 
+import { supabase } from '@/lib/supabase';
+import { useDataStore } from '@/hooks/use-data-store';
+
 export const familiaERPSchema = z.object({
   id: z.string(),
   familiaCategoria: z.string().min(1, 'El código de familia es obligatorio'),
@@ -28,33 +31,50 @@ export default function NuevaFamiliaERPPage() {
   const router = useRouter();
   const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
+  const { loadAllData } = useDataStore();
 
   const form = useForm<FamiliaERPFormValues>({
     resolver: zodResolver(familiaERPSchema),
     defaultValues: {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       familiaCategoria: '',
       Familia: '',
       Categoria: '',
     },
   });
 
-  function onSubmit(data: FamiliaERPFormValues) {
+  async function onSubmit(data: FamiliaERPFormValues) {
     setIsLoading(true);
 
-    let allItems = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
-    
-    const existing = allItems.find(p => p.familiaCategoria.toLowerCase() === data.familiaCategoria.toLowerCase());
+    // Check if familia already exists
+    const { data: existing } = await supabase
+      .from('familias')
+      .select('id')
+      .eq('nombre', data.Familia)
+      .single();
+
     if (existing) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un registro con este código de familia.' });
-        setIsLoading(false);
-        return;
+      toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un registro con este nombre de familia.' });
+      setIsLoading(false);
+      return;
     }
 
-    allItems.push(data);
-    localStorage.setItem('familiasERP', JSON.stringify(allItems));
-    
+    const { error } = await supabase
+      .from('familias')
+      .insert({
+        id: data.id,
+        nombre: data.Familia,
+        categoria_padre: data.Categoria,
+      });
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear la familia ERP.' });
+      setIsLoading(false);
+      return;
+    }
+
     toast({ description: 'Nueva Familia ERP añadida correctamente.' });
+    await loadAllData();
     router.push('/bd/familiasERP');
     setIsLoading(false);
   }
@@ -69,14 +89,14 @@ export default function NuevaFamiliaERPPage() {
               <h1 className="text-3xl font-headline font-bold">Nueva Familia ERP</h1>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" type="button" onClick={() => router.push('/bd/familiasERP')}> <X className="mr-2"/> Cancelar</Button>
+              <Button variant="outline" type="button" onClick={() => router.push('/bd/familiasERP')}> <X className="mr-2" /> Cancelar</Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                 <span className="ml-2">Guardar</span>
               </Button>
             </div>
           </div>
-          
+
           <Card>
             <CardHeader><CardTitle className="text-lg">Información de la Familia ERP</CardTitle></CardHeader>
             <CardContent className="space-y-4">

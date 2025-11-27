@@ -18,6 +18,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
+import { supabase } from '@/lib/supabase';
+import { useDataStore } from '@/hooks/use-data-store';
+
 export default function EditarFamiliaERPPage() {
   const router = useRouter();
   const params = useParams();
@@ -26,43 +29,79 @@ export default function EditarFamiliaERPPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
+  const { loadAllData } = useDataStore();
 
   const form = useForm<FamiliaERPFormValues>({
     resolver: zodResolver(familiaERPSchema),
+    defaultValues: {
+      id: '',
+      familiaCategoria: '',
+      Familia: '',
+      Categoria: '',
+    },
   });
 
   useEffect(() => {
-    const allItems = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
-    const item = allItems.find(p => p.id === id);
-    if (item) {
-      form.reset(item);
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la familia ERP.' });
-      router.push('/bd/familiasERP');
+    async function loadFamilia() {
+      const { data, error } = await supabase
+        .from('familias')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !data) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la familia ERP.' });
+        router.push('/bd/familiasERP');
+        return;
+      }
+
+      form.reset({
+        id: data.id,
+        familiaCategoria: data.nombre || '',
+        Familia: data.nombre || '',
+        Categoria: data.categoria_padre || '',
+      });
     }
+
+    loadFamilia();
   }, [id, form, router, toast]);
 
-  function onSubmit(data: FamiliaERPFormValues) {
+  async function onSubmit(data: FamiliaERPFormValues) {
     setIsLoading(true);
 
-    let allItems = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
-    const index = allItems.findIndex(p => p.id === id);
+    const { error } = await supabase
+      .from('familias')
+      .update({
+        nombre: data.Familia,
+        categoria_padre: data.Categoria,
+      })
+      .eq('id', id);
 
-    if (index !== -1) {
-      allItems[index] = data;
-      localStorage.setItem('familiasERP', JSON.stringify(allItems));
-      toast({ description: 'Familia ERP actualizada correctamente.' });
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar la familia ERP.' });
+      setIsLoading(false);
+      return;
     }
-    
+
+    toast({ description: 'Familia ERP actualizada correctamente.' });
+    await loadAllData();
     router.push('/bd/familiasERP');
     setIsLoading(false);
   }
-  
-  const handleDelete = () => {
-    let allItems = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
-    const updatedItems = allItems.filter(p => p.id !== id);
-    localStorage.setItem('familiasERP', JSON.stringify(updatedItems));
+
+  const handleDelete = async () => {
+    const { error } = await supabase
+      .from('familias')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la familia ERP.' });
+      return;
+    }
+
     toast({ title: 'Familia ERP eliminada' });
+    await loadAllData();
     router.push('/bd/familiasERP');
   };
 
@@ -77,15 +116,15 @@ export default function EditarFamiliaERPPage() {
                 <h1 className="text-3xl font-headline font-bold">Editar Familia ERP</h1>
               </div>
               <div className="flex gap-2">
-                 <Button variant="outline" type="button" onClick={() => router.push('/bd/familiasERP')}> <X className="mr-2"/> Cancelar</Button>
-                 <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/> Borrar</Button>
+                <Button variant="outline" type="button" onClick={() => router.push('/bd/familiasERP')}> <X className="mr-2" /> Cancelar</Button>
+                <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2" /> Borrar</Button>
                 <Button type="submit" disabled={isLoading}>
                   {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                   <span className="ml-2">Guardar Cambios</span>
                 </Button>
               </div>
             </div>
-            
+
             <Card>
               <CardHeader><CardTitle className="text-lg">Información de la Familia ERP</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -96,7 +135,7 @@ export default function EditarFamiliaERPPage() {
                   <FormField control={form.control} name="Familia" render={({ field }) => (
                     <FormItem><FormLabel>Nombre Familia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
-                   <FormField control={form.control} name="Categoria" render={({ field }) => (
+                  <FormField control={form.control} name="Categoria" render={({ field }) => (
                     <FormItem><FormLabel>Categoría MICE</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
@@ -105,20 +144,20 @@ export default function EditarFamiliaERPPage() {
           </form>
         </Form>
       </main>
-        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminará permanentemente el registro.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el registro.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
