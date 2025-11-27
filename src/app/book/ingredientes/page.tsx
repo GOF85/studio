@@ -73,7 +73,7 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
 
     const form = useForm<IngredienteFormValues>({
         resolver: zodResolver(ingredienteFormSchema),
-        defaultValues: initialData || defaultFormValues
+        defaultValues: { ...defaultFormValues, ...initialData }
     });
 
     useEffect(() => {
@@ -309,8 +309,16 @@ function IngredientesPageContent() {
     const [ingredientesEnUso, setIngredientesEnUso] = useState<Set<string>>(new Set());
 
     const loadIngredients = useCallback(async () => {
-        // Load articulos from Supabase
-        const { data: articulosData } = await supabase.from('articulos_erp').select('*');
+        // Load articulos_erp from Supabase
+        const { data: articulosData, error: erpError } = await supabase
+            .from('articulos_erp')
+            .select('*');
+
+        if (erpError) {
+            console.error('Error loading articulos_erp:', erpError);
+            return;
+        }
+
         const articulosERP = (articulosData || []).map((row: any) => ({
             id: row.id,
             idreferenciaerp: row.erp_id || '',
@@ -332,8 +340,24 @@ function IngredientesPageContent() {
         })) as ArticuloERP[];
         const erpMap = new Map(articulosERP.map(item => [item.idreferenciaerp, item]));
 
-        let storedIngredientes = localStorage.getItem('ingredientesInternos') || '[]';
-        const ingredientesInternos = JSON.parse(storedIngredientes) as IngredienteInterno[];
+        // Load ingredientes from Supabase
+        const { data: ingredientesData, error: ingError } = await supabase
+            .from('ingredientes_internos')
+            .select('*');
+
+        if (ingError) {
+            console.error('Error loading ingredientes:', ingError);
+            return;
+        }
+
+        const ingredientesInternos: IngredienteInterno[] = (ingredientesData || []).map((row: any) => ({
+            id: row.id,
+            nombreIngrediente: row.nombre_ingrediente,
+            productoERPlinkId: row.producto_erp_link_id,
+            alergenosPresentes: row.alergenos_presentes || [],
+            alergenosTrazas: row.alergenos_trazas || [],
+            historialRevisiones: row.historial_revisiones || [],
+        }));
 
         const allFamilias = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
         const familiasMap = new Map(allFamilias.map(f => [f.familiaCategoria, f]));
@@ -478,7 +502,7 @@ function IngredientesPageContent() {
 
         Papa.parse<any>(file, {
             header: true, skipEmptyLines: true, delimiter,
-            complete: (results) => {
+            complete: async (results) => { // Made async to use await for Supabase
                 const headers = results.meta.fields || [];
                 if (!CSV_HEADERS.every(field => headers.includes(field))) {
                     toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
@@ -495,9 +519,25 @@ function IngredientesPageContent() {
                     historialRevisiones: safeJsonParse(item.historialRevisiones, null),
                 }));
 
-                localStorage.setItem('ingredientesInternos', JSON.stringify(importedData));
-                loadIngredients();
-                toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+                // Replace localStorage with Supabase upsert
+                const { error } = await supabase
+                    .from('ingredientes_internos')
+                    .upsert(importedData.map(item => ({
+                        id: item.id,
+                        nombre_ingrediente: item.nombreIngrediente,
+                        producto_erp_link_id: item.productoERPlinkId,
+                        alergenos_presentes: item.alergenosPresentes,
+                        alergenos_trazas: item.alergenosTrazas,
+                        historial_revisiones: item.historialRevisiones,
+                    })), { onConflict: 'id' }); // Upsert based on 'id'
+
+                if (error) {
+                    console.error('Error importing data to Supabase:', error);
+                    toast({ variant: 'destructive', title: 'Error de importación', description: `Error al importar datos: ${error.message}` });
+                } else {
+                    toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+                    loadIngredients(); // Reload data from Supabase
+                }
                 setIsImportAlertOpen(false);
             },
             error: (error) => {
@@ -552,56 +592,100 @@ function IngredientesPageContent() {
         setItemToDelete(ingrediente);
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!itemToDelete) return;
 
-        let allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const updatedItems = allItems.filter(p => p.id !== itemToDelete.id);
-        localStorage.setItem('ingredientesInternos', JSON.stringify(updatedItems));
+        try {
+            const { error } = await supabase
+                .from('ingredientes_internos')
+                .delete()
+                .eq('id', itemToDelete.id);
 
-        if (affectedElaboraciones.length > 0) {
-            toast({
-                title: 'Recetas marcadas para revisión',
-                description: `${affectedElaboraciones.length} elaboración(es) usaban este ingrediente y sus recetas asociadas han sido marcadas para revisión.`
-            });
+            if (error) throw error;
+
+            if (affectedElaboraciones.length > 0) {
+                toast({
+                    title: 'Recetas marcadas para revisión',
+                    description: `${affectedElaboraciones.length} elaboración(es) usaban este ingrediente y sus recetas asociadas han sido marcadas para revisión.`
+                });
+            }
+
+            loadIngredients();
+            toast({ title: 'Ingrediente eliminado' });
+            setItemToDelete(null);
+        } catch (error) {
+            console.error('Error deleting ingrediente:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Error al eliminar el ingrediente.' });
         }
-
-        loadIngredients();
-        toast({ title: 'Ingrediente eliminado' });
-        setItemToDelete(null);
     };
 
-    const handleSave = (data: IngredienteFormValues) => {
+    const handleSave = async (data: IngredienteFormValues) => {
         if (!impersonatedUser) {
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar al usuario.' });
             return;
         }
 
-        const allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const index = allItems.findIndex(i => i.id === data.id);
-        let message = '';
-
         const newRevision = { fecha: new Date().toISOString(), responsable: impersonatedUser.nombre };
 
-        if (index > -1) {
-            const updatedItem = { ...allItems[index], ...data, historialRevisiones: [...(allItems[index].historialRevisiones || []), newRevision] };
-            allItems[index] = updatedItem;
-            message = 'Ingrediente actualizado.';
-        } else {
-            const existing = allItems.find(p => p.nombreIngrediente.toLowerCase() === data.nombreIngrediente.toLowerCase());
-            if (existing) {
-                toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un ingrediente con este nombre.' });
-                return;
-            }
-            const newItem: IngredienteInterno = { ...data, historialRevisiones: [newRevision] };
-            allItems.push(newItem);
-            message = 'Ingrediente creado.';
-        }
+        try {
+            // Check if editing or creating
+            const { data: existing } = await supabase
+                .from('ingredientes_internos')
+                .select('*')
+                .eq('id', data.id)
+                .single();
 
-        localStorage.setItem('ingredientesInternos', JSON.stringify(allItems));
-        toast({ description: message });
-        setEditingIngredient(null);
-        loadIngredients();
+            if (existing) {
+                // Update existing
+                const updatedRevisiones = [...(existing.historial_revisiones || []), newRevision];
+                const { error } = await supabase
+                    .from('ingredientes_internos')
+                    .update({
+                        nombre_ingrediente: data.nombreIngrediente,
+                        producto_erp_link_id: data.productoERPlinkId,
+                        alergenos_presentes: data.alergenosPresentes,
+                        alergenos_trazas: data.alergenosTrazas,
+                        historial_revisiones: updatedRevisiones,
+                    })
+                    .eq('id', data.id);
+
+                if (error) throw error;
+                toast({ description: 'Ingrediente actualizado.' });
+            } else {
+                // Check for duplicate name
+                const { data: duplicate } = await supabase
+                    .from('ingredientes_internos')
+                    .select('id')
+                    .ilike('nombre_ingrediente', data.nombreIngrediente)
+                    .single();
+
+                if (duplicate) {
+                    toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un ingrediente con este nombre.' });
+                    return;
+                }
+
+                // Create new
+                const { error } = await supabase
+                    .from('ingredientes_internos')
+                    .insert({
+                        id: data.id || crypto.randomUUID(), // Ensure ID for new item
+                        nombre_ingrediente: data.nombreIngrediente,
+                        producto_erp_link_id: data.productoERPlinkId,
+                        alergenos_presentes: data.alergenosPresentes,
+                        alergenos_trazas: data.alergenosTrazas,
+                        historial_revisiones: [newRevision],
+                    });
+
+                if (error) throw error;
+                toast({ description: 'Ingrediente creado.' });
+            }
+
+            setEditingIngredient(null);
+            loadIngredients();
+        } catch (error) {
+            console.error('Error saving ingrediente:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Error al guardar el ingrediente.' });
+        }
     };
 
     if (!isMounted) return <LoadingSkeleton title="Cargando Ingredientes..." />;

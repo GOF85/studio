@@ -80,7 +80,8 @@ function ArticulosERPPageContent() {
             // Load articulos from Supabase
             const { data: articulosData, error } = await supabase
                 .from('articulos_erp')
-                .select('*');
+                .select('*')
+                .limit(10000);
 
             if (error) {
                 console.error('Error loading articulos_erp:', error);
@@ -180,7 +181,8 @@ function ArticulosERPPageContent() {
                 // Reload data from Supabase after sync
                 const { data: articulosData, error } = await supabase
                     .from('articulos_erp')
-                    .select('*');
+                    .select('*')
+                    .limit(10000);
 
                 if (!error && articulosData) {
                     const mappedItems = articulosData.map((row: any) => ({

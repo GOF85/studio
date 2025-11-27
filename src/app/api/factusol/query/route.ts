@@ -14,11 +14,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Use hardcoded credentials
+        // Use hardcoded credentials
         const credentials = {
-            codfab: process.env.NEXT_PUBLIC_FACTUSOL_CODFAB || '1078',
-            codcli: process.env.NEXT_PUBLIC_FACTUSOL_CODCLI || '57237',
-            basedatos: process.env.NEXT_PUBLIC_FACTUSOL_BASEDATOS || 'FS150',
-            password: process.env.NEXT_PUBLIC_FACTUSOL_PASSWORD || 'AiQe4HeWrj6Q',
+            codfab: '1078',
+            codcli: '57237',
+            basedatos: 'FS150',
+            password: 'AiQe4HeWrj6Q',
         };
 
         const debugLog: string[] = [];

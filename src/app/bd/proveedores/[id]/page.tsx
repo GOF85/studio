@@ -25,7 +25,7 @@ const defaultFormValues: ProveedorFormValues = {
   id: '',
   cif: '',
   IdERP: '',
-  nombreEmpresa: '',
+  nombreFiscal: '',
   nombreComercial: '',
   direccionFacturacion: '',
   codigoPostal: '',
@@ -34,9 +34,9 @@ const defaultFormValues: ProveedorFormValues = {
   pais: 'España',
   emailContacto: '',
   telefonoContacto: '',
+  contacto: '',
   iban: '',
   formaDePagoHabitual: '',
-  tipos: [],
 };
 
 export default function EditarProveedorPage() {
@@ -65,17 +65,23 @@ export default function EditarProveedorPage() {
         if (error) throw error;
         if (data) {
           // Map Supabase data to form values
-          const contacto = data.contacto || {};
           const formValues: ProveedorFormValues = {
             ...defaultFormValues,
             id: data.id,
-            nombreComercial: data.nombre,
-            ...contacto,
-            // Ensure defaults
-            nombreEmpresa: contacto.nombreEmpresa || data.nombre,
-            cif: contacto.cif || '',
-            tipos: contacto.tipos || [],
-            pais: contacto.pais || 'España',
+            nombreComercial: data.nombre_comercial || '',
+            nombreFiscal: data.nombre_fiscal || '',
+            cif: data.cif || '',
+            IdERP: data.id_erp || '',
+            direccionFacturacion: data.direccion_facturacion || '',
+            codigoPostal: data.codigo_postal || '',
+            ciudad: data.ciudad || '',
+            provincia: data.provincia || '',
+            pais: data.pais || 'España',
+            emailContacto: data.email_contacto || '',
+            telefonoContacto: data.telefono_contacto || '',
+            contacto: data.contacto || '',
+            iban: data.iban || '',
+            formaDePagoHabitual: data.forma_de_pago_habitual || '',
           };
           form.reset(formValues);
         }
@@ -92,19 +98,26 @@ export default function EditarProveedorPage() {
     setIsLoading(true);
 
     try {
-      const { id: providerId, nombreComercial, ...rest } = data;
-
-      const contactoData = {
-        ...rest,
-        nombreEmpresa: data.nombreEmpresa,
-        cif: data.cif,
-      };
+      const { id: providerId, ...rest } = data;
 
       const { error } = await supabase
         .from('proveedores')
         .update({
-          nombre: nombreComercial,
-          contacto: contactoData
+          nombre_comercial: data.nombreComercial,
+          nombre_fiscal: data.nombreFiscal,
+          cif: data.cif,
+          id_erp: data.IdERP,
+          direccion_facturacion: data.direccionFacturacion,
+          codigo_postal: data.codigoPostal,
+          ciudad: data.ciudad,
+          provincia: data.provincia,
+          pais: data.pais,
+          email_contacto: data.emailContacto,
+          telefono_contacto: data.telefonoContacto,
+          contacto: data.contacto,
+          iban: data.iban,
+          forma_de_pago_habitual: data.formaDePagoHabitual,
+          updated_at: new Date().toISOString(),
         })
         .eq('id', id);
 
@@ -163,7 +176,7 @@ export default function EditarProveedorPage() {
               <CardHeader><CardTitle className="text-lg">Información Fiscal y de Contacto</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField control={form.control} name="nombreEmpresa" render={({ field }) => (
+                  <FormField control={form.control} name="nombreFiscal" render={({ field }) => (
                     <FormItem><FormLabel>Nombre Fiscal</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="nombreComercial" render={({ field }) => (
@@ -197,37 +210,8 @@ export default function EditarProveedorPage() {
                   <FormField control={form.control} name="telefonoContacto" render={({ field }) => (
                     <FormItem><FormLabel>Teléfono Contacto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Información de Servicio y Facturación</CardTitle>
-                <CardDescription>Selecciona los tipos de servicio que ofrece este proveedor para que aparezca en los módulos correspondientes.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField control={form.control} name="tipos" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipos de Servicio</FormLabel>
-                    <MultiSelect
-                      options={tiposOptions}
-                      selected={field.value}
-                      onChange={field.onChange}
-                      placeholder="Seleccionar tipos..."
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField control={form.control} name="IdERP" render={({ field }) => (
-                    <FormItem><FormLabel>ID en ERP</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="iban" render={({ field }) => (
-                    <FormItem><FormLabel>IBAN</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="formaDePagoHabitual" render={({ field }) => (
-                    <FormItem><FormLabel>Forma de Pago Habitual</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormField control={form.control} name="contacto" render={({ field }) => (
+                    <FormItem><FormLabel>Persona de Contacto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
               </CardContent>

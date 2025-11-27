@@ -20,10 +20,10 @@ export async function POST() {
         // 1. Initialize Factusol Service
         // Use server-side env vars (without NEXT_PUBLIC_ prefix for sensitive data)
         const factusolService = new FactusolService({
-            codfab: process.env.FACTUSOL_CODFAB || process.env.NEXT_PUBLIC_FACTUSOL_CODFAB || '',
-            codcli: process.env.FACTUSOL_CODCLI || process.env.NEXT_PUBLIC_FACTUSOL_CODCLI || '',
-            basedatos: process.env.FACTUSOL_BASEDATOS || process.env.NEXT_PUBLIC_FACTUSOL_BASEDATOS || '',
-            password: process.env.FACTUSOL_PASSWORD || '', // Server-only, never NEXT_PUBLIC_
+            codfab: '1078',
+            codcli: '57237',
+            basedatos: 'FS150',
+            password: 'AiQe4HeWrj6Q',
         }, debugLog);
 
         // 2. Fetch F_ART from Factusol with all relevant fields
@@ -31,7 +31,7 @@ export async function POST() {
         // Factusol column names: CODART, DESART, REFART, etc.
         const query = `
       SELECT 
-        CODART, DESART, REFART, FAMART, PCOART, UELART, MEMART,
+        CODART, DESART, REFART, FAMART, PHAART, PCOART, UELART, MEMART,
         DT0ART, CUCART, OBSART, STOART, CP1ART, CP2ART, CP3ART
       FROM F_ART
     `;
@@ -55,14 +55,23 @@ export async function POST() {
         // 3. Fetch dependencies for mapping (Familias and Proveedores)
         debugLog.push("Cargando Familias y Proveedores de Supabase para mapeo...");
         const { data: familias } = await supabase.from('familias').select('id, codigo, nombre, categoria_padre');
-        const { data: proveedores } = await supabase.from('proveedores').select('id, nombre');
+        const { data: proveedores } = await supabase.from('proveedores').select('id, id_erp, nombre_comercial');
+
+        debugLog.push(`Proveedores cargados: ${proveedores?.length || 0}`);
+        if (proveedores && proveedores.length > 0) {
+            debugLog.push(`Ejemplo de proveedor: id_erp="${proveedores[0].id_erp}", nombre="${proveedores[0].nombre_comercial}"`);
+        }
 
         const familiaMap = new Map(familias?.map(f => [f.codigo, { id: f.id, tipo: f.nombre, categoria: f.categoria_padre }]));
-        const proveedorMap = new Map(proveedores?.map(p => [p.nombre, p.id]));
+        const proveedorMap = new Map(proveedores?.map(p => [p.id_erp, { id: p.id, nombre: p.nombre_comercial }]));
 
         // 4. Transform Data
         debugLog.push("Transformando datos...");
-        const articulosToInsert = fArtData.map((item: any) => {
+        let proveedorMatchCount = 0;
+        let proveedorNoMatchCount = 0;
+        const phaartSamples: string[] = [];
+
+        const articulosToInsert = fArtData.map((item: any, index: number) => {
             // Parse Factusol row structure: array of {columna, dato}
             const getVal = (colName: string) => {
                 const cell = item.find((c: any) => c.columna === colName);
@@ -74,6 +83,7 @@ export async function POST() {
             // DESART = Descripción
             // REFART = Referencia proveedor
             // FAMART = Familia
+            // PHAART = Proveedor habitual
             // PCOART = Precio compra
             // MEMART = Merma
             // DT0ART = Descuento
@@ -94,6 +104,23 @@ export async function POST() {
             // Get familia info for tipo and categoria_mice
             const familiaInfo = familiaMap.get(famArt);
 
+            // Get provider info from PHAART
+            const phaArtRaw = getVal('PHAART');
+            // Convert to string and handle 0 (no provider in Factusol)
+            const phaArt = (phaArtRaw && String(phaArtRaw) !== '0') ? String(phaArtRaw) : null;
+            const proveedorInfo = phaArt ? proveedorMap.get(phaArt) : null;
+
+            // Collect samples for logging (first 5 items)
+            if (index < 5) {
+                phaartSamples.push(`PHAART raw="${phaArtRaw}" converted="${phaArt}" -> ${proveedorInfo ? `Match: ${proveedorInfo.nombre}` : 'No match'}`);
+            }
+
+            if (proveedorInfo) {
+                proveedorMatchCount++;
+            } else if (phaArt) {
+                proveedorNoMatchCount++;
+            }
+
             // Map unidad_medida from CP2ART
             let unidadMedida = 'UD';
             if (cp2Art === 'KG' || cp2Art === 'KILO') unidadMedida = 'KG';
@@ -106,7 +133,8 @@ export async function POST() {
                 erp_id: codArt,
                 nombre: getVal('DESART') || 'Sin Nombre',
                 referencia_proveedor: getVal('REFART'),
-                nombre_proveedor: null, // No hay campo directo de proveedor en F_ART
+                proveedor_id: proveedorInfo?.id || null,
+                nombre_proveedor: proveedorInfo?.nombre || null,
                 familia_id: familiaInfo?.id || null,
                 familia_categoria: famArt,
                 tipo: familiaInfo?.tipo || null,

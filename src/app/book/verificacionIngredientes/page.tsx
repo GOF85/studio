@@ -12,12 +12,12 @@ import { ALERGENOS } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -37,13 +37,14 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { Combobox } from '@/components/ui/combobox';
+import { supabase } from '@/lib/supabase';
 
 const ingredienteFormSchema = z.object({
-  id: z.string(),
-  nombreIngrediente: z.string().min(1, 'El nombre es obligatorio'),
-  productoERPlinkId: z.string().min(1, 'Debe enlazar un producto ERP'),
-  alergenosPresentes: z.array(z.string()).default([]),
-  alergenosTrazas: z.array(z.string()).default([]),
+    id: z.string(),
+    nombreIngrediente: z.string().min(1, 'El nombre es obligatorio'),
+    productoERPlinkId: z.string().min(1, 'Debe enlazar un producto ERP'),
+    alergenosPresentes: z.array(z.string()).default([]),
+    alergenosTrazas: z.array(z.string()).default([]),
 });
 
 type IngredienteFormValues = z.infer<typeof ingredienteFormSchema>;
@@ -69,15 +70,47 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
         alergenosPresentes: [],
         alergenosTrazas: [],
     };
-    
+
     const form = useForm<IngredienteFormValues>({
         resolver: zodResolver(ingredienteFormSchema),
         defaultValues: initialData || defaultFormValues
     });
 
     useEffect(() => {
-        const storedErpData = localStorage.getItem('articulosERP') || '[]';
-        setArticulosERP(JSON.parse(storedErpData));
+        async function loadArticulosERP() {
+            const { data, error } = await supabase
+                .from('articulos_erp')
+                .select('*');
+
+            if (error) {
+                console.error('Error loading articulos_erp:', error);
+                setArticulosERP([]);
+            } else {
+                // Map Supabase data to ArticuloERP type
+                const mappedArticulos = (data || []).map((row: any) => ({
+                    id: row.id,
+                    idreferenciaerp: row.erp_id || '',
+                    idProveedor: row.proveedor_id || '',
+                    nombreProveedor: row.nombre_proveedor || 'Sin proveedor',
+                    nombreProductoERP: row.nombre || '',
+                    referenciaProveedor: row.referencia_proveedor || '',
+                    familiaCategoria: row.familia_categoria || '',
+                    precioCompra: row.precio_compra || 0,
+                    descuento: row.descuento || 0,
+                    unidadConversion: row.unidad_conversion || 1,
+                    precio: row.precio || 0,
+                    precioAlquiler: row.precio_alquiler || 0,
+                    unidad: row.unidad_medida || 'UD',
+                    tipo: row.tipo || '',
+                    categoriaMice: row.categoria_mice || '',
+                    alquiler: row.alquiler || false,
+                    observaciones: row.observaciones || '',
+                })) as ArticuloERP[];
+
+                setArticulosERP(mappedArticulos);
+            }
+        }
+        loadArticulosERP();
     }, []);
 
     useEffect(() => {
@@ -113,23 +146,23 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
                                 <FormField control={form.control} name="alergenosPresentes" render={({ field }) => (
                                     <FormControl>
                                         <Checkbox checked={field.value?.includes(alergeno)} onCheckedChange={(checked) => {
-                                                const newValue = checked ? [...(field.value || []), alergeno] : (field.value || []).filter(v => v !== alergeno);
-                                                field.onChange(newValue);
-                                                if (checked) form.setValue('alergenosTrazas', (form.getValues('alergenosTrazas') || []).filter(t => t !== alergeno), { shouldDirty: true });
-                                        }}/>
+                                            const newValue = checked ? [...(field.value || []), alergeno] : (field.value || []).filter(v => v !== alergeno);
+                                            field.onChange(newValue);
+                                            if (checked) form.setValue('alergenosTrazas', (form.getValues('alergenosTrazas') || []).filter(t => t !== alergeno), { shouldDirty: true });
+                                        }} />
                                     </FormControl>
-                                )}/>
+                                )} />
                             </TableCell>
                             <TableCell className="text-center p-2">
                                 <FormField control={form.control} name="alergenosTrazas" render={({ field }) => (
                                     <FormControl>
                                         <Checkbox checked={field.value?.includes(alergeno)} onCheckedChange={(checked) => {
-                                                const newValue = checked ? [...(field.value || []), alergeno] : (field.value || []).filter(v => v !== alergeno);
-                                                field.onChange(newValue);
-                                                if (checked) form.setValue('alergenosPresentes', (form.getValues('alergenosPresentes') || []).filter(p => p !== alergeno), { shouldDirty: true });
-                                        }}/>
+                                            const newValue = checked ? [...(field.value || []), alergeno] : (field.value || []).filter(v => v !== alergeno);
+                                            field.onChange(newValue);
+                                            if (checked) form.setValue('alergenosPresentes', (form.getValues('alergenosPresentes') || []).filter(p => p !== alergeno), { shouldDirty: true });
+                                        }} />
                                     </FormControl>
-                                )}/>
+                                )} />
                             </TableCell>
                         </TableRow>
                     ))}
@@ -145,7 +178,7 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
         const discount = p.descuento || 0;
         return basePrice * (1 - discount / 100);
     }
-    
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-4xl">
@@ -170,16 +203,16 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
                                                             <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
                                                             <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
                                                         </div>
-                                                        <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" type="button" onClick={() => form.setValue('productoERPlinkId', '', {shouldDirty: true})}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
+                                                        <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" type="button" onClick={() => form.setValue('productoERPlinkId', '', { shouldDirty: true })}><CircleX className="mr-1 h-3 w-3" />Desvincular</Button>
                                                     </div>
-                                                     <p className="font-bold text-primary text-sm">{calculatePrice(selectedErpProduct).toLocaleString('es-ES',{style:'currency', currency:'EUR'})} / {selectedErpProduct.unidad}</p>
+                                                    <p className="font-bold text-primary text-sm">{calculatePrice(selectedErpProduct).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {selectedErpProduct.unidad}</p>
                                                 </div>
                                             ) : (
                                                 <Dialog>
                                                     <DialogTrigger asChild>
-                                                        <Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Artículo ERP</Button>
+                                                        <Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2" />Vincular Artículo ERP</Button>
                                                     </DialogTrigger>
-                                                    <ErpSelectorDialog 
+                                                    <ErpSelectorDialog
                                                         onSelect={handleErpSelect}
                                                         articulosERP={articulosERP}
                                                         searchTerm={erpSearchTerm}
@@ -212,13 +245,13 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
 }
 
 function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }: { onSelect: (erpId: string) => void; articulosERP: ArticuloERP[]; searchTerm: string, setSearchTerm: (term: string) => void }) {
-    
+
     const filteredErpProducts = useMemo(() => {
-        return articulosERP.filter(p => 
+        return articulosERP.filter(p =>
             p && (
-            (p.nombreProductoERP || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.nombreProveedor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.referenciaProveedor || '').toLowerCase().includes(searchTerm.toLowerCase())
+                (p.nombreProductoERP || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (p.nombreProveedor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (p.referenciaProveedor || '').toLowerCase().includes(searchTerm.toLowerCase())
             )
         );
     }, [articulosERP, searchTerm]);
@@ -229,7 +262,7 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
         const discount = p.descuento || 0;
         return basePrice * (1 - discount / 100);
     }
-    
+
     return (
         <DialogContent className="max-w-3xl">
             <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
@@ -241,10 +274,10 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
                         <TableRow key={p.idreferenciaerp || p.id}>
                             <TableCell>{p.nombreProductoERP}</TableCell>
                             <TableCell>{p.nombreProveedor}</TableCell>
-                            <TableCell>{calculatePrice(p).toLocaleString('es-ES',{style:'currency', currency:'EUR'})}/{p.unidad}</TableCell>
+                            <TableCell>{calculatePrice(p).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/{p.unidad}</TableCell>
                             <TableCell>
                                 <DialogClose asChild>
-                                    <Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}><Check className="mr-2"/>Seleccionar</Button>
+                                    <Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}><Check className="mr-2" />Seleccionar</Button>
                                 </DialogClose>
                             </TableCell>
                         </TableRow>
@@ -256,418 +289,438 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
 }
 
 function IngredientesPageContent() {
-  const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemToDelete, setItemToDelete] = useState<IngredienteConERP | null>(null);
-  const [affectedElaboraciones, setAffectedElaboraciones] = useState<Elaboracion[]>([]);
-  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
-  const [editingIngredient, setEditingIngredient] = useState<Partial<IngredienteInterno> | null>(null);
-  
-  const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-  const { impersonatedUser } = useImpersonatedUser();
-  const [showOnlyPending, setShowOnlyPending] = useState(true);
-  const [filterByUsage, setFilterByUsage] = useState(false);
-  const [ingredientesEnUso, setIngredientesEnUso] = useState<Set<string>>(new Set());
-  
-  const loadIngredients = useCallback(() => {
-    let storedErp = localStorage.getItem('articulosERP') || '[]';
-    const articulosERP = JSON.parse(storedErp) as ArticuloERP[];
-    const erpMap = new Map(articulosERP.map(item => [item.idreferenciaerp, item]));
+    const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
+    const [isMounted, setIsMounted] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemToDelete, setItemToDelete] = useState<IngredienteConERP | null>(null);
+    const [affectedElaboraciones, setAffectedElaboraciones] = useState<Elaboracion[]>([]);
+    const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
+    const [editingIngredient, setEditingIngredient] = useState<Partial<IngredienteInterno> | null>(null);
 
-    const storedProveedores = localStorage.getItem('proveedores') || '[]';
-    const proveedoresMap = new Map((JSON.parse(storedProveedores) as Proveedor[]).map(p => [p.IdERP, p.nombreComercial]));
+    const router = useRouter();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { toast } = useToast();
+    const { impersonatedUser } = useImpersonatedUser();
+    const [showOnlyPending, setShowOnlyPending] = useState(true);
+    const [filterByUsage, setFilterByUsage] = useState(false);
+    const [ingredientesEnUso, setIngredientesEnUso] = useState<Set<string>>(new Set());
+
+    const loadIngredients = useCallback(async () => {
+        // Load articulos from Supabase
+        const { data: articulosData } = await supabase.from('articulos_erp').select('*');
+        const articulosERP = (articulosData || []).map((row: any) => ({
+            id: row.id,
+            idreferenciaerp: row.erp_id || '',
+            idProveedor: row.proveedor_id || '',
+            nombreProveedor: row.nombre_proveedor || 'Sin proveedor',
+            nombreProductoERP: row.nombre || '',
+            referenciaProveedor: row.referencia_proveedor || '',
+            familiaCategoria: row.familia_categoria || '',
+            precioCompra: row.precio_compra || 0,
+            descuento: row.descuento || 0,
+            unidadConversion: row.unidad_conversion || 1,
+            precio: row.precio || 0,
+            precioAlquiler: row.precio_alquiler || 0,
+            unidad: row.unidad_medida || 'UD',
+            tipo: row.tipo || '',
+            categoriaMice: row.categoria_mice || '',
+            alquiler: row.alquiler || false,
+            observaciones: row.observaciones || '',
+        })) as ArticuloERP[];
+        const erpMap = new Map(articulosERP.map(item => [item.idreferenciaerp, item]));
+
+        // Load proveedores from Supabase
+        const { data: proveedoresData } = await supabase.from('proveedores').select('*');
+        const proveedoresMap = new Map((proveedoresData || []).map((p: any) => [p.erp_id, p.nombre]));
 
 
-    let storedIngredientes = localStorage.getItem('ingredientesInternos') || '[]';
-    const ingredientesInternos = JSON.parse(storedIngredientes) as IngredienteInterno[];
-    
-    const allFamilias = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
-    const familiasMap = new Map(allFamilias.map(f => [f.familiaCategoria, f]));
+        let storedIngredientes = localStorage.getItem('ingredientesInternos') || '[]';
+        const ingredientesInternos = JSON.parse(storedIngredientes) as IngredienteInterno[];
 
-    const today = new Date();
-    const next7days = addDays(today, 7);
-    const next30days = addDays(today, 30);
+        const allFamilias = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
+        const familiasMap = new Map(allFamilias.map(f => [f.familiaCategoria, f]));
 
-    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
-    const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
-    const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
-    const allElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
-    
-    const ingredientUsageDate = new Map<string, Date>();
-    
-    allServiceOrders.forEach(os => {
-        const osDate = new Date(os.startDate);
-        if(osDate < today) return; // Skip past events
+        const today = new Date();
+        const next7days = addDays(today, 7);
+        const next30days = addDays(today, 30);
 
-        const gastroOrders = allGastroOrders.filter(go => go.osId === os.id);
-        gastroOrders.forEach(go => {
-            (go.items || []).forEach(item => {
-                if (item.type === 'item') {
-                    const receta = allRecetas.find(r => r.id === item.id);
-                    if(receta) {
-                        (receta.elaboraciones || []).forEach(elabEnReceta => {
-                            const elab = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
-                            if (elab) {
-                                (elab.componentes || []).forEach(comp => {
-                                    if (comp.tipo === 'ingrediente') {
-                                        const ingId = comp.componenteId;
-                                        if (!ingredientUsageDate.has(ingId) || osDate < ingredientUsageDate.get(ingId)!) {
-                                            ingredientUsageDate.set(ingId, osDate);
+        const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
+        const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
+        const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
+        const allElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
+
+        const ingredientUsageDate = new Map<string, Date>();
+
+        allServiceOrders.forEach(os => {
+            const osDate = new Date(os.startDate);
+            if (osDate < today) return; // Skip past events
+
+            const gastroOrders = allGastroOrders.filter(go => go.osId === os.id);
+            gastroOrders.forEach(go => {
+                (go.items || []).forEach(item => {
+                    if (item.type === 'item') {
+                        const receta = allRecetas.find(r => r.id === item.id);
+                        if (receta) {
+                            (receta.elaboraciones || []).forEach(elabEnReceta => {
+                                const elab = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
+                                if (elab) {
+                                    (elab.componentes || []).forEach(comp => {
+                                        if (comp.tipo === 'ingrediente') {
+                                            const ingId = comp.componenteId;
+                                            if (!ingredientUsageDate.has(ingId) || osDate < ingredientUsageDate.get(ingId)!) {
+                                                ingredientUsageDate.set(ingId, osDate);
+                                            }
                                         }
-                                    }
-                                });
-                            }
-                        });
+                                    });
+                                }
+                            });
+                        }
                     }
-                }
+                });
             });
         });
-    });
 
-    const combinedData = ingredientesInternos.map(ing => {
-        const erpItem = erpMap.get(ing.productoERPlinkId);
-        if(erpItem) {
-            const familia = familiasMap.get(erpItem.familiaCategoria || '');
-            if (familia) {
-                erpItem.categoriaMice = familia.Categoria;
-                erpItem.tipo = familia.Familia;
+        const combinedData = ingredientesInternos.map(ing => {
+            const erpItem = erpMap.get(ing.productoERPlinkId);
+            if (erpItem) {
+                const familia = familiasMap.get(erpItem.familiaCategoria || '');
+                if (familia) {
+                    erpItem.categoriaMice = familia.Categoria;
+                    erpItem.tipo = familia.Familia;
+                }
+                erpItem.nombreProveedor = proveedoresMap.get(erpItem.idProveedor || '') || erpItem.nombreProveedor || 'N/A';
             }
-            erpItem.nombreProveedor = proveedoresMap.get(erpItem.idProveedor || '') || erpItem.nombreProveedor || 'N/A';
+
+            const usageDate = ingredientUsageDate.get(ing.id);
+            let urgency: IngredienteConERP['urgency'] = 'low';
+            if (usageDate) {
+                if (isBefore(usageDate, next7days)) urgency = 'high';
+                else if (isBefore(usageDate, next30days)) urgency = 'medium';
+            }
+
+            const calculatePrice = (p?: ArticuloERP) => {
+                if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
+                const basePrice = p.precioCompra / (p.unidadConversion || 1);
+                const discount = p.descuento || 0;
+                return basePrice * (1 - discount / 100);
+            }
+
+            return {
+                ...ing,
+                erp: erpItem,
+                urgency,
+                precioCalculado: calculatePrice(erpItem)
+            }
+        });
+
+        setIngredientes(combinedData);
+
+        const ingredientesActivos = new Set<string>();
+        ingredientUsageDate.forEach((date, ingId) => {
+            if (isWithinInterval(date, { start: today, end: addYears(today, 1) })) {
+                ingredientesActivos.add(ingId);
+            }
+        });
+        setIngredientesEnUso(ingredientesActivos);
+
+    }, []);
+
+    useEffect(() => {
+        loadIngredients();
+        setIsMounted(true);
+    }, [loadIngredients]);
+
+    const handleExportCSV = () => {
+        const dataToExport = ingredientes.map(item => {
+            const { erp, alergenos, ...rest } = item;
+            return {
+                ...rest,
+                alergenosPresentes: JSON.stringify(item.alergenosPresentes || []),
+                alergenosTrazas: JSON.stringify(item.alergenosTrazas || []),
+                historialRevisiones: JSON.stringify(item.historialRevisiones || []),
+            };
+        });
+
+        if (dataToExport.length === 0) {
+            dataToExport.push(Object.fromEntries(CSV_HEADERS.map(h => [h, ''])));
         }
-        
-        const usageDate = ingredientUsageDate.get(ing.id);
-        let urgency: IngredienteConERP['urgency'] = 'low';
-        if (usageDate) {
-            if (isBefore(usageDate, next7days)) urgency = 'high';
-            else if (isBefore(usageDate, next30days)) urgency = 'medium';
+
+        const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
+
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'ingredientes.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Exportación completada', description: 'El archivo ingredientes.csv se ha descargado.' });
+    };
+
+    const safeJsonParse = (jsonString: string, fallback: any = []) => { try { const parsed = JSON.parse(jsonString); return Array.isArray(parsed) ? parsed : fallback; } catch (e) { return fallback; } };
+
+    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            setIsImportAlertOpen(false);
+            return;
         }
 
-        const calculatePrice = (p?: ArticuloERP) => {
-            if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
-            const basePrice = p.precioCompra / (p.unidadConversion || 1);
-            const discount = p.descuento || 0;
-            return basePrice * (1 - discount / 100);
-        }
+        Papa.parse<any>(file, {
+            header: true, skipEmptyLines: true, delimiter,
+            complete: (results) => {
+                const headers = results.meta.fields || [];
+                if (!CSV_HEADERS.every(field => headers.includes(field))) {
+                    toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
+                    setIsImportAlertOpen(false);
+                    return;
+                }
 
-        return {
-            ...ing,
-            erp: erpItem,
-            urgency,
-            precioCalculado: calculatePrice(erpItem)
-        }
-    });
+                const importedData: IngredienteInterno[] = results.data.map(item => ({
+                    id: item.id || Date.now().toString() + Math.random(),
+                    nombreIngrediente: item.nombreIngrediente || '',
+                    productoERPlinkId: item.productoERPlinkId || '',
+                    alergenosPresentes: safeJsonParse(item.alergenosPresentes),
+                    alergenosTrazas: safeJsonParse(item.alergenosTrazas),
+                    historialRevisiones: safeJsonParse(item.historialRevisiones, null),
+                }));
 
-    setIngredientes(combinedData);
-
-    const ingredientesActivos = new Set<string>();
-    ingredientUsageDate.forEach((date, ingId) => {
-        if (isWithinInterval(date, { start: today, end: addYears(today, 1) })) {
-            ingredientesActivos.add(ingId);
-        }
-    });
-    setIngredientesEnUso(ingredientesActivos);
-
-  }, []);
-
-  useEffect(() => {
-    loadIngredients();
-    setIsMounted(true);
-  }, [loadIngredients]);
-  
-  const handleExportCSV = () => {
-    const dataToExport = ingredientes.map(item => {
-        const { erp, alergenos, ...rest } = item;
-        return {
-            ...rest,
-            alergenosPresentes: JSON.stringify(item.alergenosPresentes || []),
-            alergenosTrazas: JSON.stringify(item.alergenosTrazas || []),
-            historialRevisiones: JSON.stringify(item.historialRevisiones || []),
-        };
-    });
-    
-    if (dataToExport.length === 0) {
-        dataToExport.push(Object.fromEntries(CSV_HEADERS.map(h => [h, ''])));
-    }
-
-    const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
-    
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'ingredientes.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: 'Exportación completada', description: 'El archivo ingredientes.csv se ha descargado.' });
-  };
-  
-  const safeJsonParse = (jsonString: string, fallback: any = []) => { try { const parsed = JSON.parse(jsonString); return Array.isArray(parsed) ? parsed : fallback; } catch (e) { return fallback; } };
-
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setIsImportAlertOpen(false);
-      return;
-    }
-
-    Papa.parse<any>(file, {
-        header: true, skipEmptyLines: true, delimiter,
-        complete: (results) => {
-            const headers = results.meta.fields || [];
-            if (!CSV_HEADERS.every(field => headers.includes(field))) {
-                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+                localStorage.setItem('ingredientesInternos', JSON.stringify(importedData));
+                loadIngredients();
+                toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
                 setIsImportAlertOpen(false);
+            },
+            error: (error) => {
+                toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+                setIsImportAlertOpen(false);
+            }
+        });
+        if (event.target) event.target.value = '';
+    };
+
+    const sixMonthsAgo = useMemo(() => subMonths(startOfToday(), 6), []);
+
+    const filteredItems = useMemo(() => {
+        return ingredientes.filter(item => {
+            const latestRevision = item.historialRevisiones?.[item.historialRevisiones.length - 1];
+            const needsReview = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
+            if (showOnlyPending && !needsReview) return false;
+
+            if (filterByUsage && !ingredientesEnUso.has(item.id)) return false;
+
+            const term = searchTerm.toLowerCase();
+            return (
+                item.nombreIngrediente.toLowerCase().includes(term) ||
+                (item.erp?.nombreProductoERP || '').toLowerCase().includes(term) ||
+                (item.erp?.idreferenciaerp || '').toLowerCase().includes(term) ||
+                (item.erp?.categoriaMice || '').toLowerCase().includes(term) ||
+                (item.erp?.tipo || '').toLowerCase().includes(term) ||
+                (latestRevision?.responsable || '').toLowerCase().includes(term)
+            );
+        }).sort((a, b) => {
+            const dateA = a.historialRevisiones?.[a.historialRevisiones.length - 1]?.fecha;
+            const dateB = b.historialRevisiones?.[b.historialRevisiones.length - 1]?.fecha;
+            return (dateA ? new Date(dateA).getTime() : 0) - (dateB ? new Date(dateB).getTime() : 0);
+        });
+    }, [ingredientes, searchTerm, showOnlyPending, filterByUsage, sixMonthsAgo, ingredientesEnUso]);
+
+    const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+    const paginatedItems = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [filteredItems, currentPage]);
+
+    const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
+    const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
+
+    const handleAttemptDelete = (ingrediente: IngredienteConERP) => {
+        const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        const elaboracionesUsingIngredient = allElaboraciones.filter(elab =>
+            elab.componentes.some(c => c.tipo === 'ingrediente' && c.componenteId === ingrediente.id)
+        );
+        setAffectedElaboraciones(elaboracionesUsingIngredient);
+        setItemToDelete(ingrediente);
+    };
+
+    const handleDelete = () => {
+        if (!itemToDelete) return;
+
+        let allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+        const updatedItems = allItems.filter(p => p.id !== itemToDelete.id);
+        localStorage.setItem('ingredientesInternos', JSON.stringify(updatedItems));
+
+        if (affectedElaboraciones.length > 0) {
+            toast({
+                title: 'Recetas marcadas para revisión',
+                description: `${affectedElaboraciones.length} elaboración(es) usaban este ingrediente y sus recetas asociadas han sido marcadas para revisión.`
+            });
+        }
+
+        loadIngredients();
+        toast({ title: 'Ingrediente eliminado' });
+        setItemToDelete(null);
+    };
+
+    const handleSave = (data: IngredienteFormValues) => {
+        if (!impersonatedUser) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar al usuario.' });
+            return;
+        }
+
+        const allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+        const index = allItems.findIndex(i => i.id === data.id);
+        let message = '';
+
+        const newRevision = { fecha: new Date().toISOString(), responsable: impersonatedUser.nombre };
+
+        if (index > -1) {
+            const updatedItem = { ...allItems[index], ...data, historialRevisiones: [...(allItems[index].historialRevisiones || []), newRevision] };
+            allItems[index] = updatedItem;
+            message = 'Ingrediente actualizado.';
+        } else {
+            const existing = allItems.find(p => p.nombreIngrediente.toLowerCase() === data.nombreIngrediente.toLowerCase());
+            if (existing) {
+                toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un ingrediente con este nombre.' });
                 return;
             }
-            
-            const importedData: IngredienteInterno[] = results.data.map(item => ({
-                id: item.id || Date.now().toString() + Math.random(),
-                nombreIngrediente: item.nombreIngrediente || '',
-                productoERPlinkId: item.productoERPlinkId || '',
-                alergenosPresentes: safeJsonParse(item.alergenosPresentes),
-                alergenosTrazas: safeJsonParse(item.alergenosTrazas),
-                historialRevisiones: safeJsonParse(item.historialRevisiones, null),
-            }));
-            
-            localStorage.setItem('ingredientesInternos', JSON.stringify(importedData));
-            loadIngredients();
-            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-            setIsImportAlertOpen(false);
-        },
-        error: (error) => {
-            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-            setIsImportAlertOpen(false);
+            const newItem: IngredienteInterno = { ...data, historialRevisiones: [newRevision] };
+            allItems.push(newItem);
+            message = 'Ingrediente creado.';
         }
-    });
-    if(event.target) event.target.value = '';
-  };
 
-  const sixMonthsAgo = useMemo(() => subMonths(startOfToday(), 6), []);
-  
-  const filteredItems = useMemo(() => {
-    return ingredientes.filter(item => {
-      const latestRevision = item.historialRevisiones?.[item.historialRevisiones.length - 1];
-      const needsReview = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
-      if (showOnlyPending && !needsReview) return false;
-      
-      if (filterByUsage && !ingredientesEnUso.has(item.id)) return false;
+        localStorage.setItem('ingredientesInternos', JSON.stringify(allItems));
+        toast({ description: message });
+        setEditingIngredient(null);
+        loadIngredients();
+    };
 
-      const term = searchTerm.toLowerCase();
-      return (
-        item.nombreIngrediente.toLowerCase().includes(term) ||
-        (item.erp?.nombreProductoERP || '').toLowerCase().includes(term) ||
-        (item.erp?.idreferenciaerp || '').toLowerCase().includes(term) ||
-        (item.erp?.categoriaMice || '').toLowerCase().includes(term) ||
-        (item.erp?.tipo || '').toLowerCase().includes(term) ||
-        (latestRevision?.responsable || '').toLowerCase().includes(term)
-      );
-    }).sort((a, b) => {
-        const dateA = a.historialRevisiones?.[a.historialRevisiones.length - 1]?.fecha;
-        const dateB = b.historialRevisiones?.[b.historialRevisiones.length - 1]?.fecha;
-        return (dateA ? new Date(dateA).getTime() : 0) - (dateB ? new Date(dateB).getTime() : 0);
-    });
-  }, [ingredientes, searchTerm, showOnlyPending, filterByUsage, sixMonthsAgo, ingredientesEnUso]);
-
-  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
-  const paginatedItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredItems, currentPage]);
-
-  const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
-  const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
-
-  const handleAttemptDelete = (ingrediente: IngredienteConERP) => {
-    const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    const elaboracionesUsingIngredient = allElaboraciones.filter(elab => 
-      elab.componentes.some(c => c.tipo === 'ingrediente' && c.componenteId === ingrediente.id)
-    );
-    setAffectedElaboraciones(elaboracionesUsingIngredient);
-    setItemToDelete(ingrediente);
-  };
-
-  const handleDelete = () => {
-    if (!itemToDelete) return;
-    
-    let allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-    const updatedItems = allItems.filter(p => p.id !== itemToDelete.id);
-    localStorage.setItem('ingredientesInternos', JSON.stringify(updatedItems));
-
-    if (affectedElaboraciones.length > 0) {
-        toast({
-            title: 'Recetas marcadas para revisión',
-            description: `${affectedElaboraciones.length} elaboración(es) usaban este ingrediente y sus recetas asociadas han sido marcadas para revisión.`
+    const handleValidate = (item: IngredienteConERP) => {
+        handleSave({
+            id: item.id,
+            nombreIngrediente: item.nombreIngrediente,
+            productoERPlinkId: item.productoERPlinkId,
+            alergenosPresentes: item.alergenosPresentes || [],
+            alergenosTrazas: item.alergenosTrazas || [],
         });
     }
 
-    loadIngredients();
-    toast({ title: 'Ingrediente eliminado' });
-    setItemToDelete(null);
-  };
-
-  const handleSave = (data: IngredienteFormValues) => {
-    if (!impersonatedUser) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar al usuario.' });
-        return;
-    }
-
-    const allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-    const index = allItems.findIndex(i => i.id === data.id);
-    let message = '';
-
-    const newRevision = { fecha: new Date().toISOString(), responsable: impersonatedUser.nombre };
-
-    if (index > -1) {
-        const updatedItem = { ...allItems[index], ...data, historialRevisiones: [...(allItems[index].historialRevisiones || []), newRevision] };
-        allItems[index] = updatedItem;
-        message = 'Ingrediente actualizado.';
-    } else {
-        const existing = allItems.find(p => p.nombreIngrediente.toLowerCase() === data.nombreIngrediente.toLowerCase());
-        if (existing) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un ingrediente con este nombre.' });
-            return;
+    const getInitials = (name: string) => {
+        if (!name) return '';
+        const nameParts = name.split(' ');
+        if (nameParts.length > 1) {
+            return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
         }
-        const newItem: IngredienteInterno = { ...data, historialRevisiones: [newRevision] };
-        allItems.push(newItem);
-        message = 'Ingrediente creado.';
+        return name.substring(0, 2).toUpperCase();
     }
-    
-    localStorage.setItem('ingredientesInternos', JSON.stringify(allItems));
-    toast({ description: message });
-    setEditingIngredient(null);
-    loadIngredients();
-  };
-  
-  const handleValidate = (item: IngredienteConERP) => {
-      handleSave({
-        id: item.id,
-        nombreIngrediente: item.nombreIngrediente,
-        productoERPlinkId: item.productoERPlinkId,
-        alergenosPresentes: item.alergenosPresentes || [],
-        alergenosTrazas: item.alergenosTrazas || [],
-      });
-  }
 
-  const getInitials = (name: string) => {
-    if (!name) return '';
-    const nameParts = name.split(' ');
-    if (nameParts.length > 1) {
-        return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  }
+    if (!isMounted) return <LoadingSkeleton title="Cargando Ingredientes..." />;
 
-  if (!isMounted) return <LoadingSkeleton title="Cargando Ingredientes..." />;
+    return (
+        <>
 
-  return (
-    <>
-        
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <Input placeholder="Buscar..." className="flex-grow max-w-lg" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-           <div className="flex items-center gap-4">
-             <div className="flex items-center space-x-2"><Checkbox id="showPending" checked={showOnlyPending} onCheckedChange={(checked) => setShowOnlyPending(Boolean(checked))} /><Label htmlFor="showPending">Solo pendientes</Label></div>
-             <div className="flex items-center space-x-2"><Checkbox id="filterUsage" checked={filterByUsage} onCheckedChange={(checked) => setFilterByUsage(Boolean(checked))} /><Label htmlFor="filterUsage">En uso futuro</Label></div>
-           </div>
-           <div className="flex items-center justify-end gap-2">
-            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
-            <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-            <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
-          </div>
-        </div>
-
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader><TableRow>
-                <TableHead>Ingrediente</TableHead>
-                <TableHead>Producto ERP Vinculado</TableHead>
-                <TableHead>Proveedor</TableHead>
-                <TableHead>Categoría ERP</TableHead>
-                <TableHead>Precio/Ud.</TableHead>
-                <TableHead>Última Revisión</TableHead>
-                <TableHead>Responsable</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {paginatedItems.length > 0 ? (
-                paginatedItems.map(item => {
-                    const latestRevision = item.historialRevisiones?.[item.historialRevisiones.length - 1];
-                    const needsReview = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
-                    const urgencyClass = needsReview && item.urgency === 'high' ? 'bg-red-100/50' 
-                                       : needsReview && item.urgency === 'medium' ? 'bg-amber-100/50'
-                                       : '';
-                    return (
-                        <TableRow key={item.id} className={cn(needsReview && 'bg-amber-50', urgencyClass)}>
-                            <TableCell className="font-medium">{item.nombreIngrediente}</TableCell>
-                            <TableCell>{item.erp?.nombreProductoERP || <span className="text-destructive">No Vinculado</span>}</TableCell>
-                            <TableCell>{item.erp?.nombreProveedor}</TableCell>
-                            <TableCell>{item.erp?.tipo || '-'}</TableCell>
-                            <TableCell className="font-mono text-right">{formatCurrency(item.precioCalculado || 0)}</TableCell>
-                            <TableCell className={cn(needsReview && 'text-destructive font-bold')}>
-                                {latestRevision ? format(new Date(latestRevision.fecha), 'dd/MM/yyyy') : 'Nunca'}
-                                {needsReview && <AlertTriangle className="inline ml-2 h-4 w-4" />}
-                            </TableCell>
-                            <TableCell>{latestRevision ? getInitials(latestRevision.responsable) : '-'}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex gap-2 justify-end">
-                                <Button size="sm" variant="secondary" onClick={() => handleValidate(item)}><Check className="mr-2 h-4 w-4" />Validar</Button>
-                                <Button size="sm" variant="outline" onClick={() => setEditingIngredient(item)}><Pencil className="mr-2 h-4 w-4" />Editar</Button>
-                              </div>
-                            </TableCell>
-                        </TableRow>
-                    )
-                })
-              ) : <TableRow><TableCell colSpan={8} className="h-24 text-center">No se encontraron ingredientes.</TableCell></TableRow>}
-            </TableBody>
-          </Table>
-        </div>
-
-      {editingIngredient && (
-          <IngredienteFormModal 
-              open={!!editingIngredient}
-              onOpenChange={(isOpen) => !isOpen && setEditingIngredient(null)}
-              initialData={editingIngredient}
-              onSave={handleSave}
-          />
-      )}
-
-      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive"/>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {affectedElaboraciones.length > 0 ? (
-                <div>
-                    <span className="font-bold text-destructive">Este ingrediente se usa en {affectedElaboraciones.length} elaboración(es).</span>
-                    <p className="mt-2">Si lo eliminas, las recetas que usen estas elaboraciones podrían tener costes y alérgenos incorrectos. Se recomienda marcarlas para revisión.</p>
+            <div className="flex items-center justify-between gap-4 mb-4">
+                <Input placeholder="Buscar..." className="flex-grow max-w-lg" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center space-x-2"><Checkbox id="showPending" checked={showOnlyPending} onCheckedChange={(checked) => setShowOnlyPending(Boolean(checked))} /><Label htmlFor="showPending">Solo pendientes</Label></div>
+                    <div className="flex items-center space-x-2"><Checkbox id="filterUsage" checked={filterByUsage} onCheckedChange={(checked) => setFilterByUsage(Boolean(checked))} /><Label htmlFor="filterUsage">En uso futuro</Label></div>
                 </div>
-              ) : 'Esta acción no se puede deshacer. Se eliminará permanentemente el ingrediente.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setItemToDelete(null); setAffectedElaboraciones([]); }}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>{affectedElaboraciones.length > 0 ? 'Eliminar y Marcar Recetas' : 'Eliminar Ingrediente'}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                <div className="flex items-center justify-end gap-2">
+                    <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
+                    <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
+                </div>
+            </div>
 
-        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
-            <AlertDialogContent>
-                <AlertDialogHeader><AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle><AlertDialogDescription>Selecciona el tipo de delimitador que utiliza tu archivo CSV.</AlertDialogDescription></AlertDialogHeader>
-                <AlertDialogFooter className="!justify-center gap-4">
-                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-    </>
-  );
+            <div className="border rounded-lg">
+                <Table>
+                    <TableHeader><TableRow>
+                        <TableHead>Ingrediente</TableHead>
+                        <TableHead>Producto ERP Vinculado</TableHead>
+                        <TableHead>Proveedor</TableHead>
+                        <TableHead>Categoría ERP</TableHead>
+                        <TableHead>Precio/Ud.</TableHead>
+                        <TableHead>Última Revisión</TableHead>
+                        <TableHead>Responsable</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                        {paginatedItems.length > 0 ? (
+                            paginatedItems.map(item => {
+                                const latestRevision = item.historialRevisiones?.[item.historialRevisiones.length - 1];
+                                const needsReview = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
+                                const urgencyClass = needsReview && item.urgency === 'high' ? 'bg-red-100/50'
+                                    : needsReview && item.urgency === 'medium' ? 'bg-amber-100/50'
+                                        : '';
+                                return (
+                                    <TableRow key={item.id} className={cn(needsReview && 'bg-amber-50', urgencyClass)}>
+                                        <TableCell className="font-medium">{item.nombreIngrediente}</TableCell>
+                                        <TableCell>{item.erp?.nombreProductoERP || <span className="text-destructive">No Vinculado</span>}</TableCell>
+                                        <TableCell>{item.erp?.nombreProveedor}</TableCell>
+                                        <TableCell>{item.erp?.tipo || '-'}</TableCell>
+                                        <TableCell className="font-mono text-right">{formatCurrency(item.precioCalculado || 0)}</TableCell>
+                                        <TableCell className={cn(needsReview && 'text-destructive font-bold')}>
+                                            {latestRevision ? format(new Date(latestRevision.fecha), 'dd/MM/yyyy') : 'Nunca'}
+                                            {needsReview && <AlertTriangle className="inline ml-2 h-4 w-4" />}
+                                        </TableCell>
+                                        <TableCell>{latestRevision ? getInitials(latestRevision.responsable) : '-'}</TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex gap-2 justify-end">
+                                                <Button size="sm" variant="secondary" onClick={() => handleValidate(item)}><Check className="mr-2 h-4 w-4" />Validar</Button>
+                                                <Button size="sm" variant="outline" onClick={() => setEditingIngredient(item)}><Pencil className="mr-2 h-4 w-4" />Editar</Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })
+                        ) : <TableRow><TableCell colSpan={8} className="h-24 text-center">No se encontraron ingredientes.</TableCell></TableRow>}
+                    </TableBody>
+                </Table>
+            </div>
+
+            {editingIngredient && (
+                <IngredienteFormModal
+                    open={!!editingIngredient}
+                    onOpenChange={(isOpen) => !isOpen && setEditingIngredient(null)}
+                    initialData={editingIngredient}
+                    onSave={handleSave}
+                />
+            )}
+
+            <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive" />¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {affectedElaboraciones.length > 0 ? (
+                                <div>
+                                    <span className="font-bold text-destructive">Este ingrediente se usa en {affectedElaboraciones.length} elaboración(es).</span>
+                                    <p className="mt-2">Si lo eliminas, las recetas que usen estas elaboraciones podrían tener costes y alérgenos incorrectos. Se recomienda marcarlas para revisión.</p>
+                                </div>
+                            ) : 'Esta acción no se puede deshacer. Se eliminará permanentemente el ingrediente.'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => { setItemToDelete(null); setAffectedElaboraciones([]); }}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>{affectedElaboraciones.length > 0 ? 'Eliminar y Marcar Recetas' : 'Eliminar Ingrediente'}</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle><AlertDialogDescription>Selecciona el tipo de delimitador que utiliza tu archivo CSV.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter className="!justify-center gap-4">
+                        <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+                        <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+                        <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    );
 }
 
 export default function IngredientesPageWrapper() {

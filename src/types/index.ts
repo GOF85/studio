@@ -952,7 +952,7 @@ export type Proveedor = {
     id: string;
     cif: string;
     IdERP?: string;
-    nombreEmpresa: string;
+    nombreFiscal?: string;
     nombreComercial: string;
     direccionFacturacion: string;
     codigoPostal: string;
@@ -961,9 +961,9 @@ export type Proveedor = {
     pais: string;
     emailContacto: string;
     telefonoContacto: string;
+    contacto?: string; // Name of contact person
     iban?: string;
     formaDePagoHabitual?: string;
-    tipos: TipoProveedor[];
 };
 
 export type PersonalExternoDB = {
