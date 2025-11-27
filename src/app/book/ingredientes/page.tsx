@@ -32,7 +32,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as React from 'react';
-import { isBefore, subMonths, startOfToday, addYears, isWithinInterval, addDays } from 'date-fns';
+import { isBefore, subMonths, startOfToday, addYears, isWithinInterval, addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
@@ -278,7 +278,7 @@ function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }
                             <TableCell>{calculatePrice(p).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/{p.unidad}</TableCell>
                             <TableCell>
                                 <DialogClose asChild>
-                                    <Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}><Check className="mr-2" />Seleccionar</Button>
+                                    <Button size="sm" onClick={() => onSelect(p.idreferenciaerp || '')}><Check className="mr-2" />Seleccionar</Button>
                                 </DialogClose>
                             </TableCell>
                         </TableRow>
@@ -425,7 +425,7 @@ function IngredientesPageContent() {
             return {
                 ...ing,
                 erp: erpItem,
-                alergenos: [...new Set([...presentes, ...trazas])] as Alergeno[],
+                alergenos: Array.from(new Set([...presentes, ...trazas])) as Alergeno[],
                 urgency,
             }
         });
@@ -474,7 +474,7 @@ function IngredientesPageContent() {
         });
 
         if (dataToExport.length === 0) {
-            dataToExport.push(Object.fromEntries(CSV_HEADERS.map(h => [h, ''])));
+            dataToExport.push(Object.fromEntries(CSV_HEADERS.map(h => [h, ''])) as any);
         }
 
         const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
@@ -741,7 +741,6 @@ function IngredientesPageContent() {
                                         <TableCell>{latestRevision?.responsable || '-'}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex gap-2 justify-end">
-                                                <Button size="sm" variant="secondary" onClick={() => handleValidate(item)}><Check className="mr-2 h-4 w-4" />Validar</Button>
                                                 <Button size="sm" variant="outline" onClick={() => setEditingIngredient(item)}><Pencil className="mr-2 h-4 w-4" />Editar</Button>
                                             </div>
                                         </TableCell>
