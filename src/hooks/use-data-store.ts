@@ -2,17 +2,17 @@
 'use client';
 
 import { create } from 'zustand';
-import type { 
-    ServiceOrder, Entrega, ComercialBriefing, PedidoEntrega, GastronomyOrder, MaterialOrder, 
-    TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExterno, 
-    PruebaMenuData, PickingSheet, ReturnSheet, OrdenFabricacion, PickingState, ExcedenteProduccion, 
-    PersonalEntrega, PartnerPedidoStatus, ActivityLog, CtaRealCost, CtaComentario, 
-    ObjetivosGasto, IngredienteERP, FamiliaERP, IngredienteInterno, Elaboracion, Receta, 
-    CategoriaReceta, PortalUser, ComercialAjuste, ProductoVenta, PickingEntregaState, 
-    StockElaboracion, PersonalExternoAjuste, PersonalExternoDB, HistoricoPreciosERP, 
-    CosteFijoCPR, ObjetivoMensualCPR, SolicitudPersonalCPR, Personal, Espacio, ArticuloCatering, 
-    TipoServicio, CategoriaPersonal, Proveedor, TipoTransporte, DecoracionDBItem, 
-    AtipicoDBItem, PedidoPlantilla, FormatoExpedicion 
+import type {
+    ServiceOrder, Entrega, ComercialBriefing, PedidoEntrega, GastronomyOrder, MaterialOrder,
+    TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExterno,
+    PruebaMenuData, PickingSheet, ReturnSheet, OrdenFabricacion, PickingState, ExcedenteProduccion,
+    PersonalEntrega, PartnerPedidoStatus, ActivityLog, CtaRealCost, CtaComentario,
+    ObjetivosGasto, IngredienteERP, FamiliaERP, IngredienteInterno, Elaboracion, Receta,
+    CategoriaReceta, PortalUser, ComercialAjuste, ProductoVenta, PickingEntregaState,
+    StockElaboracion, PersonalExternoAjuste, PersonalExternoDB, HistoricoPreciosERP,
+    CosteFijoCPR, ObjetivoMensualCPR, SolicitudPersonalCPR, Personal, Espacio, ArticuloCatering,
+    TipoServicio, CategoriaPersonal, Proveedor, TipoTransporte, DecoracionDBItem,
+    AtipicoDBItem, PedidoPlantilla, FormatoExpedicion, Precio
 } from '@/types';
 
 type DataStore = {
@@ -72,9 +72,11 @@ type DataStore = {
         formatosExpedicionDB: FormatoExpedicion[];
         solicitudesPersonalCPR: SolicitudPersonalCPR[];
         incidenciasRetorno: any[];
+        precios: Precio[];
     };
     loadAllData: () => void;
     refreshData: () => void;
+    updatePickingEntregaState: (hitoId: string, newState: Partial<PickingEntregaState>) => void;
 };
 
 const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
@@ -105,6 +107,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
         espacios: [], articulos: [], tipoServicio: [], tiposPersonal: [], proveedores: [],
         tiposTransporte: [], decoracionDB: [], atipicosDB: [], pedidoPlantillas: [],
         formatosExpedicionDB: [], solicitudesPersonalCPR: [], incidenciasRetorno: [],
+        precios: [],
     },
     loadAllData: () => {
         if (get().isLoaded) return;
@@ -163,8 +166,28 @@ export const useDataStore = create<DataStore>((set, get) => ({
             formatosExpedicionDB: loadFromLocalStorage<FormatoExpedicion[]>('formatosExpedicionDB', []),
             solicitudesPersonalCPR: loadFromLocalStorage<SolicitudPersonalCPR[]>('solicitudesPersonalCPR', []),
             incidenciasRetorno: loadFromLocalStorage<any[]>('incidenciasRetorno', []),
+            precios: loadFromLocalStorage<Precio[]>('precios', []),
         };
         set({ data: allData, isLoaded: true });
+    },
+    updatePickingEntregaState: (hitoId: string, newState: Partial<PickingEntregaState>) => {
+        set((state) => {
+            const currentStates = state.data.pickingEntregasState;
+            const currentState = currentStates[hitoId] || { hitoId, checkedItems: [], incidencias: [], fotoUrl: null, status: 'Pendiente' };
+            const updatedState = { ...currentState, ...newState };
+            const newStates = { ...currentStates, [hitoId]: updatedState };
+
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('pickingEntregasState', JSON.stringify(newStates));
+            }
+
+            return {
+                data: {
+                    ...state.data,
+                    pickingEntregasState: newStates
+                }
+            };
+        });
     },
     refreshData: () => {
         set({ isLoaded: false });
