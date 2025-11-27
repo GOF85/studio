@@ -8,6 +8,8 @@ import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown, Bui
 import type { Proveedor, TipoProveedor } from '@/types';
 import { TIPO_PROVEEDOR_OPCIONES } from '@/types';
 import { Button } from '@/components/ui/button';
+import { useDataStore } from '@/hooks/use-data-store';
+import { supabase } from '@/lib/supabase';
 import {
   Table,
   TableBody,
@@ -23,14 +25,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -42,50 +44,64 @@ import { Badge } from '@/components/ui/badge';
 const CSV_HEADERS = ["id", "cif", "IdERP", "nombreEmpresa", "nombreComercial", "direccionFacturacion", "codigoPostal", "ciudad", "provincia", "pais", "emailContacto", "telefonoContacto", "iban", "formaDePagoHabitual", "tipos"];
 
 function ProveedoresPageContent() {
-  const [items, setItems] = useState<Proveedor[]>([]);
+  const { data, isLoaded, refreshData } = useDataStore();
+  const items = data.proveedores || [];
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoFilter, setTipoFilter] = useState('all');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  
+
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
-    let storedData = localStorage.getItem('proveedores');
-    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, []);
-  
+    if (!isLoaded) {
+      useDataStore.getState().loadAllData();
+    }
+  }, [isLoaded]);
+
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-        const term = searchTerm.toLowerCase();
-        const searchMatch = 
-          (item.nombreComercial || '').toLowerCase().includes(term);
-        
-        const tipoMatch = tipoFilter === 'all' || (item.tipos || []).includes(tipoFilter as TipoProveedor);
-        
-        return searchMatch && tipoMatch;
+      const term = searchTerm.toLowerCase();
+      const searchMatch =
+        (item.nombreComercial || '').toLowerCase().includes(term);
+
+      const tipoMatch = tipoFilter === 'all' || (item.tipos || []).includes(tipoFilter as TipoProveedor);
+
+      return searchMatch && tipoMatch;
     });
   }, [items, searchTerm, tipoFilter]);
-  
-  const handleDelete = () => {
+
+  const handleDelete = async () => {
     if (!itemToDelete) return;
-    const updatedData = items.filter(i => i.id !== itemToDelete);
-    localStorage.setItem('proveedores', JSON.stringify(updatedData));
-    setItems(updatedData);
-    toast({ title: 'Proveedor eliminado' });
-    setItemToDelete(null);
+
+    try {
+      const { error } = await supabase
+        .from('proveedores')
+        .delete()
+        .eq('id', itemToDelete);
+
+      if (error) throw error;
+
+      toast({ title: 'Proveedor eliminado' });
+      refreshData();
+    } catch (error: any) {
+      console.error('Error deleting provider:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Error al eliminar: ' + error.message });
+    } finally {
+      setItemToDelete(null);
+    }
   };
-  
+
   const handleExportCSV = () => {
     if (items.length === 0) {
-        toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay proveedores para exportar.' });
-        return;
+      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay proveedores para exportar.' });
+      return;
     }
-    const dataToExport = items.map(item => ({...item, tipos: (item.tipos || []).join(',')}));
+    const dataToExport = items.map(item => ({ ...item, tipos: (item.tipos || []).join(',') }));
     const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -98,50 +114,53 @@ function ProveedoresPageContent() {
     document.body.removeChild(link);
     toast({ title: 'Exportación completada' });
   };
-  
+
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
     if (!file) {
-        setIsImportAlertOpen(false);
-        return;
+      setIsImportAlertOpen(false);
+      return;
     }
 
     Papa.parse<any>(file, {
-        header: true,
-        skipEmptyLines: true,
-        delimiter,
-        complete: (results) => {
-            if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
-                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
-                return;
-            }
-            
-            const existingIds = new Set(items.map(item => item.id));
-            const importedData: Proveedor[] = results.data.map((item: any, index: number) => {
-                let id = item.id;
-                if (!id || id.trim() === '' || existingIds.has(id)) {
-                    id = `${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`;
-                }
-                existingIds.add(id);
-
-                return {
-                    ...item,
-                    id,
-                    tipos: typeof item.tipos === 'string' ? item.tipos.split(',').map((t: string) => t.trim()).filter(Boolean) : []
-                };
-            });
-            
-            localStorage.setItem('proveedores', JSON.stringify(importedData));
-            setItems(importedData);
-            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-            setIsImportAlertOpen(false);
-        },
-        error: (error) => {
-            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-            setIsImportAlertOpen(false);
+      header: true,
+      skipEmptyLines: true,
+      delimiter,
+      complete: async (results) => {
+        if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
+          toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
+          return;
         }
+
+        try {
+          const importedData: Partial<Proveedor>[] = results.data.map((item: any) => {
+            const { id, tipos, ...rest } = item; // Destructure id and tipos
+            return {
+              ...rest,
+              tipos: typeof tipos === 'string' ? tipos.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
+              // Supabase will generate 'id' if not provided, or use it if it's a UUID.
+              // For simplicity, we'll omit it here and let Supabase handle it.
+            };
+          });
+
+          const { error } = await supabase.from('proveedores').insert(importedData);
+          if (error) throw error;
+
+          toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+          refreshData();
+        } catch (error: any) {
+          console.error('Error importing CSV:', error);
+          toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        } finally {
+          setIsImportAlertOpen(false);
+        }
+      },
+      error: (error) => {
+        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        setIsImportAlertOpen(false);
+      }
     });
-    
+
     if (event.target) {
       event.target.value = '';
     }
@@ -153,40 +172,40 @@ function ProveedoresPageContent() {
 
   return (
     <>
-       <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <Input 
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <Input
           placeholder="Buscar por nombre comercial..."
           className="flex-grow max-w-lg"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         <Select value={tipoFilter} onValueChange={setTipoFilter}>
-            <SelectTrigger className="w-full md:w-[240px]">
-                <SelectValue placeholder="Filtrar por tipo" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">Todos los Tipos</SelectItem>
-                {TIPO_PROVEEDOR_OPCIONES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-            </SelectContent>
+          <SelectTrigger className="w-full md:w-[240px]">
+            <SelectValue placeholder="Filtrar por tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los Tipos</SelectItem>
+            {TIPO_PROVEEDOR_OPCIONES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
         </Select>
         <div className="flex-grow flex justify-end gap-2">
-            <Button onClick={() => router.push('/bd/proveedores/nuevo')}>
-                <PlusCircle className="mr-2" />
-                Nuevo Proveedor
-            </Button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon"><Menu /></Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
-                        <FileUp size={16} className="mr-2"/>Importar CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportCSV}>
-                        <FileDown size={16} className="mr-2"/>Exportar CSV
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+          <Button onClick={() => router.push('/bd/proveedores/nuevo')}>
+            <PlusCircle className="mr-2" />
+            Nuevo Proveedor
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon"><Menu /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
+                <FileUp size={16} className="mr-2" />Importar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileDown size={16} className="mr-2" />Exportar CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -209,9 +228,9 @@ function ProveedoresPageContent() {
                   <TableCell>{item.cif}</TableCell>
                   <TableCell>{item.ciudad}</TableCell>
                   <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {(item.tipos || []).map(t => <Badge key={t} variant="secondary">{t}</Badge>)}
-                      </div>
+                    <div className="flex flex-wrap gap-1">
+                      {(item.tipos || []).map(t => <Badge key={t} variant="secondary">{t}</Badge>)}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -225,7 +244,7 @@ function ProveedoresPageContent() {
                         <DropdownMenuItem onClick={() => router.push(`/bd/proveedores/${item.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id)}}>
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
                           <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -244,7 +263,7 @@ function ProveedoresPageContent() {
         </Table>
       </div>
 
-       <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
@@ -263,29 +282,29 @@ function ProveedoresPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="!justify-center gap-4">
-                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="!justify-center gap-4">
+            <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
 
 export default function ProveedoresPage() {
-    return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Proveedores..." />}>
-            <ProveedoresPageContent />
-        </Suspense>
-    )
+  return (
+    <Suspense fallback={<LoadingSkeleton title="Cargando Proveedores..." />}>
+      <ProveedoresPageContent />
+    </Suspense>
+  )
 }
