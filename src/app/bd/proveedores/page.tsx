@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { downloadCSVTemplate } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -200,6 +201,9 @@ function ProveedoresPageContent() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
                 <FileUp size={16} className="mr-2" />Importar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_proveedores.csv')}>
+                <FileDown size={16} className="mr-2" />Descargar Plantilla
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportCSV}>
                 <FileDown size={16} className="mr-2" />Exportar CSV

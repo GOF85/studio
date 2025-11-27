@@ -9,6 +9,7 @@ import { format, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Target, Save, Loader2, Percent, Menu, FileUp, FileDown } from 'lucide-react';
 import Papa from 'papaparse';
+import { downloadCSVTemplate } from '@/lib/utils';
 import type { ObjetivoMensualCPR } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -86,12 +87,12 @@ export default function ObjetivosCprPage() {
         setIsLoading(true);
         const monthKey = format(selectedDate, 'yyyy-MM');
         let currentObjectives = [...allObjectives];
-        
+
         const newObjective: ObjetivoMensualCPR = {
             mes: monthKey,
             ...data,
         };
-        
+
         const index = currentObjectives.findIndex(o => o.mes === monthKey);
         if (index > -1) {
             currentObjectives[index] = newObjective;
@@ -101,9 +102,9 @@ export default function ObjetivosCprPage() {
 
         localStorage.setItem('objetivosCPR', JSON.stringify(currentObjectives));
         setAllObjectives(currentObjectives);
-        
+
         setTimeout(() => {
-            toast({ title: 'Objetivos guardados', description: `Se han actualizado los objetivos para ${format(selectedDate, 'MMMM yyyy', { locale: es })}.`});
+            toast({ title: 'Objetivos guardados', description: `Se han actualizado los objetivos para ${format(selectedDate, 'MMMM yyyy', { locale: es })}.` });
             setIsLoading(false);
             form.reset(data); // Mark form as not dirty
         }, 500);
@@ -138,7 +139,7 @@ export default function ObjetivosCprPage() {
         document.body.removeChild(link);
         toast({ title: 'Exportación completada' });
     };
-    
+
     const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
         const file = event.target.files?.[0];
         if (!file) {
@@ -147,50 +148,50 @@ export default function ObjetivosCprPage() {
         }
 
         Papa.parse<any>(file, {
-          header: true,
-          skipEmptyLines: true,
-          delimiter,
-          complete: (results) => {
-            if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
-                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${CSV_HEADERS.join(', ')}` });
+            header: true,
+            skipEmptyLines: true,
+            delimiter,
+            complete: (results) => {
+                if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
+                    toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${CSV_HEADERS.join(', ')}` });
+                    setIsImportAlertOpen(false);
+                    return;
+                }
+
+                const importedData: ObjetivoMensualCPR[] = results.data.map(item => ({
+                    mes: item.mes,
+                    presupuestoVentas: parseFloat(item.presupuestoVentas) || 0,
+                    presupuestoCesionPersonal: parseFloat(item.presupuestoCesionPersonal) || 0,
+                    presupuestoGastosMP: parseFloat(item.presupuestoGastosMP) || 0,
+                    presupuestoGastosPersonalMice: parseFloat(item.presupuestoGastosPersonalMice) || 0,
+                    presupuestoGastosPersonalExterno: parseFloat(item.presupuestoGastosPersonalExterno) || 0,
+                    presupuestoOtrosGastos: parseFloat(item.presupuestoOtrosGastos) || 0,
+                }));
+
+                localStorage.setItem('objetivosCPR', JSON.stringify(importedData));
+                const reloadedObjectives = loadAllObjectives();
+                loadDataForMonth(reloadedObjectives);
+                toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
                 setIsImportAlertOpen(false);
-                return;
+            },
+            error: (error) => {
+                toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+                setIsImportAlertOpen(false);
             }
-            
-            const importedData: ObjetivoMensualCPR[] = results.data.map(item => ({
-                mes: item.mes,
-                presupuestoVentas: parseFloat(item.presupuestoVentas) || 0,
-                presupuestoCesionPersonal: parseFloat(item.presupuestoCesionPersonal) || 0,
-                presupuestoGastosMP: parseFloat(item.presupuestoGastosMP) || 0,
-                presupuestoGastosPersonalMice: parseFloat(item.presupuestoGastosPersonalMice) || 0,
-                presupuestoGastosPersonalExterno: parseFloat(item.presupuestoGastosPersonalExterno) || 0,
-                presupuestoOtrosGastos: parseFloat(item.presupuestoOtrosGastos) || 0,
-            }));
-            
-            localStorage.setItem('objetivosCPR', JSON.stringify(importedData));
-            const reloadedObjectives = loadAllObjectives();
-            loadDataForMonth(reloadedObjectives);
-            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-            setIsImportAlertOpen(false);
-          },
-          error: (error) => {
-            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-            setIsImportAlertOpen(false);
-          }
         });
-        if(event.target) event.target.value = '';
+        if (event.target) event.target.value = '';
     };
-    
+
     const renderField = (name: keyof FormValues, label: string) => (
-         <FormField control={form.control} name={name} render={({ field }) => (
+        <FormField control={form.control} name={name} render={({ field }) => (
             <FormItem>
                 <FormLabel>{label}</FormLabel>
                 <div className="flex items-center">
                     <FormControl><Input type="number" step="0.1" {...field} className="rounded-r-none" /></FormControl>
-                    <span className="p-2 border border-l-0 rounded-r-md bg-muted text-muted-foreground"><Percent size={16}/></span>
+                    <span className="p-2 border border-l-0 rounded-r-md bg-muted text-muted-foreground"><Percent size={16} /></span>
                 </div>
             </FormItem>
-        )}/>
+        )} />
     )
 
     return (
@@ -205,7 +206,7 @@ export default function ObjetivosCprPage() {
                                 <p className="text-muted-foreground">Define los presupuestos como porcentajes sobre la facturación.</p>
                             </div>
                         </div>
-                         <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                                 {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                                 <span className="ml-2">Guardar Objetivos</span>
@@ -216,14 +217,17 @@ export default function ObjetivosCprPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
-                                        <FileUp size={16} className="mr-2"/>Importar CSV
+                                        <FileUp size={16} className="mr-2" />Importar CSV
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_objetivos_cpr.csv')}>
+                                        <FileDown size={16} className="mr-2" />Descargar Plantilla
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={handleExportCSV}>
-                                        <FileDown size={16} className="mr-2"/>Exportar CSV
+                                        <FileDown size={16} className="mr-2" />Exportar CSV
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                         </div>
+                        </div>
                     </div>
 
                     <Card>
@@ -235,7 +239,7 @@ export default function ObjetivosCprPage() {
                                     <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
                                     <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                                 </Select>
-                                 <Select value={String(selectedDate.getMonth())} onValueChange={handleMonthChange}>
+                                <Select value={String(selectedDate.getMonth())} onValueChange={handleMonthChange}>
                                     <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
                                     <SelectContent>{MONTHS.map(m => <SelectItem key={m} value={String(m)}>{format(new Date(2000, m), 'MMMM', { locale: es })}</SelectItem>)}</SelectContent>
                                 </Select>
@@ -248,7 +252,7 @@ export default function ObjetivosCprPage() {
                                     {renderField("presupuestoVentas", "Venta Gastronomía a Eventos")}
                                     {renderField("presupuestoCesionPersonal", "Cesión de Personal a otros Dptos.")}
                                 </div>
-                                 <div className="space-y-4">
+                                <div className="space-y-4">
                                     <h3 className="font-semibold text-lg text-red-700">Gastos (%)</h3>
                                     {renderField("presupuestoGastosMP", GASTO_LABELS.gastronomia)}
                                     {renderField("presupuestoGastosPersonalMice", GASTO_LABELS.personalMice)}
@@ -260,7 +264,7 @@ export default function ObjetivosCprPage() {
                     </Card>
                 </form>
             </Form>
-             <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+            <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>

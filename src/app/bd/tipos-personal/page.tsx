@@ -21,21 +21,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, downloadCSVTemplate } from '@/lib/utils';
 import { useDataStore } from '@/hooks/use-data-store';
 
 const CSV_HEADERS = ["id", "proveedorId", "nombreProveedor", "categoria", "precioHora"];
@@ -44,7 +44,7 @@ function TiposPersonalPageContent() {
   const { data, isLoaded, loadAllData } = useDataStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  
+
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,43 +52,43 @@ function TiposPersonalPageContent() {
   useEffect(() => {
     loadAllData();
   }, [loadAllData]);
-  
+
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     Papa.parse<any>(file, {
-        header: true,
-        skipEmptyLines: true,
-        delimiter,
-        complete: (results) => {
-            const headers = results.meta.fields || [];
-            if (!CSV_HEADERS.every(field => headers.includes(field))) {
-                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
-                return;
-            }
-            
-            const importedData: CategoriaPersonal[] = results.data.map((item: any, index: number) => ({
-                id: item.id || `TPE-${Date.now()}-${index}`,
-                proveedorId: item.proveedorId,
-                nombreProveedor: item.nombreProveedor,
-                categoria: item.categoria,
-                precioHora: parseFloat(item.precioHora) || 0,
-            }));
-            
-            localStorage.setItem('tiposPersonal', JSON.stringify(importedData));
-            loadAllData(); // Refresh store
-            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-        },
-        error: (error) => toast({ variant: 'destructive', title: 'Error de importación', description: error.message }),
+      header: true,
+      skipEmptyLines: true,
+      delimiter,
+      complete: (results) => {
+        const headers = results.meta.fields || [];
+        if (!CSV_HEADERS.every(field => headers.includes(field))) {
+          toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
+          return;
+        }
+
+        const importedData: CategoriaPersonal[] = results.data.map((item: any, index: number) => ({
+          id: item.id || `TPE-${Date.now()}-${index}`,
+          proveedorId: item.proveedorId,
+          nombreProveedor: item.nombreProveedor,
+          categoria: item.categoria,
+          precioHora: parseFloat(item.precioHora) || 0,
+        }));
+
+        localStorage.setItem('tiposPersonal', JSON.stringify(importedData));
+        loadAllData(); // Refresh store
+        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+      },
+      error: (error) => toast({ variant: 'destructive', title: 'Error de importación', description: error.message }),
     });
-    if(event.target) event.target.value = '';
+    if (event.target) event.target.value = '';
   };
-  
+
   const handleExportCSV = () => {
     if (data.tiposPersonal.length === 0) {
-        toast({ variant: 'destructive', title: 'No hay datos' });
-        return;
+      toast({ variant: 'destructive', title: 'No hay datos' });
+      return;
     }
     const csv = Papa.unparse(data.tiposPersonal, { columns: CSV_HEADERS });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -98,7 +98,7 @@ function TiposPersonalPageContent() {
     link.click();
     toast({ title: 'Exportación completada' });
   };
-  
+
   const handleDelete = () => {
     if (!itemToDelete) return;
     const updatedData = data.tiposPersonal.filter(i => i.id !== itemToDelete);
@@ -111,11 +111,11 @@ function TiposPersonalPageContent() {
   const filteredItems = useMemo(() => {
     if (!isLoaded) return [];
     return data.tiposPersonal.filter(item => {
-        const term = searchTerm.toLowerCase();
-        return (
-          (item.nombreProveedor || '').toLowerCase().includes(term) ||
-          item.categoria.toLowerCase().includes(term)
-        );
+      const term = searchTerm.toLowerCase();
+      return (
+        (item.nombreProveedor || '').toLowerCase().includes(term) ||
+        item.categoria.toLowerCase().includes(term)
+      );
     });
   }, [isLoaded, data.tiposPersonal, searchTerm]);
 
@@ -125,35 +125,38 @@ function TiposPersonalPageContent() {
 
   return (
     <>
-       <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <Input 
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <Input
           placeholder="Buscar por proveedor o categoría..."
           className="flex-grow max-w-lg"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         <div className="flex-grow flex justify-end gap-2">
-            <Button onClick={() => router.push('/bd/tipos-personal/nuevo')}>
-                <PlusCircle className="mr-2" />
-                Nueva Categoría
-            </Button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon"><Menu /></Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
-                        <FileUp size={16} className="mr-2"/>Importar CSV
-                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, ';')} />
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportCSV}>
-                        <FileDown size={16} className="mr-2"/>Exportar CSV
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+          <Button onClick={() => router.push('/bd/tipos-personal/nuevo')}>
+            <PlusCircle className="mr-2" />
+            Nueva Categoría
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon"><Menu /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                <FileUp size={16} className="mr-2" />Importar CSV
+                <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, ';')} />
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_tipos_personal.csv')}>
+                <FileDown size={16} className="mr-2" />Descargar Plantilla
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileDown size={16} className="mr-2" />Exportar CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-      
+
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
@@ -182,7 +185,7 @@ function TiposPersonalPageContent() {
                         <DropdownMenuItem onClick={() => router.push(`/bd/tipos-personal/${item.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id)}}>
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
                           <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -201,7 +204,7 @@ function TiposPersonalPageContent() {
         </Table>
       </div>
 
-       <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
@@ -226,9 +229,9 @@ function TiposPersonalPageContent() {
 
 
 export default function TiposPersonalPage() {
-    return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Catálogo..." />}>
-            <TiposPersonalPageContent />
-        </Suspense>
-    )
+  return (
+    <Suspense fallback={<LoadingSkeleton title="Cargando Catálogo..." />}>
+      <TiposPersonalPageContent />
+    </Suspense>
+  )
 }

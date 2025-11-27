@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown, Layers } from 'lucide-react';
 import type { FamiliaERP } from '@/types';
 import { Button } from '@/components/ui/button';
+import { downloadCSVTemplate } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -21,14 +22,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -42,7 +43,7 @@ function FamiliasERPPageContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  
+
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,12 +57,12 @@ function FamiliasERPPageContent() {
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-        const term = searchTerm.toLowerCase();
-        const searchMatch = 
-          (item.familiaCategoria || '').toLowerCase().includes(term) ||
-          (item.Familia || '').toLowerCase().includes(term) ||
-          (item.Categoria || '').toLowerCase().includes(term);
-        return searchMatch;
+      const term = searchTerm.toLowerCase();
+      const searchMatch =
+        (item.familiaCategoria || '').toLowerCase().includes(term) ||
+        (item.Familia || '').toLowerCase().includes(term) ||
+        (item.Categoria || '').toLowerCase().includes(term);
+      return searchMatch;
     });
   }, [items, searchTerm]);
 
@@ -73,68 +74,68 @@ function FamiliasERPPageContent() {
     toast({ title: 'Registro eliminado' });
     setItemToDelete(null);
   };
-  
-    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
-        const file = event.target.files?.[0];
-        if (!file) {
-          setIsImportAlertOpen(false);
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setIsImportAlertOpen(false);
+      return;
+    }
+
+    Papa.parse<any>(file, {
+      header: true,
+      skipEmptyLines: true,
+      delimiter,
+      complete: (results) => {
+        if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
+          toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
           return;
         }
 
-        Papa.parse<any>(file, {
-          header: true,
-          skipEmptyLines: true,
-          delimiter,
-          complete: (results) => {
-            if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
-                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
-                return;
-            }
-            
-            const existingIds = new Set(items.map(item => item.id));
-            const importedData: FamiliaERP[] = results.data.map((item: any, index: number) => {
-                let id = item.id;
-                if (!id || id.trim() === '' || existingIds.has(id)) {
-                    id = `${Date.now()}-${index}-${Math.random()}`;
-                }
-                existingIds.add(id);
-                return {
-                  ...item,
-                  id,
-                };
-            });
-            
-            localStorage.setItem('familiasERP', JSON.stringify(importedData));
-            setItems(importedData);
-            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-            setIsImportAlertOpen(false);
-          },
-          error: (error) => {
-            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-            setIsImportAlertOpen(false);
+        const existingIds = new Set(items.map(item => item.id));
+        const importedData: FamiliaERP[] = results.data.map((item: any, index: number) => {
+          let id = item.id;
+          if (!id || id.trim() === '' || existingIds.has(id)) {
+            id = `${Date.now()}-${index}-${Math.random()}`;
           }
+          existingIds.add(id);
+          return {
+            ...item,
+            id,
+          };
         });
-        if(event.target) event.target.value = '';
-    };
-    
-    const handleExportCSV = () => {
-        if (items.length === 0) {
-            toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
-            return;
-        }
 
-        const csv = Papa.unparse(items, { columns: CSV_HEADERS });
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `familias_erp.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast({ title: 'Exportación completada' });
-    };
+        localStorage.setItem('familiasERP', JSON.stringify(importedData));
+        setItems(importedData);
+        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        setIsImportAlertOpen(false);
+      },
+      error: (error) => {
+        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        setIsImportAlertOpen(false);
+      }
+    });
+    if (event.target) event.target.value = '';
+  };
+
+  const handleExportCSV = () => {
+    if (items.length === 0) {
+      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
+      return;
+    }
+
+    const csv = Papa.unparse(items, { columns: CSV_HEADERS });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `familias_erp.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'Exportación completada' });
+  };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Familias ERP..." />;
@@ -143,30 +144,33 @@ function FamiliasERPPageContent() {
   return (
     <>
       <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <Input 
+        <Input
           placeholder="Buscar por código, familia o categoría..."
           className="flex-grow max-w-lg"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         <div className="flex-grow flex justify-end gap-2">
-            <Button onClick={() => router.push('/bd/familiasERP/nuevo')}>
-                <PlusCircle className="mr-2" />
-                Nuevo
-            </Button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon"><Menu /></Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
-                        <FileUp size={16} className="mr-2"/>Importar CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportCSV}>
-                        <FileDown size={16} className="mr-2"/>Exportar CSV
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+          <Button onClick={() => router.push('/bd/familiasERP/nuevo')}>
+            <PlusCircle className="mr-2" />
+            Nuevo
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon"><Menu /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
+                <FileUp size={16} className="mr-2" />Importar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_familias.csv')}>
+                <FileDown size={16} className="mr-2" />Descargar Plantilla
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileDown size={16} className="mr-2" />Exportar CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -199,7 +203,7 @@ function FamiliasERPPageContent() {
                         <DropdownMenuItem onClick={() => router.push(`/bd/familiasERP/${item.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id)}}>
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
                           <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -237,29 +241,29 @@ function FamiliasERPPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="!justify-center gap-4">
-                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="!justify-center gap-4">
+            <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
 
 export default function FamiliasERPPage() {
-    return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Familias ERP..." />}>
-            <FamiliasERPPageContent />
-        </Suspense>
-    )
+  return (
+    <Suspense fallback={<LoadingSkeleton title="Cargando Familias ERP..." />}>
+      <FamiliasERPPageContent />
+    </Suspense>
+  )
 }

@@ -3,14 +3,14 @@ import { twMerge } from "tailwind-merge"
 import { parse, differenceInMinutes } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+    return twMerge(clsx(inputs))
 }
 
 export function formatCurrency(value: number | null | undefined) {
-  if (value === null || value === undefined || isNaN(value)) {
-    return (0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-  }
-  return value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+    if (value === null || value === undefined || isNaN(value)) {
+        return (0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+    }
+    return value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 }
 
 export function formatNumber(value: number, decimals: number = 2) {
@@ -27,7 +27,7 @@ export function formatUnit(unit: string) {
 }
 
 export function formatPercentage(value: number) {
-  return `${(value * 100).toFixed(2)}%`;
+    return `${(value * 100).toFixed(2)}%`;
 }
 
 export function calculateHours(start?: string, end?: string): number {
@@ -40,7 +40,7 @@ export function calculateHours(start?: string, end?: string): number {
             console.error('Invalid time format for calculating hours:', { start, end });
             return 0;
         }
-        
+
         if (endTime < startTime) {
             endTime.setDate(endTime.getDate() + 1);
         }
@@ -58,4 +58,17 @@ export function formatDuration(hours: number) {
     const h = Math.floor(totalMinutes / 60);
     const m = totalMinutes % 60;
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+export function downloadCSVTemplate(headers: string[], filename: string) {
+    const csv = headers.join(';');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }

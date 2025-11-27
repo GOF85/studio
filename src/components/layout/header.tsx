@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { UtensilsCrossed, Leaf, Users, LogOut, Package, ClipboardList, Calendar, Database } from 'lucide-react';
+import { UtensilsCrossed, Leaf, Users, LogOut, Package, ClipboardList, Calendar } from 'lucide-react';
 import { Button } from '../ui/button';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -25,30 +25,30 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  
+
   const isEntregasModule = pathname.startsWith('/entregas');
   const isPortalModule = pathname.startsWith('/portal');
   const isOsModule = pathname.startsWith('/os/');
   const isHomePage = pathname === '/';
-  
+
   if (isPortalModule) {
-      return (
-        <header className="sticky top-0 z-40 w-full border-b bg-gray-900 text-white">
-          <div className="container flex h-12 items-center">
-            <Link href="/portal" className="flex items-center gap-3">
-              <Leaf className="h-6 w-6 text-green-500" />
-              <h1 className="text-xl font-headline font-bold tracking-tight">
-                Colaboradores MiceCatering
-              </h1>
-            </Link>
-             <nav className="flex flex-1 items-center justify-end space-x-4">
-                <UserSwitcher />
-             </nav>
-          </div>
-        </header>
-      )
+    return (
+      <header className="sticky top-0 z-40 w-full border-b bg-gray-900 text-white">
+        <div className="container flex h-12 items-center">
+          <Link href="/portal" className="flex items-center gap-3">
+            <Leaf className="h-6 w-6 text-green-500" />
+            <h1 className="text-xl font-headline font-bold tracking-tight">
+              Colaboradores MiceCatering
+            </h1>
+          </Link>
+          <nav className="flex flex-1 items-center justify-end space-x-4">
+            <UserSwitcher />
+          </nav>
+        </div>
+      </header>
+    )
   }
-  
+
   const getEntregasHeader = () => (
     <header className="sticky top-0 z-40 w-full border-b bg-orange-500 text-white">
       <div className="container flex h-12 items-center">
@@ -58,14 +58,14 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
             Entregas MICE
           </h1>
         </Link>
-         <nav className="flex flex-1 items-center justify-end space-x-2">
-            <Button asChild className="bg-emerald-700 text-white hover:bg-emerald-800">
-              <Link href="/">
-                <UtensilsCrossed className="mr-2 h-5 w-5"/>
-                Catering
-              </Link>
-            </Button>
-            <UserSwitcher />
+        <nav className="flex flex-1 items-center justify-end space-x-2">
+          <Button asChild className="bg-emerald-700 text-white hover:bg-emerald-800">
+            <Link href="/">
+              <UtensilsCrossed className="mr-2 h-5 w-5" />
+              Catering
+            </Link>
+          </Button>
+          <UserSwitcher />
         </nav>
       </div>
     </header>
@@ -73,9 +73,9 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
 
   const getDefaultHeader = () => (
     <header className={cn(
-        "sticky top-0 z-40 w-full border-b",
-        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-      )}>
+      "sticky top-0 z-40 w-full border-b",
+      "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+    )}>
       <div className="container flex h-12 items-center">
         <Link href="/" className="flex items-center gap-3">
           <UtensilsCrossed className="h-6 w-6 text-primary" />
@@ -84,19 +84,11 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
           </h1>
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">
-            {process.env.NODE_ENV === 'development' && (
-              <Button asChild variant="destructive">
-                <Link href="/debug/db">
-                  <Database className="mr-2 h-4 w-4" />
-                  DEBUG
-                </Link>
-              </Button>
-            )}
-            <UserSwitcher />
+          <UserSwitcher />
         </nav>
       </div>
     </header>
   );
-  
+
   return isEntregasModule ? getEntregasHeader() : getDefaultHeader();
 }

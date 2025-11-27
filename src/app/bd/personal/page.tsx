@@ -21,20 +21,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
+import { downloadCSVTemplate } from '@/lib/utils';
 
 const CSV_HEADERS = ["id", "nombre", "apellido1", "apellido2", "departamento", "categoria", "telefono", "email", "precioHora"];
 
@@ -45,7 +46,7 @@ function PersonalPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  
+
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,11 +65,11 @@ function PersonalPageContent() {
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-        const searchMatch = 
-          (item.nombreCompleto || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase());
-        const departmentMatch = departmentFilter === 'all' || item.departamento === departmentFilter;
-        return searchMatch && departmentMatch;
+      const searchMatch =
+        (item.nombreCompleto || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const departmentMatch = departmentFilter === 'all' || item.departamento === departmentFilter;
+      return searchMatch && departmentMatch;
     });
   }, [items, searchTerm, departmentFilter]);
 
@@ -80,86 +81,86 @@ function PersonalPageContent() {
     toast({ title: 'Empleado eliminado' });
     setItemToDelete(null);
   };
-  
-    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
-        const file = event.target.files?.[0];
-        if (!file) {
-          setIsImportAlertOpen(false);
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setIsImportAlertOpen(false);
+      return;
+    }
+
+    Papa.parse<any>(file, {
+      header: true,
+      skipEmptyLines: true,
+      delimiter,
+      complete: (results) => {
+        if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
+          toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
           return;
         }
 
-        Papa.parse<any>(file, {
-          header: true,
-          skipEmptyLines: true,
-          delimiter,
-          complete: (results) => {
-            if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
-                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
-                return;
-            }
-            
-            const importedData: Personal[] = results.data.map(item => {
-                const nombre = item.nombre || '';
-                const apellido1 = item.apellido1 || '';
-                const apellido2 = item.apellido2 || '';
+        const importedData: Personal[] = results.data.map(item => {
+          const nombre = item.nombre || '';
+          const apellido1 = item.apellido1 || '';
+          const apellido2 = item.apellido2 || '';
 
-                return {
-                    ...item,
-                    nombre,
-                    apellido1,
-                    apellido2,
-                    nombreCompleto: `${nombre} ${apellido1} ${apellido2}`.trim(),
-                    nombreCompacto: `${nombre} ${apellido1}`.trim(),
-                    iniciales: `${nombre[0] || ''}${apellido1[0] || ''}`.toUpperCase(),
-                    precioHora: parseFloat(item.precioHora) || 0
-                }
-            });
-            
-            localStorage.setItem('personal', JSON.stringify(importedData));
-            setItems(importedData);
-            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-            setIsImportAlertOpen(false);
-          },
-          error: (error) => {
-            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-            setIsImportAlertOpen(false);
+          return {
+            ...item,
+            nombre,
+            apellido1,
+            apellido2,
+            nombreCompleto: `${nombre} ${apellido1} ${apellido2}`.trim(),
+            nombreCompacto: `${nombre} ${apellido1}`.trim(),
+            iniciales: `${nombre[0] || ''}${apellido1[0] || ''}`.toUpperCase(),
+            precioHora: parseFloat(item.precioHora) || 0
           }
         });
-        if(event.target) {
-            event.target.value = '';
-        }
-    };
-    
-    const handleExportCSV = () => {
-        if (items.length === 0) {
-            toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
-            return;
-        }
-        
-        const dataToExport = items.map(item => ({
-            id: item.id,
-            nombre: item.nombre,
-            apellido1: item.apellido1,
-            apellido2: item.apellido2,
-            departamento: item.departamento,
-            categoria: item.categoria,
-            telefono: item.telefono,
-            email: item.email,
-            precioHora: item.precioHora
-        }));
 
-        const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `personal.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast({ title: 'Exportación completada' });
-    };
+        localStorage.setItem('personal', JSON.stringify(importedData));
+        setItems(importedData);
+        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        setIsImportAlertOpen(false);
+      },
+      error: (error) => {
+        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        setIsImportAlertOpen(false);
+      }
+    });
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (items.length === 0) {
+      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
+      return;
+    }
+
+    const dataToExport = items.map(item => ({
+      id: item.id,
+      nombre: item.nombre,
+      apellido1: item.apellido1,
+      apellido2: item.apellido2,
+      departamento: item.departamento,
+      categoria: item.categoria,
+      telefono: item.telefono,
+      email: item.email,
+      precioHora: item.precioHora
+    }));
+
+    const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `personal.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'Exportación completada' });
+  };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Personal..." />;
@@ -168,38 +169,41 @@ function PersonalPageContent() {
   return (
     <>
       <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <Input 
+        <Input
           placeholder="Buscar por nombre, apellido o categoría..."
           className="flex-grow max-w-lg"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger className="w-full md:w-[240px]">
-                <SelectValue placeholder="Filtrar por departamento" />
-            </SelectTrigger>
-            <SelectContent>
-                {departments.map(d => <SelectItem key={d} value={d}>{d === 'all' ? 'Todos los Departamentos' : d}</SelectItem>)}
-            </SelectContent>
+        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+          <SelectTrigger className="w-full md:w-[240px]">
+            <SelectValue placeholder="Filtrar por departamento" />
+          </SelectTrigger>
+          <SelectContent>
+            {departments.map(d => <SelectItem key={d} value={d}>{d === 'all' ? 'Todos los Departamentos' : d}</SelectItem>)}
+          </SelectContent>
         </Select>
-          <div className="flex-grow flex justify-end gap-2">
-            <Button onClick={() => router.push('/bd/personal/nuevo')}>
-                <PlusCircle className="mr-2" />
-                Nuevo
-            </Button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon"><Menu /></Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
-                        <FileUp size={16} className="mr-2"/>Importar CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportCSV}>
-                        <FileDown size={16} className="mr-2"/>Exportar CSV
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+        <div className="flex-grow flex justify-end gap-2">
+          <Button onClick={() => router.push('/bd/personal/nuevo')}>
+            <PlusCircle className="mr-2" />
+            Nuevo
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon"><Menu /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
+                <FileUp size={16} className="mr-2" />Importar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_personal.csv')}>
+                <FileDown size={16} className="mr-2" />Descargar Plantilla
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileDown size={16} className="mr-2" />Exportar CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -234,7 +238,7 @@ function PersonalPageContent() {
                         <DropdownMenuItem onClick={() => router.push(`/bd/personal/${item.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id)}}>
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
                           <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -273,29 +277,29 @@ function PersonalPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="!justify-center gap-4">
-                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="!justify-center gap-4">
+            <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
 
 export default function PersonalPage() {
-    return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Personal..." />}>
-            <PersonalPageContent />
-        </Suspense>
-    )
+  return (
+    <Suspense fallback={<LoadingSkeleton title="Cargando Personal..." />}>
+      <PersonalPageContent />
+    </Suspense>
+  )
 }
