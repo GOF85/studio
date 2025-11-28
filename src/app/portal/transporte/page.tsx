@@ -17,8 +17,8 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
-import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/providers/auth-provider';
 import { logActivity } from '../activity-log/utils';
 
 type OrderWithDetails = TransporteOrder & {
@@ -27,15 +27,15 @@ type OrderWithDetails = TransporteOrder & {
 };
 
 const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
-  Pendiente: 'secondary',
-  Confirmado: 'default',
-  'En Ruta': 'outline',
-  Entregado: 'outline',
+    Pendiente: 'secondary',
+    Confirmado: 'default',
+    'En Ruta': 'outline',
+    Entregado: 'outline',
 };
 
 const statusRowClass: Record<string, string> = {
-  'En Ruta': 'bg-blue-50 hover:bg-blue-100/80',
-  'Entregado': 'bg-green-50 hover:bg-green-100/80',
+    'En Ruta': 'bg-blue-50 hover:bg-blue-100/80',
+    'Entregado': 'bg-green-50 hover:bg-green-100/80',
 };
 
 
@@ -45,38 +45,38 @@ export default function TransportePortalPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showCompleted, setShowCompleted] = useState(false);
     const router = useRouter();
-    const { impersonatedUser } = useImpersonatedUser();
+    const { user, profile, effectiveRole, hasRole } = useAuth();
     const [proveedorNombre, setProveedorNombre] = useState('');
 
     const isAdminOrComercial = useMemo(() => {
-        if (!impersonatedUser) return false;
-        const roles = impersonatedUser.roles || [];
-        return roles.includes('Admin') || roles.includes('Comercial');
-    }, [impersonatedUser]);
+        return effectiveRole === 'ADMIN' || effectiveRole === 'COMERCIAL';
+    }, [effectiveRole]);
 
     const isReadOnly = useMemo(() => {
-        if (!impersonatedUser) return true;
+        if (!user) return true;
         return isAdminOrComercial;
-    }, [impersonatedUser, isAdminOrComercial]);
+    }, [user, isAdminOrComercial]);
+
+    const proveedorId = useMemo(() => profile?.proveedor_id, [profile]);
 
     useEffect(() => {
-        const partnerShouldBeDefined = impersonatedUser?.roles?.includes('Transporte');
-        if (partnerShouldBeDefined && !impersonatedUser?.proveedorId) {
+        const partnerShouldBeDefined = hasRole('PARTNER_TRANSPORTE');
+        if (partnerShouldBeDefined && !proveedorId) {
             setOrders([]);
             setIsMounted(true);
             return;
         }
 
         const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        if (impersonatedUser?.proveedorId) {
-            const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
+        if (proveedorId) {
+            const proveedor = allProveedores.find(p => p.id === proveedorId);
             setProveedorNombre(proveedor?.nombreComercial || '');
         }
 
 
         const allTransportOrders = (JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[])
-            .filter(o => isAdminOrComercial || o.proveedorId === impersonatedUser?.proveedorId);
-            
+            .filter(o => isAdminOrComercial || o.proveedorId === proveedorId);
+
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
@@ -88,7 +88,7 @@ export default function TransportePortalPage() {
         const ordersWithDetails = allTransportOrders.map(order => {
             const os = serviceOrderMap.get(order.osId) || entregasMap.get(order.osId);
             const pedidoEntrega = pedidosEntregaMap.get(order.osId);
-            
+
             const hitosDetails = (order.hitosIds || []).map(hitoId => {
                 const hito = pedidoEntrega?.hitos.find(h => h.id === hitoId);
                 const hitoIndex = pedidoEntrega?.hitos.findIndex(h => h.id === hitoId) ?? -1;
@@ -105,23 +105,22 @@ export default function TransportePortalPage() {
 
         setOrders(ordersWithDetails);
         setIsMounted(true);
-    }, [impersonatedUser, isAdminOrComercial]);
+    }, [proveedorId, hasRole, isAdminOrComercial]);
 
     useEffect(() => {
-        if (impersonatedUser) {
-            const userRoles = impersonatedUser.roles || [];
-            const canAccess = userRoles.includes('Transporte') || isAdminOrComercial;
+        if (user) {
+            const canAccess = hasRole('PARTNER_TRANSPORTE') || isAdminOrComercial;
             if (!canAccess) {
                 router.push('/portal');
             }
         }
-    }, [impersonatedUser, router, isAdminOrComercial]);
+    }, [user, hasRole, router, isAdminOrComercial]);
 
 
     const filteredOrders = useMemo(() => {
         return orders.filter(order => {
             const statusMatch = showCompleted || order.status !== 'Entregado';
-            
+
             const searchMatch = searchTerm === '' ||
                 (order.os?.serviceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (order.os?.client || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -129,7 +128,7 @@ export default function TransportePortalPage() {
             return statusMatch && searchMatch;
         });
     }, [orders, searchTerm, showCompleted]);
-    
+
     const groupedOrdersForList = useMemo(() => {
         const grouped: { [date: string]: OrderWithDetails[] } = {};
         filteredOrders.forEach(order => {
@@ -141,30 +140,36 @@ export default function TransportePortalPage() {
         });
         return Object.entries(grouped).sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime());
     }, [filteredOrders]);
-    
+
     const handleStatusChange = (orderId: string, newStatus: TransporteOrder['status']) => {
-        if(!impersonatedUser) return;
+        if (!user) return;
         const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
         const orderIndex = allTransportOrders.findIndex(o => o.id === orderId);
 
         if (orderIndex !== -1) {
             allTransportOrders[orderIndex].status = newStatus;
             localStorage.setItem('transporteOrders', JSON.stringify(allTransportOrders));
-            
-            const updatedOrders = orders.map(o => o.id === orderId ? {...o, status: newStatus} : o);
+
+            const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
             setOrders(updatedOrders);
 
-            logActivity(impersonatedUser, `Actualización de Estado`, `El estado del transporte ${orderId} cambió a ${newStatus}.`, orderId);
+            const activityUser = {
+                id: user.id,
+                nombre: profile?.nombre_completo || user.email || 'Usuario',
+                email: user.email || '',
+                roles: [effectiveRole || '']
+            };
+            logActivity(activityUser as any, `Actualización de Estado`, `El estado del transporte ${orderId} cambió a ${newStatus}.`, orderId);
         }
     }
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Portal de Transporte..." />;
     }
-    
-    if(impersonatedUser?.roles?.includes('Transporte') && !impersonatedUser?.proveedorId) {
+
+    if (hasRole('PARTNER_TRANSPORTE') && !proveedorId) {
         return (
-             <main className="container mx-auto px-4 py-16">
+            <main className="container mx-auto px-4 py-16">
                 <Card className="max-w-xl mx-auto">
                     <CardHeader><CardTitle>Acceso Restringido</CardTitle></CardHeader>
                     <CardContent><p>Este usuario no está asociado a ningún proveedor de transporte. Por favor, contacta con el administrador.</p></CardContent>
@@ -188,14 +193,14 @@ export default function TransportePortalPage() {
                         {proveedorNombre}
                     </Badge>
                 )}
-                 {isAdminOrComercial && (
-                     <Badge variant="outline" className="px-4 py-2 text-lg border-primary text-primary">
+                {isAdminOrComercial && (
+                    <Badge variant="outline" className="px-4 py-2 text-lg border-primary text-primary">
                         Vista de Administrador
                     </Badge>
                 )}
             </div>
 
-             <div className="flex flex-col gap-4 my-6">
+            <div className="flex flex-col gap-4 my-6">
                 <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -214,7 +219,7 @@ export default function TransportePortalPage() {
                 {groupedOrdersForList.length > 0 ? (
                     groupedOrdersForList.map(([date, dailyOrders]) => (
                         <div key={date}>
-                            <h3 className="text-xl font-bold capitalize mb-3">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
+                            <h3 className="text-xl font-bold capitalize mb-3">{format(new Date(date), 'EEEE, d \'de\' MMMM', { locale: es })}</h3>
                             <div className="space-y-3">
                                 {dailyOrders.map(order => (
                                     <div key={order.id} className={cn("border p-4 rounded-lg", statusRowClass[order.status])}>
@@ -229,12 +234,12 @@ export default function TransportePortalPage() {
                                             <div className="flex items-center gap-2">
                                                 {order.status === 'En Ruta' && (
                                                     <Button size="sm" onClick={() => handleStatusChange(order.id, 'Entregado')} disabled={isReadOnly}>
-                                                        <CheckCircle className="mr-2"/> Marcar como Entregado
+                                                        <CheckCircle className="mr-2" /> Marcar como Entregado
                                                     </Button>
                                                 )}
                                                 {order.status === 'Confirmado' && (
-                                                     <Button size="sm" onClick={() => handleStatusChange(order.id, 'En Ruta')} disabled={isReadOnly}>
-                                                        <Truck className="mr-2"/> Iniciar Ruta
+                                                    <Button size="sm" onClick={() => handleStatusChange(order.id, 'En Ruta')} disabled={isReadOnly}>
+                                                        <Truck className="mr-2" /> Iniciar Ruta
                                                     </Button>
                                                 )}
                                                 <Badge variant={statusVariant[order.status]} className="text-base px-3 py-1">{order.status}</Badge>
@@ -247,7 +252,7 @@ export default function TransportePortalPage() {
                                             <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> <strong>Teléfono:</strong> {order.hitos[0]?.telefono || order.os?.phone}</div>
                                         </div>
                                         <div className="text-right mt-2">
-                                            <Button variant="link" onClick={() => router.push(`/portal/albaran/${order.id}`)}>Ver y Firmar Albarán <ArrowLeft className="ml-2 h-4 w-4 rotate-180"/></Button>
+                                            <Button variant="link" onClick={() => router.push(`/portal/albaran/${order.id}`)}>Ver y Firmar Albarán <ArrowLeft className="ml-2 h-4 w-4 rotate-180" /></Button>
                                         </div>
                                     </div>
                                 ))}

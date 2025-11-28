@@ -1,12 +1,12 @@
-
 'use client';
 
 import Link from 'next/link';
-import { UtensilsCrossed, Leaf, Users, LogOut, Package, ClipboardList, Calendar } from 'lucide-react';
+import { UtensilsCrossed, Leaf, Package, LogOut, User as UserIcon } from 'lucide-react';
 import { Button } from '../ui/button';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import type { User } from 'firebase/auth';
+import { RoleSwitcher } from '@/components/auth/role-switcher';
+import { useAuth } from '@/providers/auth-provider';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,21 +15,50 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { UserSwitcher } from '../portal/user-switcher';
-import { useState, useEffect } from 'react';
 
-export function Header({ user, onLogout }: { user?: User | null, onLogout?: () => void }) {
+export function Header() {
   const pathname = usePathname();
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const { user, profile, signOut, isLoading } = useAuth();
 
   const isEntregasModule = pathname.startsWith('/entregas');
   const isPortalModule = pathname.startsWith('/portal');
-  const isOsModule = pathname.startsWith('/os/');
-  const isHomePage = pathname === '/';
+
+  const UserMenu = () => {
+    if (isLoading) return <div className="h-8 w-8 animate-pulse bg-slate-200 rounded-full" />;
+    if (!user) return (
+      <Button asChild variant="ghost">
+        <Link href="/login">Iniciar Sesión</Link>
+      </Button>
+    );
+
+    return (
+      <div className="flex items-center gap-2">
+        <RoleSwitcher />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <UserIcon className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{profile?.nombre_completo || 'Usuario'}</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user.email}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => signOut()} className="text-red-600">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Cerrar Sesión</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  };
 
   if (isPortalModule) {
     return (
@@ -42,7 +71,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
             </h1>
           </Link>
           <nav className="flex flex-1 items-center justify-end space-x-4">
-            <UserSwitcher />
+            <UserMenu />
           </nav>
         </div>
       </header>
@@ -65,7 +94,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
               Catering
             </Link>
           </Button>
-          <UserSwitcher />
+          <UserMenu />
         </nav>
       </div>
     </header>
@@ -84,7 +113,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
           </h1>
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">
-          <UserSwitcher />
+          <UserMenu />
         </nav>
       </div>
     </header>

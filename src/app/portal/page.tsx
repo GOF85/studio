@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Factory, Truck, Users, Activity, UserCog } from 'lucide-react';
-import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { useAuth } from '@/providers/auth-provider';
 
 type PortalLink = {
     href: string;
@@ -37,10 +37,10 @@ const portalLinks: PortalLink[] = [
         requiredRole: 'Transporte'
     },
     {
-        href: '/portal/gestion-accesos',
-        title: 'Gestión de Accesos',
+        href: '/rrhh/usuarios',
+        title: 'Gestión de Usuarios (RRHH)',
         icon: UserCog,
-        description: 'Crea y administra las cuentas de usuario para los portales externos.',
+        description: 'Gestiona el personal y los usuarios de los portales externos.',
         requiredRole: 'Admin'
     },
     {
@@ -54,45 +54,66 @@ const portalLinks: PortalLink[] = [
 
 
 export default function PortalHomePage() {
-  const { impersonatedUser } = useImpersonatedUser();
+    const { user, profile, effectiveRole, hasRole } = useAuth();
 
-  const userRoles = impersonatedUser?.roles || [];
-  const isAdmin = userRoles.includes('Admin') || userRoles.includes('Comercial');
-  
-  const accessibleLinks = isAdmin 
-    ? portalLinks 
-    : portalLinks.filter(link => userRoles.includes(link.requiredRole));
+    // Map our new roles to the old string roles expected by the links for compatibility
+    // Or better, update the links to use the new UserRole type.
+    // For now, I'll map the logic.
 
-  return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="text-center mb-12">
-        {impersonatedUser ? (
-            <p className="text-lg text-muted-foreground mt-2">Selecciona tu portal para acceder a tus tareas asignadas.</p>
-        ) : (
-            <p className="text-lg text-muted-foreground mt-2">Por favor, selecciona un usuario en el menú superior para simular una sesión.</p>
-        )}
-      </div>
+    const isAdmin = effectiveRole === 'ADMIN' || effectiveRole === 'COMERCIAL'; // Commercial also had admin access in old code? "isAdmin = ... || userRoles.includes('Comercial')"
 
-      {accessibleLinks.length > 0 ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {accessibleLinks.map(link => (
-                 <Link href={link.href} key={link.href}>
-                    <Card className="hover:border-primary hover:shadow-lg transition-all h-full">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-3"><link.icon /> {link.title}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground">{link.description}</p>
-                        </CardContent>
-                    </Card>
-                </Link>
-            ))}
-        </div>
-      ) : impersonatedUser && (
-        <div className="text-center text-muted-foreground">
-            <p>El usuario seleccionado no tiene ningún rol con acceso a portales.</p>
-        </div>
-      )}
-    </main>
-  );
+    // Helper to check if link is accessible
+    const isLinkAccessible = (requiredRole: string) => {
+        if (isAdmin) return true;
+        // Map old roles to new roles
+        // 'Partner Gastronomia' -> 'PARTNER_GASTRONOMIA'
+        // 'Partner Personal' -> 'PARTNER_PERSONAL'
+        // 'Transporte' -> 'PARTNER_TRANSPORTE'
+        // 'Admin' -> 'ADMIN'
+
+        const roleMap: { [key: string]: string } = {
+            'Partner Gastronomia': 'PARTNER_GASTRONOMIA',
+            'Partner Personal': 'PARTNER_PERSONAL',
+            'Transporte': 'PARTNER_TRANSPORTE',
+            'Admin': 'ADMIN'
+        };
+
+        const mappedRole = roleMap[requiredRole];
+        return mappedRole ? hasRole(mappedRole as any) : false;
+    };
+
+    const accessibleLinks = portalLinks.filter(link => isLinkAccessible(link.requiredRole));
+
+    return (
+        <main className="container mx-auto px-4 py-8">
+            <div className="text-center mb-12">
+                {user ? (
+                    <p className="text-lg text-muted-foreground mt-2">Selecciona tu portal para acceder a tus tareas asignadas.</p>
+                ) : (
+                    <p className="text-lg text-muted-foreground mt-2">Por favor, inicia sesión para continuar.</p>
+                )}
+            </div>
+
+            {accessibleLinks.length > 0 ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                    {accessibleLinks.map(link => (
+                        <Link href={link.href} key={link.href}>
+                            <Card className="hover:border-primary hover:shadow-lg transition-all h-full">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-3"><link.icon /> {link.title}</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground">{link.description}</p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    ))}
+                </div>
+            ) : user && (
+                <div className="text-center text-muted-foreground">
+                    <p>No tienes ningún rol con acceso a portales asignado.</p>
+                </div>
+            )}
+        </main>
+    );
 }

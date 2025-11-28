@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, ChevronRight, Activity, UserCog, Factory, Users, Truck } from 'lucide-react';
-import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { useAuth } from '@/providers/auth-provider';
 import type { Proveedor } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,20 +24,27 @@ const breadcrumbNameMap: { [key: string]: { name: string; icon: React.ElementTyp
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const { impersonatedUser } = useImpersonatedUser();
+    const { user, profile, isProvider, isLoading } = useAuth();
     const [proveedor, setProveedor] = useState<Proveedor | null>(null);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
-        if (impersonatedUser?.proveedorId) {
-            const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-            const currentProveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
-            setProveedor(currentProveedor || null);
+        if (profile?.proveedor_id) {
+            // In a real app, we should fetch this from Supabase "proveedores" table
+            // For now, we keep the localStorage fallback or fetch from DB if we implement it
+            // Let's try to fetch from DB first, then fallback to localStorage for migration
+            const fetchProveedor = async () => {
+                // TODO: Fetch from Supabase
+                const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+                const currentProveedor = allProveedores.find(p => p.id === profile.proveedor_id);
+                setProveedor(currentProveedor || null);
+            };
+            fetchProveedor();
         } else {
             setProveedor(null);
         }
-    }, [impersonatedUser]);
+    }, [profile]);
 
     const pathSegments = useMemo(() => {
         const segments = pathname.split('/').filter(Boolean);
@@ -50,12 +57,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <div className="sticky top-12 z-30 bg-background/95 backdrop-blur-sm border-b">
                 <div className="container mx-auto px-4">
                     <div className="flex items-center justify-between py-2 text-sm font-semibold">
-                       <div className="flex items-center gap-2">
-                         {isMounted ? pathSegments.map((segment, index) => {
+                        <div className="flex items-center gap-2">
+                            {isMounted ? pathSegments.map((segment, index) => {
                                 const segmentInfo = breadcrumbNameMap[segment];
                                 const isLast = index === pathSegments.length - 1;
                                 const href = `/${pathSegments.slice(0, index + 1).join('/')}`;
-                                
+
                                 if (!segmentInfo) return null;
 
                                 const Icon = segmentInfo.icon;
@@ -70,10 +77,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                                     </div>
                                 );
                             }) : <Skeleton className="h-5 w-64" />}
-                       </div>
-                       {isMounted && proveedor && (
-                           <Badge variant="outline">{proveedor.nombreEmpresa}</Badge>
-                       )}
+                        </div>
+                        {isMounted && proveedor && (
+                            <Badge variant="outline">{proveedor.nombreComercial}</Badge>
+                        )}
                     </div>
                 </div>
             </div>

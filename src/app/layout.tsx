@@ -4,8 +4,10 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { NProgressProvider } from '@/components/providers/nprogress-provider';
+import { AuthProvider } from '@/providers/auth-provider';
 import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
+import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indicator';
 
 export const metadata: Metadata = {
   title: 'MICE Catering',
@@ -28,14 +30,17 @@ export default function RootLayout({
         />
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
-        <ImpersonatedUserProvider>
-          <NProgressProvider>
-            <div className="relative flex min-h-screen flex-col">
-              <Header />
-              {children}
-            </div>
-          </NProgressProvider>
-        </ImpersonatedUserProvider>
+        <AuthProvider>
+          <ImpersonatedUserProvider>
+            <NProgressProvider>
+              <GlobalLoadingIndicator />
+              <div className="relative flex min-h-screen flex-col">
+                <Header />
+                {children}
+              </div>
+            </NProgressProvider>
+          </ImpersonatedUserProvider>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

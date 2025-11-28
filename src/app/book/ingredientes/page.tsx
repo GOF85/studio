@@ -80,7 +80,8 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
         async function loadArticulosERP() {
             const { data, error } = await supabase
                 .from('articulos_erp')
-                .select('*');
+                .select('*')
+                .in('categoria_mice', ['GASTRONOMIA', 'BIO']);
 
             if (error) {
                 console.error('Error loading articulos_erp:', error);
@@ -116,7 +117,14 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
 
     useEffect(() => {
         if (open) {
-            form.reset(initialData ? { ...initialData } : defaultFormValues);
+            const formValues = {
+                id: initialData?.id || crypto.randomUUID(),
+                nombreIngrediente: initialData?.nombreIngrediente || '',
+                productoERPlinkId: initialData?.productoERPlinkId || '',
+                alergenosPresentes: initialData?.alergenosPresentes || [],
+                alergenosTrazas: initialData?.alergenosTrazas || [],
+            };
+            form.reset(formValues);
         }
     }, [initialData, open, form]);
 
@@ -129,48 +137,6 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
         form.trigger('productoERPlinkId'); // Manually trigger validation
     };
 
-    const AlergenosTable = ({ alergenosList }: { alergenosList: readonly Alergeno[] }) => (
-        <div className="border rounded-md">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-[60%] p-2">Alérgeno</TableHead>
-                        <TableHead className="text-center p-2">Presente</TableHead>
-                        <TableHead className="text-center p-2">Trazas</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {alergenosList.map((alergeno) => (
-                        <TableRow key={alergeno}>
-                            <TableCell className="capitalize p-2 font-medium">{alergeno.toLowerCase().replace('_', ' ')}</TableCell>
-                            <TableCell className="text-center p-2">
-                                <FormField control={form.control} name="alergenosPresentes" render={({ field }) => (
-                                    <FormControl>
-                                        <Checkbox checked={field.value?.includes(alergeno)} onCheckedChange={(checked) => {
-                                            const newValue = checked ? [...(field.value || []), alergeno] : (field.value || []).filter(v => v !== alergeno);
-                                            field.onChange(newValue);
-                                            if (checked) form.setValue('alergenosTrazas', (form.getValues('alergenosTrazas') || []).filter(t => t !== alergeno), { shouldDirty: true });
-                                        }} />
-                                    </FormControl>
-                                )} />
-                            </TableCell>
-                            <TableCell className="text-center p-2">
-                                <FormField control={form.control} name="alergenosTrazas" render={({ field }) => (
-                                    <FormControl>
-                                        <Checkbox checked={field.value?.includes(alergeno)} onCheckedChange={(checked) => {
-                                            const newValue = checked ? [...(field.value || []), alergeno] : (field.value || []).filter(v => v !== alergeno);
-                                            field.onChange(newValue);
-                                            if (checked) form.setValue('alergenosPresentes', (form.getValues('alergenosPresentes') || []).filter(p => p !== alergeno), { shouldDirty: true });
-                                        }} />
-                                    </FormControl>
-                                )} />
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
-    );
     const alergenosColumns = React.useMemo(() => [ALERGENOS.slice(0, 7), ALERGENOS.slice(7)], []);
 
     const calculatePrice = (p: ArticuloERP) => {
@@ -230,8 +196,8 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
                         <Card>
                             <CardHeader><CardTitle className="text-lg">Gestión de Alérgenos</CardTitle></CardHeader>
                             <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-4">
-                                <AlergenosTable alergenosList={alergenosColumns[0]} />
-                                <AlergenosTable alergenosList={alergenosColumns[1]} />
+                                <AlergenosTable alergenosList={alergenosColumns[0]} control={form.control} />
+                                <AlergenosTable alergenosList={alergenosColumns[1]} control={form.control} />
                             </CardContent>
                         </Card>
                     </form>
@@ -244,6 +210,47 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
         </Dialog>
     )
 }
+
+const AlergenosTable = ({ alergenosList, control }: { alergenosList: readonly Alergeno[], control: any }) => (
+    <div className="border rounded-md">
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead className="w-[60%] p-2">Alérgeno</TableHead>
+                    <TableHead className="text-center p-2">Presente</TableHead>
+                    <TableHead className="text-center p-2">Trazas</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {alergenosList.map((alergeno) => (
+                    <TableRow key={alergeno}>
+                        <TableCell className="capitalize p-2 font-medium">{alergeno.toLowerCase().replace('_', ' ')}</TableCell>
+                        <TableCell className="text-center p-2">
+                            <FormField control={control} name="alergenosPresentes" render={({ field }) => (
+                                <FormControl>
+                                    <Checkbox checked={field.value?.includes(alergeno)} onCheckedChange={(checked) => {
+                                        const newValue = checked ? [...(field.value || []), alergeno] : (field.value || []).filter((v: string) => v !== alergeno);
+                                        field.onChange(newValue);
+                                    }} />
+                                </FormControl>
+                            )} />
+                        </TableCell>
+                        <TableCell className="text-center p-2">
+                            <FormField control={control} name="alergenosTrazas" render={({ field }) => (
+                                <FormControl>
+                                    <Checkbox checked={field.value?.includes(alergeno)} onCheckedChange={(checked) => {
+                                        const newValue = checked ? [...(field.value || []), alergeno] : (field.value || []).filter((v: string) => v !== alergeno);
+                                        field.onChange(newValue);
+                                    }} />
+                                </FormControl>
+                            )} />
+                        </TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    </div>
+);
 
 function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }: { onSelect: (erpId: string) => void; articulosERP: ArticuloERP[]; searchTerm: string, setSearchTerm: (term: string) => void }) {
 
@@ -462,33 +469,43 @@ function IngredientesPageContent() {
         );
     }, []);
 
-    const handleExportCSV = () => {
-        const dataToExport = ingredientes.map(item => {
-            const { erp, alergenos, ...rest } = item;
-            return {
-                ...rest,
-                alergenosPresentes: JSON.stringify(item.alergenosPresentes || []),
-                alergenosTrazas: JSON.stringify(item.alergenosTrazas || []),
-                historialRevisiones: JSON.stringify(item.historialRevisiones || []),
-            };
-        });
+    const handleExportCSV = async () => {
+        try {
+            const { data: ingredientesData, error } = await supabase
+                .from('ingredientes_internos')
+                .select('*');
 
-        if (dataToExport.length === 0) {
-            dataToExport.push(Object.fromEntries(CSV_HEADERS.map(h => [h, ''])) as any);
+            if (error) throw error;
+
+            const dataToExport = (ingredientesData || []).map((row: any) => ({
+                id: row.id,
+                nombreIngrediente: row.nombre_ingrediente,
+                productoERPlinkId: row.producto_erp_link_id,
+                alergenosPresentes: JSON.stringify(row.alergenos_presentes || []),
+                alergenosTrazas: JSON.stringify(row.alergenos_trazas || []),
+                historialRevisiones: JSON.stringify(row.historial_revisiones || []),
+            }));
+
+            if (dataToExport.length === 0) {
+                dataToExport.push(Object.fromEntries(CSV_HEADERS.map(h => [h, ''])) as any);
+            }
+
+            const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
+
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `ingredientes_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast({ title: 'Exportación completada', description: `Se han exportado ${dataToExport.length} registros.` });
+        } catch (error) {
+            console.error('Error exporting CSV:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Error al exportar CSV.' });
         }
-
-        const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
-
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'ingredientes.csv');
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast({ title: 'Exportación completada', description: 'El archivo ingredientes.csv se ha descargado.' });
     };
 
     const safeJsonParse = (jsonString: string, fallback: any = []) => { try { const parsed = JSON.parse(jsonString); return Array.isArray(parsed) ? parsed : fallback; } catch (e) { return fallback; } };
@@ -502,7 +519,7 @@ function IngredientesPageContent() {
 
         Papa.parse<any>(file, {
             header: true, skipEmptyLines: true, delimiter,
-            complete: async (results) => { // Made async to use await for Supabase
+            complete: async (results) => {
                 const headers = results.meta.fields || [];
                 if (!CSV_HEADERS.every(field => headers.includes(field))) {
                     toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
@@ -511,7 +528,7 @@ function IngredientesPageContent() {
                 }
 
                 const importedData: IngredienteInterno[] = results.data.map(item => ({
-                    id: item.id || Date.now().toString() + Math.random(),
+                    id: item.id || crypto.randomUUID(),
                     nombreIngrediente: item.nombreIngrediente || '',
                     productoERPlinkId: item.productoERPlinkId || '',
                     alergenosPresentes: safeJsonParse(item.alergenosPresentes),
@@ -519,23 +536,35 @@ function IngredientesPageContent() {
                     historialRevisiones: safeJsonParse(item.historialRevisiones, null),
                 }));
 
-                // Replace localStorage with Supabase upsert
-                const { error } = await supabase
-                    .from('ingredientes_internos')
-                    .upsert(importedData.map(item => ({
-                        id: item.id,
-                        nombre_ingrediente: item.nombreIngrediente,
-                        producto_erp_link_id: item.productoERPlinkId,
-                        alergenos_presentes: item.alergenosPresentes,
-                        alergenos_trazas: item.alergenosTrazas,
-                        historial_revisiones: item.historialRevisiones,
-                    })), { onConflict: 'id' }); // Upsert based on 'id'
+                // Batch upsert to Supabase
+                const BATCH_SIZE = 100;
+                let errorOccurred = false;
+                let processedCount = 0;
 
-                if (error) {
-                    console.error('Error importing data to Supabase:', error);
-                    toast({ variant: 'destructive', title: 'Error de importación', description: `Error al importar datos: ${error.message}` });
-                } else {
-                    toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+                for (let i = 0; i < importedData.length; i += BATCH_SIZE) {
+                    const batch = importedData.slice(i, i + BATCH_SIZE);
+                    const { error } = await supabase
+                        .from('ingredientes_internos')
+                        .upsert(batch.map(item => ({
+                            id: item.id,
+                            nombre_ingrediente: item.nombreIngrediente,
+                            producto_erp_link_id: item.productoERPlinkId,
+                            alergenos_presentes: item.alergenosPresentes,
+                            alergenos_trazas: item.alergenosTrazas,
+                            historial_revisiones: item.historialRevisiones,
+                        })), { onConflict: 'id' });
+
+                    if (error) {
+                        console.error('Error importing batch:', error);
+                        errorOccurred = true;
+                        toast({ variant: 'destructive', title: 'Error de importación', description: `Error en el lote ${i / BATCH_SIZE + 1}: ${error.message}` });
+                        break; // Stop on error
+                    }
+                    processedCount += batch.length;
+                }
+
+                if (!errorOccurred) {
+                    toast({ title: 'Importación completada', description: `Se han importado ${processedCount} registros correctamente.` });
                     loadIngredients(); // Reload data from Supabase
                 }
                 setIsImportAlertOpen(false);
@@ -620,12 +649,8 @@ function IngredientesPageContent() {
     };
 
     const handleSave = async (data: IngredienteFormValues) => {
-        if (!impersonatedUser) {
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar al usuario.' });
-            return;
-        }
-
-        const newRevision = { fecha: new Date().toISOString(), responsable: impersonatedUser.nombre };
+        const responsable = impersonatedUser?.nombre || 'Usuario';
+        const newRevision = { fecha: new Date().toISOString(), responsable };
 
         try {
             // Check if editing or creating

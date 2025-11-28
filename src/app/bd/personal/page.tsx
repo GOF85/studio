@@ -36,6 +36,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
 import { downloadCSVTemplate } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
 const CSV_HEADERS = ["id", "nombre", "apellido1", "apellido2", "departamento", "categoria", "telefono", "email", "precioHora"];
 
@@ -53,10 +54,42 @@ function PersonalPageContent() {
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
-    let storedData = localStorage.getItem('personal');
-    setItems(storedData ? JSON.parse(storedData) : []);
-    setIsMounted(true);
+    fetchPersonal();
   }, []);
+
+  const fetchPersonal = async () => {
+    const { data, error } = await supabase
+      .from('personal')
+      .select('*')
+      .order('nombre', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching personal:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar el personal.' });
+    } else {
+      // Map Supabase data to Personal type if needed, or ensure types match
+      // The Supabase 'personal' table structure should match the Personal type roughly
+      // We might need to map snake_case to camelCase if the DB uses snake_case and types use camelCase
+      // Based on the schema, DB uses snake_case for some fields like precio_hora, nombre_completo
+      const mappedItems: Personal[] = (data || []).map((item: any) => ({
+        id: item.id,
+        nombre: item.nombre,
+        apellido1: item.apellido1,
+        apellido2: item.apellido2,
+        nombreCompleto: item.nombre_completo || '',
+        nombreCompacto: item.nombre_compacto || '',
+        iniciales: item.iniciales || '',
+        departamento: item.departamento,
+        categoria: item.categoria,
+        telefono: item.telefono,
+        email: item.email,
+        precioHora: item.precio_hora,
+        activo: item.activo
+      }));
+      setItems(mappedItems);
+    }
+    setIsMounted(true);
+  };
 
   const departments = useMemo(() => {
     const allDepartments = new Set(items.map(item => item.departamento));
@@ -73,12 +106,20 @@ function PersonalPageContent() {
     });
   }, [items, searchTerm, departmentFilter]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!itemToDelete) return;
-    const updatedData = items.filter(i => i.id !== itemToDelete);
-    localStorage.setItem('personal', JSON.stringify(updatedData));
-    setItems(updatedData);
-    toast({ title: 'Empleado eliminado' });
+
+    const { error } = await supabase
+      .from('personal')
+      .delete()
+      .eq('id', itemToDelete);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el empleado.' });
+    } else {
+      setItems(items.filter(i => i.id !== itemToDelete));
+      toast({ title: 'Empleado eliminado' });
+    }
     setItemToDelete(null);
   };
 
@@ -93,32 +134,45 @@ function PersonalPageContent() {
       header: true,
       skipEmptyLines: true,
       delimiter,
-      complete: (results) => {
+      complete: async (results) => {
         if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
           toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
           return;
         }
 
-        const importedData: Personal[] = results.data.map(item => {
+        const importedData = results.data.map(item => {
           const nombre = item.nombre || '';
           const apellido1 = item.apellido1 || '';
           const apellido2 = item.apellido2 || '';
+          const nombreCompleto = `${nombre} ${apellido1} ${apellido2}`.trim();
+          const nombreCompacto = `${nombre} ${apellido1}`.trim();
+          const iniciales = `${nombre[0] || ''}${apellido1[0] || ''}`.toUpperCase();
 
           return {
-            ...item,
+            id: item.id,
             nombre,
             apellido1,
             apellido2,
-            nombreCompleto: `${nombre} ${apellido1} ${apellido2}`.trim(),
-            nombreCompacto: `${nombre} ${apellido1}`.trim(),
-            iniciales: `${nombre[0] || ''}${apellido1[0] || ''}`.toUpperCase(),
-            precioHora: parseFloat(item.precioHora) || 0
-          }
+            nombre_completo: nombreCompleto,
+            nombre_compacto: nombreCompacto,
+            iniciales,
+            departamento: item.departamento,
+            categoria: item.categoria,
+            telefono: item.telefono,
+            email: item.email,
+            precio_hora: parseFloat(item.precioHora) || 0,
+            activo: true
+          };
         });
 
-        localStorage.setItem('personal', JSON.stringify(importedData));
-        setItems(importedData);
-        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        const { error } = await supabase.from('personal').upsert(importedData);
+
+        if (error) {
+          toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        } else {
+          toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+          fetchPersonal();
+        }
         setIsImportAlertOpen(false);
       },
       error: (error) => {

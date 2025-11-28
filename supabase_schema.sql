@@ -157,7 +157,10 @@ CREATE TABLE picking_items (
 CREATE TABLE perfiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id),
     nombre_completo TEXT,
-    rol TEXT CHECK (rol IN ('ADMIN', 'COCINA', 'ALMACEN', 'COMERCIAL')) DEFAULT 'COMERCIAL',
+    rol TEXT CHECK (rol IN ('ADMIN', 'COCINA', 'ALMACEN', 'COMERCIAL', 'RRHH', 'PARTNER_PERSONAL', 'PARTNER_TRANSPORTE', 'PARTNER_GASTRONOMIA')) DEFAULT 'COMERCIAL',
+    personal_id TEXT REFERENCES personal(id),
+    proveedor_id UUID REFERENCES proveedores(id),
+    estado TEXT CHECK (estado IN ('PENDIENTE', 'ACTIVO', 'BLOQUEADO')) DEFAULT 'PENDIENTE',
     avatar_url TEXT,
     updated_at TIMESTAMPTZ
 );
@@ -211,3 +214,36 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- 16. PERSONAL (Empleados Internos)
+CREATE TABLE personal (
+    id TEXT PRIMARY KEY, -- DNI/NIE
+    nombre TEXT NOT NULL,
+    apellido1 TEXT,
+    apellido2 TEXT,
+    nombre_completo TEXT, -- Computed or stored
+    email TEXT UNIQUE,
+    telefono TEXT,
+    departamento TEXT,
+    categoria TEXT,
+    precio_hora NUMERIC DEFAULT 0,
+    estado_acceso TEXT CHECK (estado_acceso IN ('PENDIENTE', 'ACTIVO', 'BLOQUEADO', 'NO_SOLICITADO')) DEFAULT 'NO_SOLICITADO',
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 17. PERSONAL EXTERNO (Trabajadores de ETTs)
+CREATE TABLE personal_externo (
+    id TEXT PRIMARY KEY, -- DNI/NIE
+    proveedor_id UUID REFERENCES proveedores(id),
+    nombre TEXT NOT NULL,
+    apellido1 TEXT,
+    apellido2 TEXT,
+    nombre_completo TEXT,
+    email TEXT,
+    telefono TEXT,
+    estado_acceso TEXT CHECK (estado_acceso IN ('PENDIENTE', 'ACTIVO', 'BLOQUEADO', 'NO_SOLICITADO')) DEFAULT 'NO_SOLICITADO',
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+

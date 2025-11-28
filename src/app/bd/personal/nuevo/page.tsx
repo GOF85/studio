@@ -17,6 +17,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { useLoadingStore } from '@/hooks/use-loading-store';
+import { supabase } from '@/lib/supabase';
 
 export const personalFormSchema = z.object({
   id: z.string().min(1, 'El DNI es obligatorio'),
@@ -54,31 +55,48 @@ export default function NuevoPersonalPage() {
     },
   });
 
-  function onSubmit(data: PersonalFormValues) {
+  async function onSubmit(data: PersonalFormValues) {
     setIsLoading(true);
 
-    let allItems = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-    
-    const existing = allItems.find(p => p.id.toLowerCase() === data.id.toLowerCase());
+    // Check if ID exists
+    const { data: existing } = await supabase
+      .from('personal')
+      .select('id')
+      .eq('id', data.id)
+      .single();
+
     if (existing) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un empleado con este DNI.' });
-        setIsLoading(false);
-        return;
-    }
-    
-    const finalData: Personal = {
-        ...data,
-        nombreCompleto: `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim(),
-        nombreCompacto: `${data.nombre} ${data.apellido1}`,
-        iniciales: `${data.nombre[0]}${data.apellido1[0]}`.toUpperCase(),
-        email: data.email, // Ensure email is passed
+      toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un empleado con este DNI.' });
+      setIsLoading(false);
+      return;
     }
 
-    allItems.push(finalData);
-    localStorage.setItem('personal', JSON.stringify(allItems));
-    
-    toast({ description: 'Nuevo empleado añadido correctamente.' });
-    router.push('/bd/personal');
+    const nombreCompleto = `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim();
+    const nombreCompacto = `${data.nombre} ${data.apellido1}`.trim();
+    const iniciales = `${data.nombre[0]}${data.apellido1[0]}`.toUpperCase();
+
+    const { error } = await supabase.from('personal').insert({
+      id: data.id,
+      nombre: data.nombre,
+      apellido1: data.apellido1,
+      apellido2: data.apellido2,
+      nombre_completo: nombreCompleto,
+      nombre_compacto: nombreCompacto,
+      iniciales: iniciales,
+      departamento: data.departamento,
+      categoria: data.categoria,
+      telefono: data.telefono,
+      email: data.email,
+      precio_hora: data.precioHora,
+      activo: true
+    });
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear el empleado: ' + error.message });
+    } else {
+      toast({ description: 'Nuevo empleado añadido correctamente.' });
+      router.push('/bd/personal');
+    }
     setIsLoading(false);
   }
 
@@ -93,14 +111,14 @@ export default function NuevoPersonalPage() {
                 <h1 className="text-3xl font-headline font-bold">Nuevo Empleado</h1>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" type="button" onClick={() => router.push('/bd/personal')}> <X className="mr-2"/> Cancelar</Button>
+                <Button variant="outline" type="button" onClick={() => router.push('/bd/personal')}> <X className="mr-2" /> Cancelar</Button>
                 <Button type="submit" disabled={isLoading}>
                   {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                   <span className="ml-2">Guardar</span>
                 </Button>
               </div>
             </div>
-            
+
             <Card>
               <CardHeader><CardTitle className="text-lg">Información del Empleado</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -111,41 +129,41 @@ export default function NuevoPersonalPage() {
                   <FormField control={form.control} name="apellido1" render={({ field }) => (
                     <FormItem><FormLabel>Primer Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
-                   <FormField control={form.control} name="apellido2" render={({ field }) => (
+                  <FormField control={form.control} name="apellido2" render={({ field }) => (
                     <FormItem><FormLabel>Segundo Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField control={form.control} name="departamento" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Departamento</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    {DEPARTAMENTOS_PERSONAL.map(dep => <SelectItem key={dep} value={dep}>{dep}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                    <FormField control={form.control} name="categoria" render={({ field }) => (
-                        <FormItem><FormLabel>Categoría / Puesto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="precioHora" render={({ field }) => (
-                        <FormItem><FormLabel>Precio/Hora</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                     <FormField control={form.control} name="telefono" render={({ field }) => (
-                        <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                     <FormField control={form.control} name="email" render={({ field }) => (
-                        <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="id" render={({ field }) => (
-                        <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="departamento" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Departamento</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {DEPARTAMENTOS_PERSONAL.map(dep => <SelectItem key={dep} value={dep}>{dep}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="categoria" render={({ field }) => (
+                    <FormItem><FormLabel>Categoría / Puesto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="precioHora" render={({ field }) => (
+                    <FormItem><FormLabel>Precio/Hora</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="telefono" render={({ field }) => (
+                    <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="email" render={({ field }) => (
+                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="id" render={({ field }) => (
+                    <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
               </CardContent>
             </Card>
           </form>
