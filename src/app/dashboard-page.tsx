@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
@@ -148,6 +149,63 @@ export function Section({ title, items }: { title: string, items: MenuItem[] }) 
 }
 
 export function DashboardPage() {
+    const [metrics, setMetrics] = useState({
+        serviciosHoy: 0,
+        serviciosSemana: 0,
+        hitosConGastronomia: 0,
+        totalAsistentes: 0,
+    });
+
+    useEffect(() => {
+        const calculateMetrics = () => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const nextWeek = new Date(today);
+            nextWeek.setDate(nextWeek.getDate() + 7);
+
+            const serviceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
+            const comercialBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]');
+
+            // Servicios hoy
+            const serviciosHoy = serviceOrders.filter((os: any) => {
+                const startDate = new Date(os.startDate);
+                startDate.setHours(0, 0, 0, 0);
+                return startDate.getTime() === today.getTime() && os.status === 'Confirmado';
+            }).length;
+
+            // Servicios esta semana
+            const serviciosSemana = serviceOrders.filter((os: any) => {
+                const startDate = new Date(os.startDate);
+                return startDate >= today && startDate < nextWeek && os.status === 'Confirmado';
+            }).length;
+
+            // Hitos con gastronomía y total asistentes
+            let hitosConGastronomia = 0;
+            let totalAsistentes = 0;
+
+            comercialBriefings.forEach((briefing: any) => {
+                const os = serviceOrders.find((s: any) => s.id === briefing.osId);
+                if (os && os.status === 'Confirmado') {
+                    (briefing.items || []).forEach((item: any) => {
+                        if (item.conGastronomia) {
+                            hitosConGastronomia++;
+                            totalAsistentes += item.asistentes || 0;
+                        }
+                    });
+                }
+            });
+
+            setMetrics({
+                serviciosHoy,
+                serviciosSemana,
+                hitosConGastronomia,
+                totalAsistentes,
+            });
+        };
+
+        calculateMetrics();
+    }, []);
+
     return (
         <div className="flex flex-col min-h-screen">
             <main className="flex-grow container mx-auto px-4 py-6">
@@ -157,32 +215,26 @@ export function DashboardPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <DashboardMetricCard
                         icon={Calendar}
-                        label="Servicios Hoy"
-                        value={3}
+                        label="Eventos hoy"
+                        value={metrics.serviciosHoy}
                     />
                     <DashboardMetricCard
                         icon={Clock}
-                        label="Esta Semana"
-                        value={12}
+                        label="Eventos esta semana"
+                        value={metrics.serviciosSemana}
                     />
                     <DashboardMetricCard
                         icon={CheckCircle2}
-                        label="Completados"
-                        value={8}
-                        trend="up"
+                        label="Servicios"
+                        value={metrics.hitosConGastronomia}
                     />
                     <DashboardMetricCard
-                        icon={AlertCircle}
-                        label="Pendientes"
-                        value={2}
-                        trend="down"
+                        icon={Users}
+                        label="Total Asistentes"
+                        value={metrics.totalAsistentes}
                     />
                 </div>
 
-                {/* Quick Actions */}
-                <div className="mb-8">
-                    <QuickActionsCard />
-                </div>
 
                 {/* Main Navigation Sections */}
                 <div className="space-y-8">

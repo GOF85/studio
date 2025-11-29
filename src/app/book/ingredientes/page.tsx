@@ -739,6 +739,8 @@ function IngredientesPageContent() {
                     <TableHeader><TableRow>
                         <TableHead>Ingrediente</TableHead>
                         <TableHead>Producto ERP Vinculado</TableHead>
+                        <TableHead>Proveedor</TableHead>
+                        <TableHead>Precio</TableHead>
                         <TableHead>Categoría MICE</TableHead>
                         <TableHead>Categoría ERP</TableHead>
                         <TableHead>Última Revisión</TableHead>
@@ -757,6 +759,15 @@ function IngredientesPageContent() {
                                     <TableRow key={item.id} className={cn(needsReview && !urgencyClass && 'bg-amber-50', urgencyClass)}>
                                         <TableCell className="font-medium">{item.nombreIngrediente}</TableCell>
                                         <TableCell>{item.erp?.nombreProductoERP || <span className="text-destructive">No Vinculado</span>}</TableCell>
+                                        <TableCell>{item.erp?.nombreProveedor || '-'}</TableCell>
+                                        <TableCell>
+                                            {item.erp ? (() => {
+                                                const basePrice = (item.erp.precioCompra || 0) / (item.erp.unidadConversion || 1);
+                                                const discount = item.erp.descuento || 0;
+                                                const finalPrice = basePrice * (1 - discount / 100);
+                                                return `${finalPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/${item.erp.unidad}`;
+                                            })() : '-'}
+                                        </TableCell>
                                         <TableCell>{item.erp?.categoriaMice || '-'}</TableCell>
                                         <TableCell>{item.erp?.tipo || '-'}</TableCell>
                                         <TableCell className={cn(needsReview && 'text-destructive font-bold')}>
@@ -772,7 +783,7 @@ function IngredientesPageContent() {
                                     </TableRow>
                                 )
                             })
-                        ) : <TableRow><TableCell colSpan={7} className="h-24 text-center">No se encontraron ingredientes.</TableCell></TableRow>}
+                        ) : <TableRow><TableCell colSpan={9} className="h-24 text-center">No se encontraron ingredientes.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </div>

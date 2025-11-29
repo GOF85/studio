@@ -1,26 +1,23 @@
-
 'use client';
 
-import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown, Building } from 'lucide-react';
-import type { Espacio, RelacionComercial } from '@/types';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Search, Pencil, Trash2, Eye, MapPin } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { getEspacios, deleteEspacio } from '@/services/espacios-service';
+import type { EspacioV2 } from '@/types/espacios';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,257 +28,351 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import Papa from 'papaparse';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { downloadCSVTemplate } from '@/lib/utils';
-import { supabase } from '@/lib/supabase';
 
-
-const CSV_HEADERS = ["id", "nombreEspacio", "ciudad", "provincia", "aforoMaximoCocktail", "aforoMaximoBanquete", "relacionComercial"];
-
-
-function EspaciosPageContent() {
-  const [items, setItems] = useState<Espacio[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-
+export default function EspaciosPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [espacios, setEspacios] = useState<EspacioV2[]>([]);
+  const [filteredEspacios, setFilteredEspacios] = useState<EspacioV2[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [ciudadFilter, setCiudadFilter] = useState('all');
+  const [tipoFilter, setTipoFilter] = useState('all');
+  const [relacionFilter, setRelacionFilter] = useState('all');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [espacioToDelete, setEspacioToDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadEspacios() {
-      const { data, error } = await supabase
-        .from('espacios')
-        .select('*');
-
-      if (error) {
-        console.error('Error loading espacios:', error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Error al cargar los espacios.' });
-        setItems([]);
-      } else {
-        // Map Supabase data to Espacio type
-        const espacios = (data || []).map((row: any) => ({
-          id: row.id,
-          ...row.data,
-        })) as Espacio[];
-        setItems(espacios);
-      }
-      setIsMounted(true);
-    }
-
     loadEspacios();
-  }, [toast]);
+  }, []);
 
-  const filteredItems = useMemo(() => {
-    return items.filter(item =>
-      (item.identificacion.nombreEspacio || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.identificacion.ciudad || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [items, searchTerm]);
+  useEffect(() => {
+    filterEspacios();
+  }, [espacios, searchQuery, ciudadFilter, tipoFilter, relacionFilter]);
 
-  const handleDelete = async () => {
-    if (!itemToDelete) return;
-
-    const { error } = await supabase
-      .from('espacios')
-      .delete()
-      .eq('id', itemToDelete);
-
-    if (error) {
-      console.error('Error deleting espacio:', error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Error al eliminar el espacio.' });
-    } else {
-      const updatedData = items.filter(i => i.id !== itemToDelete);
-      setItems(updatedData);
-      toast({ title: 'Espacio eliminado' });
+  async function loadEspacios() {
+    setIsLoading(true);
+    try {
+      const data = await getEspacios();
+      setEspacios(data);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudieron cargar los espacios: ' + error.message,
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setItemToDelete(null);
-  };
-
-  const handleExportCSV = () => {
-    if (items.length === 0) {
-      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay espacios para exportar.' });
-      return;
-    }
-
-    const dataToExport = items.map(item => ({
-      id: item.id,
-      nombreEspacio: item.identificacion.nombreEspacio,
-      ciudad: item.identificacion.ciudad,
-      provincia: item.identificacion.provincia,
-      aforoMaximoCocktail: item.capacidades.aforoMaximoCocktail,
-      aforoMaximoBanquete: item.capacidades.aforoMaximoBanquete,
-      relacionComercial: item.evaluacionMICE.relacionComercial,
-    }));
-
-    const csv = Papa.unparse(dataToExport);
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'espacios.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: 'Exportación completada' });
-  };
-
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // This is a simplified import logic. For a real app, you'd need a more robust parser
-    // that reconstructs the full nested 'Espacio' object.
-    toast({
-      variant: 'destructive',
-      title: 'Función no implementada',
-      description: 'La importación de espacios es compleja y debe implementarse con cuidado.',
-    });
-
-    if (event.target) {
-      event.target.value = '';
-    }
-  };
-
-
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Espacios..." />;
   }
 
-  const statusVariant: { [key in RelacionComercial]: 'default' | 'secondary' | 'outline' | 'success' } = {
-    'Exclusividad': 'success',
-    'Homologado Preferente': 'default',
-    'Homologado': 'secondary',
-    'Puntual': 'outline',
-    'Sin Relación': 'outline',
-  };
+  function filterEspacios() {
+    let filtered = [...espacios];
 
+    // Búsqueda por texto
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (e) =>
+          e.nombre.toLowerCase().includes(query) ||
+          e.ciudad.toLowerCase().includes(query) ||
+          e.descripcionCorta?.toLowerCase().includes(query)
+      );
+    }
+
+    // Filtro por ciudad
+    if (ciudadFilter !== 'all') {
+      filtered = filtered.filter((e) => e.ciudad === ciudadFilter);
+    }
+
+    // Filtro por tipo
+    if (tipoFilter !== 'all') {
+      filtered = filtered.filter((e) => e.tiposEspacio.includes(tipoFilter));
+    }
+
+    // Filtro por relación comercial
+    if (relacionFilter !== 'all') {
+      filtered = filtered.filter((e) => e.relacionComercial === relacionFilter);
+    }
+
+    setFilteredEspacios(filtered);
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await deleteEspacio(id);
+      toast({ description: 'Espacio eliminado correctamente.' });
+      loadEspacios();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo eliminar el espacio: ' + error.message,
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setEspacioToDelete(null);
+    }
+  }
+
+  function openDeleteDialog(id: string) {
+    setEspacioToDelete(id);
+    setDeleteDialogOpen(true);
+  }
+
+  // Obtener ciudades únicas
+  const ciudades = Array.from(new Set(espacios.map((e) => e.ciudad))).sort();
+
+  // Obtener tipos únicos
+  const tipos = Array.from(new Set(espacios.flatMap((e) => e.tiposEspacio))).sort();
+
+  const relacionOptions = [
+    'Exclusividad',
+    'Homologado Preferente',
+    'Homologado',
+    'Puntual',
+    'Sin Relación',
+  ];
+
+  function getRelacionColor(relacion: string) {
+    switch (relacion) {
+      case 'Exclusividad':
+        return 'bg-purple-100 text-purple-800';
+      case 'Homologado Preferente':
+        return 'bg-blue-100 text-blue-800';
+      case 'Homologado':
+        return 'bg-green-100 text-green-800';
+      case 'Puntual':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  }
 
   return (
-    <>
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <Input
-          placeholder="Buscar por nombre o ciudad..."
-          className="flex-grow max-w-lg"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <div className="flex-grow flex justify-end gap-2">
+    <div className="container mx-auto py-8 space-y-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre, ciudad o descripción..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
           <Button onClick={() => router.push('/bd/espacios/nuevo')}>
-            <PlusCircle className="mr-2" />
+            <Plus className="w-4 h-4 mr-2" />
             Nuevo Espacio
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon"><Menu /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
-                <FileUp size={16} className="mr-2" />Importar CSV
-                <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleImportCSV} />
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_espacios.csv')}>
-                <FileDown size={16} className="mr-2" />Descargar Plantilla
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportCSV}>
-                <FileDown size={16} className="mr-2" />Exportar CSV
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        </div>
+
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="w-[200px]">
+            <Select value={ciudadFilter} onValueChange={setCiudadFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Ciudad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las ciudades</SelectItem>
+                {ciudades.map((ciudad) => (
+                  <SelectItem key={ciudad} value={ciudad}>
+                    {ciudad}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-[200px]">
+            <Select value={tipoFilter} onValueChange={setTipoFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo de Espacio" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                {tipos.map((tipo) => (
+                  <SelectItem key={tipo} value={tipo}>
+                    {tipo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-[200px]">
+            <Select value={relacionFilter} onValueChange={setRelacionFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Relación Comercial" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las relaciones</SelectItem>
+                {relacionOptions.map((rel) => (
+                  <SelectItem key={rel} value={rel}>
+                    {rel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(searchQuery || ciudadFilter !== 'all' || tipoFilter !== 'all' || relacionFilter !== 'all') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('');
+                setCiudadFilter('all');
+                setTipoFilter('all');
+                setRelacionFilter('all');
+              }}
+              className="ml-auto"
+            >
+              Limpiar filtros
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre del Espacio</TableHead>
-              <TableHead>Ciudad</TableHead>
-              <TableHead>Aforo Cocktail</TableHead>
-              <TableHead>Aforo Banquete</TableHead>
-              <TableHead>Relación Comercial</TableHead>
-              <TableHead className="text-right w-24">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredItems.length > 0 ? (
-              filteredItems.map(item => (
-                <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/espacios/${item.id}`)}>
-                  <TableCell className="font-medium">{item.identificacion.nombreEspacio}</TableCell>
-                  <TableCell>{item.identificacion.ciudad}</TableCell>
-                  <TableCell>{item.capacidades.aforoMaximoCocktail}</TableCell>
-                  <TableCell>{item.capacidades.aforoMaximoBanquete}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant[item.evaluacionMICE.relacionComercial] || 'secondary'}>
-                      {item.evaluacionMICE.relacionComercial}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                          <span className="sr-only">Abrir menú</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/bd/espacios/${item.id}`)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              Cargando espacios...
+            </div>
+          ) : filteredEspacios.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground mb-4">
+                {espacios.length === 0
+                  ? 'No hay espacios registrados.'
+                  : 'No se encontraron espacios con los filtros aplicados.'}
+              </p>
+              {espacios.length === 0 && (
+                <Button onClick={() => router.push('/bd/espacios/nuevo')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear Primer Espacio
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>
+                    <MapPin className="w-4 h-4 inline mr-1" />
+                    Ubicación
+                  </TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-center">Aforo Cocktail</TableHead>
+                  <TableHead className="text-center">Aforo Banquete</TableHead>
+                  <TableHead>Relación</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No se encontraron espacios.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {filteredEspacios.map((espacio) => (
+                  <TableRow key={espacio.id}>
+                    <TableCell className="font-medium">
+                      <div>
+                        <div>{espacio.nombre}</div>
+                        {espacio.descripcionCorta && (
+                          <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                            {espacio.descripcionCorta}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>{espacio.ciudad}</div>
+                        <div className="text-muted-foreground">{espacio.provincia}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {espacio.tiposEspacio.slice(0, 2).map((tipo) => (
+                          <Badge key={tipo} variant="outline" className="text-xs">
+                            {tipo}
+                          </Badge>
+                        ))}
+                        {espacio.tiposEspacio.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{espacio.tiposEspacio.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {espacio.aforoMaxCocktail || '-'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {espacio.aforoMaxBanquete || '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={getRelacionColor(espacio.relacionComercial)}
+                      >
+                        {espacio.relacionComercial}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => router.push(`/bd/espacios/${espacio.id}`)}
+                          title="Ver detalles"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => router.push(`/bd/espacios/${espacio.id}/editar`)}
+                          title="Editar"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openDeleteDialog(espacio.id)}
+                          className="text-destructive hover:text-destructive"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el espacio.
+              Esta acción no se puede deshacer. El espacio será eliminado permanentemente de la
+              base de datos junto con todas sus salas y contactos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
+              onClick={() => espacioToDelete && handleDelete(espacioToDelete)}
               className="bg-destructive hover:bg-destructive/90"
-              onClick={handleDelete}
             >
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
-}
-
-export default function EspaciosPage() {
-  return (
-    <Suspense fallback={<LoadingSkeleton title="Cargando Espacios..." />}>
-      <EspaciosPageContent />
-    </Suspense>
-  )
 }

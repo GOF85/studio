@@ -48,27 +48,27 @@ import { ComponenteSelector } from '@/components/book/componente-selector';
 import { Label } from '@/components/ui/label';
 
 
-const CSV_HEADERS_ELABORACIONES = [ "id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
-const CSV_HEADERS_COMPONENTES = [ "id_elaboracion_padre", "tipo_componente", "id_componente", "cantidad", "merma" ];
+const CSV_HEADERS_ELABORACIONES = ["id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion"];
+const CSV_HEADERS_COMPONENTES = ["id_elaboracion_padre", "tipo_componente", "id_componente", "cantidad", "merma"];
 
 type ElaboracionConAlergenos = Elaboracion & { alergenosCalculados?: Alergeno[] };
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
 const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteInterno>): Alergeno[] => {
-    if (!elaboracion || !elaboracion.componentes) {
-      return [];
+  if (!elaboracion || !elaboracion.componentes) {
+    return [];
+  }
+  const elabAlergenos = new Set<Alergeno>();
+  elaboracion.componentes.forEach(comp => {
+    if (comp.tipo === 'ingrediente') {
+      const ingData = ingredientesMap.get(comp.componenteId);
+      if (ingData) {
+        (ingData.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
+        (ingData.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
+      }
     }
-    const elabAlergenos = new Set<Alergeno>();
-    elaboracion.componentes.forEach(comp => {
-        if(comp.tipo === 'ingrediente') {
-            const ingData = ingredientesMap.get(comp.componenteId);
-            if (ingData) {
-              (ingData.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
-              (ingData.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
-            }
-        }
-    });
-    return Array.from(elabAlergenos);
+  });
+  return Array.from(elabAlergenos);
 };
 
 const ITEMS_PER_PAGE = 20;
@@ -88,30 +88,89 @@ function ElaboracionesListPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importType, setImportType] = useState<'elaboraciones' | 'componentes' | null>(null);
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const storedElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    const storedIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+
+    const { supabase } = await import('@/lib/supabase');
+    const [ingredientesResult, erpResult] = await Promise.all([
+      supabase.from('ingredientes_internos').select('*'),
+      supabase.from('articulos_erp').select('*')
+    ]);
+
+    const storedIngredientes = (ingredientesResult.data || []).map((row: any) => ({
+      id: row.id,
+      nombreIngrediente: row.nombre_ingrediente,
+      productoERPlinkId: row.producto_erp_link_id,
+      alergenosPresentes: row.alergenos_presentes || [],
+      alergenosTrazas: row.alergenos_trazas || [],
+      historialRevisiones: row.historial_revisiones || [],
+    })) as IngredienteInterno[];
+
+    const storedErp = (erpResult.data || []).map((row: any) => ({
+      idreferenciaerp: row.erp_id,
+      nombreProductoERP: row.nombre,
+      precioCompra: parseFloat(row.precio_compra || '0'),
+      unidad: row.unidad_medida,
+      unidadConversion: parseFloat(row.unidad_conversion || '1'),
+      descuento: parseFloat(row.descuento || '0'),
+    })) as ArticuloERP[];
+
     const ingredientesMap = new Map(storedIngredientes.map(i => [i.id, i]));
+    const erpMap = new Map(storedErp.map(e => [e.idreferenciaerp, e]));
+    const elaboracionesMap = new Map(storedElaboraciones.map(e => [e.id, e]));
 
     const usageMap = new Map<string, string[]>();
     storedRecetas.forEach(receta => {
-        (receta.elaboraciones || []).forEach(elabEnReceta => {
-            const currentUses = usageMap.get(elabEnReceta.elaboracionId) || [];
-            if (!currentUses.includes(receta.nombre)) {
-                usageMap.set(elabEnReceta.elaboracionId, [...currentUses, receta.nombre]);
-            }
-        });
+      (receta.elaboraciones || []).forEach(elabEnReceta => {
+        const currentUses = usageMap.get(elabEnReceta.elaboracionId) || [];
+        if (!currentUses.includes(receta.nombre)) {
+          usageMap.set(elabEnReceta.elaboracionId, [...currentUses, receta.nombre]);
+        }
+      });
     });
 
-    const elaboracionesConDatos = storedElaboraciones.map((elab: Elaboracion) => {
-        const usedInRecetas = usageMap.get(elab.id) || [];
-        return {
-          ...elab,
-          alergenosCalculados: calculateElabAlergenos(elab, ingredientesMap as any),
-          usageCount: usedInRecetas.length,
-          usedIn: usedInRecetas
+    // Función para calcular el coste de una elaboración
+    const calculateElaboracionCost = (elab: Elaboracion): number => {
+      let total = 0;
+      (elab.componentes || []).forEach(componente => {
+        let costeReal = componente.costePorUnidad || 0;
+
+        if (componente.tipo === 'ingrediente' && costeReal === 0) {
+          const ingData = ingredientesMap.get(componente.componenteId);
+          if (ingData) {
+            const erpData = erpMap.get(ingData.productoERPlinkId);
+            if (erpData) {
+              const unidadConversion = (erpData.unidadConversion && erpData.unidadConversion > 0) ? erpData.unidadConversion : 1;
+              costeReal = (erpData.precioCompra / unidadConversion) * (1 - (erpData.descuento || 0) / 100);
+            }
+          }
+        } else if (componente.tipo === 'elaboracion' && costeReal === 0) {
+          const elabData = elaboracionesMap.get(componente.componenteId);
+          if (elabData && elabData.costePorUnidad) {
+            costeReal = elabData.costePorUnidad;
+          }
         }
+
+        const costeConMerma = costeReal * (1 + (componente.merma || 0) / 100);
+        total += costeConMerma * (componente.cantidad || 0);
+      });
+
+      const produccionTotal = elab.produccionTotal > 0 ? elab.produccionTotal : 1;
+      return total / produccionTotal;
+    };
+
+    const elaboracionesConDatos = storedElaboraciones.map((elab: Elaboracion) => {
+      const usedInRecetas = usageMap.get(elab.id) || [];
+      const costeCalculado = calculateElaboracionCost(elab);
+
+      return {
+        ...elab,
+        costePorUnidad: costeCalculado, // Override with calculated cost
+        alergenosCalculados: calculateElabAlergenos(elab, ingredientesMap as any),
+        usageCount: usedInRecetas.length,
+        usedIn: usedInRecetas
+      }
     });
 
     setItems(elaboracionesConDatos);
@@ -125,13 +184,13 @@ function ElaboracionesListPage() {
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-        const searchMatch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase());
-        const orphanMatch = !showOrphanedOnly || item.usageCount === 0;
-        const partidaMatch = partidaFilter === 'all' || item.partidaProduccion === partidaFilter;
-        return searchMatch && orphanMatch && partidaMatch;
+      const searchMatch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+      const orphanMatch = !showOrphanedOnly || item.usageCount === 0;
+      const partidaMatch = partidaFilter === 'all' || item.partidaProduccion === partidaFilter;
+      return searchMatch && orphanMatch && partidaMatch;
     });
   }, [items, searchTerm, showOrphanedOnly, partidaFilter]);
-  
+
   const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
   const paginatedItems = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -151,12 +210,12 @@ function ElaboracionesListPage() {
     });
 
     if (itemsInUse.length > 0) {
-        toast({
-            variant: 'destructive',
-            title: 'Error al eliminar',
-            description: `${itemsInUse.length} de las elaboraciones seleccionadas están en uso y no pueden ser eliminadas.`,
-        });
-        return;
+      toast({
+        variant: 'destructive',
+        title: 'Error al eliminar',
+        description: `${itemsInUse.length} de las elaboraciones seleccionadas están en uso y no pueden ser eliminadas.`,
+      });
+      return;
     }
 
     const updatedData = items.filter(i => !selectedItems.has(i.id));
@@ -166,35 +225,35 @@ function ElaboracionesListPage() {
     setSelectedItems(new Set());
     setShowDeleteConfirm(false);
   };
-  
+
   const handleSelect = (itemId: string) => {
     setSelectedItems(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(itemId)) {
-            newSet.delete(itemId);
-        } else {
-            newSet.add(itemId);
-        }
-        return newSet;
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
     });
   };
-  
+
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-        setSelectedItems(new Set(filteredItems.map(item => item.id)));
+      setSelectedItems(new Set(filteredItems.map(item => item.id)));
     } else {
-        setSelectedItems(new Set());
+      setSelectedItems(new Set());
     }
   };
 
 
   const handleExportElaboracionesCSV = () => {
     const dataToExport = items.map(item => {
-        const { componentes, alergenosCalculados, usageCount, usedIn, ...rest } = item;
-        return {
-            ...rest,
-            fotosProduccionURLs: JSON.stringify(item.fotosProduccionURLs || []),
-        };
+      const { componentes, alergenosCalculados, usageCount, usedIn, ...rest } = item;
+      return {
+        ...rest,
+        fotosProduccionURLs: JSON.stringify(item.fotosProduccionURLs || []),
+      };
     });
     const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS_ELABORACIONES });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -208,17 +267,17 @@ function ElaboracionesListPage() {
   const handleExportComponentesCSV = () => {
     const allComponentes: any[] = [];
     items.forEach(elab => {
-        (elab.componentes || []).forEach(comp => {
-            allComponentes.push({
-                id_elaboracion_padre: elab.id,
-                tipo_componente: comp.tipo,
-                id_componente: comp.componenteId,
-                cantidad: comp.cantidad,
-                merma: comp.merma,
-            });
+      (elab.componentes || []).forEach(comp => {
+        allComponentes.push({
+          id_elaboracion_padre: elab.id,
+          tipo_componente: comp.tipo,
+          id_componente: comp.componenteId,
+          cantidad: comp.cantidad,
+          merma: comp.merma,
         });
+      });
     });
-     const csv = Papa.unparse(allComponentes, { columns: CSV_HEADERS_COMPONENTES });
+    const csv = Papa.unparse(allComponentes, { columns: CSV_HEADERS_COMPONENTES });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -235,67 +294,67 @@ function ElaboracionesListPage() {
   const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !importType) return;
-    
-    Papa.parse<any>(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-            if (importType === 'elaboraciones') {
-                const importedData: Elaboracion[] = results.data.map((item:any) => ({
-                    ...item,
-                    produccionTotal: parseFloat(item.produccionTotal) || 0,
-                    costePorUnidad: parseFloat(item.costePorUnidad) || 0,
-                    ratioExpedicion: parseFloat(item.ratioExpedicion) || 0,
-                    componentes: [],
-                    fotosProduccionURLs: JSON.parse(item.fotosProduccionURLs || '[]'),
-                }));
-                localStorage.setItem('elaboraciones', JSON.stringify(importedData));
-                loadData();
-                toast({ title: 'Importación de Elaboraciones completada', description: `Se importaron ${importedData.length} registros. Ahora importa los componentes.` });
-            } else if (importType === 'componentes') {
-                let elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-                const elabMap = new Map(elaboraciones.map(e => [e.id, e]));
 
-                results.data.forEach((compData: any) => {
-                    const elab = elabMap.get(compData.id_elaboracion_padre);
-                    if (elab) {
-                        const newComponent: ComponenteElaboracion = {
-                            id: `${compData.id_componente}-${Date.now()}`,
-                            tipo: compData.tipo_componente,
-                            componenteId: compData.id_componente,
-                            nombre: 'temp', 
-                            cantidad: parseFloat(compData.cantidad) || 0,
-                            merma: parseFloat(compData.merma) || 0,
-                            costePorUnidad: 0,
-                        };
-                        if (!elab.componentes) elab.componentes = [];
-                        elab.componentes.push(newComponent);
-                    }
-                });
-                
-                localStorage.setItem('elaboraciones', JSON.stringify(Array.from(elabMap.values())));
-                loadData();
-                toast({ title: 'Importación de Componentes completada', description: `Se procesaron ${results.data.length} componentes.` });
+    Papa.parse<any>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (importType === 'elaboraciones') {
+          const importedData: Elaboracion[] = results.data.map((item: any) => ({
+            ...item,
+            produccionTotal: parseFloat(item.produccionTotal) || 0,
+            costePorUnidad: parseFloat(item.costePorUnidad) || 0,
+            ratioExpedicion: parseFloat(item.ratioExpedicion) || 0,
+            componentes: [],
+            fotosProduccionURLs: JSON.parse(item.fotosProduccionURLs || '[]'),
+          }));
+          localStorage.setItem('elaboraciones', JSON.stringify(importedData));
+          loadData();
+          toast({ title: 'Importación de Elaboraciones completada', description: `Se importaron ${importedData.length} registros. Ahora importa los componentes.` });
+        } else if (importType === 'componentes') {
+          let elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+          const elabMap = new Map(elaboraciones.map(e => [e.id, e]));
+
+          results.data.forEach((compData: any) => {
+            const elab = elabMap.get(compData.id_elaboracion_padre);
+            if (elab) {
+              const newComponent: ComponenteElaboracion = {
+                id: `${compData.id_componente}-${Date.now()}`,
+                tipo: compData.tipo_componente,
+                componenteId: compData.id_componente,
+                nombre: 'temp',
+                cantidad: parseFloat(compData.cantidad) || 0,
+                merma: parseFloat(compData.merma) || 0,
+                costePorUnidad: 0,
+              };
+              if (!elab.componentes) elab.componentes = [];
+              elab.componentes.push(newComponent);
             }
-        },
-        error: (err) => toast({ variant: 'destructive', title: 'Error de importación', description: err.message })
+          });
+
+          localStorage.setItem('elaboraciones', JSON.stringify(Array.from(elabMap.values())));
+          loadData();
+          toast({ title: 'Importación de Componentes completada', description: `Se procesaron ${results.data.length} componentes.` });
+        }
+      },
+      error: (err) => toast({ variant: 'destructive', title: 'Error de importación', description: err.message })
     });
 
-    if(event.target) event.target.value = '';
+    if (event.target) event.target.value = '';
     setImportType(null);
   }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Elaboraciones..." />;
   }
-  
+
   const numSelected = selectedItems.size;
 
   return (
     <TooltipProvider>
       <div className="flex items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-2">
-          <Input 
+          <Input
             placeholder="Buscar por nombre..."
             className="flex-grow max-w-xs"
             value={searchTerm}
@@ -316,34 +375,34 @@ function ElaboracionesListPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-             <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
-            <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-            <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
-            <Button asChild>
-              <Link href="/book/elaboraciones/nueva">
-                <PlusCircle className="mr-2" />
-                Nueva Elaboración
-              </Link>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Menu />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Exportar a CSV</DropdownMenuLabel>
-                <DropdownMenuItem onSelect={handleExportElaboracionesCSV}><Download size={16} className="mr-2" />Elaboraciones (Maestro)</DropdownMenuItem>
-                <DropdownMenuItem onSelect={handleExportComponentesCSV}><Download size={16} className="mr-2" />Componentes (Detalle)</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Importar desde CSV</DropdownMenuLabel>
-                <DropdownMenuItem onSelect={() => handleImportClick('elaboraciones')}><Upload size={16} className="mr-2" />Elaboraciones (Maestro)</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleImportClick('componentes')}><Upload size={16} className="mr-2" />Componentes (Detalle)</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
+          <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
+          <Button asChild>
+            <Link href="/book/elaboraciones/nueva">
+              <PlusCircle className="mr-2" />
+              Nueva Elaboración
+            </Link>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Menu />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Exportar a CSV</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={handleExportElaboracionesCSV}><Download size={16} className="mr-2" />Elaboraciones (Maestro)</DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleExportComponentesCSV}><Download size={16} className="mr-2" />Componentes (Detalle)</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Importar desde CSV</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => handleImportClick('elaboraciones')}><Upload size={16} className="mr-2" />Elaboraciones (Maestro)</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleImportClick('componentes')}><Upload size={16} className="mr-2" />Componentes (Detalle)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-      
+
       <input
         type="file"
         ref={fileInputRef}
@@ -358,15 +417,15 @@ function ElaboracionesListPage() {
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox
-                    checked={numSelected > 0 && numSelected === paginatedItems.length}
-                    onCheckedChange={(checked) => {
-                        const newSelected = new Set(selectedItems);
-                        paginatedItems.forEach(item => {
-                            if (checked) newSelected.add(item.id);
-                            else newSelected.delete(item.id);
-                        });
-                        setSelectedItems(newSelected);
-                    }}
+                  checked={numSelected > 0 && numSelected === paginatedItems.length}
+                  onCheckedChange={(checked) => {
+                    const newSelected = new Set(selectedItems);
+                    paginatedItems.forEach(item => {
+                      if (checked) newSelected.add(item.id);
+                      else newSelected.delete(item.id);
+                    });
+                    setSelectedItems(newSelected);
+                  }}
                 />
               </TableHead>
               <TableHead>Nombre Elaboración</TableHead>
@@ -389,25 +448,25 @@ function ElaboracionesListPage() {
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{formatCurrency(item.costePorUnidad)} / {formatUnit(item.unidadProduccion)}</TableCell>
                   <TableCell className="text-center font-semibold">
                     <Tooltip>
-                        <TooltipTrigger asChild>
-                           <span className="cursor-default">{item.usageCount}</span>
-                        </TooltipTrigger>
-                        {item.usedIn && item.usedIn.length > 0 && (
-                            <TooltipContent>
-                                <ul className="list-disc pl-4 text-xs">
-                                    {item.usedIn.map(recetaName => <li key={recetaName}>{recetaName}</li>)}
-                                </ul>
-                            </TooltipContent>
-                        )}
+                      <TooltipTrigger asChild>
+                        <span className="cursor-default">{item.usageCount}</span>
+                      </TooltipTrigger>
+                      {item.usedIn && item.usedIn.length > 0 && (
+                        <TooltipContent>
+                          <ul className="list-disc pl-4 text-xs">
+                            {item.usedIn.map(recetaName => <li key={recetaName}>{recetaName}</li>)}
+                          </ul>
+                        </TooltipContent>
+                      )}
                     </Tooltip>
                   </TableCell>
                   <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {(item.alergenosCalculados || []).map(alergeno => (
-                            <AllergenBadge key={alergeno} allergen={alergeno} />
-                        ))}
-                      </div>
-                    </TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {(item.alergenosCalculados || []).map(alergeno => (
+                        <AllergenBadge key={alergeno} allergen={alergeno} />
+                      ))}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -438,159 +497,159 @@ function ElaboracionesListPage() {
         </Table>
       </div>
 
-     <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2">
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="text-destructive" />
               ¿Confirmar Borrado Masivo?
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            Vas a eliminar permanentemente <strong>{numSelected}</strong> elaboraciones. Las elaboraciones que estén en uso en alguna receta no se podrán eliminar. ¿Estás seguro?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setShowDeleteConfirm(false)}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive hover:bg-destructive/90"
-            onClick={handleDelete}
-          >
-            Sí, eliminar selección
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Vas a eliminar permanentemente <strong>{numSelected}</strong> elaboraciones. Las elaboraciones que estén en uso en alguna receta no se podrán eliminar. ¿Estás seguro?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteConfirm(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Sí, eliminar selección
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 }
 
 function ElaborationFormPage() {
-    const router = useRouter();
-    const { toast } = useToast();
-    const params = useParams();
-    const searchParams = useSearchParams();
+  const router = useRouter();
+  const { toast } = useToast();
+  const params = useParams();
+  const searchParams = useSearchParams();
 
-    const idParam = Array.isArray(params.id) ? params.id[0] : params.id;
-    const isNew = idParam === 'nueva';
-    const isEditing = !isNew && idParam;
-    const cloneId = searchParams.get('cloneId');
+  const idParam = Array.isArray(params.id) ? params.id[0] : params.id;
+  const isNew = idParam === 'nueva';
+  const isEditing = !isNew && idParam;
+  const cloneId = searchParams.get('cloneId');
 
-    const [initialData, setInitialData] = useState<Partial<ElaborationFormValues> | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isDataLoaded, setIsDataLoaded] = useState(false);
-    
-    useEffect(() => {
-        let elabToLoad: Partial<ElaborationFormValues> | null = null;
-        try {
-            const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-            
-            if (cloneId) {
-                const elabToClone = allElaboraciones.find(e => e.id === cloneId);
-                if (elabToClone) {
-                    elabToLoad = { ...elabToClone, id: Date.now().toString(), nombre: `${elabToClone.nombre} (Copia)` };
-                }
-            } else if (isEditing) {
-                elabToLoad = allElaboraciones.find(e => e.id === idParam) || null;
-            } else if (isNew) {
-                elabToLoad = { 
-                    id: Date.now().toString(), 
-                    nombre: '', 
-                    produccionTotal: 1, 
-                    unidadProduccion: 'KG', 
-                    partidaProduccion: 'FRIO', 
-                    componentes: [],
-                    tipoExpedicion: 'REFRIGERADO', 
-                    formatoExpedicion: '', 
-                    ratioExpedicion: 0,
-                    instruccionesPreparacion: '', 
-                    videoProduccionURL: '', 
-                    fotosProduccionURLs: [],
-                };
-            }
-            
-            setInitialData(elabToLoad);
-        } catch(e) {
-            console.error('[DEBUG] Error during data loading:', e);
-        } finally {
-            setIsDataLoaded(true);
+  const [initialData, setInitialData] = useState<Partial<ElaborationFormValues> | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  useEffect(() => {
+    let elabToLoad: Partial<ElaborationFormValues> | null = null;
+    try {
+      const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+
+      if (cloneId) {
+        const elabToClone = allElaboraciones.find(e => e.id === cloneId);
+        if (elabToClone) {
+          elabToLoad = { ...elabToClone, id: Date.now().toString(), nombre: `${elabToClone.nombre} (Copia)` };
         }
-
-    }, [idParam, isNew, isEditing, cloneId]);
-
-    const handleSave = async (data: ElaborationFormValues, costePorUnidad: number) => {
-        setIsLoading(true);
-        let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-        let message = '';
-        
-        const dataToSave: Elaboracion = { 
-          ...data, 
-          costePorUnidad: costePorUnidad,
+      } else if (isEditing) {
+        elabToLoad = allElaboraciones.find(e => e.id === idParam) || null;
+      } else if (isNew) {
+        elabToLoad = {
+          id: Date.now().toString(),
+          nombre: '',
+          produccionTotal: 1,
+          unidadProduccion: 'KG',
+          partidaProduccion: 'FRIO',
+          componentes: [],
+          tipoExpedicion: 'REFRIGERADO',
+          formatoExpedicion: '',
+          ratioExpedicion: 0,
+          instruccionesPreparacion: '',
+          videoProduccionURL: '',
+          fotosProduccionURLs: [],
         };
+      }
 
-        if (isEditing && !cloneId) {
-          const index = allItems.findIndex(p => p.id === idParam);
-          if (index !== -1) {
-            allItems[index] = dataToSave;
-            message = 'Elaboración actualizada correctamente.';
-          }
-        } else {
-          allItems.push(dataToSave);
-          message = cloneId ? 'Elaboración clonada correctamente.' : 'Elaboración creada correctamente.';
-        }
-
-        localStorage.setItem('elaboraciones', JSON.stringify(allItems));
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-        toast({ description: message });
-        setIsLoading(false);
-        router.push('/book/elaboraciones');
-    }
-    
-    if (!isDataLoaded) {
-      return <LoadingSkeleton title="Cargando elaboración..." />;
+      setInitialData(elabToLoad);
+    } catch (e) {
+      console.error('[DEBUG] Error during data loading:', e);
+    } finally {
+      setIsDataLoaded(true);
     }
 
-    if (!initialData) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la elaboración." });
-        router.push('/book/elaboraciones');
-        return <LoadingSkeleton title="Redirigiendo..." />;
-    }
-    
-    const pageTitle = cloneId ? 'Clonar Elaboración' : (isNew ? 'Nueva Elaboración' : 'Editar Elaboración');
+  }, [idParam, isNew, isEditing, cloneId]);
 
-    return (
-        <main className="container mx-auto px-4 py-8">
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <Component className="h-8 w-8" />
-                    <h1 className="text-3xl font-headline font-bold">{pageTitle}</h1>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
-                    <Button type="submit" form="elaboration-form" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">{isNew || cloneId ? 'Guardar Elaboración' : 'Guardar Cambios'}</span>
-                    </Button>
-                </div>
-            </div>
-            <ElaborationForm
-                initialData={initialData}
-                onSave={handleSave}
-                isSubmitting={isLoading}
-            />
-      </main>
-    );
+  const handleSave = async (data: ElaborationFormValues, costePorUnidad: number) => {
+    setIsLoading(true);
+    let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    let message = '';
+
+    const dataToSave: Elaboracion = {
+      ...data,
+      costePorUnidad: costePorUnidad,
+    };
+
+    if (isEditing && !cloneId) {
+      const index = allItems.findIndex(p => p.id === idParam);
+      if (index !== -1) {
+        allItems[index] = dataToSave;
+        message = 'Elaboración actualizada correctamente.';
+      }
+    } else {
+      allItems.push(dataToSave);
+      message = cloneId ? 'Elaboración clonada correctamente.' : 'Elaboración creada correctamente.';
+    }
+
+    localStorage.setItem('elaboraciones', JSON.stringify(allItems));
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+    toast({ description: message });
+    setIsLoading(false);
+    router.push('/book/elaboraciones');
+  }
+
+  if (!isDataLoaded) {
+    return <LoadingSkeleton title="Cargando elaboración..." />;
+  }
+
+  if (!initialData) {
+    toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la elaboración." });
+    router.push('/book/elaboraciones');
+    return <LoadingSkeleton title="Redirigiendo..." />;
+  }
+
+  const pageTitle = cloneId ? 'Clonar Elaboración' : (isNew ? 'Nueva Elaboración' : 'Editar Elaboración');
+
+  return (
+    <main className="container mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Component className="h-8 w-8" />
+          <h1 className="text-3xl font-headline font-bold">{pageTitle}</h1>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2" /> Cancelar</Button>
+          <Button type="submit" form="elaboration-form" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+            <span className="ml-2">{isNew || cloneId ? 'Guardar Elaboración' : 'Guardar Cambios'}</span>
+          </Button>
+        </div>
+      </div>
+      <ElaborationForm
+        initialData={initialData}
+        onSave={handleSave}
+        isSubmitting={isLoading}
+      />
+    </main>
+  );
 }
 
 export default function ElaboracionesPage() {
-    const params = useParams();
-    const isListPage = !params.id || params.id.length === 0;
+  const params = useParams();
+  const isListPage = !params.id || params.id.length === 0;
 
-    return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando elaboraciones..." />}>
-            {isListPage ? <ElaboracionesListPage /> : <ElaborationFormPage />}
-        </Suspense>
-    );
+  return (
+    <Suspense fallback={<LoadingSkeleton title="Cargando elaboraciones..." />}>
+      {isListPage ? <ElaboracionesListPage /> : <ElaborationFormPage />}
+    </Suspense>
+  );
 }
 
 

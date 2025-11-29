@@ -1095,3 +1095,4 @@ export type CesionStorage = {
 };
 
 
+export * from './espacios';
