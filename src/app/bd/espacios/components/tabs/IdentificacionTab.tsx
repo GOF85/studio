@@ -232,6 +232,34 @@ export function IdentificacionTab() {
                     />
                 </CardContent>
             </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Documentación y Archivos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <FormField
+                        control={form.control}
+                        name="carpetaDrive"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Carpeta Google Drive</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        placeholder="https://drive.google.com/drive/folders/..."
+                                        {...field}
+                                        value={field.value || ''}
+                                    />
+                                </FormControl>
+                                <FormDescription>
+                                    URL de la carpeta en Google Drive con documentación del espacio
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </CardContent>
+            </Card>
         </div>
     );
 }

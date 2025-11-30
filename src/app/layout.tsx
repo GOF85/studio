@@ -9,6 +9,9 @@ import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
 import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indicator';
 
+// Force dynamic rendering to prevent static generation issues with useSearchParams
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'MICE Catering',
   description: 'Soluciones de alquiler para tus eventos',

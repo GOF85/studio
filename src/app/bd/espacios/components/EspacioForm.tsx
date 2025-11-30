@@ -15,6 +15,8 @@ import { EvaluacionTab } from './tabs/EvaluacionTab';
 import { ExperienciaTab } from './tabs/ExperienciaTab';
 import { EconomicoTab } from './tabs/EconomicoTab';
 import { ContactosTab } from './tabs/ContactosTab';
+import { CuadrosElectricosTab } from './tabs/CuadrosElectricosTab';
+import { ImagenesTab } from './tabs/ImagenesTab';
 import { espacioFormSchema, type EspacioFormValues } from '@/lib/validations/espacios';
 import { createEspacio, updateEspacio } from '@/services/espacios-service';
 import type { EspacioV2 } from '@/types/espacios';
@@ -45,6 +47,9 @@ export function EspacioForm({ initialData, isEditing = false, readOnly = false }
             idealPara: initialData.idealPara || [],
             salas: initialData.salas || [],
             contactos: initialData.contactos || [],
+            cuadrosElectricos: initialData.cuadrosElectricos || [],
+            carpetaDrive: initialData.carpetaDrive || '',
+            imagenes: initialData.imagenes || [],
             puntosFuertes: initialData.puntosFuertes || [],
             puntosDebiles: initialData.puntosDebiles || [],
             descripcionCorta: initialData.descripcionCorta || '',
@@ -76,6 +81,9 @@ export function EspacioForm({ initialData, isEditing = false, readOnly = false }
             idealPara: [],
             salas: [],
             contactos: [],
+            cuadrosElectricos: [],
+            carpetaDrive: '',
+            imagenes: [],
             puntosFuertes: [],
             puntosDebiles: [],
             limitadorSonido: false,
@@ -132,6 +140,8 @@ export function EspacioForm({ initialData, isEditing = false, readOnly = false }
             case 'experiencia': return <ExperienciaTab />;
             case 'economico': return <EconomicoTab />;
             case 'contactos': return <ContactosTab />;
+            case 'tecnico': return <CuadrosElectricosTab />;
+            case 'imagenes': return <ImagenesTab />;
             default: return null;
         }
     };

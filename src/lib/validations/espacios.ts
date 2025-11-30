@@ -26,9 +26,10 @@ export const espacioFormSchema = z.object({
     horarioMontajeDesmontaje: z.string().optional(),
     potenciaTotal: z.string().optional(),
     tipoCocina: z.enum(['Cocina completa', 'Office de regeneración', 'Sin cocina']).optional(),
+    logisticaPase: z.string().optional(),
     limitadorSonido: z.boolean().default(false),
-    dificultadMontaje: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.number().min(1).max(5).optional()),
-    penalizacionPersonalMontaje: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.number().min(0).optional()),
+    dificultadMontaje: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).optional(),
+    penalizacionPersonalMontaje: z.number().min(0).max(100).optional(),
 
     // Evaluación MICE
     proveedorId: z.string().optional(),
@@ -48,10 +49,31 @@ export const espacioFormSchema = z.object({
     // Contactos
     contactos: z.array(z.any()).default([]),
 
+    // Cuadros Eléctricos
+    cuadrosElectricos: z.array(z.object({
+        ubicacion: z.string().min(1, 'La ubicación es obligatoria'),
+        potencia: z.string().min(1, 'La potencia es obligatoria'),
+        notas: z.string().optional(),
+    })).default([]),
+
     // Económico
     precioOrientativoAlquiler: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.number().min(0).optional()),
     canonEspacioPorcentaje: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.number().min(0).max(100).optional()),
     canonEspacioFijo: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.number().min(0).optional()),
+
+    // Google Drive
+    carpetaDrive: z.string().optional(),
+
+    // Imágenes
+    imagenes: z.array(z.object({
+        id: z.string(),
+        espacioId: z.string(),
+        url: z.string(),
+        esPrincipal: z.boolean(),
+        descripcion: z.string().optional(),
+        orden: z.number(),
+        categoria: z.enum(['foto', 'plano']).optional().default('foto'),
+    })).default([]),
 });
 
 export type EspacioFormValues = z.infer<typeof espacioFormSchema>;

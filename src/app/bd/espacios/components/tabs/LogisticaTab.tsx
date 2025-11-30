@@ -95,6 +95,27 @@ export function LogisticaTab() {
                                 </FormItem>
                             )}
                         />
+                        <FormField
+                            control={form.control}
+                            name="logisticaPase"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Logística de Pase</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="Ej: Cocina en planta -1, requiere montacargas. Pasillo estrecho (ancho mín 80cm)"
+                                            className="resize-none"
+                                            {...field}
+                                            value={field.value ?? ''}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        Describe la logística de pase desde cocina a sala (ascensores, montacargas, escaleras...)
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </CardContent>
                 </Card>
             </div>

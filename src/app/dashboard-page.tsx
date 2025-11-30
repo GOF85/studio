@@ -4,11 +4,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart, CheckCircle2, Clock, AlertCircle, Building2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { DashboardMetricCard } from '@/components/dashboard/metric-card';
-import { QuickActionsCard } from '@/components/dashboard/quick-actions-card';
 import { Badge } from '@/components/ui/badge';
 
 type MenuItem = {
@@ -103,11 +102,15 @@ const adminItems: MenuItem[] = [
         icon: Package,
         description: 'Proveedores, artículos y configuración',
     },
+];
+
+const commercialItems: MenuItem[] = [
     {
-        title: 'Configuración',
-        href: '/configuracion',
-        icon: Settings,
-        description: 'Ajustes del sistema',
+        title: 'Catálogo de Espacios',
+        href: '/bd/espacios',
+        icon: Building2,
+        description: 'Gestión de venues y espacios para eventos',
+        badge: { label: 'Nuevo', variant: 'default' }
     },
 ];
 
@@ -238,6 +241,7 @@ export function DashboardPage() {
 
                 {/* Main Navigation Sections */}
                 <div className="space-y-8">
+                    <Section title="Comercial y Ventas" items={commercialItems} />
                     <Section title="Planificación" items={planningItems} />
                     <Section title="Operaciones Centrales" items={coreOpsItems} />
                     <Section title="Análisis y Reportes" items={reportingItems} />

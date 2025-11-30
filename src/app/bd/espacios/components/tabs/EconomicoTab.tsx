@@ -1,13 +1,13 @@
-'use client';
-
 import { useFormContext } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { PrecioHistoryTable } from '../PrecioHistoryTable';
 import type { EspacioFormValues } from '@/lib/validations/espacios';
 
 export function EconomicoTab() {
     const form = useFormContext<EspacioFormValues>();
+    const espacioId = form.watch('id');
 
     return (
         <div className="space-y-6">
@@ -120,6 +120,8 @@ export function EconomicoTab() {
                     </div>
                 </CardContent>
             </Card>
+
+            {espacioId && <PrecioHistoryTable espacioId={espacioId} />}
         </div>
     );
 }

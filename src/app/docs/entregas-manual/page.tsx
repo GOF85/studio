@@ -48,7 +48,7 @@ export default function EntregasManualPage() {
                 <h3>2.3. Servicios Extra</h3>
                 <p>Aunque el foco es la entrega, el formulario incluye una sección opcional para añadir servicios adicionales como personal (ej. un camarero para el montaje y servicio del coffee break), que se gestionará a través del módulo de Personal Externo.</p>
             </section>
-            
+
             <section id="c3">
                 <h2 className="flex items-center gap-3"><Package />Capítulo 3: El Concepto Clave: Packs de Venta</h2>
                 <p>Para simplificar la venta de productos compuestos (como un "Box de Desayuno"), hemos introducido la entidad **"Pack de Venta"**.</p>
@@ -56,7 +56,7 @@ export default function EntregasManualPage() {
                 <p>Es un artículo que se vende al cliente como una sola unidad (ej. 1 "Box de Desayuno Completo") pero que, internamente, se desglosa en múltiples componentes para que el almacén sepa exactamente qué preparar. Esto garantiza que no haya olvidos y que el control de stock sea preciso.</p>
                 <p className="border-l-4 border-primary pl-4 py-2 bg-secondary/50"><strong>Ejemplo práctico:</strong> Al añadir 1 "Box Café Natural" al pedido, el sistema no le dice al almacén "prepara 1 caja", sino que le indica: "prepara 50 cápsulas de café, 10 infusiones, 2 bricks de leche, 50 vasos, 50 sobres de azúcar...".</p>
                 <h3>3.2. Creación y Gestión</h3>
-                <p>Puedes crear y gestionar estos packs desde `Configuración > Bases de Datos > Packs de Venta`. Para cada pack, defines su nombre, su PVP (Precio de Venta al Público) y todos los artículos del inventario que lo componen con sus cantidades.</p>
+                <p>Puedes crear y gestionar estos packs desde `Configuración &gt; Bases de Datos &gt; Packs de Venta`. Para cada pack, defines su nombre, su PVP (Precio de Venta al Público) y todos los artículos del inventario que lo componen con sus cantidades.</p>
             </section>
 
             <section id="c4">
@@ -71,7 +71,7 @@ export default function EntregasManualPage() {
                 <h3>4.2. Portal del Partner</h3>
                 <p>Tu partner de gastronomía accede a una web simplificada (`/portal/partner`) donde ve únicamente las elaboraciones que debe producir, las cantidades y la fecha/hora límite de entrega en vuestro centro de producción. Desde ahí, puede actualizar el estado de cada pedido (`Recibido`, `En Producción`, `Listo para Entrega en CPR`), dándote visibilidad total sobre su progreso.</p>
             </section>
-            
+
             <section id="c5">
                 <h2 className="flex items-center gap-3"><ShieldCheck />Capítulo 5: Logística, Albaranes y Firma Digital</h2>
                 <h3>5.1. Asignación al Transportista</h3>
@@ -81,14 +81,14 @@ export default function EntregasManualPage() {
                 <h3>5.3. Albarán y Firma Digital</h3>
                 <p>Al llegar al cliente, el transportista abre el albarán en su dispositivo. El cliente puede revisar el pedido y **firmar con el dedo directamente en la pantalla**. Esta firma queda registrada en el sistema y el pedido se marca automáticamente como "Entregado".</p>
                 <h3>5.4. Comunicaciones Automáticas</h3>
-                 <p>Para mejorar la experiencia del cliente, el sistema enviará notificaciones automáticas por email en puntos clave:</p>
-                 <ul>
+                <p>Para mejorar la experiencia del cliente, el sistema enviará notificaciones automáticas por email en puntos clave:</p>
+                <ul>
                     <li><strong>Confirmación del Pedido:</strong> Un resumen del pedido al confirmarlo.</li>
                     <li><strong>Pedido en Ruta:</strong> Un aviso cuando el transportista inicia la entrega.</li>
                     <li><strong>Entrega Completada:</strong> Una copia del albarán firmado digitalmente.</li>
-                 </ul>
+                </ul>
             </section>
-            
+
             <section id="c6">
                 <h2 className="flex items-center gap-3"><BarChart3 />Capítulo 6: Análisis Financiero</h2>
                 <h3>6.1. Cuenta de Explotación de Entregas</h3>

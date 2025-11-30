@@ -233,218 +233,213 @@ function PickingPageContent() {
                     }
                 }
             });
-                    ...savedState,
-        checkedItems: new Set(savedState.checkedItems || []),
-                });
-            } else {
-    setItemsParaPicking(initialItems);
-}
+            setItemsParaPicking(initialItems);
         } else {
-    router.push('/entregas/picking');
-}
+            router.push('/entregas/picking');
+        }
 
-setIsMounted(true);
+        setIsMounted(true);
     }, [osId, hitoId, router]);
 
-const handleCheck = (itemId: string, checked: boolean) => {
-    const newCheckedItems = new Set(pickingState.checkedItems);
-    if (checked) {
-        newCheckedItems.add(itemId);
-    } else {
-        newCheckedItems.delete(itemId);
+    const handleCheck = (itemId: string, checked: boolean) => {
+        const newCheckedItems = new Set(pickingState.checkedItems);
+        if (checked) {
+            newCheckedItems.add(itemId);
+        } else {
+            newCheckedItems.delete(itemId);
+        }
+        saveState({ checkedItems: newCheckedItems });
+    };
+
+    const handleIncidencia = (itemId: string, comment: string) => {
+        const newIncidencias = [...pickingState.incidencias.filter(i => i.itemId !== itemId), { itemId, comment, timestamp: new Date().toISOString() }];
+        saveState({ incidencias: newIncidencias });
+        toast({ title: 'Incidencia Registrada' });
     }
-    saveState({ checkedItems: newCheckedItems });
-};
 
-const handleIncidencia = (itemId: string, comment: string) => {
-    const newIncidencias = [...pickingState.incidencias.filter(i => i.itemId !== itemId), { itemId, comment, timestamp: new Date().toISOString() }];
-    saveState({ incidencias: newIncidencias });
-    toast({ title: 'Incidencia Registrada' });
-}
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const result = event.target?.result;
+                if (typeof result === 'string') {
+                    saveState({ fotoUrl: result });
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
-const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const result = event.target?.result;
-            if (typeof result === 'string') {
-                saveState({ fotoUrl: result });
-            }
-        };
-        reader.readAsDataURL(file);
+    const handleFinalize = () => {
+        saveState({ status: 'Preparado' });
+        setIsFinalizeDialogOpen(false);
+        toast({ title: 'Picking Finalizado', description: 'El estado se ha actualizado a "Preparado".' });
     }
-};
 
-const handleFinalize = () => {
-    saveState({ status: 'Preparado' });
-    setIsFinalizeDialogOpen(false);
-    toast({ title: 'Picking Finalizado', description: 'El estado se ha actualizado a "Preparado".' });
-}
+    const { checkedCount, progress } = useMemo(() => {
+        const count = pickingState.checkedItems.size;
+        const percentage = totalItems > 0 ? (count / totalItems) * 100 : 0;
+        return { checkedCount: count, progress: percentage };
+    }, [pickingState.checkedItems, totalItems]);
 
-const { checkedCount, progress } = useMemo(() => {
-    const count = pickingState.checkedItems.size;
-    const percentage = totalItems > 0 ? (count / totalItems) * 100 : 0;
-    return { checkedCount: count, progress: percentage };
-}, [pickingState.checkedItems, totalItems]);
+    const itemsToShow = useMemo(() => {
+        return showOnlyPending
+            ? itemsParaPicking.filter(item => !pickingState.checkedItems.has(item.id))
+            : itemsParaPicking;
+    }, [itemsParaPicking, pickingState.checkedItems, showOnlyPending]);
 
-const itemsToShow = useMemo(() => {
-    return showOnlyPending
-        ? itemsParaPicking.filter(item => !pickingState.checkedItems.has(item.id))
-        : itemsParaPicking;
-}, [itemsParaPicking, pickingState.checkedItems, showOnlyPending]);
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            setItemsParaPicking((items) => {
+                const oldIndex = items.findIndex(item => item.id === active.id);
+                const newIndex = items.findIndex(item => item.id === over.id);
+                const newArray = arrayMove(items, oldIndex, newIndex);
+                saveState({ ordenItems: newArray.map(i => i.id) });
+                return newArray;
+            });
+        }
+    };
 
-const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-        setItemsParaPicking((items) => {
-            const oldIndex = items.findIndex(item => item.id === active.id);
-            const newIndex = items.findIndex(item => item.id === over.id);
-            const newArray = arrayMove(items, oldIndex, newIndex);
-            saveState({ ordenItems: newArray.map(i => i.id) });
-            return newArray;
-        });
+    if (!isMounted || !entrega || !hito) {
+        return <LoadingSkeleton title="Cargando Hoja de Picking..." />;
     }
-};
 
-if (!isMounted || !entrega || !hito) {
-    return <LoadingSkeleton title="Cargando Hoja de Picking..." />;
-}
+    const groupedItems = itemsToShow.reduce((acc, item) => {
+        const key = item.origen;
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(item);
+        return acc;
+    }, {} as Record<string, ItemParaPicking[]>);
 
-const groupedItems = itemsToShow.reduce((acc, item) => {
-    const key = item.origen;
-    if (!acc[key]) {
-        acc[key] = [];
-    }
-    acc[key].push(item);
-    return acc;
-}, {} as Record<string, ItemParaPicking[]>);
+    const isFinalizable = progress === 100 || pickingState.incidencias.length > 0;
 
-const isFinalizable = progress === 100 || pickingState.incidencias.length > 0;
-
-return (
-    <main className="container mx-auto px-4 py-8">
-        <div className="flex items-start justify-between mb-4">
-            <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push('/entregas/picking')} className="mb-2 no-print">
-                    <ArrowLeft className="mr-2" /> Volver al listado
-                </Button>
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                    <ListChecks /> Hoja de Picking: {expedicionNumero}
-                </h1>
-                <CardDescription>
-                    {hito.lugarEntrega}
-                </CardDescription>
-            </div>
-            <div className="flex items-center gap-4">
-                {showSaveFeedback && <span className="text-sm text-green-600 transition-opacity animate-pulse">Guardado ✓</span>}
-                <div className="flex items-center space-x-2">
-                    <Switch id="show-pending" checked={showOnlyPending} onCheckedChange={setShowOnlyPending} />
-                    <Label htmlFor="show-pending">Ver solo pendientes</Label>
+    return (
+        <main className="container mx-auto px-4 py-8">
+            <div className="flex items-start justify-between mb-4">
+                <div>
+                    <Button variant="ghost" size="sm" onClick={() => router.push('/entregas/picking')} className="mb-2 no-print">
+                        <ArrowLeft className="mr-2" /> Volver al listado
+                    </Button>
+                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+                        <ListChecks /> Hoja de Picking: {expedicionNumero}
+                    </h1>
+                    <CardDescription>
+                        {hito.lugarEntrega}
+                    </CardDescription>
+                </div>
+                <div className="flex items-center gap-4">
+                    {showSaveFeedback && <span className="text-sm text-green-600 transition-opacity animate-pulse">Guardado ✓</span>}
+                    <div className="flex items-center space-x-2">
+                        <Switch id="show-pending" checked={showOnlyPending} onCheckedChange={setShowOnlyPending} />
+                        <Label htmlFor="show-pending">Ver solo pendientes</Label>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <Card className="mb-6">
-            <CardHeader>
-                <CardTitle className="text-base">Progreso del Picking</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Progress value={progress} className="w-full h-4" />
-                <p className="text-sm text-muted-foreground mt-2 text-center">{checkedCount} de {totalItems} artículos recogidos ({progress.toFixed(0)}%)</p>
-            </CardContent>
-        </Card>
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle className="text-base">Progreso del Picking</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Progress value={progress} className="w-full h-4" />
+                    <p className="text-sm text-muted-foreground mt-2 text-center">{checkedCount} de {totalItems} artículos recogidos ({progress.toFixed(0)}%)</p>
+                </CardContent>
+            </Card>
 
-        <div className="space-y-4">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={itemsParaPicking.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                    {Object.entries(groupedItems).map(([groupName, items]) => (
-                        <Card key={groupName}>
-                            <CardHeader>
-                                <CardTitle className="text-lg">{groupName}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                {items.map(item => {
-                                    const hasIncidencia = pickingState.incidencias.some(i => i.itemId === item.id);
-                                    return (
-                                        <SortableItem key={item.id} id={item.id}>
-                                            <Checkbox
-                                                id={`item-${item.id}`}
-                                                className="h-8 w-8"
-                                                checked={pickingState.checkedItems.has(item.id)}
-                                                onCheckedChange={(checked) => handleCheck(item.id, Boolean(checked))}
-                                            />
-                                            <Label htmlFor={`item-${item.id}`} className={cn("flex-grow flex items-center gap-4 cursor-pointer", hasIncidencia && 'text-destructive')}>
-                                                <div className="relative w-12 h-12 rounded-md overflow-hidden bg-secondary">
-                                                    {item.imageUrl && <Image src={item.imageUrl} alt={item.nombre} fill className="object-cover" />}
+            <div className="space-y-4">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={itemsParaPicking.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                        {Object.entries(groupedItems).map(([groupName, items]) => (
+                            <Card key={groupName}>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">{groupName}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    {items.map(item => {
+                                        const hasIncidencia = pickingState.incidencias.some(i => i.itemId === item.id);
+                                        return (
+                                            <SortableItem key={item.id} id={item.id}>
+                                                <Checkbox
+                                                    id={`item-${item.id}`}
+                                                    className="h-8 w-8"
+                                                    checked={pickingState.checkedItems.has(item.id)}
+                                                    onCheckedChange={(checked) => handleCheck(item.id, Boolean(checked))}
+                                                />
+                                                <Label htmlFor={`item-${item.id}`} className={cn("flex-grow flex items-center gap-4 cursor-pointer", hasIncidencia && 'text-destructive')}>
+                                                    <div className="relative w-12 h-12 rounded-md overflow-hidden bg-secondary">
+                                                        {item.imageUrl && <Image src={item.imageUrl} alt={item.nombre} fill className="object-cover" />}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-lg">{item.nombre}</p>
+                                                        <p className="text-sm text-muted-foreground">Ubicación: {item.loc}</p>
+                                                    </div>
+                                                </Label>
+                                                <div className="text-2xl font-bold text-primary w-24 text-right">
+                                                    x{item.cantidad}
                                                 </div>
-                                                <div>
-                                                    <p className="font-bold text-lg">{item.nombre}</p>
-                                                    <p className="text-sm text-muted-foreground">Ubicación: {item.loc}</p>
-                                                </div>
-                                            </Label>
-                                            <div className="text-2xl font-bold text-primary w-24 text-right">
-                                                x{item.cantidad}
-                                            </div>
-                                            <IncidenciaDialog item={item} onSave={handleIncidencia} />
-                                        </SortableItem>
-                                    )
-                                })}
-                            </CardContent>
-                        </Card>
-                    ))}
-                </SortableContext>
-            </DndContext>
-        </div>
-
-        <div className="mt-8 flex justify-end">
-            <Dialog open={isFinalizeDialogOpen} onOpenChange={setIsFinalizeDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button size="lg" disabled={!isFinalizable}>Finalizar Picking</Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Finalizar Picking de Expedición {expedicionNumero}</DialogTitle>
-                        <DialogDescription>
-                            {pickingState.incidencias.length > 0
-                                ? `Se finalizará el picking con ${pickingState.incidencias.length} incidencia(s) registrada(s).`
-                                : 'Confirma que todos los artículos han sido recogidos.'}
-                            Puedes adjuntar una foto del pedido final como evidencia.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        {pickingState.fotoUrl ? (
-                            <div className="relative">
-                                <Image src={pickingState.fotoUrl} alt="Foto del picking" width={400} height={300} className="rounded-md w-full h-auto object-contain" />
-                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={() => saveState({ fotoUrl: null })}><Trash2 /></Button>
-                            </div>
-                        ) : (
-                            <div>
-                                <Label htmlFor="upload-photo">Adjuntar Foto</Label>
-                                <Input id="upload-photo" type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleFileUpload} />
-                            </div>
-                        )}
-                        {pickingState.incidencias.length > 0 && (
-                            <div>
-                                <h4 className="font-semibold">Incidencias Reportadas:</h4>
-                                <ul className="list-disc pl-5 text-sm text-muted-foreground">
-                                    {pickingState.incidencias.map(inc => {
-                                        const item = itemsParaPicking.find(i => i.id === inc.itemId);
-                                        return <li key={inc.itemId}><strong>{item?.nombre}:</strong> {inc.comment}</li>
+                                                <IncidenciaDialog item={item} onSave={handleIncidencia} />
+                                            </SortableItem>
+                                        )
                                     })}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <Button variant="secondary" onClick={() => setIsFinalizeDialogOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleFinalize}>Confirmar y Finalizar</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
-    </main>
-);
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </SortableContext>
+                </DndContext>
+            </div>
+
+            <div className="mt-8 flex justify-end">
+                <Dialog open={isFinalizeDialogOpen} onOpenChange={setIsFinalizeDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button size="lg" disabled={!isFinalizable}>Finalizar Picking</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Finalizar Picking de Expedición {expedicionNumero}</DialogTitle>
+                            <DialogDescription>
+                                {pickingState.incidencias.length > 0
+                                    ? `Se finalizará el picking con ${pickingState.incidencias.length} incidencia(s) registrada(s).`
+                                    : 'Confirma que todos los artículos han sido recogidos.'}
+                                Puedes adjuntar una foto del pedido final como evidencia.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4 space-y-4">
+                            {pickingState.fotoUrl ? (
+                                <div className="relative">
+                                    <Image src={pickingState.fotoUrl} alt="Foto del picking" width={400} height={300} className="rounded-md w-full h-auto object-contain" />
+                                    <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={() => saveState({ fotoUrl: null })}><Trash2 /></Button>
+                                </div>
+                            ) : (
+                                <div>
+                                    <Label htmlFor="upload-photo">Adjuntar Foto</Label>
+                                    <Input id="upload-photo" type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleFileUpload} />
+                                </div>
+                            )}
+                            {pickingState.incidencias.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold">Incidencias Reportadas:</h4>
+                                    <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                                        {pickingState.incidencias.map(inc => {
+                                            const item = itemsParaPicking.find(i => i.id === inc.itemId);
+                                            return <li key={inc.itemId}><strong>{item?.nombre}:</strong> {inc.comment}</li>
+                                        })}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button variant="secondary" onClick={() => setIsFinalizeDialogOpen(false)}>Cancelar</Button>
+                            <Button onClick={handleFinalize}>Confirmar y Finalizar</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </main>
+    );
 }
 
 export default function PickingEntregaPage() {

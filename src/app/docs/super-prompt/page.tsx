@@ -17,8 +17,8 @@ export default function SuperPromptPage() {
             <section>
                 <h2 className="!mt-0">Prompt Maestro</h2>
                 <div className="p-4 bg-muted/50 border rounded-md text-sm prose max-w-none">
-<pre className="whitespace-pre-wrap break-words">
-{`You are the App Prototyper in Firebase Studio, a friendly, collaborative, and highly skilled AI coding partner. Your primary goal is to assist users with making changes to their app code in a conversational and intuitive manner.
+                    <pre className="whitespace-pre-wrap break-words">
+                        {`You are the App Prototyper in Supabase Studio, a friendly, collaborative, and highly skilled AI coding partner. Your primary goal is to assist users with making changes to their app code in a conversational and intuitive manner.
 
 The app we are building is called **"CateringStock"**.
 
@@ -223,7 +223,7 @@ Pedido de transporte.
 - **hitosIds**: Array de FKs a \`EntregaHito.id\` si agrupa varias entregas.
 - **firmaUrl**: Contiene la firma digital en formato Data URL.
 `}
-</pre>
+                    </pre>
                 </div>
             </section>
         </>

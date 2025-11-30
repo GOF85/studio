@@ -37,7 +37,7 @@ export default function UserManualPage() {
                 <h3>2.4. La Cuenta de Explotación</h3>
                 <p>El módulo "Cta. Explotación" ofrece una visión financiera completa del evento, comparando los costes presupuestados con los objetivos y los costes reales para analizar la rentabilidad.</p>
             </section>
-            
+
             <section id="c3">
                 <h2 className="flex items-center gap-3"><BookOpen />Capítulo 3: El Corazón de la Cocina: El Book Gastronómico</h2>
                 <p>El Book Gastronómico es el motor que calcula los costes, gestiona los alérgenos y asegura la consistencia desde la compra de materia prima hasta el plato que se sirve en el evento. Se organiza en una estructura jerárquica de tres niveles:</p>
@@ -50,7 +50,7 @@ export default function UserManualPage() {
                 </ul>
                 <p className="border-l-4 border-primary pl-4 py-2 bg-secondary/50"><strong>¿Por qué esta separación?</strong> Permite una flexibilidad total. Si cambias de proveedor de harina, solo tienes que actualizar el vínculo en el "Ingrediente Interno", y el coste se recalculará automáticamente en todas las recetas que lo usen.</p>
                 <p>Además, en el Ingrediente Interno se definen dos datos críticos: el **% de merma** (desperdicio al limpiar/preparar) y los **alérgenos**. Esta información se propaga automáticamente hacia arriba.</p>
-                
+
                 <h5>Desglose de la Entidad <code>IngredienteERP</code></h5>
                 <p>Esta entidad representa cada producto individual que se compra a un proveedor. Es la fuente de la verdad para los costes de materia prima.</p>
                 <div className="overflow-x-auto">
@@ -144,7 +144,7 @@ export default function UserManualPage() {
                     <li><strong>Coste y Alérgenos Automáticos:</strong> El sistema suma el coste de cada ingrediente (ajustado por la merma) y agrega todos sus alérgenos para calcular el coste y el perfil de alérgenos de la elaboración.</li>
                     <li><strong>Datos de Producción:</strong> Se define su partida (Frío, Caliente, Pastelería), las instrucciones y cómo se empaqueta.</li>
                 </ul>
-                
+
                 <h4>3.3. Nivel 3: Recetas (El Plato Final)</h4>
                 <p>La "Receta" es el plato que se vende al cliente y que aparece en las propuestas comerciales (ej. "Lasaña de Berenjenas a la Parmesana").</p>
                 <ul>
@@ -188,8 +188,8 @@ export default function UserManualPage() {
                 <h3>5.4. Gestión de Retornos</h3>
                 <p>Después de un evento, desde el módulo de **"Gestión de Retornos"**, se puede procesar el material devuelto, registrando roturas o pérdidas, lo que también afectará al coste final del servicio.</p>
             </section>
-            
-             <section id="c6">
+
+            <section id="c6">
                 <h2 className="flex items-center gap-3"><GitBranch />Capítulo 6: Estructura Económica y Operativa</h2>
                 <h3>6.1. Cálculo de Rentabilidad en la Cuenta de Explotación</h3>
                 <p>La Cta. de Explotación es la herramienta definitiva para entender la salud financiera de cada evento. La rentabilidad se calcula siguiendo estos pasos:</p>
@@ -217,7 +217,7 @@ export default function UserManualPage() {
 
                 <h3>6.2. Bases de Datos de Proveedores</h3>
                 <p>El sistema utiliza una estructura modular para gestionar los proveedores, basada en una entidad central y catálogos de servicios específicos.</p>
-                
+
                 <h4>Entidad Principal: <code>Proveedor</code></h4>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm my-4">
@@ -284,24 +284,24 @@ export default function UserManualPage() {
                                 <td className="p-2 font-mono">`string`</td>
                                 <td className="p-2">La dirección de correo electrónico principal para contactar con el proveedor.</td>
                             </tr>
-                             <tr>
+                            <tr>
                                 <td className="p-2 font-mono"><strong>`telefonoContacto`</strong></td>
                                 <td className="p-2 font-mono">`string` (opcional)</td>
                                 <td className="p-2">El número de teléfono principal del contacto en el proveedor.</td>
                             </tr>
-                             <tr>
+                            <tr>
                                 <td className="p-2 font-mono"><strong>`iban`</strong></td>
                                 <td className="p-2 font-mono">`string` (opcional)</td>
                                 <td className="p-2">El número de cuenta bancaria (IBAN) del proveedor para realizar pagos.</td>
                             </tr>
-                             <tr>
+                            <tr>
                                 <td className="p-2 font-mono"><strong>`formaDePagoHabitual`</strong></td>
                                 <td className="p-2 font-mono">`string` (opcional)</td>
                                 <td className="p-2">Describe el método de pago acordado (ej. "Transferencia a 30 días", "Confirming").</td>
                             </tr>
                             <tr>
                                 <td className="p-2 font-mono"><strong>`tipos`</strong></td>
-                                <td className="p-2 font-mono">`Array<TipoProveedor>`</td>
+                                <td className="p-2 font-mono">`Array&lt;TipoProveedor&gt;`</td>
                                 <td className="p-2">**Campo crucial**. Es una lista que define qué tipo de servicios ofrece el proveedor. Las opciones son: `Transporte`, `Hielo`, `Gastronomia`, `Personal`, `Atipicos`, `Decoracion`, `Servicios`, `Otros`, `Alquiler`. Esto permite filtrar y mostrar solo los proveedores relevantes en cada módulo de la aplicación.</td>
                             </tr>
                         </tbody>
@@ -317,7 +317,7 @@ export default function UserManualPage() {
 
                 <h4>Base de Datos de Trabajadores: <code>PersonalExternoDB</code></h4>
                 <p>Un registro de las **personas físicas** que las ETTs envían a tus eventos. Se identifica a cada trabajador por su DNI (`id`) y se le asocia a su ETT (`proveedorId`).</p>
-                
+
                 <h3>6.3. Centros de Coste y Flujo de Personal</h3>
                 <p>La aplicación refleja la estructura de centros de coste de la empresa (CPR, Catering, Almacén, HQ), permitiendo un análisis financiero preciso. En cuanto al personal, el responsable de producción propone una necesidad, y RRHH tiene la autoridad final para validar y asignar los recursos, ya sean internos o externos, optimizando la plantilla a nivel global.</p>
             </section>

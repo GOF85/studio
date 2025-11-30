@@ -85,8 +85,10 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
                             {currentPage && (
                                 <>
                                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                    <currentPage.icon className="h-5 w-5 text-muted-foreground" />
-                                    <span>{currentPage.title}</span>
+                                    <Link href={currentPage.path} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                                        <currentPage.icon className="h-5 w-5" />
+                                        <span>{currentPage.title}</span>
+                                    </Link>
                                 </>
                             )}
                         </div>

@@ -3,16 +3,19 @@ import { NextResponse } from 'next/server';
 
 // Create a Supabase client with the SERVICE ROLE key for admin actions
 // We cannot use the standard client because we need elevated privileges to create users
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
+// Check if environment variables are available (they won't be during build)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabaseAdmin = supabaseUrl && supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey, {
         auth: {
             autoRefreshToken: false,
             persistSession: false
         }
-    }
-);
+    })
+    : null;
+
 
 export async function POST(request: Request) {
     try {
@@ -32,9 +35,14 @@ export async function POST(request: Request) {
         // Let's just parse the body.
         const { email, type, entityId, password } = await request.json();
 
+        if (!supabaseAdmin) {
+            return NextResponse.json({ error: 'Supabase configuration is missing' }, { status: 500 });
+        }
+
         if (!email || !type || !entityId) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
+
 
         // 2. Create the user in Supabase Auth
         // We use a temporary password or send an invite.

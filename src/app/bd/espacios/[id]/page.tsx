@@ -6,6 +6,8 @@ import { EspacioForm } from '../components/EspacioForm';
 import { getEspacioById } from '@/services/espacios-service';
 import type { EspacioV2 } from '@/types/espacios';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { GeneratePDFButton } from '../components/GeneratePDFButton';
 
 export default function VerEspacioPage() {
   const params = useParams();
@@ -48,7 +50,16 @@ export default function VerEspacioPage() {
   }
 
   return (
-    <main className="container mx-auto py-6">
+    <main className="container mx-auto py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Detalle del Espacio</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.push('/bd/espacios')}>
+            Volver
+          </Button>
+          <GeneratePDFButton espacio={espacio} />
+        </div>
+      </div>
       <EspacioForm initialData={espacio} readOnly />
     </main>
   );

@@ -35,9 +35,28 @@ export interface ContactoEspacio {
 export interface CuadroElectrico {
     id: string;
     espacioId: string;
-    ubicacion: string;
-    potencia: string;
+    nombre: string;
+    voltaje?: string;
+    amperaje?: string;
+    tipo?: string; // Monofásico, Trifásico
+    ubicacion?: string;
     notas?: string;
+    orden: number;
+}
+
+export interface PrecioHistorico {
+    id: string;
+    espacioId: string;
+    fechaCambio: string;
+    usuarioId: string;
+    precioAlquilerAnterior?: number;
+    canonPorcentajeAnterior?: number;
+    canonFijoAnterior?: number;
+    precioAlquilerNuevo?: number;
+    canonPorcentajeNuevo?: number;
+    canonFijoNuevo?: number;
+    motivoCambio?: string;
+    createdAt?: string;
 }
 
 export interface ImagenEspacio {
@@ -85,6 +104,7 @@ export interface EspacioV2 {
     horarioMontajeDesmontaje?: string;
     potenciaTotal?: string;
     tipoCocina?: TipoCocina;
+    logisticaPase?: string;
     limitadorSonido: boolean;
     dificultadMontaje?: DificultadMontaje;
     penalizacionPersonalMontaje?: number;

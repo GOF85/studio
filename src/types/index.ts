@@ -529,6 +529,32 @@ export type PersonalExternoAjuste = {
     importe: number;
 };
 
+// Entregas - Personal Types
+export type PersonalEntregaTurno = {
+    id: string;
+    proveedorId: string;
+    categoria: string;
+    precioHora: number;
+    fecha: string;
+    horaEntrada: string;
+    horaSalida: string;
+    observaciones?: string;
+    statusPartner: 'Pendiente Asignación' | 'Gestionado';
+    asignaciones?: AsignacionPersonal[];
+    requiereActualizacion?: boolean;
+};
+
+export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado'] as const;
+export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
+
+export type PersonalEntrega = {
+    osId: string;
+    turnos: PersonalEntregaTurno[];
+    status: EstadoPersonalEntrega;
+    observacionesGenerales?: string;
+};
+
+
 export type PruebaMenuItem = {
     id: string;
     type: 'header' | 'item';

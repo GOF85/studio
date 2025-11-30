@@ -15,6 +15,7 @@ import type {
     TipoServicio, CategoriaPersonal, Proveedor, DecoracionDBItem,
     AtipicoDBItem, PedidoPlantilla, FormatoExpedicion, Precio
 } from '@/types';
+import type { EspacioV2 } from '@/types/espacios';
 
 type DataStore = {
     isLoaded: boolean;
@@ -91,6 +92,110 @@ const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
     }
 };
 
+const mapEspacioV2ToLegacy = (v2: EspacioV2): Espacio => ({
+    id: v2.id,
+    identificacion: {
+        nombreEspacio: v2.nombre,
+        tipoDeEspacio: (v2.tiposEspacio || []) as any[],
+        descripcionCorta: v2.descripcionCorta,
+        descripcionLarga: v2.descripcionLarga,
+        ciudad: v2.ciudad,
+        provincia: v2.provincia,
+        calle: v2.calle || '',
+        codigoPostal: v2.codigoPostal || '',
+        zona: v2.zona,
+        estilos: (v2.estilos || []) as any[],
+        tags: (v2.tags || []) as any[],
+        idealPara: (v2.idealPara || []) as any[],
+    },
+    capacidades: {
+        aforoMaximoCocktail: v2.aforoMaxCocktail || 0,
+        aforoMaximoBanquete: v2.aforoMaxBanquete || 0,
+        salas: (v2.salas || []).map(s => ({
+            id: s.id,
+            nombreSala: s.nombreSala,
+            m2: s.m2,
+            dimensiones: s.dimensiones,
+            alturaMax: s.alturaMax,
+            alturaMin: s.alturaMin,
+            aforoTeatro: s.aforoTeatro,
+            aforoEscuela: s.aforoEscuela,
+            aforoCabaret: s.aforoCabaret,
+            aforoCocktailSala: s.aforoCocktailSala,
+            esDiafana: s.esDiafana,
+            tieneLuzNatural: s.tieneLuzNatural,
+        })),
+    },
+    logistica: {
+        accesoVehiculos: v2.accesoVehiculos,
+        horarioMontajeDesmontaje: v2.horarioMontajeDesmontaje,
+        montacargas: false,
+        accesoServicioIndependiente: false,
+        potenciaTotal: v2.potenciaTotal,
+        cuadrosElectricos: (v2.cuadrosElectricos || []).map(c => ({
+            id: c.id,
+            ubicacion: c.ubicacion,
+            potencia: c.potencia
+        })),
+        tipoCocina: v2.tipoCocina || 'Sin cocina',
+        tomasAguaCocina: false,
+        desaguesCocina: false,
+        extraccionHumos: false,
+        limitadorSonido: v2.limitadorSonido,
+        permiteMusicaExterior: false,
+        puntosAnclaje: false,
+        metricasOperativas: {
+            dificultadMontaje: v2.dificultadMontaje || 1,
+            penalizacionPersonalMontaje: v2.penalizacionPersonalMontaje || 0,
+        }
+    },
+    evaluacionMICE: {
+        proveedorId: v2.proveedorId,
+        relacionComercial: v2.relacionComercial,
+        valoracionComercial: v2.valoracionComercial || 0,
+        puntosFuertes: v2.puntosFuertes || [],
+        puntosDebiles: v2.puntosDebiles || [],
+        perfilClienteIdeal: v2.perfilClienteIdeal,
+        exclusividadMusica: false,
+        exclusividadAudiovisuales: false,
+        valoracionOperaciones: v2.valoracionOperaciones || 0,
+        factoresCriticosExito: [],
+        riesgosPotenciales: [],
+    },
+    experienciaInvitado: {
+        flow: {
+            accesoPrincipal: '',
+            recorridoInvitado: '',
+            aparcamiento: v2.aparcamiento || '',
+            transportePublico: v2.transportePublico || '',
+            accesibilidadAsistentes: v2.accesibilidadAsistentes || '',
+            guardarropa: false,
+            seguridadPropia: false,
+        },
+        conexionWifi: v2.conexionWifi,
+    },
+    contactos: (v2.contactos || []).map(c => ({
+        id: c.id,
+        nombre: c.nombre,
+        cargo: c.cargo || '',
+        telefono: c.telefono || '',
+        email: c.email || ''
+    })),
+    multimedia: {
+        imagenes: (v2.imagenes || []).map(i => ({
+            id: i.id,
+            url: i.url,
+            isPrincipal: i.esPrincipal
+        })),
+        carpetaDRIVE: v2.carpetaDrive,
+        visitaVirtual: v2.visitaVirtualUrl,
+    },
+    espacio: v2.nombre,
+    precioOrientativoAlquiler: v2.precioOrientativoAlquiler?.toString(),
+    canonEspacioPorcentaje: v2.canonEspacioPorcentaje,
+    canonEspacioFijo: v2.canonEspacioFijo,
+});
+
 export const useDataStore = create<DataStore>((set, get) => ({
     isLoaded: false,
     data: {
@@ -124,7 +229,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 { data: eventoLineas },
                 { data: elaboracionComponentes },
                 { data: recetaDetalles },
-                { data: articulosData }
+                { data: articulosData },
+                { data: espaciosV2 }
             ] = await Promise.all([
                 supabase.from('eventos').select('*'),
                 supabase.from('familias').select('*'),
@@ -135,7 +241,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 supabase.from('evento_lineas').select('*'),
                 supabase.from('elaboracion_componentes').select('*'),
                 supabase.from('receta_detalles').select('*'),
-                supabase.from('articulos').select('*')
+                supabase.from('articulos').select('*'),
+                supabase.from('espacios_v2').select('*, salas:espacios_salas(*), contactos:espacios_contactos(*), cuadrosElectricos:espacios_cuadros_electricos(*), imagenes:espacios_imagenes(*)')
             ]);
 
             // Map Supabase 'eventos' to 'ServiceOrder'
@@ -212,6 +319,13 @@ export const useDataStore = create<DataStore>((set, get) => ({
             // For now, we keep localStorage for non-migrated tables to avoid breaking everything immediately
             // or we return empty arrays if we want to force migration.
             // Let's mix: Supabase for migrated, LocalStorage for others (legacy mode)
+
+            const mappedEspacios = (espaciosV2 || []).map((e: any) => mapEspacioV2ToLegacy(e as EspacioV2));
+
+            // IMPORTANT: Update localStorage for compatibility with pages that read directly from it
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('espacios', JSON.stringify(mappedEspacios));
+            }
 
             const allData = {
                 serviceOrders,
@@ -326,7 +440,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 costesFijosCPR: loadFromLocalStorage<CosteFijoCPR[]>('costesFijosCPR', []),
                 objetivosCPR: loadFromLocalStorage<ObjetivoMensualCPR[]>('objetivosCPR', []),
                 personal: loadFromLocalStorage<Personal[]>('personal', []),
-                espacios: loadFromLocalStorage<Espacio[]>('espacios', []),
+                espacios: mappedEspacios,
                 articulos: (articulosData || []).map((a: any) => ({
                     id: a.id,
                     erpId: a.erp_id,

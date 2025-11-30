@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Pencil, Trash2, Eye, MapPin } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, MapPin, Download, Upload, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getEspacios, deleteEspacio } from '@/services/espacios-service';
 import type { EspacioV2 } from '@/types/espacios';
@@ -28,9 +28,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { exportEspaciosToCSV, downloadCSVTemplate } from '@/lib/csv-utils';
+import { CSVImporter } from './components/csv/CSVImporter';
+import { QuickActions } from './components/QuickActions';
+import { calculateEspacioCompleteness, getCompletenessBadgeColor } from '@/lib/espacios-utils';
 
 export default function EspaciosPage() {
   const router = useRouter();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const { toast } = useToast();
   const [espacios, setEspacios] = useState<EspacioV2[]>([]);
   const [filteredEspacios, setFilteredEspacios] = useState<EspacioV2[]>([]);
@@ -162,10 +176,40 @@ export default function EspaciosPage() {
               className="pl-10"
             />
           </div>
-          <Button onClick={() => router.push('/bd/espacios/nuevo')}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Espacio
-          </Button>
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar/Importar
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => exportEspaciosToCSV(filteredEspacios, `espacios_${new Date().toISOString().split('T')[0]}.csv`)}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar Espacios Filtrados ({filteredEspacios.length})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportEspaciosToCSV(espacios, `espacios_completo_${new Date().toISOString().split('T')[0]}.csv`)}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar Todos ({espacios.length})
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={downloadCSVTemplate}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Descargar Plantilla CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Importar CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={() => router.push('/bd/espacios/nuevo')}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Espacio
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-4 items-center">
@@ -262,6 +306,7 @@ export default function EspaciosPage() {
                     <MapPin className="w-4 h-4 inline mr-1" />
                     Ubicación
                   </TableHead>
+                  <TableHead className="text-center">Completado</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead className="text-center">Aforo Cocktail</TableHead>
                   <TableHead className="text-center">Aforo Banquete</TableHead>
@@ -271,7 +316,7 @@ export default function EspaciosPage() {
               </TableHeader>
               <TableBody>
                 {filteredEspacios.map((espacio) => (
-                  <TableRow key={espacio.id}>
+                  <TableRow key={espacio.id} className="group hover:bg-muted/50">
                     <TableCell className="font-medium">
                       <div>
                         <div>{espacio.nombre}</div>
@@ -287,6 +332,14 @@ export default function EspaciosPage() {
                         <div>{espacio.ciudad}</div>
                         <div className="text-muted-foreground">{espacio.provincia}</div>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge
+                        variant="secondary"
+                        className={getCompletenessBadgeColor(calculateEspacioCompleteness(espacio))}
+                      >
+                        {calculateEspacioCompleteness(espacio)}%
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -373,6 +426,21 @@ export default function EspaciosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Importar Espacios desde CSV</DialogTitle>
+          </DialogHeader>
+          <CSVImporter
+            onClose={() => setShowImportDialog(false)}
+            onSuccess={() => {
+              setShowImportDialog(false);
+              loadEspacios(); // Recargar lista
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
