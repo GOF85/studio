@@ -71,18 +71,26 @@ export function ImageUploader({ espacioId, onUploadComplete, className, label = 
         }
     }, [espacioId, onUploadComplete, supabase, toast]);
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
         onDrop,
         accept: {
             'image/*': ['.png', '.jpg', '.jpeg', '.webp']
         },
         maxFiles: 1,
-        disabled: isUploading
+        disabled: isUploading,
+        noClick: true, // Disable default click behavior
+        noKeyboard: true
     });
 
     return (
         <div
             {...getRootProps()}
+            onClick={(e) => {
+                e.stopPropagation();
+                if (!isUploading) {
+                    open(); // Manually trigger file dialog
+                }
+            }}
             className={cn(
                 "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
                 isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50",
@@ -91,7 +99,7 @@ export function ImageUploader({ espacioId, onUploadComplete, className, label = 
             )}
         >
             <input {...getInputProps()} />
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 pointer-events-none">
                 {isUploading ? (
                     <>
                         <Loader2 className="w-10 h-10 text-muted-foreground animate-spin" />

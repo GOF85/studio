@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS espacios_imagenes (
   es_principal BOOLEAN DEFAULT false,
   descripcion TEXT,
   orden INT DEFAULT 0,
+  categoria TEXT CHECK (categoria IN ('foto', 'plano')) DEFAULT 'foto',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

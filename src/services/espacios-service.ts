@@ -63,18 +63,69 @@ export async function createEspacio(espacio: Partial<EspacioV2>) {
         if (contactosError) throw contactosError;
     }
 
+    // 4. Crear cuadros eléctricos
+    if (cuadrosElectricos && cuadrosElectricos.length > 0) {
+        const { error: cuadrosError } = await supabase
+            .from('espacios_cuadros_electricos')
+            .insert(cuadrosElectricos.map(ce => ({ ...ce, espacio_id: newEspacio.id })));
+        if (cuadrosError) throw cuadrosError;
+    }
+
+    // 5. Crear imágenes
+    if (imagenes && imagenes.length > 0) {
+        const { error: imagenesError } = await supabase
+            .from('espacios_imagenes')
+            .insert(imagenes.map(img => ({
+                id: img.id,
+                espacio_id: newEspacio.id,
+                url: img.url,
+                es_principal: img.esPrincipal || false,
+                descripcion: img.descripcion,
+                orden: img.orden,
+                categoria: img.categoria || 'foto'
+            })));
+        if (imagenesError) throw imagenesError;
+    }
+
     return getEspacioById(newEspacio.id);
 }
 
 export async function updateEspacio(id: string, updates: Partial<EspacioV2>) {
-    const { salas, contactos, ...espacioData } = updates;
+    const { salas, contactos, cuadrosElectricos, imagenes, ...espacioData } = updates;
 
+    // 1. Actualizar espacio principal
     const { error } = await supabase
         .from('espacios_v2')
         .update(mapEspacioToDB(espacioData))
         .eq('id', id);
 
     if (error) throw error;
+
+    // 2. Actualizar imágenes si se proporcionan
+    if (imagenes !== undefined) {
+        // Eliminar imágenes existentes
+        await supabase
+            .from('espacios_imagenes')
+            .delete()
+            .eq('espacio_id', id);
+
+        // Insertar nuevas imágenes
+        if (imagenes.length > 0) {
+            const { error: imagenesError } = await supabase
+                .from('espacios_imagenes')
+                .insert(imagenes.map(img => ({
+                    id: img.id,
+                    espacio_id: id,
+                    url: img.url,
+                    es_principal: img.esPrincipal || false,
+                    descripcion: img.descripcion,
+                    orden: img.orden,
+                    categoria: img.categoria || 'foto'
+                })));
+            if (imagenesError) throw imagenesError;
+        }
+    }
+
     return getEspacioById(id);
 }
 
@@ -134,7 +185,15 @@ function mapEspacioFromDB(row: any): EspacioV2 {
         salas: row.salas || [],
         contactos: row.contactos || [],
         cuadrosElectricos: row.cuadros_electricos || [],
-        imagenes: row.imagenes || [],
+        imagenes: (row.imagenes || []).map((img: any) => ({
+            id: img.id,
+            espacioId: img.espacio_id,
+            url: img.url,
+            esPrincipal: img.es_principal,
+            descripcion: img.descripcion,
+            orden: img.orden,
+            categoria: img.categoria || 'foto'
+        })),
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         createdBy: row.created_by,

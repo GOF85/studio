@@ -66,6 +66,7 @@ export interface ImagenEspacio {
     esPrincipal: boolean;
     descripcion?: string;
     orden: number;
+    categoria?: 'foto' | 'plano';
 }
 
 export interface EspacioV2 {
