@@ -227,6 +227,417 @@ async function migrateEntregas(): Promise<MigrationResult> {
 }
 
 /**
+ * Migrate transporteOrders from localStorage to Supabase
+ */
+async function migrateTransporte(): Promise<MigrationResult> {
+    try {
+        const stored = localStorage.getItem('transporteOrders');
+        if (!stored) {
+            return { entity: 'transporte', success: true, itemsProcessed: 0 };
+        }
+
+        const orders = JSON.parse(stored);
+        if (!Array.isArray(orders) || orders.length === 0) {
+            return { entity: 'transporte', success: true, itemsProcessed: 0 };
+        }
+
+        const toInsert = orders.map(o => ({
+            id: o.id,
+            evento_id: o.osId,
+            tipo_transporte: o.tipoTransporte,
+            proveedor_id: o.proveedorId,
+            fecha_servicio: o.fecha,
+            precio: o.precio || 0,
+            observaciones: o.observaciones,
+            data: {
+                lugarRecogida: o.lugarRecogida,
+                horaRecogida: o.horaRecogida,
+                lugarEntrega: o.lugarEntrega,
+                horaEntrega: o.horaEntrega,
+                status: o.status,
+                firmaUrl: o.firmaUrl,
+                firmadoPor: o.firmadoPor,
+                dniReceptor: o.dniReceptor,
+                fechaFirma: o.fechaFirma,
+                hitosIds: o.hitosIds
+            }
+        }));
+
+        const { error } = await supabase
+            .from('pedidos_transporte')
+            .upsert(toInsert, { onConflict: 'id' });
+
+        if (error) throw error;
+
+        return { entity: 'transporte', success: true, itemsProcessed: orders.length };
+    } catch (error: any) {
+        return { entity: 'transporte', success: false, itemsProcessed: 0, error: error.message };
+    }
+}
+
+/**
+ * Migrate decoracionOrders from localStorage to Supabase
+ */
+async function migrateDecoracion(): Promise<MigrationResult> {
+    try {
+        const stored = localStorage.getItem('decoracionOrders');
+        if (!stored) {
+            return { entity: 'decoracion', success: true, itemsProcessed: 0 };
+        }
+
+        const orders = JSON.parse(stored);
+        if (!Array.isArray(orders) || orders.length === 0) {
+            return { entity: 'decoracion', success: true, itemsProcessed: 0 };
+        }
+
+        const toInsert = orders.map(o => ({
+            id: o.id,
+            evento_id: o.osId,
+            concepto: o.concepto,
+            precio: o.precio || 0,
+            descripcion: o.observaciones,
+            data: {
+                fecha: o.fecha
+            }
+        }));
+
+        const { error } = await supabase
+            .from('pedidos_decoracion')
+            .upsert(toInsert, { onConflict: 'id' });
+
+        if (error) throw error;
+
+        return { entity: 'decoracion', success: true, itemsProcessed: orders.length };
+    } catch (error: any) {
+        return { entity: 'decoracion', success: false, itemsProcessed: 0, error: error.message };
+    }
+}
+
+/**
+ * Migrate atipicoOrders from localStorage to Supabase
+ */
+async function migrateAtipicos(): Promise<MigrationResult> {
+    try {
+        const stored = localStorage.getItem('atipicoOrders');
+        if (!stored) {
+            return { entity: 'atipicos', success: true, itemsProcessed: 0 };
+        }
+
+        const orders = JSON.parse(stored);
+        if (!Array.isArray(orders) || orders.length === 0) {
+            return { entity: 'atipicos', success: true, itemsProcessed: 0 };
+        }
+
+        const toInsert = orders.map(o => ({
+            id: o.id,
+            evento_id: o.osId,
+            concepto: o.concepto,
+            precio: o.precio || 0,
+            descripcion: o.observaciones,
+            data: {
+                fecha: o.fecha,
+                status: o.status
+            }
+        }));
+
+        const { error } = await supabase
+            .from('pedidos_atipicos')
+            .upsert(toInsert, { onConflict: 'id' });
+
+        if (error) throw error;
+
+        return { entity: 'atipicos', success: true, itemsProcessed: orders.length };
+    } catch (error: any) {
+        return { entity: 'atipicos', success: false, itemsProcessed: 0, error: error.message };
+    }
+}
+
+/**
+ * Migrate personalMiceOrders from localStorage to Supabase
+ */
+async function migratePersonalMice(): Promise<MigrationResult> {
+    try {
+        const stored = localStorage.getItem('personalMiceOrders');
+        if (!stored) {
+            return { entity: 'personalMice', success: true, itemsProcessed: 0 };
+        }
+
+        const orders = JSON.parse(stored);
+        if (!Array.isArray(orders) || orders.length === 0) {
+            return { entity: 'personalMice', success: true, itemsProcessed: 0 };
+        }
+
+        const toInsert: any[] = [];
+        orders.forEach((o: any) => {
+            if (o.items && Array.isArray(o.items)) {
+                o.items.forEach((item: any) => {
+                    toInsert.push({
+                        evento_id: o.osId,
+                        personal_id: item.id, // Assuming item.id is the personal ID (DNI or UUID)
+                        categoria: item.categoria,
+                        hora_entrada: item.horaEntrada,
+                        hora_salida: item.horaSalida,
+                        hora_entrada_real: item.horaEntradaReal,
+                        hora_salida_real: item.horaSalidaReal,
+                        precio_hora: item.precioHora || 0,
+                        observaciones: item.observaciones,
+                        data: {
+                            status: item.status,
+                            horasEstimadas: item.horasEstimadas,
+                            horasReales: item.horasReales,
+                            costeEstimado: item.costeEstimado,
+                            costeReal: item.costeReal
+                        }
+                    });
+                });
+            }
+        });
+
+        if (toInsert.length > 0) {
+            const { error } = await supabase
+                .from('personal_mice_asignaciones')
+                .upsert(toInsert); // No ID conflict check as we are creating new rows
+
+            if (error) throw error;
+        }
+
+        return { entity: 'personalMice', success: true, itemsProcessed: orders.length };
+    } catch (error: any) {
+        return { entity: 'personalMice', success: false, itemsProcessed: 0, error: error.message };
+    }
+}
+
+/**
+ * Migrate personalExterno from localStorage to Supabase
+ */
+async function migratePersonalExterno(): Promise<MigrationResult> {
+    try {
+        const stored = localStorage.getItem('personalExterno');
+        if (!stored) {
+            return { entity: 'personalExterno', success: true, itemsProcessed: 0 };
+        }
+
+        const orders = JSON.parse(stored);
+        if (!Array.isArray(orders) || orders.length === 0) {
+            return { entity: 'personalExterno', success: true, itemsProcessed: 0 };
+        }
+
+        const toInsert = orders.map(o => ({
+            evento_id: o.osId,
+            turnos: o.turnos || [],
+            data: {
+                status: o.status,
+                observacionesGenerales: o.observacionesGenerales,
+                hojaFirmadaUrl: o.hojaFirmadaUrl
+            }
+        }));
+
+        const { error } = await supabase
+            .from('personal_externo_eventos')
+            .upsert(toInsert);
+
+        if (error) throw error;
+
+        return { entity: 'personalExterno', success: true, itemsProcessed: orders.length };
+    } catch (error: any) {
+        return { entity: 'personalExterno', success: false, itemsProcessed: 0, error: error.message };
+    }
+}
+
+/**
+ * Migrate personalExternoAjustes from localStorage to Supabase
+ */
+async function migratePersonalExternoAjustes(): Promise<MigrationResult> {
+    try {
+        const stored = localStorage.getItem('personalExternoAjustes');
+        if (!stored) {
+            return { entity: 'personalExternoAjustes', success: true, itemsProcessed: 0 };
+        }
+
+        const ajustesMap = JSON.parse(stored); // Record<string, Ajuste[]>
+        const toInsert: any[] = [];
+
+        Object.entries(ajustesMap).forEach(([osId, ajustes]: [string, any]) => {
+            if (Array.isArray(ajustes)) {
+                ajustes.forEach(a => {
+                    toInsert.push({
+                        id: a.id,
+                        evento_id: osId,
+                        concepto: a.concepto,
+                        importe: a.importe,
+                        data: {
+                            proveedorId: a.proveedorId
+                        }
+                    });
+                });
+            }
+        });
+
+        if (toInsert.length > 0) {
+            const { error } = await supabase
+                .from('personal_externo_ajustes')
+                .upsert(toInsert, { onConflict: 'id' });
+
+            if (error) throw error;
+        }
+
+        return { entity: 'personalExternoAjustes', success: true, itemsProcessed: toInsert.length };
+    } catch (error: any) {
+        return { entity: 'personalExternoAjustes', success: false, itemsProcessed: 0, error: error.message };
+    }
+}
+
+/**
+ * Migrate personalEntrega from localStorage to Supabase
+ */
+async function migratePersonalEntrega(): Promise<MigrationResult> {
+    try {
+        const stored = localStorage.getItem('personalEntrega');
+        if (!stored) {
+            return { entity: 'personalEntrega', success: true, itemsProcessed: 0 };
+        }
+
+        const orders = JSON.parse(stored);
+        if (!Array.isArray(orders) || orders.length === 0) {
+            return { entity: 'personalEntrega', success: true, itemsProcessed: 0 };
+        }
+
+        const toInsert = orders.map(o => ({
+            entrega_id: o.osId, // Assuming osId maps to entrega_id
+            turnos: o.turnos || [],
+            data: {
+                status: o.status,
+                observacionesGenerales: o.observacionesGenerales
+            }
+        }));
+
+        const { error } = await supabase
+            .from('personal_entrega')
+            .upsert(toInsert);
+
+        if (error) throw error;
+
+        return { entity: 'personalEntrega', success: true, itemsProcessed: orders.length };
+    } catch (error: any) {
+        return { entity: 'personalEntrega', success: false, itemsProcessed: 0, error: error.message };
+    }
+}
+
+/**
+ * Migrate ordenesFabricacion from localStorage to Supabase
+ */
+async function migrateOrdenesFabricacion(): Promise<MigrationResult> {
+    try {
+        const stored = localStorage.getItem('ordenesFabricacion');
+        if (!stored) {
+            return { entity: 'ordenesFabricacion', success: true, itemsProcessed: 0 };
+        }
+
+        const orders = JSON.parse(stored);
+        if (!Array.isArray(orders) || orders.length === 0) {
+            return { entity: 'ordenesFabricacion', success: true, itemsProcessed: 0 };
+        }
+
+        const toInsert = orders.map(o => ({
+            id: o.id,
+            evento_id: o.osIDs && o.osIDs.length > 0 ? o.osIDs[0] : null,
+            items: [], // OrdenFabricacion does not have items in the same way
+            estado: o.estado || 'Pendiente',
+            data: o // Store full object to preserve all fields
+        }));
+
+        const { error } = await supabase
+            .from('ordenes_fabricacion')
+            .upsert(toInsert, { onConflict: 'id' });
+
+        if (error) throw error;
+
+        return { entity: 'ordenesFabricacion', success: true, itemsProcessed: orders.length };
+    } catch (error: any) {
+        return { entity: 'ordenesFabricacion', success: false, itemsProcessed: 0, error: error.message };
+    }
+}
+
+/**
+ * Migrate pickingSheets from localStorage to Supabase
+ */
+async function migratePickingSheets(): Promise<MigrationResult> {
+    try {
+        const stored = localStorage.getItem('pickingSheets');
+        if (!stored) {
+            return { entity: 'pickingSheets', success: true, itemsProcessed: 0 };
+        }
+
+        const sheetsMap = JSON.parse(stored); // Record<string, PickingSheet>
+        const toInsert: any[] = [];
+
+        Object.values(sheetsMap).forEach((sheet: any) => {
+            toInsert.push({
+                evento_id: sheet.osId,
+                items: sheet.items || [],
+                estado: sheet.status || 'Pendiente',
+                data: {
+                    fecha: sheet.fecha,
+                    observaciones: sheet.observaciones
+                }
+            });
+        });
+
+        if (toInsert.length > 0) {
+            const { error } = await supabase
+                .from('hojas_picking')
+                .upsert(toInsert); // No ID in source, creating new rows
+
+            if (error) throw error;
+        }
+
+        return { entity: 'pickingSheets', success: true, itemsProcessed: toInsert.length };
+    } catch (error: any) {
+        return { entity: 'pickingSheets', success: false, itemsProcessed: 0, error: error.message };
+    }
+}
+
+/**
+ * Migrate returnSheets from localStorage to Supabase
+ */
+async function migrateReturnSheets(): Promise<MigrationResult> {
+    try {
+        const stored = localStorage.getItem('returnSheets');
+        if (!stored) {
+            return { entity: 'returnSheets', success: true, itemsProcessed: 0 };
+        }
+
+        const sheetsMap = JSON.parse(stored); // Record<string, ReturnSheet>
+        const toInsert: any[] = [];
+
+        Object.values(sheetsMap).forEach((sheet: any) => {
+            toInsert.push({
+                evento_id: sheet.osId,
+                // items? ReturnSheet might have different structure
+                data: {
+                    items: sheet.items, // Storing items in data if no specific column
+                    status: sheet.status,
+                    fecha: sheet.fecha,
+                    observaciones: sheet.observaciones
+                }
+            });
+        });
+
+        if (toInsert.length > 0) {
+            const { error } = await supabase
+                .from('hojas_retorno')
+                .upsert(toInsert);
+
+            if (error) throw error;
+        }
+
+        return { entity: 'returnSheets', success: true, itemsProcessed: toInsert.length };
+    } catch (error: any) {
+        return { entity: 'returnSheets', success: false, itemsProcessed: 0, error: error.message };
+    }
+}
+
+/**
  * Clear migrated data from localStorage
  */
 function clearMigratedData(entities: string[]) {
@@ -252,6 +663,16 @@ export async function migrateAllData(
         { name: 'elaboraciones', fn: migrateElaboraciones },
         { name: 'eventos', fn: migrateEventos },
         { name: 'entregas', fn: migrateEntregas },
+        { name: 'transporte', fn: migrateTransporte },
+        { name: 'decoracion', fn: migrateDecoracion },
+        { name: 'atipicos', fn: migrateAtipicos },
+        { name: 'personalMice', fn: migratePersonalMice },
+        { name: 'personalExterno', fn: migratePersonalExterno },
+        { name: 'personalExternoAjustes', fn: migratePersonalExternoAjustes },
+        { name: 'personalEntrega', fn: migratePersonalEntrega },
+        { name: 'ordenesFabricacion', fn: migrateOrdenesFabricacion },
+        { name: 'pickingSheets', fn: migratePickingSheets },
+        { name: 'returnSheets', fn: migrateReturnSheets },
     ];
 
     const results: MigrationResult[] = [];
