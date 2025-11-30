@@ -8,26 +8,53 @@ interface DashboardMetricCardProps {
     icon: LucideIcon;
     label: string;
     value: number | string;
+    secondaryValue?: string;
     trend?: 'up' | 'down' | 'neutral';
     className?: string;
+    compact?: boolean;
 }
 
 export function DashboardMetricCard({
     icon: Icon,
     label,
     value,
+    secondaryValue,
     trend,
-    className
+    className,
+    compact = false
 }: DashboardMetricCardProps) {
     return (
-        <Card className={cn("p-4 hover:shadow-md transition-shadow", className)}>
+        <Card className={cn(
+            "hover:shadow-md transition-shadow transition-all duration-200",
+            compact ? "p-3" : "p-4",
+            className
+        )}>
             <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                    <Icon className="w-5 h-5 text-primary" />
+                <div className={cn(
+                    "rounded-lg bg-primary/10 flex items-center justify-center shrink-0",
+                    compact ? "p-1.5 w-8 h-8" : "p-2 w-10 h-10"
+                )}>
+                    <Icon className={cn(
+                        "text-primary",
+                        compact ? "w-4 h-4" : "w-5 h-5"
+                    )} />
                 </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-2xl font-bold leading-none mb-1">{value}</p>
-                    <p className="text-xs text-muted-foreground truncate">{label}</p>
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <div className="flex items-baseline gap-2">
+                        <p className={cn(
+                            "font-bold leading-none",
+                            compact ? "text-lg" : "text-2xl"
+                        )}>{value}</p>
+                        {secondaryValue && (
+                            <span className="text-xs font-medium text-muted-foreground">
+                                {secondaryValue}
+                            </span>
+                        )}
+                    </div>
+                    <p className={cn(
+                        "text-muted-foreground truncate",
+                        compact ? "text-[10px] uppercase tracking-wider font-medium" : "text-xs"
+                    )}>{label}</p>
                 </div>
                 {trend && (
                     <div className={cn(

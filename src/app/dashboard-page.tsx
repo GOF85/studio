@@ -154,7 +154,9 @@ export function Section({ title, items }: { title: string, items: MenuItem[] }) 
 export function DashboardPage() {
     const [metrics, setMetrics] = useState({
         serviciosHoy: 0,
+        paxHoy: 0,
         serviciosSemana: 0,
+        paxSemana: 0,
         hitosConGastronomia: 0,
         totalAsistentes: 0,
     });
@@ -169,20 +171,39 @@ export function DashboardPage() {
             const serviceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
             const comercialBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]');
 
+            // Helper to get pax for an OS
+            const getPaxForOS = (osId: string) => {
+                const briefing = comercialBriefings.find((b: any) => b.osId === osId);
+                if (!briefing) return 0;
+                return (briefing.items || []).reduce((acc: number, item: any) => {
+                    return acc + (item.conGastronomia ? (item.asistentes || 0) : 0);
+                }, 0);
+            };
+
             // Servicios hoy
-            const serviciosHoy = serviceOrders.filter((os: any) => {
+            let serviciosHoy = 0;
+            let paxHoy = 0;
+            serviceOrders.forEach((os: any) => {
                 const startDate = new Date(os.startDate);
                 startDate.setHours(0, 0, 0, 0);
-                return startDate.getTime() === today.getTime() && os.status === 'Confirmado';
-            }).length;
+                if (startDate.getTime() === today.getTime() && os.status === 'Confirmado') {
+                    serviciosHoy++;
+                    paxHoy += getPaxForOS(os.id);
+                }
+            });
 
             // Servicios esta semana
-            const serviciosSemana = serviceOrders.filter((os: any) => {
+            let serviciosSemana = 0;
+            let paxSemana = 0;
+            serviceOrders.forEach((os: any) => {
                 const startDate = new Date(os.startDate);
-                return startDate >= today && startDate < nextWeek && os.status === 'Confirmado';
-            }).length;
+                if (startDate >= today && startDate < nextWeek && os.status === 'Confirmado') {
+                    serviciosSemana++;
+                    paxSemana += getPaxForOS(os.id);
+                }
+            });
 
-            // Hitos con gastronomía y total asistentes
+            // Hitos con gastronomía y total asistentes (Global)
             let hitosConGastronomia = 0;
             let totalAsistentes = 0;
 
@@ -200,7 +221,9 @@ export function DashboardPage() {
 
             setMetrics({
                 serviciosHoy,
+                paxHoy,
                 serviciosSemana,
+                paxSemana,
                 hitosConGastronomia,
                 totalAsistentes,
             });
@@ -215,26 +238,33 @@ export function DashboardPage() {
                 <DashboardHeader />
 
                 {/* Metrics Section */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     <DashboardMetricCard
                         icon={Calendar}
-                        label="Eventos hoy"
+                        label="Eventos Hoy"
                         value={metrics.serviciosHoy}
+                        secondaryValue={`${metrics.paxHoy} pax`}
+                        compact
                     />
                     <DashboardMetricCard
                         icon={Clock}
-                        label="Eventos esta semana"
+                        label="Esta Semana"
                         value={metrics.serviciosSemana}
+                        secondaryValue={`${metrics.paxSemana} pax`}
+                        compact
                     />
                     <DashboardMetricCard
                         icon={CheckCircle2}
-                        label="Servicios"
+                        label="Servicios Totales"
                         value={metrics.hitosConGastronomia}
+                        compact
                     />
                     <DashboardMetricCard
                         icon={Users}
-                        label="Total Asistentes"
+                        label="Total Histórico"
                         value={metrics.totalAsistentes}
+                        secondaryValue="pax"
+                        compact
                     />
                 </div>
 

@@ -1,15 +1,18 @@
-
 'use client';
 
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { BookHeart, ChefHat, Component, AlertTriangle, Shield, Archive, Trash2, BookCheck, ComponentIcon } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
-import type { Receta, Elaboracion, IngredienteInterno, ServiceOrder, GastronomyOrder } from '@/types';
+import { BookHeart, ChefHat, Component, Shield, Archive, Trash2, BookCheck, ComponentIcon } from 'lucide-react';
+import { useMemo } from 'react';
 import { isBefore, subMonths, startOfToday, isWithinInterval, addYears } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import type { Receta, Elaboracion, IngredienteInterno } from '@/types';
+
+// Import React Query hooks
+import { useRecetas, useElaboraciones, useEventos, useGastronomyOrders } from '@/hooks/use-data-queries';
 
 type StatCardProps = {
     title: string;
@@ -41,35 +44,18 @@ function StatCard({ title, value, icon: Icon, description, href, colorClass }: S
     return href ? <Link href={href}>{content}</Link> : content;
 }
 
-export default function BookDashboardPage() {
-    const [stats, setStats] = useState({
-        totalRecetas: 0,
-        totalRecetasActivas: 0,
-        totalRecetasArchivadas: 0,
-        totalElaboraciones: 0,
-        totalIngredientes: 0,
-        elaboracionesHuerfanas: 0,
-        ingredientesPorVerificarCount: 0,
-        recetasParaRevisarCount: 0,
-        elaboracionesParaRevisarCount: 0,
-    });
-
-    const [isMounted, setIsMounted] = useState(false);
-
-
-    useEffect(() => {
-        const loadData = async () => {
-            const storedRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
-            const storedElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
-            console.log('Dashboard: Loaded elaborations from localStorage:', storedElaboraciones.length);
-            console.log('Dashboard: Loaded recetas from localStorage:', storedRecetas.length);
-
-            // Load ingredients from Supabase
-            const { data: ingredientesData } = await supabase
+// Hook for ingredientes internos
+function useIngredientesInternos() {
+    return useQuery({
+        queryKey: ['ingredientesInternos'],
+        queryFn: async () => {
+            const { data, error } = await supabase
                 .from('ingredientes_internos')
                 .select('*');
 
-            const storedIngredientes: IngredienteInterno[] = (ingredientesData || []).map((row: any) => ({
+            if (error) throw error;
+
+            return (data || []).map((row: any): IngredienteInterno => ({
                 id: row.id,
                 nombreIngrediente: row.nombre_ingrediente,
                 productoERPlinkId: row.producto_erp_link_id,
@@ -77,86 +63,108 @@ export default function BookDashboardPage() {
                 alergenosTrazas: row.alergenos_trazas || [],
                 historialRevisiones: row.historial_revisiones || [],
             }));
+        },
+    });
+}
 
-            // --- Cálculos de Totales ---
-            const totalRecetas = storedRecetas.length;
-            const totalRecetasActivas = storedRecetas.filter(r => !r.isArchived).length;
-            const totalRecetasArchivadas = totalRecetas - totalRecetasActivas;
-            const recetasParaRevisarCount = storedRecetas.filter(r => r.requiereRevision).length;
-            const elaboracionesParaRevisarCount = storedElaboraciones.filter(e => e.requiereRevision).length;
+export default function BookDashboardPage() {
+    // Load all data with React Query
+    const { data: recetas = [], isLoading: loadingRecetas } = useRecetas();
+    const { data: elaboraciones = [], isLoading: loadingElaboraciones } = useElaboraciones();
+    const { data: ingredientes = [], isLoading: loadingIngredientes } = useIngredientesInternos();
+    const { data: serviceOrders = [], isLoading: loadingEventos } = useEventos();
+    const { data: gastroOrders = [], isLoading: loadingGastro } = useGastronomyOrders();
 
-            // --- Lógica para Elaboraciones Huérfanas ---
-            const elaboracionesEnUso = new Set<string>();
-            storedRecetas.forEach(receta => {
-                (receta.elaboraciones || []).forEach(elab => {
-                    elaboracionesEnUso.add(elab.elaboracionId);
-                });
+    const isLoading = loadingRecetas || loadingElaboraciones || loadingIngredientes || loadingEventos || loadingGastro;
+
+    const stats = useMemo(() => {
+        if (isLoading) {
+            return {
+                totalRecetas: 0,
+                totalRecetasActivas: 0,
+                totalRecetasArchivadas: 0,
+                totalElaboraciones: 0,
+                totalIngredientes: 0,
+                elaboracionesHuerfanas: 0,
+                ingredientesPorVerificarCount: 0,
+                recetasParaRevisarCount: 0,
+                elaboracionesParaRevisarCount: 0,
+            };
+        }
+
+        // --- Cálculos de Totales ---
+        const totalRecetas = recetas.length;
+        const totalRecetasActivas = recetas.filter(r => !r.isArchived).length;
+        const totalRecetasArchivadas = totalRecetas - totalRecetasActivas;
+        const recetasParaRevisarCount = recetas.filter(r => r.requiereRevision).length;
+        const elaboracionesParaRevisarCount = elaboraciones.filter(e => e.requiereRevision).length;
+
+        // --- Lógica para Elaboraciones Huérfanas ---
+        const elaboracionesEnUso = new Set<string>();
+        recetas.forEach(receta => {
+            (receta.elaboraciones || []).forEach(elab => {
+                elaboracionesEnUso.add(elab.elaboracionId);
             });
-            const elaboracionesHuerfanas = storedElaboraciones.filter(elab => !elaboracionesEnUso.has(elab.id)).length;
+        });
+        const elaboracionesHuerfanas = elaboraciones.filter(elab => !elaboracionesEnUso.has(elab.id)).length;
 
-            // --- Lógica para Ingredientes por Verificar ---
-            const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
-            const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
+        // --- Lógica para Ingredientes por Verificar ---
+        const confirmedOrders = serviceOrders.filter(os => os.status === 'Confirmado');
 
-            const today = startOfToday();
-            const sixMonthsAgo = subMonths(today, 6);
+        const today = startOfToday();
+        const sixMonthsAgo = subMonths(today, 6);
 
-            const recetasEnUsoIds = new Set<string>();
-            allServiceOrders.forEach(os => {
-                const osDate = new Date(os.startDate);
-                if (isWithinInterval(osDate, { start: today, end: addYears(today, 1) })) {
-                    allGastroOrders
-                        .filter(go => go.osId === os.id)
-                        .forEach(pedido => {
-                            (pedido.items || []).forEach(item => {
-                                if (item.type === 'item') recetasEnUsoIds.add(item.id);
-                            });
+        const recetasEnUsoIds = new Set<string>();
+        confirmedOrders.forEach(os => {
+            const osDate = new Date(os.startDate);
+            if (isWithinInterval(osDate, { start: today, end: addYears(today, 1) })) {
+                gastroOrders
+                    .filter(go => go.osId === os.id)
+                    .forEach(pedido => {
+                        (pedido.items || []).forEach(item => {
+                            if (item.type === 'item') recetasEnUsoIds.add(item.id);
                         });
-                }
-            });
-
-            const elaboracionesEnUsoIds = new Set<string>();
-            storedRecetas.forEach(receta => {
-                if (recetasEnUsoIds.has(receta.id)) {
-                    (receta.elaboraciones || []).forEach(elab => elaboracionesEnUsoIds.add(elab.elaboracionId));
-                }
-            });
-
-            const ingredientesEnUsoIds = new Set<string>();
-            storedElaboraciones.forEach(elab => {
-                if (elaboracionesEnUsoIds.has(elab.id)) {
-                    (elab.componentes || []).forEach(comp => {
-                        if (comp.tipo === 'ingrediente') ingredientesEnUsoIds.add(comp.componenteId);
                     });
-                }
-            });
+            }
+        });
 
-            const ingredientesPorVerificar = storedIngredientes.filter(ing => {
-                const latestRevision = ing.historialRevisiones?.[ing.historialRevisiones.length - 1];
-                const necesitaRevision = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
-                const estaEnUso = ingredientesEnUsoIds.has(ing.id);
-                return necesitaRevision && estaEnUso;
-            });
+        const elaboracionesEnUsoIds = new Set<string>();
+        recetas.forEach(receta => {
+            if (recetasEnUsoIds.has(receta.id)) {
+                (receta.elaboraciones || []).forEach(elab => elaboracionesEnUsoIds.add(elab.elaboracionId));
+            }
+        });
 
-            setStats({
-                totalRecetas,
-                totalRecetasActivas,
-                totalRecetasArchivadas,
-                totalElaboraciones: storedElaboraciones.length,
-                totalIngredientes: storedIngredientes.length,
-                elaboracionesHuerfanas,
-                ingredientesPorVerificarCount: ingredientesPorVerificar.length,
-                recetasParaRevisarCount,
-                elaboracionesParaRevisarCount,
-            });
+        const ingredientesEnUsoIds = new Set<string>();
+        elaboraciones.forEach(elab => {
+            if (elaboracionesEnUsoIds.has(elab.id)) {
+                (elab.componentes || []).forEach(comp => {
+                    if (comp.tipo === 'ingrediente') ingredientesEnUsoIds.add(comp.componenteId);
+                });
+            }
+        });
 
-            setIsMounted(true);
+        const ingredientesPorVerificar = ingredientes.filter(ing => {
+            const latestRevision = ing.historialRevisiones?.[ing.historialRevisiones.length - 1];
+            const necesitaRevision = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
+            const estaEnUso = ingredientesEnUsoIds.has(ing.id);
+            return necesitaRevision && estaEnUso;
+        });
+
+        return {
+            totalRecetas,
+            totalRecetasActivas,
+            totalRecetasArchivadas,
+            totalElaboraciones: elaboraciones.length,
+            totalIngredientes: ingredientes.length,
+            elaboracionesHuerfanas,
+            ingredientesPorVerificarCount: ingredientesPorVerificar.length,
+            recetasParaRevisarCount,
+            elaboracionesParaRevisarCount,
         };
+    }, [recetas, elaboraciones, ingredientes, serviceOrders, gastroOrders, isLoading]);
 
-        loadData();
-    }, []);
-
-    if (!isMounted) {
+    if (isLoading) {
         return <LoadingSkeleton title="Cargando Panel de Control del Book..." />;
     }
 

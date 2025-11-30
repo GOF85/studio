@@ -8,6 +8,7 @@ import { AuthProvider } from '@/providers/auth-provider';
 import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
 import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indicator';
+import { QueryProvider } from '@/providers/query-provider';
 
 // Force dynamic rendering to prevent static generation issues with useSearchParams
 export const dynamic = 'force-dynamic';
@@ -33,18 +34,20 @@ export default function RootLayout({
         />
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
-        <AuthProvider>
-          <ImpersonatedUserProvider>
-            <NProgressProvider>
-              <GlobalLoadingIndicator />
-              <div className="relative flex min-h-screen flex-col">
-                <Header />
-                {children}
-              </div>
-            </NProgressProvider>
-          </ImpersonatedUserProvider>
-        </AuthProvider>
-        <Toaster />
+        <QueryProvider>
+          <AuthProvider>
+            <ImpersonatedUserProvider>
+              <NProgressProvider>
+                <GlobalLoadingIndicator />
+                <div className="relative flex min-h-screen flex-col">
+                  <Header />
+                  {children}
+                </div>
+              </NProgressProvider>
+            </ImpersonatedUserProvider>
+          </AuthProvider>
+          <Toaster />
+        </QueryProvider>
       </body>
     </html>
   );
