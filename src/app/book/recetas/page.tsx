@@ -67,18 +67,8 @@ export default function RecetasPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      // Load recipes from Supabase
-      const { data: recetas, error: recetasError } = await supabase
-        .from('recetas')
-        .select('*')
-        .order('nombre', { ascending: true });
-
-      if (recetasError) {
-        console.error('Error loading recetas:', recetasError);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las recetas.' });
-      } else {
-        setItems(recetas || []);
-      }
+      const storedData = localStorage.getItem('recetas');
+      setItems(storedData ? JSON.parse(storedData) : []);
 
       // Load categories from Supabase
       const { data: categorias, error } = await supabase
@@ -89,13 +79,13 @@ export default function RecetasPage() {
       if (error) {
         console.error('Error loading categorias:', error);
       } else {
-        setCategories(categorias || []);
+        setCategories((categorias || []).map(c => c.nombre));
       }
 
       setIsMounted(true);
     };
     loadData();
-  }, [toast]);
+  }, []);
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
@@ -171,14 +161,14 @@ export default function RecetasPage() {
     }
   }
 
-  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
-      complete: async (results) => {
+      complete: (results) => {
         const headers = results.meta.fields || [];
         const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
 
@@ -200,10 +190,10 @@ export default function RecetasPage() {
           estabilidadBuffet: parseInt(item.estabilidadBuffet) || 3,
           elaboraciones: safeJsonParse(item.elaboraciones),
           menajeAsociado: safeJsonParse(item.menajeAsociado),
-          fotosMiseEnPlace: safeJsonParse(item.fotosMiseEnPlaceURLs),
-          fotosRegeneracion: safeJsonParse(item.fotosRegeneracionURLs),
-          fotosEmplatado: safeJsonParse(item.fotosEmplatadoURLs),
-          fotosComerciales: safeJsonParse(item.fotosComercialesURLs),
+          fotosMiseEnPlaceURLs: safeJsonParse(item.fotosMiseEnPlaceURLs),
+          fotosRegeneracionURLs: safeJsonParse(item.fotosRegeneracionURLs),
+          fotosEmplatadoURLs: safeJsonParse(item.fotosEmplatadoURLs),
+          fotosComercialesURLs: safeJsonParse(item.fotosComercialesURLs),
           perfilSaborSecundario: safeJsonParse(item.perfilSaborSecundario),
           perfilTextura: safeJsonParse(item.perfilTextura),
           tipoCocina: safeJsonParse(item.tipoCocina),
@@ -213,17 +203,9 @@ export default function RecetasPage() {
           alergenos: safeJsonParse(item.alergenos),
         }));
 
-        // Import to Supabase
-        const { error: importError } = await supabase
-          .from('recetas')
-          .upsert(importedData, { onConflict: 'id' });
-
-        if (importError) {
-          toast({ variant: 'destructive', title: 'Error de importación', description: importError.message });
-        } else {
-          setItems(importedData);
-          toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-        }
+        localStorage.setItem('recetas', JSON.stringify(importedData));
+        setItems(importedData);
+        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
       },
       error: (error) => {
         toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
@@ -234,38 +216,20 @@ export default function RecetasPage() {
     }
   };
 
-  const handleMassAction = async (action: 'archive' | 'delete') => {
-    try {
-      const selectedIds = Array.from(selectedItems);
-
-      if (action === 'archive') {
-        const { error } = await supabase
-          .from('recetas')
-          .update({ isArchived: true })
-          .in('id', selectedIds);
-
-        if (error) throw error;
-
-        setItems(items.map(item => selectedItems.has(item.id) ? { ...item, isArchived: true } : item));
-        toast({ title: `${selectedItems.size} recetas archivadas.` });
-      } else if (action === 'delete') {
-        const { error } = await supabase
-          .from('recetas')
-          .delete()
-          .in('id', selectedIds);
-
-        if (error) throw error;
-
-        setItems(items.filter(item => !selectedItems.has(item.id)));
-        toast({ title: `${selectedItems.size} recetas eliminadas.` });
-      }
-
-      setSelectedItems(new Set());
-      setItemToDelete(null);
-    } catch (error: any) {
-      console.error('Error in mass action:', error);
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
+  const handleMassAction = (action: 'archive' | 'delete') => {
+    let updatedItems = [...items];
+    if (action === 'archive') {
+      updatedItems = items.map(item => selectedItems.has(item.id) ? { ...item, isArchived: true } : item);
+      toast({ title: `${selectedItems.size} recetas archivadas.` });
+    } else if (action === 'delete') {
+      updatedItems = items.filter(item => !selectedItems.has(item.id));
+      toast({ title: `${selectedItems.size} recetas eliminadas.` });
     }
+
+    localStorage.setItem('recetas', JSON.stringify(updatedItems));
+    setItems(updatedItems);
+    setSelectedItems(new Set());
+    setItemToDelete(null);
   };
 
   const handleSelect = (itemId: string) => {

@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useState, useEffect, useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cprNav } from '@/lib/cpr-nav';
@@ -62,6 +63,7 @@ function WorkflowSection({ title, modules }: { title: string, modules: (typeof c
 }
 
 export default function CprDashboardPage() {
+    const [isMounted, setIsMounted] = useState(false);
     const [kpiData, setKpiData] = useState({
         pendientes: 0,
         enProceso: 0,
@@ -83,7 +85,12 @@ export default function CprDashboardPage() {
             .filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada');
         
         setKpiData({ pendientes, enProceso, finalizadasHoy, incidencias, turnosPorValidar: storedSolicitudes.length });
+        setIsMounted(true);
     }, []);
+
+    if (!isMounted) {
+        return <LoadingSkeleton title="Cargando Panel de control de Producción..." />;
+    }
     
     const navSections = {
       planificar: cprNav.filter(item => workflowSections.planificar.modules.includes(item.title)),

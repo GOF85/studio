@@ -29,6 +29,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type DataSet = {
   key: string;
@@ -93,6 +94,7 @@ function DataSetCard({ db, count, onDelete }: { db: DataSet; count: number; onDe
 
 export default function BorrarOsPage() {
     const { toast } = useToast();
+    const [isMounted, setIsMounted] = useState(false);
     const [dataSetToView, setDataSetToView] = useState<DataSet | null>(null);
     const [itemsToDelete, setItemsToDelete] = useState<ItemToDelete[]>([]);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -114,6 +116,7 @@ export default function BorrarOsPage() {
             }
         });
         setDbCounts(counts);
+        setIsMounted(true);
     }, []);
 
     const handleOpenDialog = (db: DataSet) => {
@@ -191,3 +194,110 @@ export default function BorrarOsPage() {
 
     const numSelected = itemsToDelete.filter(i => i.checked).length;
 
+    if (!isMounted) {
+        return <LoadingSkeleton title="Cargando Limpieza de Datos..." />;
+    }
+    
+    return (
+        <>
+            <main className="container mx-auto px-4 py-8">
+                <div className="max-w-3xl mx-auto">
+                     <div className="flex items-center gap-3 mb-8">
+                        <Trash2 className="h-8 w-8 text-destructive" />
+                        <h1 className="text-3xl font-headline font-bold">Limpieza de Datos de Eventos</h1>
+                    </div>
+
+                    <Card className="border-destructive bg-destructive/5 mb-8">
+                        <CardHeader className="flex-row items-center gap-4">
+                            <ShieldAlert className="w-10 h-10 text-destructive flex-shrink-0" />
+                            <div>
+                                <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
+                                <CardDescription className="text-destructive/80">
+                                    Estas acciones son masivas. Usa los diálogos para revisar y confirmar qué registros se eliminarán.
+                                </CardDescription>
+                            </div>
+                        </CardHeader>
+                    </Card>
+
+                    <h2 className="text-2xl font-headline font-semibold mb-4 mt-8">Registros Principales</h2>
+                     <div className="space-y-4">
+                        {EVENT_DATA.map(db => (
+                            <DataSetCard key={db.key} db={db} count={dbCounts[db.key] || 0} onDelete={handleOpenDialog} />
+                        ))}
+                    </div>
+                    
+                    <h2 className="text-2xl font-headline font-semibold mb-4 mt-8">Datos Vinculados a Eventos</h2>
+                    <p className="text-sm text-muted-foreground mb-4">
+                        Aquí puedes borrar datos de módulos específicos si necesitas limpiar solo una parte del sistema. Borrar los registros principales de arriba no elimina automáticamente estos datos.
+                    </p>
+                    <div className="space-y-4">
+                         {RELATED_DATA.map(db => (
+                           <DataSetCard key={db.key} db={db} count={dbCounts[db.key] || 0} onDelete={handleOpenDialog} />
+                        ))}
+                    </div>
+                </div>
+            </main>
+
+            <Dialog open={!!dataSetToView} onOpenChange={(open) => !open && setDataSetToView(null)}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Borrar registros de: {dataSetToView?.name}</DialogTitle>
+                        <DialogDescription>
+                            Revisa los registros que se van a eliminar. Desmarca los que quieras conservar.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="border rounded-lg">
+                        <ScrollArea className="h-72">
+                            <Table>
+                                <TableHeader className="sticky top-0 bg-secondary">
+                                    <TableRow>
+                                        <TableHead className="w-12">
+                                            <Checkbox 
+                                                checked={numSelected > 0 && numSelected === itemsToDelete.length ? true : (numSelected > 0 ? "indeterminate" : false)}
+                                                onCheckedChange={handleToggleAll}
+                                            />
+                                        </TableHead>
+                                        <TableHead>ID / Nombre</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {itemsToDelete.length > 0 ? itemsToDelete.map(item => (
+                                        <TableRow key={item.id}>
+                                            <TableCell>
+                                                <Checkbox checked={item.checked} onCheckedChange={() => handleToggleItem(item.id)}/>
+                                            </TableCell>
+                                            <TableCell className="font-mono text-xs">{item.label}</TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow><TableCell colSpan={2} className="h-24 text-center">No hay registros para mostrar.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="secondary" onClick={() => setDataSetToView(null)}>Cancelar</Button>
+                        <Button variant="destructive" onClick={() => setIsConfirmOpen(true)} disabled={numSelected === 0}>
+                            Eliminar ({numSelected}) Seleccionados
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Vas a eliminar permanentemente <strong>{numSelected}</strong> registros de <strong>{dataSetToView?.name}</strong>. Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteSelected} className="bg-destructive hover:bg-destructive/90">Sí, entiendo. Borrar seleccionados.</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    );
+}

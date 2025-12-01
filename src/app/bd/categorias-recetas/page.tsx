@@ -3,8 +3,9 @@
 
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown, Check, X } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown, BookHeart, Check, X, Database, ChevronRight } from 'lucide-react';
 import type { CategoriaReceta } from '@/types';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { downloadCSVTemplate } from '@/lib/utils';
 import {
@@ -33,6 +34,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import Papa from 'papaparse';
 import { supabase } from '@/lib/supabase';
 
@@ -40,6 +42,7 @@ const CSV_HEADERS = ["id", "nombre", "snack"];
 
 function CategoriasRecetasPageContent() {
   const [items, setItems] = useState<CategoriaReceta[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
@@ -64,6 +67,7 @@ function CategoriasRecetasPageContent() {
     } else {
       setItems(data || []);
     }
+    setIsMounted(true);
   };
 
   const filteredItems = useMemo(() => {
@@ -150,10 +154,148 @@ function CategoriasRecetasPageContent() {
     toast({ title: 'Exportación completada' });
   };
 
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Categorías de Recetas..." />;
+  }
+
+  return (
+    <>
+      <div className="sticky top-12 z-30 bg-background/95 backdrop-blur-sm border-b">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center gap-2 py-2 text-sm font-semibold">
+            <Link href="/bd" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+              <Database className="h-5 w-5" />
+              <span>Bases de datos</span>
+            </Link>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <span className="flex items-center gap-2 font-bold text-primary">
+              <BookHeart className="h-5 w-5" />
+              <span>Categorías de Recetas</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <Input
+            placeholder="Buscar por nombre..."
+            className="flex-grow max-w-lg"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <div className="flex-grow flex justify-end gap-2">
+            <Button onClick={() => router.push('/bd/categorias-recetas/nuevo')}>
+              <PlusCircle className="mr-2" />
+              Nueva Categoría
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon"><Menu /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
+                  <FileUp size={16} className="mr-2" />Importar CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_categorias_recetas.csv')}>
+                  <FileDown size={16} className="mr-2" />Descargar Plantilla
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileDown size={16} className="mr-2" />Exportar CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Es Snack</TableHead>
+                <TableHead className="text-right w-24">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredItems.length > 0 ? (
+                filteredItems.map(item => (
+                  <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/categorias-recetas/${item.id}`)}>
+                    <TableCell className="font-medium">{item.nombre}</TableCell>
+                    <TableCell>{item.snack ? <Check className="text-green-500" /> : <X className="text-destructive" />}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                            <span className="sr-only">Abrir menú</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => router.push(`/bd/categorias-recetas/${item.id}`)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="h-24 text-center">
+                    No se encontraron categorías.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará permanentemente la categoría.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={handleDelete}
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+              <AlertDialogDescription>
+                Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="!justify-center gap-4">
+              <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+              <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+              <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </>
+  );
+}
 
 export default function CategoriasRecetasPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<LoadingSkeleton title="Cargando Categorías de Recetas..." />}>
       <CategoriasRecetasPageContent />
     </Suspense>
   )

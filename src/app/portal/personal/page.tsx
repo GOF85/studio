@@ -10,6 +10,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { calculateHours, formatCurrency, formatDuration, formatNumber } from '@/lib/utils';
 import type { PersonalExterno, SolicitudPersonalCPR, AsignacionPersonal, EstadoSolicitudPersonalCPR, ComercialBriefingItem, Personal, PersonalExternoDB, Proveedor, PersonalExternoTurno, ServiceOrder, CategoriaPersonal } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -346,6 +348,7 @@ export default function PortalPersonalPage() {
     const [pedidos, setPedidos] = useState<UnifiedTurno[]>([]);
     const [serviceOrders, setServiceOrders] = useState<Map<string, ServiceOrder>>(new Map());
     const [briefings, setBriefings] = useState<Map<string, { items: ComercialBriefingItem[] }>>(new Map());
+    const [isMounted, setIsMounted] = useState(false);
     const { user, profile, effectiveRole, hasRole, isProvider } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
@@ -373,6 +376,7 @@ export default function PortalPersonalPage() {
         const partnerShouldBeDefined = hasRole('PARTNER_PERSONAL');
         if (partnerShouldBeDefined && !proveedorId) {
             setPedidos([]);
+            setIsMounted(true);
             return;
         }
 
@@ -422,6 +426,7 @@ export default function PortalPersonalPage() {
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as { osId: string; items: ComercialBriefingItem[] }[];
         setBriefings(new Map(allBriefings.map(b => [b.osId, b])));
 
+        setIsMounted(true);
     }, [proveedorId, hasRole, isAdminOrComercial]);
 
     useEffect(() => {
@@ -562,3 +567,205 @@ export default function PortalPersonalPage() {
     const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
 
 
+    if (!isMounted) {
+        return <LoadingSkeleton title="Cargando Portal de Personal..." />;
+    }
+
+    if (hasRole('PARTNER_PERSONAL') && !proveedorId) {
+        return (
+            <main className="container mx-auto px-4 py-16">
+                <Card className="max-w-xl mx-auto">
+                    <CardHeader><CardTitle>Acceso Restringido</CardTitle></CardHeader>
+                    <CardContent><p>Este usuario no está asociado a ningún proveedor de personal. Por favor, contacta con el administrador.</p></CardContent>
+                </Card>
+            </main>
+        )
+    }
+
+    return (
+        <TooltipProvider>
+            <main>
+                <div className="flex items-center justify-between border-b pb-4 mb-8">
+                    <div className="flex items-center gap-4">
+                        <Users className="w-10 h-10 text-primary" />
+                        <div>
+                            <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Partner de Personal</h1>
+                        </div>
+                    </div>
+                    {proveedorNombre && (
+                        <Badge variant="secondary" className="px-4 py-2 text-lg">
+                            <Building2 className="mr-2 h-5 w-5" />
+                            {proveedorNombre}
+                        </Badge>
+                    )}
+                    {isAdminOrComercial && (
+                        <Badge variant="outline" className="px-4 py-2 text-lg border-primary text-primary">
+                            Vista de Administrador
+                        </Badge>
+                    )}
+                </div>
+
+                <Tabs defaultValue="lista">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="lista">Lista de Solicitudes</TabsTrigger>
+                        <TabsTrigger value="calendario">Calendario</TabsTrigger>
+                        <TabsTrigger value="empleados">Mis Empleados</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="lista" className="mt-6">
+                        <div className="flex items-center space-x-4 mb-4">
+                            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if (range?.from && range?.to) { setIsDatePickerOpen(false) } }} numberOfMonths={2} locale={es} />
+                                </PopoverContent>
+                            </Popover>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="show-completed" checked={showCompleted} onCheckedChange={(checked) => setShowCompleted(Boolean(checked))} />
+                                <Label htmlFor="show-completed">Mostrar turnos cerrados/pasados</Label>
+                            </div>
+                        </div>
+                        {turnosAgrupados.length > 0 ? (
+                            <Accordion type="multiple" className="w-full space-y-4">
+                                {turnosAgrupados.map(({ date, osEntries, allAccepted }) => (
+                                    <AccordionItem value={date} key={date} className="border-none">
+                                        <Card className={cn(allAccepted && 'bg-green-100/60')}>
+                                            <AccordionTrigger className="p-4 hover:no-underline">
+                                                <div className="flex items-center gap-3 w-full">
+                                                    {allAccepted ? <CheckCircle className="h-6 w-6 text-green-600" /> : <CalendarIcon className="h-6 w-6" />}
+                                                    <div className="text-left">
+                                                        <h3 className="text-xl font-bold capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', { locale: es })}</h3>
+                                                    </div>
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent>
+                                                <div className="border-t px-4 pb-4 space-y-4">
+                                                    {osEntries.map(({ os, briefing, turnos }) => (
+                                                        <div key={os.id}>
+                                                            <h4 className="font-bold mb-2 mt-2">
+                                                                {os.id === 'CPR' ? <Badge>CPR</Badge> : <Badge variant="outline">{os.serviceNumber}</Badge>} - {os.client}
+                                                                <span className="text-sm font-normal text-muted-foreground ml-2">{briefing?.descripcion || 'Producción Interna'} ({os.space})</span>
+                                                            </h4>
+                                                            <Table>
+                                                                <TableHeader>
+                                                                    <TableRow>
+                                                                        <TableHead>Categoría</TableHead>
+                                                                        <TableHead>Horario (Horas)</TableHead>
+                                                                        <TableHead>Estado</TableHead>
+                                                                        <TableHead className="w-56">Asignado a</TableHead>
+                                                                    </TableRow>
+                                                                </TableHeader>
+                                                                <TableBody>
+                                                                    {turnos.map(turno => {
+                                                                        const displayStatus = ('statusPartner' in turno) ? turno.statusPartner : (('estado' in turno && turno.estado === 'Aprobada' && turno.proveedorId) ? 'Asignado' : ('estado' in turno ? turno.estado : 'Pendiente'));
+                                                                        return (
+                                                                            <TableRow key={turno.id} className={cn((('statusPartner' in turno && turno.statusPartner === 'Gestionado') || ('estado' in turno && turno.estado === 'Confirmado')) && 'bg-green-50/50')}>
+                                                                                <TableCell className="font-semibold">{turno.categoria}</TableCell>
+                                                                                <TableCell>{turno.horario} ({turno.horas.toFixed(2)}h)</TableCell>
+                                                                                <TableCell><Badge variant={statusVariant[displayStatus]}>{displayStatus}</Badge></TableCell>
+                                                                                <TableCell>
+                                                                                    <AsignacionDialog turno={turno} onSave={handleSaveAsignacion} isReadOnly={isReadOnly} />
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        )
+                                                                    })}
+                                                                </TableBody>
+                                                            </Table>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </AccordionContent>
+                                        </Card>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                        ) : (
+                            <Card>
+                                <CardContent className="py-12 text-center">
+                                    <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+                                    <h3 className="mt-4 text-lg font-semibold">Todo al día</h3>
+                                    <p className="mt-1 text-sm text-muted-foreground">No hay solicitudes de personal pendientes que coincidan con los filtros.</p>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </TabsContent>
+                    <TabsContent value="calendario" className="mt-6">
+                        <div className="flex items-center justify-center gap-4 mb-6">
+                            <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+                            <h2 className="text-xl font-semibold w-40 text-center capitalize">{format(currentDate, 'MMMM yyyy', { locale: es })}</h2>
+                            <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+                        </div>
+                        <div className="border rounded-lg">
+                            <div className="grid grid-cols-7 border-b">
+                                {WEEKDAYS.map(day => (
+                                    <div key={day} className="text-center font-bold p-2 text-xs text-muted-foreground">
+                                        {day}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-7 auto-rows-fr">
+                                {calendarDays.map((day) => {
+                                    const dayKey = format(day, 'yyyy-MM-dd');
+                                    const dayEvents = eventsByDay[dayKey] || [];
+                                    const isCurrentMonth = isSameMonth(day, currentDate);
+                                    const isToday = isSameDay(day, new Date());
+
+                                    return (
+                                        <div
+                                            key={day.toString()}
+                                            className={cn(
+                                                'h-20 border-r border-b p-1 flex flex-col',
+                                                !isCurrentMonth && 'bg-muted/50 text-muted-foreground',
+                                                'last:border-r-0',
+                                                dayEvents.length > 0 && 'cursor-pointer hover:bg-secondary'
+                                            )}
+                                            onClick={() => dayEvents.length > 0 && setDayDetails({ day, events: dayEvents })}
+                                        >
+                                            <span className={cn('font-semibold text-xs', isToday && 'text-primary font-bold flex items-center justify-center h-5 w-5 rounded-full bg-primary/20')}>
+                                                {format(day, 'd')}
+                                            </span>
+                                            {dayEvents.length > 0 && (
+                                                <div className="mt-1 flex justify-center">
+                                                    <span className="h-2 w-2 rounded-full bg-primary"></span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="empleados" className="mt-6">
+                        <EmployeeTab proveedorId={proveedorId} />
+                    </TabsContent>
+                </Tabs>
+            </main>
+
+            <Dialog open={!!dayDetails} onOpenChange={(open) => !open && setDayDetails(null)}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Turnos para el {dayDetails?.day ? format(dayDetails.day, 'PPP', { locale: es }) : ''}</DialogTitle>
+                    </DialogHeader>
+                    <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
+                        {dayDetails && dayDetails.events.map((event) => {
+                            const osLink = event.type === 'EVENTO' ? `/os/${event.osId}/personal-externo` : '/rrhh/solicitudes';
+                            return (
+                                <Link href={osLink} key={event.id} className="block p-3 hover:bg-muted rounded-md">
+                                    <p className="font-bold text-primary">{event.osNumber} - {event.cliente}</p>
+                                    <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
+                                        <span><span className="font-semibold">Categoría:</span> {event.categoria}</span>
+                                        <span><span className="font-semibold">Horario:</span> {event.horario}</span>
+                                    </div>
+                                </Link>
+                            )
+                        })}
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </TooltipProvider>
+    );
+}

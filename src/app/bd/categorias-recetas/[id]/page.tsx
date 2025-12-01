@@ -30,10 +30,6 @@ export default function EditarCategoriaRecetaPage() {
 
   const form = useForm<CategoriaRecetaFormValues>({
     resolver: zodResolver(categoriaRecetaSchema),
-    defaultValues: {
-      nombre: '',
-      snack: false
-    }
   });
 
   useEffect(() => {
@@ -90,49 +86,53 @@ export default function EditarCategoriaRecetaPage() {
 
   return (
     <>
-      <Form {...form}>
-        <form id="categoria-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="flex justify-end gap-2 mb-4">
-            <Button variant="outline" type="button" onClick={() => router.push('/bd/categorias-recetas')}>
-              <X className="mr-2" /> Cancelar
-            </Button>
-            <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}>
-              <Trash2 className="mr-2" /> Borrar
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-              <span className="ml-2">Guardar Cambios</span>
-            </Button>
-          </div>
+      <main>
+        <Form {...form}>
+          <form id="categoria-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <BookHeart className="h-8 w-8" />
+                <h1 className="text-3xl font-headline font-bold">Editar Categoría de Receta</h1>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" type="button" onClick={() => router.push('/bd/categorias-recetas')}> <X className="mr-2" /> Cancelar</Button>
+                <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2" /> Borrar</Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                  <span className="ml-2">Guardar Cambios</span>
+                </Button>
+              </div>
+            </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Información de la Categoría</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <FormField control={form.control} name="nombre" render={({ field }) => (
-                <FormItem><FormLabel>Nombre de la Categoría</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="snack" render={({ field }) => (
-                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Es Snack
-                    </FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      Marcar si esta categoría se considera un "snack" para los cálculos de ratios de comida.
-                    </p>
-                  </div>
-                </FormItem>
-              )} />
-            </CardContent>
-          </Card>
-        </form>
-      </Form>
+            <Card>
+              <CardHeader><CardTitle className="text-lg">Información de la Categoría</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <FormField control={form.control} name="nombre" render={({ field }) => (
+                  <FormItem><FormLabel>Nombre de la Categoría</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="snack" render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Es Snack
+                      </FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Marcar si esta categoría se considera un "snack" para los cálculos de ratios de comida.
+                      </p>
+                    </div>
+                  </FormItem>
+                )} />
+              </CardContent>
+            </Card>
+          </form>
+        </Form>
+      </main>
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>

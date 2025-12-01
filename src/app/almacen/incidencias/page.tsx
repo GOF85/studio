@@ -10,6 +10,7 @@ import type { PickingSheet, OrderItem, MaterialOrder, Precio, AlquilerDBItem, Ar
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -37,6 +38,7 @@ type CatalogItem = {
 
 export default function IncidenciasPickingPage() {
     const [incidencias, setIncidencias] = useState<Incidencia[]>([]);
+    const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [resolvingIncident, setResolvingIncident] = useState<Incidencia | null>(null);
     const [replacementItem, setReplacementItem] = useState<{itemCode: string, quantity: number} | null>(null);
@@ -83,7 +85,7 @@ export default function IncidenciasPickingPage() {
 
         setCatalog(allArticulos);
 
-
+        setIsMounted(true);
     }, []);
     
    const handleAcceptDeviation = () => {
@@ -211,7 +213,9 @@ export default function IncidenciasPickingPage() {
     }, [incidencias, searchTerm]);
 
 
-
+    if (!isMounted) {
+        return <LoadingSkeleton title="Cargando Incidencias de Picking..." />;
+    }
 
     return (
         <div>

@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import type { PickingSheet, OrderItem, PickingItemState, ServiceOrder } from '@/types';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -27,6 +28,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 export default function PickingSheetPage() {
     const [sheet, setSheet] = useState<PickingSheet | null>(null);
     const [itemStates, setItemStates] = useState<Map<string, PickingItemState>>(new Map());
+    const [isMounted, setIsMounted] = useState(false);
     const router = useRouter();
     const params = useParams();
     const sheetId = params.id as string;
@@ -61,7 +63,7 @@ export default function PickingSheetPage() {
             toast({ variant: "destructive", title: "Error", description: "Hoja de picking no encontrada."});
             router.push('/almacen/picking');
         }
-
+        setIsMounted(true);
     }, [sheetId, router, toast]);
 
     useEffect(() => {
@@ -169,8 +171,8 @@ export default function PickingSheetPage() {
     }, [sheet]);
 
 
-    if (!sheet) {
-
+    if (!isMounted || !sheet) {
+        return <LoadingSkeleton title="Cargando Hoja de Picking..." />;
     }
 
     return (

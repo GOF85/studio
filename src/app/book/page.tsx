@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { useState, useEffect } from 'react';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { BookHeart, ChefHat, Component, Shield, Archive, Trash2, BookCheck, ComponentIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { isBefore, subMonths, startOfToday, isWithinInterval, addYears } from 'date-fns';
@@ -164,7 +164,9 @@ export default function BookDashboardPage() {
         };
     }, [recetas, elaboraciones, ingredientes, serviceOrders, gastroOrders, isLoading]);
 
-
+    if (isLoading) {
+        return <LoadingSkeleton title="Cargando Panel de Control del Book..." />;
+    }
 
     return (
         <main>

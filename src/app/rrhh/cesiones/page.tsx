@@ -14,6 +14,7 @@ import { ESTADO_CESION_PERSONAL, CENTRO_COSTE_OPCIONES } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -165,6 +166,7 @@ const statusVariant: { [key in EstadoCesionPersonal]: 'default' | 'secondary' | 
 export default function CesionesPersonalPage() {
   const [cesiones, setCesiones] = useState<CesionStorage[]>([]);
   const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
+  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -181,6 +183,7 @@ export default function CesionesPersonalPage() {
     let storedCesiones = localStorage.getItem('cesionesPersonal');
     const parsedCesiones = (storedCesiones ? JSON.parse(storedCesiones) : []);
     setCesiones(parsedCesiones);
+    setIsMounted(true);
   }, []);
 
   useEffect(() => {
@@ -231,3 +234,88 @@ export default function CesionesPersonalPage() {
     }).sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime() || a.nombre.localeCompare(b.nombre));
   }, [cesiones, searchTerm]);
 
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Cesiones de Personal..." />;
+  }
+
+  return (
+    <main>
+        <TooltipProvider>
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Shuffle />Cesiones de Personal Interno</h1>
+                <Button onClick={handleNewClick}><PlusCircle className="mr-2"/>Añadir Cesión</Button>
+            </div>
+
+            <div className="flex gap-4 mb-4">
+                <Input 
+                placeholder="Buscar por empleado, departamento, comentario..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+                />
+            </div>
+            
+            <div className="border rounded-lg overflow-x-auto">
+                <Table className="text-xs">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="p-2">Fecha</TableHead>
+                            <TableHead className="p-2">Empleado</TableHead>
+                            <TableHead className="p-2">Dpto. Origen</TableHead>
+                            <TableHead className="p-2">Dpto. Destino</TableHead>
+                            <TableHead className="p-2">Horario</TableHead>
+                            <TableHead className="p-2">Coste</TableHead>
+                            <TableHead className="p-2">Estado</TableHead>
+                            <TableHead className="p-2 text-center">Comentarios</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredCesiones.length > 0 ? filteredCesiones.map((cesion) => {
+                            const horasPlan = calculateHours(cesion.horaEntrada, cesion.horaSalida);
+                            const coste = horasPlan * cesion.precioHora;
+                            const dptoOrigen = personalMap.get(cesion.nombre)?.departamento || 'N/A';
+
+                            return (
+                                <TableRow key={cesion.id} onClick={() => handleRowClick(cesion)} className="cursor-pointer">
+                                    <TableCell className="p-2 font-semibold">{cesion.fecha ? format(new Date(cesion.fecha), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                                    <TableCell className="p-2 font-semibold">{cesion.nombre}</TableCell>
+                                    <TableCell className="p-2">{dptoOrigen}</TableCell>
+                                    <TableCell className="p-2"><Badge variant="outline">{cesion.centroCoste}</Badge></TableCell>
+                                    <TableCell className="p-2">{cesion.horaEntrada} - {cesion.horaSalida} ({horasPlan.toFixed(2)}h)</TableCell>
+                                    <TableCell className="p-2 font-mono font-semibold text-right">{formatCurrency(coste)}</TableCell>
+                                    <TableCell className="p-2"><Badge variant={statusVariant[cesion.estado]}>{cesion.estado}</Badge></TableCell>
+                                    <TableCell className="p-2 text-center">
+                                        {cesion.comentarios && (
+                                             <Tooltip>
+                                                <TooltipTrigger>
+                                                    <MessageSquare className="h-4 w-4 text-primary" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p className="max-w-sm">{cesion.comentarios}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        }) : (
+                            <TableRow>
+                                <TableCell colSpan={8} className="h-24 text-center">No hay cesiones de personal que coincidan con los filtros.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+        </TooltipProvider>
+
+        <CesionModal
+            open={isModalOpen}
+            onOpenChange={setIsModalOpen}
+            onSave={handleSave}
+            personalDB={Array.from(personalMap.values())}
+            initialData={editingCesion}
+            onDelete={handleDelete}
+        />
+    </main>
+  );
+}

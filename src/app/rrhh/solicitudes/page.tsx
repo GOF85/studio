@@ -9,6 +9,7 @@ import { es } from 'date-fns/locale';
 
 import type { SolicitudPersonalCPR, Proveedor, CategoriaPersonal } from '@/types';
 import { Button } from '@/components/ui/button';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -62,6 +63,7 @@ export default function SolicitudesCprPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [tiposPersonal, setTiposPersonal] = useState<CategoriaPersonal[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
@@ -82,6 +84,7 @@ export default function SolicitudesCprPage() {
     const storedTiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
     setTiposPersonal(storedTiposPersonal);
 
+    setIsMounted(true);
   }, []);
 
   const filteredSolicitudes = useMemo(() => {
@@ -146,3 +149,163 @@ export default function SolicitudesCprPage() {
     setRejectionReason('');
   };
 
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
+  }
+
+  return (
+    <div>
+        <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Solicitudes de Personal de Apoyo</h1>
+            <Button onClick={() => router.push('/cpr/solicitud-personal/nueva')}>
+                <PlusCircle className="mr-2" /> Nueva Solicitud (CPR)
+            </Button>
+        </div>
+
+      <div className="flex gap-4 mb-4">
+        <Input 
+          placeholder="Buscar por motivo, categoría..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateFilter ? format(dateFilter, 'PPP', { locale: es }) : <span>Filtrar por fecha</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0">
+            <Calendar
+              mode="single"
+              selected={dateFilter}
+              onSelect={setDateFilter}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+        <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateFilter(undefined); }}>Limpiar Filtros</Button>
+      </div>
+      
+      <Card>
+        <CardContent className="p-0">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Fecha Servicio</TableHead>
+                        <TableHead>Horario (Horas)</TableHead>
+                        <TableHead>Partida</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        <TableHead>Solicitante</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Asignado a</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => {
+                        const tipoPersonalAsignado = tiposPersonal.find(t => t.id === s.proveedorId);
+                        const proveedorNombre = tipoPersonalAsignado ? proveedoresMap.get(tipoPersonalAsignado.proveedorId) : null;
+                        const horas = calculateHours(s.horaInicio, s.horaFin);
+
+                        return (
+                        <TableRow key={s.id} onClick={() => handleOpenDialog(s)} className="cursor-pointer">
+                            <TableCell>{format(new Date(s.fechaServicio), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>{s.horaInicio} - {s.horaFin} ({formatNumber(horas, 2)}h)</TableCell>
+                            <TableCell><Badge variant="outline" className={cn(partidaColorClasses[s.partida])}>{s.partida}</Badge></TableCell>
+                            <TableCell className="font-semibold">{s.categoria}</TableCell>
+                            <TableCell>{s.solicitadoPor}</TableCell>
+                            <TableCell><Badge variant={statusVariant[s.estado] || 'secondary'}>{s.estado}</Badge></TableCell>
+                            <TableCell>{proveedorNombre || '-'}</TableCell>
+                            <TableCell className="text-right">
+                                {(s.estado === 'Solicitado' || s.estado === 'Aprobada') && <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); setManagementAction('delete'); setSolicitudToManage(s); }}><Trash2 className="mr-2 h-4 w-4"/>Borrar</Button>}
+                                {s.estado === 'Asignada' && !isBefore(new Date(s.fechaServicio), startOfToday()) && <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); setManagementAction('cancel'); setSolicitudToManage(s); }}><Trash2 className="mr-2 h-4 w-4"/>Solicitar Cancelación</Button>}
+                                {s.estado === 'Solicitada Cancelacion' && <Badge variant="destructive">Pendiente RRHH</Badge>}
+                            </TableCell>
+                        </TableRow>
+                    )}) : (
+                        <TableRow>
+                            <TableCell colSpan={8} className="h-24 text-center">No hay solicitudes que coincidan con los filtros.</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </CardContent>
+      </Card>
+      
+      <AlertDialog open={!!solicitudToManage && !!managementAction} onOpenChange={() => { setSolicitudToManage(null); setManagementAction(null); }}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    {managementAction === 'delete' && 'Esta acción eliminará la solicitud permanentemente.'}
+                    {managementAction === 'cancel' && 'Se enviará una petición a RRHH para cancelar esta asignación. ¿Continuar?'}
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>No</AlertDialogCancel>
+                <AlertDialogAction onClick={() => managementAction && handleAction(managementAction)}>Sí, continuar</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+        <Dialog open={!!solicitudToManage && !managementAction} onOpenChange={() => setSolicitudToManage(null)}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Gestionar Solicitud de Personal</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <p><strong>Categoría:</strong> {solicitudToManage?.categoria}</p>
+                    <p><strong>Fecha:</strong> {solicitudToManage?.fechaServicio ? format(new Date(solicitudToManage.fechaServicio), 'dd/MM/yyyy') : ''}</p>
+                    <p><strong>Horario:</strong> {solicitudToManage?.horaInicio} - {solicitudToManage?.horaFin}</p>
+                    <p><strong>Partida:</strong> {solicitudToManage?.partida}</p>
+                    
+                    {solicitudToManage?.estado === 'Solicitado' && (
+                        <div className="space-y-4 pt-4 border-t">
+                            <h4 className="font-bold">Acciones de RRHH</h4>
+                             <Button onClick={() => handleAction('aprobar')}>Aprobar Solicitud</Button>
+                            <Button variant="destructive" className="ml-2" onClick={() => setIsRejectionModalOpen(true)}>Rechazar</Button>
+                        </div>
+                    )}
+                    
+                    {solicitudToManage?.estado === 'Aprobada' && (
+                        <div className="space-y-4 pt-4 border-t">
+                            <h4 className="font-bold">Asignar Proveedor</h4>
+                            <Select onValueChange={(value) => handleAction('asignar', { proveedorId: value })}>
+                                <SelectTrigger><SelectValue placeholder="Seleccionar ETT y categoría..." /></SelectTrigger>
+                                <SelectContent>
+                                    {tiposPersonal.map(tp => (
+                                        <SelectItem key={tp.id} value={tp.id}>
+                                            {proveedoresMap.get(tp.proveedorId)} - {tp.categoria} ({formatCurrency(tp.precioHora)}/h)
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                </div>
+                 <AlertDialogFooter>
+                    {solicitudToManage && (solicitudToManage.estado === 'Pendiente' || solicitudToManage.estado === 'Aprobada') && (
+                        <Button variant="destructive" onClick={() => handleAction('delete')}>Borrar Solicitud</Button>
+                    )}
+                </AlertDialogFooter>
+            </DialogContent>
+        </Dialog>
+        
+         <AlertDialog open={isRejectionModalOpen} onOpenChange={setIsRejectionModalOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Motivo del Rechazo</AlertDialogTitle>
+                    <AlertDialogDescription>Por favor, indica por qué se rechaza esta solicitud.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <Textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} />
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleAction('rechazar', { reason: rejectionReason })}>Confirmar Rechazo</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    </div>
+  )
+}

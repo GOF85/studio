@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Database, Users, Package, Building, Layers, Box, Percent, Target, Factory, CreditCard, Banknote, Trash2, UserPlus, BookHeart } from 'lucide-react';
+import { Database, Users, Package, Building, Layers, Box, Percent, Target, Factory, CreditCard, Banknote, Trash2, UserPlus } from 'lucide-react';
 
 export const bdNavLinks = [
     { title: 'Personal Interno', path: '/bd/personal', icon: Users },
@@ -12,7 +12,6 @@ export const bdNavLinks = [
     { title: 'Artículos MICE', path: '/bd/articulos', icon: Package },
     { title: 'Base de Datos ERP', path: '/bd/erp', icon: Database },
     { title: 'Familias ERP', path: '/bd/familiasERP', icon: Layers },
-    { title: 'Categorías de Recetas', path: '/bd/categorias-recetas', icon: BookHeart },
     { title: 'Formatos de Expedición', path: '/bd/formatos-expedicion', icon: Box },
     { title: 'Objetivos de Gasto', path: '/bd/objetivos-gasto', icon: Target },
     { title: 'Objetivos CPR', path: '/bd/objetivos-cpr', icon: CreditCard },

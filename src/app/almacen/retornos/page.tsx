@@ -14,6 +14,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import type { ServiceOrder, ReturnSheet } from '@/types';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -21,6 +24,7 @@ import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
 import { useToast } from '@/hooks/use-toast';
 
 export default function GestionRetornosPage() {
+    const [isMounted, setIsMounted] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfToday(),
         to: addDays(startOfToday(), 7),
@@ -34,7 +38,7 @@ export default function GestionRetornosPage() {
     const { toast } = useToast();
 
     useEffect(() => {
-
+        setIsMounted(true);
         const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[])
             .filter(os => os.status === 'Confirmado');
         setServiceOrders(allServiceOrders);
@@ -94,7 +98,9 @@ export default function GestionRetornosPage() {
         return 'secondary'
     }
 
-
+    if (!isMounted) {
+        return <LoadingSkeleton title="Cargando Gestión de Retornos..." />;
+    }
 
     return (
         <div>

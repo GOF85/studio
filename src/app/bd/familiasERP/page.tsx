@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import Papa from 'papaparse';
 import { useDataStore } from '@/hooks/use-data-store';
 import { supabase } from '@/lib/supabase';
@@ -43,6 +44,7 @@ function FamiliasERPPageContent() {
   const { data, loadAllData } = useDataStore();
   const familiasERP = data.familiasERP;
 
+  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
@@ -52,6 +54,7 @@ function FamiliasERPPageContent() {
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     loadAllData();
   }, [loadAllData]);
 
@@ -149,10 +152,132 @@ function FamiliasERPPageContent() {
     toast({ title: 'Exportación completada' });
   };
 
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Familias ERP..." />;
+  }
+
+  return (
+    <>
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <Input
+          placeholder="Buscar por código, familia o categoría..."
+          className="flex-grow max-w-lg"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <div className="flex-grow flex justify-end gap-2">
+          <Button onClick={() => router.push('/bd/familiasERP/nuevo')}>
+            <PlusCircle className="mr-2" />
+            Nuevo
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon"><Menu /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
+                <FileUp size={16} className="mr-2" />Importar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_familias.csv')}>
+                <FileDown size={16} className="mr-2" />Descargar Plantilla
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileDown size={16} className="mr-2" />Exportar CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Código Familia (ERP)</TableHead>
+              <TableHead>Nombre Familia</TableHead>
+              <TableHead>Categoría MICE</TableHead>
+              <TableHead className="text-right w-24">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredItems.length > 0 ? (
+              filteredItems.map(item => (
+                <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/familiasERP/${item.id}`)}>
+                  <TableCell className="font-mono">{item.familiaCategoria}</TableCell>
+                  <TableCell>{item.Familia}</TableCell>
+                  <TableCell>{item.Categoria}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                          <span className="sr-only">Abrir menú</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => router.push(`/bd/familiasERP/${item.id}`)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center">
+                  No se encontraron registros.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el registro.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="!justify-center gap-4">
+            <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
 
 export default function FamiliasERPPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<LoadingSkeleton title="Cargando Familias ERP..." />}>
       <FamiliasERPPageContent />
     </Suspense>
   )

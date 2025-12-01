@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, Euro, Users, Building, Briefcase, BookOpen, Ticket, Hand } from 'lucide-react';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, Espacio, Personal, ComercialBriefing, GastronomyOrder, MaterialOrder, ComercialBriefingItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -59,6 +60,7 @@ type MonthlyData = {
 };
 
 export default function AnaliticaCateringPage() {
+    const [isMounted, setIsMounted] = useState(false);
     const [allPedidos, setAllPedidos] = useState<AnaliticaCateringItem[]>([]);
     const [allBriefings, setAllBriefings] = useState<ComercialBriefing[]>([]);
     const [allEspacios, setAllEspacios] = useState<string[]>([]);
@@ -110,6 +112,7 @@ export default function AnaliticaCateringPage() {
         const metres = new Set(data.map(p => p.os.respMetre).filter(Boolean));
         setAllMetres(Array.from(metres));
 
+        setIsMounted(true);
     }, []);
     
     const pedidosFiltrados = useMemo(() => {
@@ -236,3 +239,249 @@ export default function AnaliticaCateringPage() {
     const objetivoGasto = { 'Almacén': 0.0523, 'Alquiler': 0.0378, 'Bodega': 0.0392, 'Consumibles': 0.0067, 'Decoración': 0.0073, 'Gastronomía': 0.233, 'Hielo': 0.0026, 'Otros gastos': 0.01, 'Personal MICE': 0.0563, 'Personal externo': 0.1241, 'Prueba de menú': 0, 'Transporte': 0.0265, 'Rentabilidad': 0.4041 };
 
 
+    if (!isMounted) {
+        return <LoadingSkeleton title="Cargando Analítica de Catering..." />;
+    }
+
+    return (
+        <main>
+            <Card className="mb-6">
+                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                        <PopoverTrigger asChild>
+                            <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal col-span-1 md:col-span-3 lg:col-span-1", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+                        </PopoverContent>
+                    </Popover>
+                     <Select value={clienteTipoFilter} onValueChange={(value) => setClienteTipoFilter(value as any)}>
+                        <SelectTrigger><div className="flex items-center gap-2"><Briefcase className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos los Tipos de Cliente</SelectItem>
+                            <SelectItem value="Empresa">Empresa</SelectItem>
+                            <SelectItem value="Agencia">Agencia</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={comercialFilter} onValueChange={setComercialFilter}>
+                        <SelectTrigger><div className="flex items-center gap-2"><Briefcase className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
+                        <SelectContent><SelectItem value="all">Todos los Comerciales</SelectItem>{allComerciales.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={metreFilter} onValueChange={setMetreFilter}>
+                        <SelectTrigger><div className="flex items-center gap-2"><Users className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
+                        <SelectContent><SelectItem value="all">Todos los Metres</SelectItem>{allMetres.map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={clienteFilter} onValueChange={setClienteFilter}>
+                        <SelectTrigger><div className="flex items-center gap-2"><Users className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
+                        <SelectContent><SelectItem value="all">Todos los Clientes</SelectItem>{allClientes.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={espacioFilter} onValueChange={setEspacioFilter}>
+                        <SelectTrigger><div className="flex items-center gap-2"><Building className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
+                        <SelectContent><SelectItem value="all">Todos los Espacios</SelectItem>{allEspacios.map(e=><SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+                    </Select>
+                </CardContent>
+            </Card>
+
+             <Tabs defaultValue="detalle">
+                <TabsList className="mb-4">
+                    <TabsTrigger value="detalle">Análisis Detallado</TabsTrigger>
+                    <TabsTrigger value="agregado">Vista Agregada</TabsTrigger>
+                </TabsList>
+                <TabsContent value="detalle" className="space-y-8">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                        {kpis.map(kpi => (
+                            <Card key={kpi.title}>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{kpi.title}</CardTitle><kpi.icon className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className={cn("text-2xl font-bold", kpi.title.includes('Rentabilidad') && margenFinal < 0 && "text-destructive", kpi.title.includes('Rentabilidad') && margenFinal > 0 && "text-green-600")}>{kpi.value}</div></CardContent>
+                            </Card>
+                        ))}
+                    </div>
+
+                    <div className="grid lg:grid-cols-2 gap-8">
+                        <Card>
+                            <CardHeader><CardTitle>Desglose de Costes Agregados</CardTitle></CardHeader>
+                            <CardContent>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <PieChart>
+                                        <Pie data={analisisCostes} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                                                const RADIAN = Math.PI / 180;
+                                                const radius = innerRadius + (outerRadius - innerRadius) * 1.2;
+                                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                                return (
+                                                <text x={x} y={y} fill="black" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>
+                                                    {`${analisisCostes[index].name} (${formatPercentage(percent)})`}
+                                                </text>
+                                                );
+                                            }}>
+                                            {analisisCostes.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                        </Pie>
+                                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader><CardTitle>Rendimiento por Comercial</CardTitle></CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Comercial</TableHead><TableHead className="text-right">Eventos</TableHead><TableHead className="text-right">Facturación</TableHead><TableHead className="text-right">Margen</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {analisisComerciales.map(c => (
+                                        <TableRow key={c.name}>
+                                            <TableCell className="font-medium">{c.name}</TableCell>
+                                            <TableCell className="text-right">{c.eventos}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(c.facturacion)}</TableCell>
+                                            <TableCell className={cn("text-right font-bold", c.margen < 0 && 'text-destructive')}>{formatPercentage(c.margenPct)}</TableCell>
+                                        </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                    
+                    <div className="mb-8">
+                        <Card>
+                            <CardHeader><CardTitle>Rendimiento por Metre</CardTitle></CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Metre</TableHead><TableHead className="text-right">Eventos</TableHead><TableHead className="text-right">Facturación</TableHead><TableHead className="text-right">Margen</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {analisisMetres.map(m => (
+                                        <TableRow key={m.name}>
+                                            <TableCell className="font-medium">{m.name}</TableCell>
+                                            <TableCell className="text-right">{m.eventos}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(m.facturacion)}</TableCell>
+                                            <TableCell className={cn("text-right font-bold", m.margen < 0 && 'text-destructive')}>{formatPercentage(m.margenPct)}</TableCell>
+                                        </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                    
+                    <Accordion type="single" collapsible className="w-full mt-8">
+                        <AccordionItem value="item-1" className="border-none">
+                            <Card>
+                                <AccordionTrigger className="py-2 px-4">
+                                    <CardTitle>Listado de Órdenes de Servicio en el Periodo ({pedidosFiltrados.length})</CardTitle>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <CardContent className="pt-2">
+                                        <div className="border rounded-lg max-h-96 overflow-y-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Nº OS</TableHead>
+                                                    <TableHead>Cliente</TableHead>
+                                                    <TableHead>Fecha</TableHead>
+                                                    <TableHead className="text-right">PVP Neto</TableHead>
+                                                    <TableHead className="text-right">Coste Total</TableHead>
+                                                    <TableHead className="text-right">Margen</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {pedidosFiltrados.map(p => (
+                                                    <TableRow key={p.os.id} className="cursor-pointer">
+                                                        <TableCell className="font-medium"><Link href={`/os/${p.os.id}/cta-explotacion`} className="text-primary hover:underline">{p.os.serviceNumber}</Link></TableCell>
+                                                        <TableCell>{p.os.client}</TableCell>
+                                                        <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
+                                                        <TableCell className="text-right">{formatCurrency(p.pvpFinal)}</TableCell>
+                                                        <TableCell className="text-right">{formatCurrency(p.costeTotal)}</TableCell>
+                                                        <TableCell className={cn("text-right font-bold", p.pvpFinal - p.costeTotal < 0 && 'text-destructive')}>{formatPercentage((p.pvpFinal - p.costeTotal) / p.pvpFinal)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                        </div>
+                                    </CardContent>
+                                </AccordionContent>
+                            </Card>
+                        </AccordionItem>
+                    </Accordion>
+                </TabsContent>
+                <TabsContent value="agregado" className="space-y-8">
+                    <Card>
+                        <CardHeader><CardTitle>Vista Agregada Mensual (€)</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Concepto</TableHead>
+                                        {analisisAgregado.map(m => <TableHead key={m.month} className="text-right">{m.month}</TableHead>)}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow><TableCell className="font-bold">Nº Contratos</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{m.numContratos}</TableCell>)}</TableRow>
+                                    <TableRow><TableCell className="font-bold">PAX</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{m.pax}</TableCell>)}</TableRow>
+                                    <TableRow><TableCell className="font-bold">Facturación</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatCurrency(m.facturacion)}</TableCell>)}</TableRow>
+                                    <TableRow className="bg-muted/30"><TableCell colSpan={analisisAgregado.length + 1} className="font-bold pl-8">Costes</TableCell></TableRow>
+                                    {partidasCostes.map(partida => (
+                                        <TableRow key={partida}>
+                                            <TableCell className="pl-8">{partida}</TableCell>
+                                            {analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatCurrency(m.costes[partida] || 0)}</TableCell>)}
+                                        </TableRow>
+                                    ))}
+                                    <TableRow className="bg-muted/30"><TableCell colSpan={analisisAgregado.length + 1}></TableCell></TableRow>
+                                    <TableRow><TableCell className="font-bold">Rentabilidad</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className={cn("text-right font-bold", m.rentabilidad < 0 ? 'text-destructive':'text-green-600')}>{formatCurrency(m.rentabilidad)}</TableCell>)}</TableRow>
+                                    <TableRow><TableCell className="font-bold">Ingresos / PAX</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatCurrency(m.ingresosPorPax)}</TableCell>)}</TableRow>
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                    
+                    <Card>
+                        <CardHeader><CardTitle>Vista Agregada Mensual (%)</CardTitle></CardHeader>
+                        <CardContent>
+                             <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>%</TableHead>
+                                        <TableHead>Objetivo</TableHead>
+                                        {analisisAgregado.map(m => <TableHead key={m.month} className="text-right">{m.month}</TableHead>)}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {partidasCostes.map(partida => (
+                                        <TableRow key={partida}>
+                                            <TableCell>{partida}</TableCell>
+                                            <TableCell>{formatPercentage((objetivoGasto as any)[partida] || 0)}</TableCell>
+                                            {analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatPercentage((m.costes[partida] || 0) / m.facturacion)}</TableCell>)}
+                                        </TableRow>
+                                    ))}
+                                     <TableRow className="font-bold bg-muted/30">
+                                        <TableCell>Rentabilidad</TableCell>
+                                        <TableCell>{formatPercentage(objetivoGasto['Rentabilidad'] || 0)}</TableCell>
+                                        {analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatPercentage(m.rentabilidad / m.facturacion)}</TableCell>)}
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+
+                     <Card>
+                        <CardHeader><CardTitle>Asistentes por Mes</CardTitle></CardHeader>
+                        <CardContent>
+                             <ResponsiveContainer width="100%" height={350}>
+                                <BarChart data={analisisAgregado}>
+                                    <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
+                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`}/>
+                                    <Tooltip formatter={(value) => `${formatNumber(value as number, 0)}`} />
+                                    <Legend />
+                                    <Bar dataKey="pax" name="PAX (Nº Asistentes OS)" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="asistentesHitos" name="Asistentes Hitos (Suma)" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                     </Card>
+                </TabsContent>
+            </Tabs>
+        </main>
+    )
+}

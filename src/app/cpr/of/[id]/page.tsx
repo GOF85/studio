@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { OrdenFabricacion, Personal, Elaboracion, ComponenteElaboracion, IngredienteInterno, ArticuloERP, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta } from '@/types';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { ArrowLeft, Save, Factory, Info, Check, X, AlertTriangle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -77,6 +78,7 @@ export default function OfDetailPage() {
     const [dbElaboraciones, setDbElaboraciones] = useState<Elaboracion[]>([]);
     const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
     const [detallesNecesidad, setDetallesNecesidad] = useState<DetalleNecesidad[]>([]);
+    const [isMounted, setIsMounted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const router = useRouter();
     const params = useParams();
@@ -209,6 +211,7 @@ export default function OfDetailPage() {
                 loadNecesidades(currentOF);
             }
         }
+        setIsMounted(true);
     }, [id, form, isEditing, loadNecesidades]);
 
     const ratioProduccion = useMemo(() => {
@@ -304,3 +307,288 @@ export default function OfDetailPage() {
     }
 
 
+    if (!isMounted) {
+        return <LoadingSkeleton title="Cargando Orden de Fabricación..." />;
+    }
+
+    if (isEditing && !orden) {
+        return (
+            <div className="text-center py-10">
+                <h1 className="text-2xl font-bold">Orden de Fabricación no encontrada</h1>
+                <p className="text-muted-foreground">No se pudo encontrar la OF con el ID: {id}</p>
+                <Button onClick={() => router.push('/cpr/of')} className="mt-4">
+                    <ArrowLeft className="mr-2"/> Volver al listado
+                </Button>
+            </div>
+        )
+    }
+
+    const canBeAssigned = orden?.estado === 'Pendiente';
+    const canStart = orden?.estado === 'Asignada';
+    const canFinish = orden?.estado === 'En Proceso';
+
+    const ceilToTwoDecimals = (num?: number | null) => {
+        if (num === null || num === undefined) return '0,00';
+        return formatNumber(num, 2);
+    }
+    
+    const pageTitle = isEditing ? `Orden de Fabricación: ${id}` : 'Nueva Orden de Fabricación Manual';
+    const elabNombre = isEditing ? orden?.elaboracionNombre : selectedElaboracion?.nombre;
+    const elabPartida = isEditing ? orden?.partidaAsignada : selectedElaboracion?.partidaProduccion;
+    const elabUnidad = isEditing ? orden?.unidad : selectedElaboracion?.unidadProduccion;
+    const elabCantidad = watch('cantidadTotal') || (isEditing ? orden?.cantidadTotal : 0);
+
+    return (
+        <TooltipProvider>
+            <div className="flex items-center justify-between mb-2">
+                <div></div>
+                <div className="flex items-center gap-2">
+                    {isEditing && orden && <Badge variant={statusVariant[orden.estado]} className="text-base px-4 py-2">{orden.estado}</Badge>}
+                    {isEditing && <Button onClick={() => setShowDeleteConfirm(true)} variant="destructive"><Trash2 className="mr-2"/>Eliminar OF</Button>}
+                    <Button onClick={form.handleSubmit(isEditing ? () => handleSave() : handleCreate)} disabled={!form.formState.isDirty && isEditing}>
+                        <Save className="mr-2" />
+                        {isEditing ? 'Guardar Cambios' : 'Crear OF'}
+                    </Button>
+                </div>
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{elabNombre || 'Seleccione una elaboración'}</CardTitle>
+                    <CardDescription>
+                        {elabPartida ? `Planificada para el ${format(watch('fechaProduccionPrevista'), 'dd/MM/yyyy')} en la partida de ${elabPartida}` : 'Complete los datos de la OF'}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Form {...form}>
+                        <div className={cn("grid md:grid-cols-3 gap-6", !isEditing && "items-end")}>
+                            {!isEditing ? (
+                                <>
+                                    <FormField control={control} name="elaboracionId" render={({ field }) => (
+                                        <FormItem>
+                                            <Label>Elaboración</Label>
+                                            <Combobox options={dbElaboraciones.map(e => ({ value: e.id, label: e.nombre }))} value={field.value} onChange={field.onChange} placeholder="Buscar elaboración..." />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={control} name="cantidadTotal" render={({ field }) => (
+                                        <FormItem>
+                                            <Label>Cantidad a Producir ({elabUnidad ? formatUnit(elabUnidad) : 'uds'})</Label>
+                                            <FormControl>
+                                                <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={control} name="fechaProduccionPrevista" render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <Label>Fecha Prevista</Label>
+                                            <Popover><PopoverTrigger asChild>
+                                                <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                    {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige</span>}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es}/></PopoverContent></Popover>
+                                        </FormItem>
+                                    )} />
+                                </>
+                            ) : (
+                                <>
+                                    <div className="space-y-1">
+                                        <h4 className="font-semibold text-muted-foreground">Cantidad a Producir</h4>
+                                        <p className="font-bold text-2xl">{ceilToTwoDecimals(elabCantidad)} <span className="text-lg font-normal">{elabUnidad ? formatUnit(elabUnidad) : 'uds'}</span></p>
+                                    </div>
+                                    {orden && orden.osIDs.length > 0 && 
+                                        <div className="space-y-1">
+                                            <h4 className="font-semibold text-muted-foreground">Órdenes de Servicio</h4>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <p className="flex items-center gap-1.5 cursor-help"><Info className="h-4 w-4"/> Afecta a {detallesNecesidad.length} servicio(s)</p>
+                                                </TooltipTrigger>
+                                                <TooltipContent className="max-w-md p-2">
+                                                    <ul className="space-y-2">
+                                                        {detallesNecesidad.map((n, i) => (
+                                                          <li key={i} className="text-xs">
+                                                            <p className="font-bold">{n.osNumber} - {n.hitoDescripcion} ({format(new Date(n.fechaHito), 'dd/MM/yy')}) - {n.osSpace}</p>
+                                                            <p className="text-muted-foreground pl-2">{n.cantidadReceta} x "{n.recetaNombre}" &rarr; {formatNumber(n.cantidadNecesaria, 2)} {formatUnit(elaboracion?.unidadProduccion || '')}</p>
+                                                          </li>  
+                                                        ))}
+                                                    </ul>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </div>
+                                    }
+                                    <div className="space-y-1">
+                                        <Label htmlFor="responsable">Responsable</Label>
+                                        <Controller name="responsable" control={control} render={({ field }) => (
+                                            <Select onValueChange={(value) => { field.onChange(value); if(canBeAssigned) { handleSave('Asignada', value); }}} value={field.value} disabled={!canBeAssigned}>
+                                                <SelectTrigger id="responsable"><SelectValue placeholder="Asignar responsable..." /></SelectTrigger>
+                                                <SelectContent>{personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        )}/>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </Form>
+                     {isEditing && orden?.incidenciaObservaciones && (
+                        <div className="mt-6">
+                            <h4 className="font-semibold mb-2 flex items-center gap-2 text-destructive"><AlertTriangle/>Observaciones de Incidencia</h4>
+                            <div className="p-4 border rounded-lg bg-destructive/10 text-destructive-foreground border-destructive/30">
+                                <p className="text-black font-bold">{orden.incidenciaObservaciones}</p>
+                            </div>
+                        </div>
+                    )}
+                    <Separator className="my-6" />
+                     <div className="grid md:grid-cols-2 gap-6">
+                         <div>
+                            <h4 className="font-semibold mb-4">Escandallo para {ceilToTwoDecimals(elabCantidad)} {elabUnidad ? formatUnit(elabUnidad) : 'uds'}</h4>
+                            <div className="p-4 border rounded-lg bg-muted/50">
+                                {elaboracion ? (
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Componente</TableHead><TableHead className="text-right">Cantidad Necesaria</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {elaboracion.componentes.map(comp => {
+                                                const ingrediente = ingredientesData.get(comp.componenteId);
+                                                const unidad = ingrediente?.erp?.unidad || 'UD';
+                                                return (
+                                                    <TableRow key={comp.id}>
+                                                        <TableCell>{comp.nombre}</TableCell>
+                                                        <TableCell className="text-right font-mono">{ceilToTwoDecimals(comp.cantidad * ratioProduccion)} {formatUnit(unidad)}</TableCell>
+                                                    </TableRow>
+                                                )
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                ) : (
+                                    <p className="text-muted-foreground text-center">No se encontró la elaboración en el Book.</p>
+                                )}
+                            </div>
+                        </div>
+                         <div>
+                             <h4 className="font-semibold mb-4">Instrucciones de Preparación</h4>
+                            <div className="p-4 border rounded-lg bg-muted/50 h-full">
+                                <p className="text-muted-foreground whitespace-pre-wrap">
+                                    {elaboracion?.instruccionesPreparacion || 'No hay instrucciones para esta elaboración.'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+                {isEditing && (
+                    <CardFooter className="flex-col items-start gap-4">
+                        <h4 className="font-semibold">Registro de Producción</h4>
+                        <div className="grid md:grid-cols-3 gap-6 w-full">
+                            <Card className={!canBeAssigned ? 'bg-muted/30' : ''}>
+                                <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">1. Asignar</CardTitle></CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Asigna la producción a un responsable para que pueda empezar a trabajar.
+                                    </p>
+                                </CardContent>
+                            </Card>
+                            <Card className={!canStart ? 'bg-muted/30' : ''}>
+                                <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">2. Iniciar</CardTitle></CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Pulsa para cambiar el estado a "En Proceso" una vez asignado el responsable.
+                                    </p>
+                                    <Button className="w-full" variant="secondary" disabled={!canStart} onClick={() => handleSave('En Proceso')}>Empezar Producción</Button>
+                                </CardContent>
+                            </Card>
+                            <Card className={!canFinish ? 'bg-muted/30' : ''}>
+                                <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2"><Check />3. Finalizar</CardTitle></CardHeader>
+                                <CardContent className="space-y-4">
+                                     <div className="space-y-1">
+                                        <Label htmlFor="cantidadReal">Cantidad Real Producida ({orden?.unidad ? formatUnit(orden.unidad) : 'uds'})</Label>
+                                        <Controller name="cantidadReal" control={control} render={({ field }) => <Input id="cantidadReal" type="number" step="0.01" {...field} value={field.value ?? ''} disabled={!canFinish} readOnly className="font-bold bg-secondary"/>}/>
+                                    </div>
+                                    <Button className="w-full" variant="default" disabled={!canFinish || !isDesgloseComplete} onClick={() => handleSave('Finalizado')}>Marcar como Finalizada</Button>
+                                </CardContent>
+                            </Card>
+                        </div>
+                        {canFinish && (
+                            <Card className="w-full mt-4">
+                                <CardHeader>
+                                    <CardTitle>Desglose de Producción por Necesidad</CardTitle>
+                                    <CardDescription>Especifica la cantidad producida para cada necesidad antes de finalizar.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>OS</TableHead><TableHead>Hito</TableHead><TableHead>Receta</TableHead><TableHead>Cant. Necesaria</TableHead><TableHead className="w-40">Cant. Real</TableHead><TableHead className="w-16">OK</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {detallesNecesidad.map((detalle, index) => (
+                                                <TableRow key={detalle.osId + detalle.hitoId + detalle.recetaId}>
+                                                    <TableCell>{detalle.osNumber}</TableCell>
+                                                    <TableCell>{detalle.hitoDescripcion}</TableCell>
+                                                    <TableCell>{detalle.recetaNombre}</TableCell>
+                                                    <TableCell>{formatNumber(detalle.cantidadNecesaria, 2)} {elabUnidad ? formatUnit(elabUnidad) : 'uds'}</TableCell>
+                                                    <TableCell>
+                                                        <FormField control={control} name={`desgloseProduccion.${index}.cantidadReal`} render={({field}) => (
+                                                            <Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value) || null)} />
+                                                        )} />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <FormField control={control} name={`desgloseProduccion.${index}.check`} render={({field}) => (
+                                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                                        )} />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        )}
+                         <Card className="w-full">
+                                <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2 text-destructive"><AlertTriangle/>Registrar Incidencia</CardTitle></CardHeader>
+                                <CardContent className="space-y-4">
+                                    <p className="text-sm text-muted-foreground">
+                                        Si hubo un problema (ej. producto quemado, error de cantidad), regístralo aquí.
+                                    </p>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button className="w-full" variant="destructive">Declarar Incidencia</Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Describir la Incidencia</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Explica brevemente qué ha ocurrido con esta producción. Esta información quedará registrada.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <Controller name="incidenciaObservaciones" control={control} render={({ field }) => <Textarea {...field} placeholder="Ej: Se quemó parte de la producción, solo se pudieron salvar 5kg..." />}/>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleSave('Incidencia')}>Guardar Incidencia</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </CardContent>
+                            </Card>
+                    </CardFooter>
+                )}
+            </Card>
+
+            {isEditing && (
+                 <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar Orden de Fabricación?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                            Esta acción es irreversible. La OF será eliminada y la necesidad de producción volverá a aparecer en la pantalla de Planificación.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                                className="bg-destructive hover:bg-destructive/90"
+                                onClick={handleDelete}
+                            >
+                                Eliminar
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
+        </TooltipProvider>
+    );
+}

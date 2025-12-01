@@ -614,26 +614,26 @@ export default function InfoPage() {
                                     ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalPase], 
                                     ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR],
                                     ['respProjectManager', 'respProjectManagerPhone', 'respProjectManagerMail', 'Resp. Project Manager', personalOperaciones],
-                                ].map(([name, phone, mail, label, personalList]: [keyof OsFormValues, keyof OsFormValues, keyof OsFormValues, string, Personal[]]) => (
-                                  <div key={name} className="flex items-end gap-4">
-                                    <FormField control={form.control} name={name} render={({ field }) => (
+                                ].map(([name, phone, mail, label, personalList]) => (
+                                  <div key={name as string} className="flex items-end gap-4">
+                                    <FormField control={form.control} name={name as any} render={({ field }) => (
                                       <FormItem className="flex-grow">
-                                        <FormLabel>{label}</FormLabel>
-                                        <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, phone, mail); }} value={field.value as string}>
+                                        <FormLabel>{label as string}</FormLabel>
+                                        <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, phone as any, mail as any); }} value={field.value}>
                                           <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                           <SelectContent>
-                                            {(personalList).map(p => <SelectItem key={p.id} value={getFullName(p)}>{getFullName(p)}</SelectItem>)}
+                                            {(personalList as Personal[]).map(p => <SelectItem key={p.id} value={getFullName(p)}>{getFullName(p)}</SelectItem>)}
                                           </SelectContent>
                                         </Select>
                                       </FormItem>
                                     )} />
                                     <div className="flex items-center gap-2 pb-1 text-sm text-muted-foreground">
                                        <Phone className="h-4 w-4"/>
-                                       <span>{watch(phone) || '-'}</span>
+                                       <span>{watch(phone as any) || '-'}</span>
                                     </div>
                                     <div className="flex items-center gap-2 pb-1 text-sm text-muted-foreground">
                                        <Mail className="h-4 w-4"/>
-                                       <span>{watch(mail) || '-'}</span>
+                                       <span>{watch(mail as any) || '-'}</span>
                                     </div>
                                   </div>
                                 ))}

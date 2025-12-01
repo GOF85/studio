@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Hand, Users, Building, Briefcase, BookOpen, Ticket, HandCoins, BarChart3, TrendingUp, TrendingDown, Euro } from 'lucide-react';
-
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, Espacio, Personal, ComercialBriefing, GastronomyOrder, MaterialOrder, ComercialBriefingItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -80,6 +80,7 @@ function KpiCard({ title, value, icon: Icon }: { title: string, value: string, i
 }
 
 export default function AnaliticaCateringPage() {
+    const [isMounted, setIsMounted] = useState(false);
     const [allPedidos, setAllPedidos] = useState<AnaliticaCateringItem[]>([]);
     const [allBriefings, setAllBriefings] = useState<ComercialBriefing[]>([]);
     const [allEspacios, setAllEspacios] = useState<string[]>([]);
@@ -131,7 +132,7 @@ export default function AnaliticaCateringPage() {
         const metres = new Set(data.map(p => p.os.respMetre).filter(Boolean));
         setAllMetres(Array.from(metres));
 
-
+        setIsMounted(true);
     }, []);
     
     const pedidosFiltrados = useMemo(() => {
@@ -339,7 +340,7 @@ export default function AnaliticaCateringPage() {
         };
         
         for (const cat in categorias) {
-            (categorias[cat as keyof typeof categorias]).sort((a: AnaliticaCateringItem & { rentabilidad: number; }, b: AnaliticaCateringItem & { rentabilidad: number; }) => b.rentabilidad - a.rentabilidad);
+            (categorias as any)[cat].sort((a:any, b:any) => b.rentabilidad - a.rentabilidad);
         }
 
         return categorias;
@@ -366,7 +367,7 @@ export default function AnaliticaCateringPage() {
         });
         
         return Object.entries(totalCostes).map(([partida, costeReal]) => {
-            const costeObjetivo = totalFacturacion * (objetivoGasto[partida as keyof typeof objetivoGasto] || 0);
+            const costeObjetivo = totalFacturacion * ((objetivoGasto as any)[partida] || 0);
             return {
                 name: partida,
                 desviacion: costeReal - costeObjetivo
@@ -419,7 +420,7 @@ export default function AnaliticaCateringPage() {
                         </div>
                     </div>
                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 flex-1">
-                        <Select value={clienteTipoFilter} onValueChange={(value) => setClienteTipoFilter(value as 'all' | 'Empresa' | 'Agencia')}>
+                        <Select value={clienteTipoFilter} onValueChange={(value) => setClienteTipoFilter(value as any)}>
                             <SelectTrigger><div className="flex items-center gap-2 text-xs truncate"><Briefcase /> <SelectValue /></div></SelectTrigger>
                             <SelectContent><SelectItem value="all">Todos los Tipos</SelectItem><SelectItem value="Empresa">Empresa</SelectItem><SelectItem value="Agencia">Agencia</SelectItem></SelectContent>
                         </Select>
@@ -562,7 +563,7 @@ export default function AnaliticaCateringPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {partidasCostes.map(partida => {
-                                        const objetivo = objetivoGasto[partida as keyof typeof objetivoGasto] || 0;
+                                        const objetivo = (objetivoGasto as any)[partida] || 0;
                                         return (
                                             <TableRow key={partida}>
                                                 <TableCell>{partida}</TableCell>

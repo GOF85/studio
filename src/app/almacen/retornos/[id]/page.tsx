@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import type { ServiceOrder, ReturnSheet, MaterialOrder, OrderItem, ReturnItemState } from '@/types';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -55,6 +56,7 @@ function StatCard({ title, itemCount, totalValue, progress }: StatCardProps) {
 
 export default function RetornoSheetPage() {
     const [sheet, setSheet] = useState<ReturnSheet | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     
     const router = useRouter();
@@ -109,7 +111,7 @@ export default function RetornoSheetPage() {
         }
         
         setSheet(currentSheet);
-
+        setIsMounted(true);
     }, [osId]);
 
     useEffect(() => {
@@ -217,8 +219,8 @@ export default function RetornoSheetPage() {
     }, [sheet]);
 
 
-    if (!sheet || !sheet.os) {
-
+    if (!isMounted || !sheet || !sheet.os) {
+        return <LoadingSkeleton title="Cargando Hoja de Retorno..." />;
     }
 
     return (

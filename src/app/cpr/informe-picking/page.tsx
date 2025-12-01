@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
@@ -29,6 +30,7 @@ type PickingReportItem = {
 
 export default function InformePickingPage() {
   const [reportItems, setReportItems] = useState<PickingReportItem[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
 
@@ -44,6 +46,7 @@ export default function InformePickingPage() {
         }));
         
     setReportItems(items);
+    setIsMounted(true);
   }, []);
 
   const filteredItems = useMemo(() => {
@@ -161,3 +164,67 @@ export default function InformePickingPage() {
     doc.save(`Informe_Picking_${item.os.serviceNumber}.pdf`);
   }
 
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Informe de Picking..." />;
+  }
+
+  return (
+    <div>
+       <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="relative flex-grow">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Buscar por Nº de Servicio o Cliente..."
+            className="pl-8 w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nº Servicio</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Fecha</TableHead>
+              <TableHead>Nº Contenedores</TableHead>
+              <TableHead>Nº Lotes Asignados</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredItems.length > 0 ? (
+              filteredItems.map(item => (
+                <TableRow
+                  key={item.os.id}
+                  onClick={() => router.push(`/cpr/picking/${item.os.id}`)}
+                  className="cursor-pointer"
+                >
+                  <TableCell className="font-medium"><Badge variant="secondary">{item.os.serviceNumber}</Badge></TableCell>
+                  <TableCell>{item.os.client}</TableCell>
+                  <TableCell>{format(new Date(item.os.startDate), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>{item.state.assignedContainers.length}</TableCell>
+                  <TableCell>{item.state.itemStates.length}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handlePrint(item)}}>
+                        <Printer className="mr-2 h-4 w-4"/> Imprimir Informe
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  No hay Órdenes de Servicio con picking realizado.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}

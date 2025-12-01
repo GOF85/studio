@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import type { OrdenFabricacion, StockElaboracion, StockLote, Elaboracion } from '@/types';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { ArrowLeft, Save, Trash2, AlertTriangle, CheckCircle, CalendarIcon, Watch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -30,6 +31,7 @@ type FormData = {
 function ExcedenteDetailPageContent() {
     const [elaboracion, setElaboracion] = useState<Elaboracion | null>(null);
     const [stockItem, setStockItem] = useState<StockElaboracion | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
     const [showMermaConfirm, setShowMermaConfirm] = useState(false);
     const [mermaAllMotivo, setMermaAllMotivo] = useState('');
     
@@ -62,6 +64,7 @@ function ExcedenteDetailPageContent() {
             const lotesWithInitial = currentStock.lotes.map(lote => ({ ...lote, initialCantidad: lote.cantidad }));
             form.reset({ lotes: lotesWithInitial, motivoAjuste: '' });
         }
+        setIsMounted(true);
     }, [elabId, form]);
 
     useEffect(() => {
@@ -117,7 +120,8 @@ function ExcedenteDetailPageContent() {
         router.push('/cpr/excedentes');
     };
     
-    if (!elaboracion) {
+    if (!isMounted || !elaboracion) {
+        return <LoadingSkeleton title="Cargando Stock..." />;
     }
     
     if (!stockItem || stockItem.lotes.length === 0) {
@@ -254,7 +258,7 @@ function ExcedenteDetailPageContent() {
 
 export default function ExcedenteDetailPage() {
     return (
-        <Suspense>
+        <Suspense fallback={<LoadingSkeleton title="Cargando Stock..." />}>
             <ExcedenteDetailPageContent />
         </Suspense>
     )

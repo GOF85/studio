@@ -8,6 +8,7 @@ import { Truck, Search, Warehouse, User, Phone, Clock, MapPin, CheckCircle, Buil
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { TransporteOrder, ServiceOrder, PedidoEntrega, EntregaHito, Entrega, PortalUser, Proveedor } from '@/types';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +41,7 @@ const statusRowClass: Record<string, string> = {
 
 export default function TransportePortalPage() {
     const [orders, setOrders] = useState<OrderWithDetails[]>([]);
+    const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [showCompleted, setShowCompleted] = useState(false);
     const router = useRouter();
@@ -61,6 +63,7 @@ export default function TransportePortalPage() {
         const partnerShouldBeDefined = hasRole('PARTNER_TRANSPORTE');
         if (partnerShouldBeDefined && !proveedorId) {
             setOrders([]);
+            setIsMounted(true);
             return;
         }
 
@@ -101,6 +104,7 @@ export default function TransportePortalPage() {
         });
 
         setOrders(ordersWithDetails);
+        setIsMounted(true);
     }, [proveedorId, hasRole, isAdminOrComercial]);
 
     useEffect(() => {
@@ -159,6 +163,115 @@ export default function TransportePortalPage() {
         }
     }
 
+    if (!isMounted) {
+        return <LoadingSkeleton title="Cargando Portal de Transporte..." />;
+    }
+
+    if (hasRole('PARTNER_TRANSPORTE') && !proveedorId) {
+        return (
+            <main className="container mx-auto px-4 py-16">
+                <Card className="max-w-xl mx-auto">
+                    <CardHeader><CardTitle>Acceso Restringido</CardTitle></CardHeader>
+                    <CardContent><p>Este usuario no está asociado a ningún proveedor de transporte. Por favor, contacta con el administrador.</p></CardContent>
+                </Card>
+            </main>
+        )
+    }
+
+    return (
+        <main className="container mx-auto px-4 py-8">
+            <div className="flex items-center justify-between border-b pb-4 mb-8">
+                <div className="flex items-center gap-4">
+                    <Truck className="w-10 h-10 text-primary" />
+                    <div>
+                        <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Transporte</h1>
+                    </div>
+                </div>
+                {proveedorNombre && (
+                    <Badge variant="secondary" className="px-4 py-2 text-lg">
+                        <Building2 className="mr-2 h-5 w-5" />
+                        {proveedorNombre}
+                    </Badge>
+                )}
+                {isAdminOrComercial && (
+                    <Badge variant="outline" className="px-4 py-2 text-lg border-primary text-primary">
+                        Vista de Administrador
+                    </Badge>
+                )}
+            </div>
+
+            <div className="flex flex-col gap-4 my-6">
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar por OS, cliente..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8"
+                    />
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Switch id="show-completed-list" checked={showCompleted} onCheckedChange={setShowCompleted} />
+                    <Label htmlFor="show-completed-list">Mostrar entregas realizadas</Label>
+                </div>
+            </div>
+            <div className="space-y-4">
+                {groupedOrdersForList.length > 0 ? (
+                    groupedOrdersForList.map(([date, dailyOrders]) => (
+                        <div key={date}>
+                            <h3 className="text-xl font-bold capitalize mb-3">{format(new Date(date), 'EEEE, d \'de\' MMMM', { locale: es })}</h3>
+                            <div className="space-y-3">
+                                {dailyOrders.map(order => (
+                                    <div key={order.id} className={cn("border p-4 rounded-lg", statusRowClass[order.status])}>
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <p className="font-bold text-lg flex items-center gap-2">
+                                                    <MapPin className="h-5 w-5 text-primary" />
+                                                    {order.lugarEntrega}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">{order.os?.serviceNumber} - {order.os?.client}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {order.status === 'En Ruta' && (
+                                                    <Button size="sm" onClick={() => handleStatusChange(order.id, 'Entregado')} disabled={isReadOnly}>
+                                                        <CheckCircle className="mr-2" /> Marcar como Entregado
+                                                    </Button>
+                                                )}
+                                                {order.status === 'Confirmado' && (
+                                                    <Button size="sm" onClick={() => handleStatusChange(order.id, 'En Ruta')} disabled={isReadOnly}>
+                                                        <Truck className="mr-2" /> Iniciar Ruta
+                                                    </Button>
+                                                )}
+                                                <Badge variant={statusVariant[order.status]} className="text-base px-3 py-1">{order.status}</Badge>
+                                            </div>
+                                        </div>
+                                        <div className="text-sm grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground">
+                                            <div className="flex items-center gap-2"><Warehouse className="h-4 w-4" /> <strong>Recogida:</strong> {order.lugarRecogida}</div>
+                                            <div className="flex items-center gap-2"><User className="h-4 w-4" /> <strong>Contacto:</strong> {order.hitos[0]?.contacto || order.os?.contact}</div>
+                                            <div className="flex items-center gap-2"><Clock className="h-4 w-4" /> <strong>Horas:</strong> {order.horaRecogida} &rarr; {order.horaEntrega}</div>
+                                            <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> <strong>Teléfono:</strong> {order.hitos[0]?.telefono || order.os?.phone}</div>
+                                        </div>
+                                        <div className="text-right mt-2">
+                                            <Button variant="link" onClick={() => router.push(`/portal/albaran/${order.id}`)}>Ver y Firmar Albarán <ArrowLeft className="ml-2 h-4 w-4 rotate-180" /></Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <Card>
+                        <CardContent className="py-12 text-center">
+                            <Truck className="mx-auto h-12 w-12 text-muted-foreground" />
+                            <h3 className="mt-4 text-lg font-semibold">Sin servicios para mostrar</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">No hay entregas que coincidan con los filtros actuales.</p>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+        </main>
+    );
+}
 
 
 

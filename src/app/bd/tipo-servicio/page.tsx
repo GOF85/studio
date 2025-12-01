@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Input } from '@/components/ui/input';
 import {
     Dialog,
@@ -150,3 +151,132 @@ export default function TipoServicioPage() {
         }
     }
 
+    if (isLoading) {
+        return <LoadingSkeleton title="Cargando Tipos de Servicio..." />;
+    }
+
+    return (
+        <>
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                    <Database className="h-8 w-8" />
+                    <h1 className="text-3xl font-headline font-bold">Tipos de Servicio de Briefing</h1>
+                </div>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button onClick={() => handleOpenDialog()}>
+                            <PlusCircle className="mr-2" /> Nuevo Tipo
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{editingItem ? 'Editar' : 'Nuevo'} Tipo de Servicio</DialogTitle>
+                            <DialogDescription>
+                                {editingItem ? 'Modifica' : 'Crea'} un tipo de servicio para el briefing.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <label htmlFor="nombre" className="text-sm font-medium">
+                                    Nombre *
+                                </label>
+                                <Input
+                                    id="nombre"
+                                    value={formData.nombre}
+                                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                                    placeholder="Ej: Desayuno, Comida, Cena..."
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <label htmlFor="descripcion" className="text-sm font-medium">
+                                    Descripción
+                                </label>
+                                <Input
+                                    id="descripcion"
+                                    value={formData.descripcion}
+                                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                                    placeholder="Descripción opcional"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                                Cancelar
+                            </Button>
+                            <Button onClick={handleSave} disabled={isSaving}>
+                                {isSaving ? 'Guardando...' : 'Guardar'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            <div className="border rounded-lg">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Nombre</TableHead>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead className="text-right w-24">Acciones</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {items.length > 0 ? (
+                            items.map(item => (
+                                <TableRow key={item.id}>
+                                    <TableCell className="font-medium">{item.nombre}</TableCell>
+                                    <TableCell className="text-muted-foreground">{item.descripcion || '-'}</TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleOpenDialog(item)}
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-destructive"
+                                                onClick={() => setItemToDelete(item.id)}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={3} className="h-24 text-center">
+                                    No hay tipos de servicio. Crea uno nuevo.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+
+            <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Se eliminará permanentemente el tipo de servicio.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive hover:bg-destructive/90"
+                            onClick={handleDelete}
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    );
+}

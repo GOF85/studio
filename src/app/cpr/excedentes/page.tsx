@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,7 @@ type StockDisplayItem = {
 };
 
 export default function ExcedentesPage() {
+  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
 
@@ -95,6 +97,7 @@ export default function ExcedentesPage() {
     }).filter(item => item.cantidadTotal > 0.01);
 
     setStock(stockItems);
+    setIsMounted(true);
   }, []);
 
   const filteredItems = useMemo(() => {
@@ -107,3 +110,86 @@ export default function ExcedentesPage() {
     return filteredItems.reduce((sum, item) => sum + item.valoracion, 0);
   }, [filteredItems]);
 
+  if (!isMounted) {
+    return <LoadingSkeleton title="Calculando Stock de Elaboraciones..." />;
+  }
+
+  return (
+    <TooltipProvider>
+      <div>
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <Input 
+            placeholder="Buscar por elaboración..."
+            className="flex-grow max-w-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <Card className="mb-6 max-w-xs">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2"><Euro/>Valoración Total del Stock</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalStockValue)}</div>
+            </CardContent>
+        </Card>
+
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Elaboración</TableHead>
+                <TableHead className="text-right">Cantidad en Stock</TableHead>
+                <TableHead className="text-right">Valoración</TableHead>
+                <TableHead>Caducidad Próxima</TableHead>
+                <TableHead>Estado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredItems.length > 0 ? (
+                filteredItems.map(item => {
+                  return (
+                    <TableRow 
+                        key={item.elaboracionId}
+                        className={cn("cursor-pointer", item.estado === 'Revisar' && 'bg-amber-100/50 hover:bg-amber-100/80')}
+                        onClick={() => router.push(`/cpr/excedentes/${item.elaboracionId}`)}
+                    >
+                        <TableCell className="font-medium flex items-center gap-2">
+                             {item.estado === 'Revisar' && (
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <AlertTriangle className="h-4 w-4 text-amber-500"/>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Este lote tiene partidas caducadas o próximas a caducar. Revisar urgentemente.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                             )}
+                            {item.elaboracionNombre}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(item.cantidadTotal, 2)} {formatUnit(item.unidad)}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold">{formatCurrency(item.valoracion)}</TableCell>
+                        <TableCell className={cn(item.estado === 'Revisar' && 'font-bold text-destructive')}>{item.caducidadProxima}</TableCell>
+                        <TableCell>
+                           <Badge variant={item.estado === 'Revisar' ? 'destructive' : 'default'} className={cn(item.estado === 'Apto' && 'bg-green-600')}>
+                                {item.estado}
+                           </Badge>
+                        </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    No hay stock de elaboraciones.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+}

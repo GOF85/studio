@@ -9,6 +9,7 @@ import Image from 'next/image';
 import type { OrdenFabricacion, Elaboracion, ComponenteElaboracion, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -34,6 +35,7 @@ export default function ProduccionDetallePage() {
     const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
     const [elaboracion, setElaboracion] = useState<Elaboracion | null>(null);
     const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
+    const [isMounted, setIsMounted] = useState(false);
     const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
     const [cantidadReal, setCantidadReal] = useState<number | string>('');
     const [elapsedTime, setElapsedTime] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export default function ProduccionDetallePage() {
                 setConsumosReales(initialConsumos);
             }
         }
+        setIsMounted(true);
     }, [id]);
 
     useEffect(() => {
@@ -167,7 +170,8 @@ export default function ProduccionDetallePage() {
     }
 
 
-    if (!orden) {
+    if (!isMounted || !orden) {
+        return <LoadingSkeleton title="Cargando Orden de Fabricación..." />;
     }
 
     return (

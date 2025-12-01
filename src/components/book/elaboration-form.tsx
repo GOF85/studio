@@ -588,11 +588,11 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                             <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Pega una URL de imagen..." />
                                             <Button type="button" variant="outline" onClick={handleAddImageUrl}><LinkIcon className="mr-2" />Añadir URL</Button>
                                         </div>
-                                        {form.formState.errors.fotosProduccionURLs && <p className="text-sm font-medium text-destructive">{form.formState.errors.fotosProduccionURLs.message}</p>}
+                                        {form.formState.errors.fotosProduccionURLs && <p className="text-sm font-medium text-destructive">{(form.formState.errors.fotosProduccionURLs as any).message}</p>}
                                         <div className="grid grid-cols-3 gap-2 pt-2">
                                             {fotosFields.map((field, index) => (
                                                 <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
-                                                    <Image src={field.value} alt={`Foto de producción ${index + 1}`} fill className="object-cover" />
+                                                    <Image src={(field as any).value} alt={`Foto de producción ${index + 1}`} fill className="object-cover" />
                                                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                         <Button type="button" variant="destructive" size="icon" onClick={() => removeFoto(index)}><Trash2 /></Button>
                                                     </div>

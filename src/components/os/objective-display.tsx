@@ -2,10 +2,11 @@
 
 'use client';
 
-import { useMemo } from 'react';
-import { Target } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import type { ServiceOrder, ObjetivosGasto, PersonalExterno, ComercialBriefing, GastronomyOrder } from '@/types';
+import { Target, Info, RefreshCw } from 'lucide-react';
 import { GASTO_LABELS } from '@/lib/constants';
-import { formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
+import { formatCurrency, formatPercentage, formatNumber, calculateHours } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -14,9 +15,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Separator } from '@/components/ui/separator';
-import { useEventos, useComercialBriefings, useComercialAjustes, useObjetivosGasto, usePersonalExterno, usePersonalExternoAjustes, useMaterialOrders, useGastronomyOrders, useHieloOrders, useTransporteOrders, useDecoracionOrders, useAtipicoOrders, usePersonalMiceOrders, usePruebasMenu } from '@/hooks/use-data-queries';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ComercialBriefingItem } from '@/types';
 
 type ModuleName = keyof typeof GASTO_LABELS;
 
@@ -28,128 +26,124 @@ interface ObjectiveDisplayProps {
 
 
 export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDisplayProps) {
-  const { data: eventosData, isLoading: isLoadingEventos } = useEventos();
-  const { data: comercialBriefingsData, isLoading: isLoadingBriefings } = useComercialBriefings(osId);
-  const { data: comercialAjustesData, isLoading: isLoadingAjustes } = useComercialAjustes(osId);
-  const { data: objetivosGastoData, isLoading: isLoadingObjetivos } = useObjetivosGasto();
-  const { data: personalExternoData, isLoading: isLoadingPersonalExterno } = usePersonalExterno(osId);
-  const { data: personalExternoAjustesData, isLoading: isLoadingPersonalExternoAjustes } = usePersonalExternoAjustes(osId);
-  const { data: materialOrdersData, isLoading: isLoadingMaterial } = useMaterialOrders(osId);
-  const { data: gastronomyOrdersData, isLoading: isLoadingGastro } = useGastronomyOrders(osId);
-  const { data: hieloOrdersData, isLoading: isLoadingHielo } = useHieloOrders(osId);
-  const { data: transporteOrdersData, isLoading: isLoadingTransporte } = useTransporteOrders(osId);
-  const { data: decoracionOrdersData, isLoading: isLoadingDecoracion } = useDecoracionOrders(osId);
-  const { data: atipicosOrdersData, isLoading: isLoadingAtipicos } = useAtipicoOrders(osId);
-  const { data: personalMiceOrdersData, isLoading: isLoadingMice } = usePersonalMiceOrders(osId);
-  const { data: pruebasMenuData, isLoading: isLoadingPruebasMenu } = usePruebasMenu(osId);
+  const [isMounted, setIsMounted] = useState(false);
+  const [data, setData] = useState<{
+    objective: number;
+    objectivePct: number;
+    budget: number;
+    facturacionNeta: number;
+  } | null>(null);
 
-
-  const data = useMemo(() => {
-    if (isLoadingEventos || isLoadingBriefings || isLoadingAjustes || isLoadingObjetivos) return null;
-    
-    const currentOS = eventosData?.find(os => os.id === osId);
-    if (!currentOS) return null;
-
-    const currentBriefing = comercialBriefingsData?.[0];
-    const allAjustes = comercialAjustesData || [];
-    
-    const totalBriefing = currentBriefing?.items.reduce((acc:number, item:ComercialBriefingItem) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
-    const totalAjustes = allAjustes.reduce((sum: number, ajuste: {importe: number}) => sum + ajuste.importe, 0);
-    const facturacionBruta = totalBriefing + totalAjustes;
-    
-    const agencyCommission = (facturacionBruta * (currentOS.agencyPercentage || 0) / 100) + (currentOS.agencyCommissionValue || 0);
-    const spaceCommission = (facturacionBruta * (currentOS.spacePercentage || 0) / 100) + (currentOS.spaceCommissionValue || 0);
-    const facturacionNeta = facturacionBruta - agencyCommission - spaceCommission;
-
-    const plantilla = objetivosGastoData?.find(p => p.id === currentOS.objetivoGastoId) || objetivosGastoData?.find(p => p.name === 'Micecatering') || objetivosGastoData?.[0];
-
-    if (!plantilla) return null;
-    
-    const objectivePct = (plantilla[moduleName] || 0) / 100;
-    const objectiveValue = facturacionNeta * objectivePct;
-
-    let budgetValue = 0;
-    
-    if (moduleName === 'personalExterno') {
-      if (isLoadingPersonalExterno || isLoadingPersonalExternoAjustes) return null;
-      const personalExternoDataUnico = personalExternoData?.[0] || null;
-      const costeTurnos = personalExternoDataUnico?.turnos.reduce((sum, turno) => {
-        const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-        const quantity = (turno.asignaciones || []).length > 0 ? turno.asignaciones.length : 1;
-        return sum + (plannedHours * (turno.precioHora || 0) * quantity);
-      }, 0) || 0;
-
-      const costeAjustes = personalExternoAjustesData?.reduce((sum: number, ajuste) => sum + ajuste.importe, 0) || 0;
-      budgetValue = costeTurnos + costeAjustes;
-    } else {
-      if (isLoadingMaterial || isLoadingGastro || isLoadingHielo || isLoadingTransporte || isLoadingDecoracion || isLoadingAtipicos || isLoadingMice || isLoadingPruebasMenu) return null;
-      switch(moduleName) {
-        case 'gastronomia':
-          budgetValue = gastronomyOrdersData?.reduce((sum, o) => sum + (o.total || 0), 0) || 0;
-          break;
-        case 'bodega':
-          budgetValue = materialOrdersData?.filter(o => o.type === 'Bodega').reduce((s, o) => s + o.total, 0) || 0;
-          break;
-        case 'consumibles':
-          budgetValue = materialOrdersData?.filter(o => o.type === 'Bio').reduce((s, o) => s + o.total, 0) || 0;
-          break;
-        case 'hielo':
-          budgetValue = hieloOrdersData?.reduce((s, o) => s + o.total, 0) || 0;
-          break;
-        case 'almacen':
-          budgetValue = materialOrdersData?.filter(o => o.type === 'Almacen').reduce((s, o) => s + o.total, 0) || 0;
-          break;
-        case 'alquiler':
-          budgetValue = materialOrdersData?.filter(o => o.type === 'Alquiler').reduce((s, o) => s + o.total, 0) || 0;
-          break;
-        case 'transporte':
-          budgetValue = transporteOrdersData?.reduce((s, o) => s + o.precio, 0) || 0;
-          break;
-        case 'decoracion':
-          budgetValue = decoracionOrdersData?.reduce((s, o) => s + o.precio, 0) || 0;
-          break;
-        case 'atipicos':
-          budgetValue = atipicosOrdersData?.reduce((s, o) => s + o.precio, 0) || 0;
-          break;
-        case 'personalMice':
-          budgetValue = personalMiceOrdersData?.reduce((sum, order) => {
-            const hours = calculateHours(order.horaEntrada, order.horaSalida);
-            return sum + (hours * (order.precioHora || 0));
-          }, 0) || 0;
-          break;
-        case 'costePruebaMenu':
-          const prueba = pruebasMenuData?.[0];
-          budgetValue = prueba?.costePruebaMenu || 0;
-          break;
-      }
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        setIsMounted(true);
     }
+  }, []);
 
-    return {
-      objective: objectiveValue,
-      objectivePct,
-      budget: budgetValue,
-      facturacionNeta,
-    };
-  }, [
-    osId, moduleName, 
-    eventosData, comercialBriefingsData, comercialAjustesData, objetivosGastoData,
-    personalExternoData, personalExternoAjustesData, materialOrdersData, gastronomyOrdersData,
-    hieloOrdersData, transporteOrdersData, decoracionOrdersData, atipicosOrdersData,
-    personalMiceOrdersData, pruebasMenuData,
-    isLoadingEventos, isLoadingBriefings, isLoadingAjustes, isLoadingObjetivos,
-    isLoadingPersonalExterno, isLoadingPersonalExternoAjustes, isLoadingMaterial,
-    isLoadingGastro, isLoadingHielo, isLoadingTransporte, isLoadingDecoracion,
-    isLoadingAtipicos, isLoadingMice, isLoadingPruebasMenu
-  ]);
+  useEffect(() => {
+    if (isMounted && osId && moduleName) {
+      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+      const currentOS = allServiceOrders.find(os => os.id === osId);
 
-  const isLoading = isLoadingEventos || isLoadingBriefings || isLoadingAjustes || isLoadingObjetivos || (data === null);
+      if (!currentOS) return;
+      
+      const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as any[];
+      const allAjustes = (JSON.parse(localStorage.getItem('comercialAjustes') || '{}')[osId] || []) as { importe: number }[];
+      const currentBriefing = allBriefings.find(b => b.osId === osId);
+      const totalBriefing = currentBriefing?.items.reduce((acc:number, item:any) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
+      const totalAjustes = allAjustes.reduce((sum: number, ajuste: {importe: number}) => sum + ajuste.importe, 0);
+      const facturacionBruta = totalBriefing + totalAjustes;
+      
+      const agencyCommission = (facturacionBruta * (currentOS.agencyPercentage || 0) / 100) + (currentOS.agencyCommissionValue || 0);
+      const spaceCommission = (facturacionBruta * (currentOS.spacePercentage || 0) / 100) + (currentOS.spaceCommissionValue || 0);
+      const facturacionNeta = facturacionBruta - agencyCommission - spaceCommission;
 
-  if (isLoading) {
-    return <Skeleton className="h-10 w-full" />;
-  }
+      const storedPlantillas = JSON.parse(localStorage.getItem('objetivosGastoPlantillas') || '[]') as ObjetivosGasto[];
+      const plantillaGuardadaId = currentOS.objetivoGastoId || localStorage.getItem('defaultObjetivoGastoId');
+      const plantilla = storedPlantillas.find(p => p.id === plantillaGuardadaId) || storedPlantillas.find(p => p.name === 'Micecatering') || storedPlantillas[0];
 
-  if (!data) {
-    return null;
+      if (!plantilla) return;
+      
+      const objectivePct = (plantilla[moduleName] || 0) / 100;
+      const objectiveValue = facturacionNeta * objectivePct;
+
+      let budgetValue = 0;
+      
+      if (moduleName === 'personalExterno') {
+            const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+            const personalExternoData = allPersonalExterno.find(p => p.osId === osId) || null;
+            const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {importe: number}[];
+
+            const costeTurnos = personalExternoData?.turnos.reduce((sum, turno) => {
+                const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+                const quantity = (turno.asignaciones || []).length > 0 ? turno.asignaciones.length : 1;
+                return sum + (plannedHours * (turno.precioHora || 0) * quantity);
+            }, 0) || 0;
+
+            const costeAjustes = allPersonalExternoAjustes.reduce((sum: number, ajuste) => sum + ajuste.importe, 0);
+            budgetValue = costeTurnos + costeAjustes;
+
+      } else {
+            const materialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as any[];
+            switch(moduleName) {
+                case 'gastronomia':
+                    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+                    budgetValue = allGastroOrders.filter(o => o.osId === osId).reduce((sum, o) => sum + (o.total || 0), 0);
+                    break;
+                case 'bodega':
+                    budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Bodega').reduce((s, o) => s + o.total, 0);
+                    break;
+                case 'consumibles':
+                    budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Bio').reduce((s, o) => s + o.total, 0);
+                    break;
+                case 'hielo':
+                    const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as any[];
+                    budgetValue = allHieloOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.total, 0);
+                    break;
+                case 'almacen':
+                    budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Almacen').reduce((s, o) => s + o.total, 0);
+                    break;
+                case 'alquiler':
+                    budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Alquiler').reduce((s, o) => s + o.total, 0);
+                    break;
+                case 'transporte':
+                    const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as any[];
+                    budgetValue = allTransporteOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.precio, 0);
+                    break;
+                case 'decoracion':
+                    const allDecoracionOrders = JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as any[];
+                    budgetValue = allDecoracionOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.precio, 0);
+                    break;
+                case 'atipicos':
+                    const allAtipicoOrders = JSON.parse(localStorage.getItem('atipicosOrders') || '[]') as any[];
+                    budgetValue = allAtipicoOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.precio, 0);
+                    break;
+                case 'personalMice':
+                    const allPersonalMiceOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as any[];
+                    budgetValue = allPersonalMiceOrders.filter(o => o.osId === osId).reduce((sum, order) => {
+                        const hours = calculateHours(order.horaEntrada, order.horaSalida);
+                        return sum + (hours * (order.precioHora || 0));
+                    }, 0);
+                    break;
+                case 'costePruebaMenu':
+                    const allPruebasMenu = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as any[];
+                    const prueba = allPruebasMenu.find(p => p.osId === osId);
+                    budgetValue = prueba?.costePruebaMenu || 0;
+                    break;
+            }
+      }
+
+      setData({
+        objective: objectiveValue,
+        objectivePct,
+        budget: budgetValue,
+        facturacionNeta,
+      });
+    }
+  }, [osId, moduleName, isMounted, updateKey]);
+
+  if (!isMounted || !data) {
+    return null; // Or a loading skeleton
   }
 
   const isExceeded = data.budget > data.objective;

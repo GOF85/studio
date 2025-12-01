@@ -139,54 +139,6 @@ export function useDeleteEvento() {
 }
 
 // ============================================
-// COMERCIAL
-// ============================================
-
-export function useComercialBriefings(eventoId?: string) {
-    return useQuery({
-        queryKey: ['comercialBriefings', eventoId],
-        queryFn: async () => {
-            let query = supabase.from('comercial_briefings').select('*');
-            if (eventoId) {
-                query = query.eq('evento_id', eventoId);
-            }
-            const { data, error } = await query;
-            if (error) throw error;
-            return data || [];
-        },
-        enabled: !!eventoId,
-    });
-}
-
-export function useComercialAjustes(eventoId?: string) {
-    return useQuery({
-        queryKey: ['comercialAjustes', eventoId],
-        queryFn: async () => {
-            let query = supabase.from('comercial_ajustes').select('*');
-            if (eventoId) {
-                query = query.eq('evento_id', eventoId);
-            }
-            const { data, error } = await query;
-            if (error) throw error;
-            return data || [];
-        },
-        enabled: !!eventoId,
-    });
-}
-
-export function useObjetivosGasto() {
-    return useQuery({
-        queryKey: ['objetivosGasto'],
-        queryFn: async () => {
-            const { data, error } = await supabase.from('objetivos_gasto').select('*');
-            if (error) throw error;
-            return data || [];
-        },
-    });
-}
-
-
-// ============================================
 // ENTREGAS
 // ============================================
 
@@ -662,28 +614,5 @@ export function usePersonal() {
             if (error) throw error;
             return data || [];
         },
-    });
-}
-
-// ============================================
-// PROVEEDORES
-// ============================================
-
-export function useProveedor(proveedorId?: string) {
-    return useQuery({
-        queryKey: ['proveedor', proveedorId],
-        queryFn: async () => {
-            if (!proveedorId) return null;
-
-            const { data, error } = await supabase
-                .from('proveedores')
-                .select('*')
-                .eq('id', proveedorId)
-                .single();
-
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!proveedorId,
     });
 }

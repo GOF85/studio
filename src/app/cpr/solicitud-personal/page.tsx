@@ -9,6 +9,7 @@ import { es } from 'date-fns/locale';
 
 import type { SolicitudPersonalCPR, Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'sec
 export default function SolicitudPersonalCprPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
+  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
@@ -43,6 +45,8 @@ export default function SolicitudPersonalCprPage() {
     
     const storedProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
     setProveedoresMap(new Map(storedProveedores.map(p => [p.id, p.nombreComercial])));
+
+    setIsMounted(true);
   }, []);
 
   const filteredSolicitudes = useMemo(() => {
@@ -86,6 +90,10 @@ export default function SolicitudPersonalCprPage() {
     setSolicitudToManage(null);
     setManagementAction(null);
   };
+
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
+  }
 
   return (
     <div>
