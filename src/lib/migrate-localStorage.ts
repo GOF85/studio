@@ -11,6 +11,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 export type MigrationResult = {
     entity: string;
@@ -26,10 +27,43 @@ export type MigrationProgress = {
     results: MigrationResult[];
 };
 
+// Map to store old ID -> new UUID mappings
+type IdMap = Map<string, string>;
+
+/**
+ * Helper to validate or generate UUID
+ * If id is already a valid UUID, returns it.
+ * If not, generates a new UUID and stores mapping.
+ */
+function validateOrGenerateUUID(id: string, map: IdMap): string {
+    // Check if it's a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(id)) {
+        return id;
+    }
+
+    // Check if we already mapped this ID
+    if (map.has(id)) {
+        return map.get(id)!;
+    }
+
+    // Generate new UUID and map it
+    const newId = uuidv4();
+    map.set(id, newId);
+    return newId;
+}
+
+/**
+ * Helper to get mapped ID or return original if not found
+ */
+function getMappedId(id: string, map: IdMap): string {
+    return map.get(id) || id;
+}
+
 /**
  * Migrate recetas from localStorage to Supabase
  */
-async function migrateRecetas(): Promise<MigrationResult> {
+async function migrateRecetas(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('recetas');
         if (!stored) {
@@ -43,7 +77,7 @@ async function migrateRecetas(): Promise<MigrationResult> {
 
         // Insert recetas
         const recetasToInsert = recetas.map(r => ({
-            id: r.id,
+            id: validateOrGenerateUUID(r.id, idMap),
             nombre: r.nombre,
             descripcion_comercial: r.descripcionComercial,
             precio_venta: r.precioVenta || 0,
@@ -60,11 +94,17 @@ async function migrateRecetas(): Promise<MigrationResult> {
         // Insert receta_detalles
         const detalles: any[] = [];
         recetas.forEach(r => {
+            const newRecetaId = getMappedId(r.id, idMap);
             (r.elaboraciones || []).forEach((elab: any) => {
+                // elab.elaboracionId might be an old ID, need to check map
+                // But wait, elaboraciones are migrated separately. 
+                // We should assume migrateElaboraciones ran FIRST and populated the map.
+                const mappedElabId = getMappedId(elab.elaboracionId, idMap);
+
                 detalles.push({
-                    receta_id: r.id,
+                    receta_id: newRecetaId,
                     tipo: 'ELABORACION',
-                    item_id: elab.elaboracionId,
+                    item_id: mappedElabId,
                     cantidad: elab.cantidad,
                 });
             });
@@ -87,7 +127,7 @@ async function migrateRecetas(): Promise<MigrationResult> {
 /**
  * Migrate elaboraciones from localStorage to Supabase
  */
-async function migrateElaboraciones(): Promise<MigrationResult> {
+async function migrateElaboraciones(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('elaboraciones');
         if (!stored) {
@@ -101,7 +141,7 @@ async function migrateElaboraciones(): Promise<MigrationResult> {
 
         // Insert elaboraciones
         const elaboracionesToInsert = elaboraciones.map(e => ({
-            id: e.id,
+            id: validateOrGenerateUUID(e.id, idMap),
             nombre: e.nombre,
             partida: e.partidaProduccion,
             unidad_produccion: e.unidadProduccion,
@@ -119,11 +159,18 @@ async function migrateElaboraciones(): Promise<MigrationResult> {
         // Insert componentes
         const componentes: any[] = [];
         elaboraciones.forEach(e => {
+            const newElabId = getMappedId(e.id, idMap);
             (e.componentes || []).forEach((comp: any) => {
+                // If it's an elaboracion component, we need to map the ID
+                let compId = comp.componenteId;
+                if (comp.tipo !== 'ingrediente') { // Assuming 'ingrediente' IDs are already UUIDs or stable
+                    compId = getMappedId(comp.componenteId, idMap);
+                }
+
                 componentes.push({
-                    elaboracion_padre_id: e.id,
+                    elaboracion_padre_id: newElabId,
                     tipo_componente: comp.tipo === 'ingrediente' ? 'ARTICULO' : 'ELABORACION',
-                    componente_id: comp.componenteId,
+                    componente_id: compId,
                     cantidad_neta: comp.cantidad,
                     merma_aplicada: comp.merma || 0,
                 });
@@ -147,7 +194,7 @@ async function migrateElaboraciones(): Promise<MigrationResult> {
 /**
  * Migrate eventos (serviceOrders) from localStorage to Supabase
  */
-async function migrateEventos(): Promise<MigrationResult> {
+async function migrateEventos(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('serviceOrders');
         if (!stored) {
@@ -162,7 +209,7 @@ async function migrateEventos(): Promise<MigrationResult> {
         const eventosToInsert = serviceOrders
             .filter(so => so.vertical !== 'Entregas')
             .map(so => ({
-                id: so.id,
+                id: validateOrGenerateUUID(so.id, idMap),
                 numero_expediente: so.serviceNumber,
                 nombre_evento: so.client,
                 fecha_inicio: so.startDate,
@@ -188,7 +235,7 @@ async function migrateEventos(): Promise<MigrationResult> {
 /**
  * Migrate entregas from localStorage to Supabase
  */
-async function migrateEntregas(): Promise<MigrationResult> {
+async function migrateEntregas(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('entregas');
         if (!stored) {
@@ -201,7 +248,7 @@ async function migrateEntregas(): Promise<MigrationResult> {
         }
 
         const entregasToInsert = entregas.map(e => ({
-            id: e.id,
+            id: validateOrGenerateUUID(e.id, idMap),
             numero_expediente: e.serviceNumber || e.numero_expediente,
             nombre_evento: e.eventName || e.nombre_evento,
             fecha_inicio: e.startDate || e.fecha_inicio,
@@ -229,7 +276,7 @@ async function migrateEntregas(): Promise<MigrationResult> {
 /**
  * Migrate transporteOrders from localStorage to Supabase
  */
-async function migrateTransporte(): Promise<MigrationResult> {
+async function migrateTransporte(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('transporteOrders');
         if (!stored) {
@@ -242,8 +289,8 @@ async function migrateTransporte(): Promise<MigrationResult> {
         }
 
         const toInsert = orders.map(o => ({
-            id: o.id,
-            evento_id: o.osId,
+            id: validateOrGenerateUUID(o.id, idMap),
+            evento_id: getMappedId(o.osId, idMap),
             tipo_transporte: o.tipoTransporte,
             proveedor_id: o.proveedorId,
             fecha_servicio: o.fecha,
@@ -278,7 +325,7 @@ async function migrateTransporte(): Promise<MigrationResult> {
 /**
  * Migrate decoracionOrders from localStorage to Supabase
  */
-async function migrateDecoracion(): Promise<MigrationResult> {
+async function migrateDecoracion(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('decoracionOrders');
         if (!stored) {
@@ -291,8 +338,8 @@ async function migrateDecoracion(): Promise<MigrationResult> {
         }
 
         const toInsert = orders.map(o => ({
-            id: o.id,
-            evento_id: o.osId,
+            id: validateOrGenerateUUID(o.id, idMap),
+            evento_id: getMappedId(o.osId, idMap),
             concepto: o.concepto,
             precio: o.precio || 0,
             descripcion: o.observaciones,
@@ -316,7 +363,7 @@ async function migrateDecoracion(): Promise<MigrationResult> {
 /**
  * Migrate atipicoOrders from localStorage to Supabase
  */
-async function migrateAtipicos(): Promise<MigrationResult> {
+async function migrateAtipicos(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('atipicoOrders');
         if (!stored) {
@@ -329,8 +376,8 @@ async function migrateAtipicos(): Promise<MigrationResult> {
         }
 
         const toInsert = orders.map(o => ({
-            id: o.id,
-            evento_id: o.osId,
+            id: validateOrGenerateUUID(o.id, idMap),
+            evento_id: getMappedId(o.osId, idMap),
             concepto: o.concepto,
             precio: o.precio || 0,
             descripcion: o.observaciones,
@@ -355,7 +402,7 @@ async function migrateAtipicos(): Promise<MigrationResult> {
 /**
  * Migrate personalMiceOrders from localStorage to Supabase
  */
-async function migratePersonalMice(): Promise<MigrationResult> {
+async function migratePersonalMice(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('personalMiceOrders');
         if (!stored) {
@@ -372,7 +419,7 @@ async function migratePersonalMice(): Promise<MigrationResult> {
             if (o.items && Array.isArray(o.items)) {
                 o.items.forEach((item: any) => {
                     toInsert.push({
-                        evento_id: o.osId,
+                        evento_id: getMappedId(o.osId, idMap),
                         personal_id: item.id, // Assuming item.id is the personal ID (DNI or UUID)
                         categoria: item.categoria,
                         hora_entrada: item.horaEntrada,
@@ -410,7 +457,7 @@ async function migratePersonalMice(): Promise<MigrationResult> {
 /**
  * Migrate personalExterno from localStorage to Supabase
  */
-async function migratePersonalExterno(): Promise<MigrationResult> {
+async function migratePersonalExterno(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('personalExterno');
         if (!stored) {
@@ -423,7 +470,7 @@ async function migratePersonalExterno(): Promise<MigrationResult> {
         }
 
         const toInsert = orders.map(o => ({
-            evento_id: o.osId,
+            evento_id: getMappedId(o.osId, idMap),
             turnos: o.turnos || [],
             data: {
                 status: o.status,
@@ -447,7 +494,7 @@ async function migratePersonalExterno(): Promise<MigrationResult> {
 /**
  * Migrate personalExternoAjustes from localStorage to Supabase
  */
-async function migratePersonalExternoAjustes(): Promise<MigrationResult> {
+async function migratePersonalExternoAjustes(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('personalExternoAjustes');
         if (!stored) {
@@ -461,8 +508,8 @@ async function migratePersonalExternoAjustes(): Promise<MigrationResult> {
             if (Array.isArray(ajustes)) {
                 ajustes.forEach(a => {
                     toInsert.push({
-                        id: a.id,
-                        evento_id: osId,
+                        id: validateOrGenerateUUID(a.id, idMap),
+                        evento_id: getMappedId(osId, idMap),
                         concepto: a.concepto,
                         importe: a.importe,
                         data: {
@@ -490,7 +537,7 @@ async function migratePersonalExternoAjustes(): Promise<MigrationResult> {
 /**
  * Migrate personalEntrega from localStorage to Supabase
  */
-async function migratePersonalEntrega(): Promise<MigrationResult> {
+async function migratePersonalEntrega(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('personalEntrega');
         if (!stored) {
@@ -503,7 +550,7 @@ async function migratePersonalEntrega(): Promise<MigrationResult> {
         }
 
         const toInsert = orders.map(o => ({
-            entrega_id: o.osId, // Assuming osId maps to entrega_id
+            entrega_id: getMappedId(o.osId, idMap), // Assuming osId maps to entrega_id
             turnos: o.turnos || [],
             data: {
                 status: o.status,
@@ -526,7 +573,7 @@ async function migratePersonalEntrega(): Promise<MigrationResult> {
 /**
  * Migrate ordenesFabricacion from localStorage to Supabase
  */
-async function migrateOrdenesFabricacion(): Promise<MigrationResult> {
+async function migrateOrdenesFabricacion(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('ordenesFabricacion');
         if (!stored) {
@@ -539,8 +586,8 @@ async function migrateOrdenesFabricacion(): Promise<MigrationResult> {
         }
 
         const toInsert = orders.map(o => ({
-            id: o.id,
-            evento_id: o.osIDs && o.osIDs.length > 0 ? o.osIDs[0] : null,
+            id: validateOrGenerateUUID(o.id, idMap),
+            evento_id: o.osIDs && o.osIDs.length > 0 ? getMappedId(o.osIDs[0], idMap) : null,
             items: [], // OrdenFabricacion does not have items in the same way
             estado: o.estado || 'Pendiente',
             data: o // Store full object to preserve all fields
@@ -561,7 +608,7 @@ async function migrateOrdenesFabricacion(): Promise<MigrationResult> {
 /**
  * Migrate pickingSheets from localStorage to Supabase
  */
-async function migratePickingSheets(): Promise<MigrationResult> {
+async function migratePickingSheets(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('pickingSheets');
         if (!stored) {
@@ -573,7 +620,7 @@ async function migratePickingSheets(): Promise<MigrationResult> {
 
         Object.values(sheetsMap).forEach((sheet: any) => {
             toInsert.push({
-                evento_id: sheet.osId,
+                evento_id: getMappedId(sheet.osId, idMap),
                 items: sheet.items || [],
                 estado: sheet.status || 'Pendiente',
                 data: {
@@ -600,7 +647,7 @@ async function migratePickingSheets(): Promise<MigrationResult> {
 /**
  * Migrate returnSheets from localStorage to Supabase
  */
-async function migrateReturnSheets(): Promise<MigrationResult> {
+async function migrateReturnSheets(idMap: IdMap): Promise<MigrationResult> {
     try {
         const stored = localStorage.getItem('returnSheets');
         if (!stored) {
@@ -612,7 +659,7 @@ async function migrateReturnSheets(): Promise<MigrationResult> {
 
         Object.values(sheetsMap).forEach((sheet: any) => {
             toInsert.push({
-                evento_id: sheet.osId,
+                evento_id: getMappedId(sheet.osId, idMap),
                 // items? ReturnSheet might have different structure
                 data: {
                     items: sheet.items, // Storing items in data if no specific column
@@ -658,9 +705,11 @@ function clearMigratedData(entities: string[]) {
 export async function migrateAllData(
     onProgress?: (progress: MigrationProgress) => void
 ): Promise<MigrationProgress> {
+    const idMap: IdMap = new Map();
+
     const migrations = [
+        { name: 'elaboraciones', fn: migrateElaboraciones }, // Run first to populate map
         { name: 'recetas', fn: migrateRecetas },
-        { name: 'elaboraciones', fn: migrateElaboraciones },
         { name: 'eventos', fn: migrateEventos },
         { name: 'entregas', fn: migrateEntregas },
         { name: 'transporte', fn: migrateTransporte },
@@ -688,7 +737,7 @@ export async function migrateAllData(
             });
         }
 
-        const result = await migration.fn();
+        const result = await migration.fn(idMap);
         results.push(result);
         completed++;
     }

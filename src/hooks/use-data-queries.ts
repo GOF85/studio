@@ -597,3 +597,22 @@ export function useGastronomyOrders(eventoId?: string) {
         enabled: !!eventoId || eventoId === undefined,
     });
 }
+
+// ============================================
+// PERSONAL
+// ============================================
+
+export function usePersonal() {
+    return useQuery({
+        queryKey: ['personal'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('personal')
+                .select('*')
+                .order('nombre', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+        },
+    });
+}

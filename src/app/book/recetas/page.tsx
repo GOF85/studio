@@ -19,14 +19,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
@@ -43,10 +43,11 @@ import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/lib/supabase';
 
 const ITEMS_PER_PAGE = 20;
 
-const CSV_HEADERS = [ "id", "numeroReceta", "nombre", "nombre_en", "visibleParaComerciales", "isArchived", "descripcionComercial", "descripcionComercial_en", "responsableEscandallo", "categoria", "partidaProduccion", "gramajeTotal", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "fotosMiseEnPlaceURLs", "instruccionesRegeneracion", "fotosRegeneracionURLs", "instruccionesEmplatado", "fotosEmplatadoURLs", "fotosComercialesURLs", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "recetaOrigen", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "precioVenta", "alergenos", "requiereRevision", "comentarioRevision", "fechaRevision" ];
+const CSV_HEADERS = ["id", "numeroReceta", "nombre", "nombre_en", "visibleParaComerciales", "isArchived", "descripcionComercial", "descripcionComercial_en", "responsableEscandallo", "categoria", "partidaProduccion", "gramajeTotal", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "fotosMiseEnPlaceURLs", "instruccionesRegeneracion", "fotosRegeneracionURLs", "instruccionesEmplatado", "fotosEmplatadoURLs", "fotosComercialesURLs", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "recetaOrigen", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "precioVenta", "alergenos", "requiereRevision", "comentarioRevision", "fechaRevision"];
 
 export default function RecetasPage() {
   const [items, setItems] = useState<Receta[]>([]);
@@ -59,27 +60,39 @@ export default function RecetasPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isRecalculating, setIsRecalculating] = useState(false);
-  
+
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  useEffect(() => {
-    const storedRecipes = localStorage.getItem('recetas');
-    setItems(storedRecipes ? JSON.parse(storedRecipes) : []);
-    
-    const storedCategories = localStorage.getItem('categoriasRecetas');
-    setCategories(storedCategories ? JSON.parse(storedCategories) : []);
 
-    setIsMounted(true);
+  useEffect(() => {
+    const loadData = async () => {
+      const storedData = localStorage.getItem('recetas');
+      setItems(storedData ? JSON.parse(storedData) : []);
+
+      // Load categories from Supabase
+      const { data: categorias, error } = await supabase
+        .from('categorias_recetas')
+        .select('*')
+        .order('nombre', { ascending: true });
+
+      if (error) {
+        console.error('Error loading categorias:', error);
+      } else {
+        setCategories((categorias || []).map(c => c.nombre));
+      }
+
+      setIsMounted(true);
+    };
+    loadData();
   }, []);
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-        const matchesVisibility = statusFilter === 'all' || (statusFilter === 'archived' ? item.isArchived : !item.isArchived);
-        const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesVisibility = statusFilter === 'all' || (statusFilter === 'archived' ? item.isArchived : !item.isArchived);
+      const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory = selectedCategory === 'all' || item.categoria === selectedCategory;
+      const matchesCategory = selectedCategory === 'all' || item.categoria === selectedCategory;
       return matchesVisibility && matchesSearch && matchesCategory;
     });
   }, [items, searchTerm, statusFilter, selectedCategory]);
@@ -97,29 +110,29 @@ export default function RecetasPage() {
   const handleNextPage = () => {
     setCurrentPage(prev => Math.min(totalPages, prev + 1));
   };
-  
+
   const handleExportCSV = () => {
     if (items.length === 0) {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay recetas para exportar.' });
       return;
     }
     const dataToExport = items.map(item => {
-        const arrayFieldsToString = (key: keyof Receta) => {
-            const value = item[key];
-            return Array.isArray(value) ? JSON.stringify(value) : value;
-        }
+      const arrayFieldsToString = (key: keyof Receta) => {
+        const value = item[key];
+        return Array.isArray(value) ? JSON.stringify(value) : value;
+      }
 
-        const exportItem: any = {};
-        CSV_HEADERS.forEach(header => {
-            const key = header as keyof Receta;
-            const value = item[key];
-             if (Array.isArray(value)) {
-                exportItem[key] = JSON.stringify(value);
-            } else {
-                exportItem[key] = value ?? '';
-            }
-        });
-        return exportItem;
+      const exportItem: any = {};
+      CSV_HEADERS.forEach(header => {
+        const key = header as keyof Receta;
+        const value = item[key];
+        if (Array.isArray(value)) {
+          exportItem[key] = JSON.stringify(value);
+        } else {
+          exportItem[key] = value ?? '';
+        }
+      });
+      return exportItem;
     });
 
     const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
@@ -134,17 +147,17 @@ export default function RecetasPage() {
     document.body.removeChild(link);
     toast({ title: 'Exportación completada', description: 'El archivo recetas.csv se ha descargado.' });
   };
-  
+
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
-  
+
   const safeJsonParse = (jsonString: string, fallback: any = []) => {
     try {
-        const parsed = JSON.parse(jsonString);
-        return Array.isArray(parsed) ? parsed : fallback;
+      const parsed = JSON.parse(jsonString);
+      return Array.isArray(parsed) ? parsed : fallback;
     } catch (e) {
-        return fallback;
+      return fallback;
     }
   }
 
@@ -160,10 +173,10 @@ export default function RecetasPage() {
         const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
 
         if (!hasAllHeaders) {
-            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
-            return;
+          toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
+          return;
         }
-        
+
         const importedData: Receta[] = results.data.map(item => ({
           ...item,
           visibleParaComerciales: item.visibleParaComerciales === 'true',
@@ -189,7 +202,7 @@ export default function RecetasPage() {
           etiquetasTendencia: safeJsonParse(item.etiquetasTendencia),
           alergenos: safeJsonParse(item.alergenos),
         }));
-        
+
         localStorage.setItem('recetas', JSON.stringify(importedData));
         setItems(importedData);
         toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
@@ -198,8 +211,8 @@ export default function RecetasPage() {
         toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
       }
     });
-    if(event.target) {
-        event.target.value = '';
+    if (event.target) {
+      event.target.value = '';
     }
   };
 
@@ -212,97 +225,97 @@ export default function RecetasPage() {
       updatedItems = items.filter(item => !selectedItems.has(item.id));
       toast({ title: `${selectedItems.size} recetas eliminadas.` });
     }
-    
+
     localStorage.setItem('recetas', JSON.stringify(updatedItems));
     setItems(updatedItems);
     setSelectedItems(new Set());
     setItemToDelete(null);
   };
-  
+
   const handleSelect = (itemId: string) => {
     setSelectedItems(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(itemId)) {
-            newSet.delete(itemId);
-        } else {
-            newSet.add(itemId);
-        }
-        return newSet;
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
     });
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-        setSelectedItems(new Set(filteredItems.map(item => item.id)));
+      setSelectedItems(new Set(filteredItems.map(item => item.id)));
     } else {
-        setSelectedItems(new Set());
+      setSelectedItems(new Set());
     }
   }
-  
+
   const handleRecalculateAll = () => {
     setIsRecalculating(true);
-    
+
     // Simulating async operation
     setTimeout(() => {
-        try {
-            // 1. Load all necessary data
-            const allErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-            const allIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-            let allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-            let allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+      try {
+        // 1. Load all necessary data
+        const allErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+        const allIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+        let allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        let allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
 
-            const erpMap = new Map(allErp.map(item => [item.idreferenciaerp, item]));
-            const ingredientesMap = new Map(allIngredientes.map(item => [item.id, item]));
+        const erpMap = new Map(allErp.map(item => [item.idreferenciaerp, item]));
+        const ingredientesMap = new Map(allIngredientes.map(item => [item.id, item]));
 
-            // 2. Recalculate all elaborations
-            const elabCostesMap = new Map<string, number>();
+        // 2. Recalculate all elaborations
+        const elabCostesMap = new Map<string, number>();
 
-            allElaboraciones.forEach(elab => {
-                let costeTotalComponentes = 0;
-                (elab.componentes || []).forEach(comp => {
-                    if (comp.tipo === 'ingrediente') {
-                        const ing = ingredientesMap.get(comp.componenteId);
-                        const erpItem = ing ? erpMap.get(ing.productoERPlinkId) : undefined;
-                        const costeReal = erpItem ? (erpItem.precioCompra / (erpItem.unidadConversion || 1)) * (1 - (erpItem.descuento || 0) / 100) : 0;
-                        const costeConMerma = costeReal * (1 + (comp.merma || 0) / 100);
-                        costeTotalComponentes += costeConMerma * comp.cantidad;
-                    } else { // sub-elaboration
-                        const costeSubElab = elabCostesMap.get(comp.componenteId) || 0;
-                        const costeConMerma = costeSubElab * (1 + (comp.merma || 0) / 100);
-                        costeTotalComponentes += costeConMerma * comp.cantidad;
-                    }
-                });
-                const costePorUnidad = elab.produccionTotal > 0 ? costeTotalComponentes / elab.produccionTotal : 0;
-                elab.costePorUnidad = costePorUnidad;
-                elabCostesMap.set(elab.id, costePorUnidad);
-            });
-            
-            localStorage.setItem('elaboraciones', JSON.stringify(allElaboraciones));
+        allElaboraciones.forEach(elab => {
+          let costeTotalComponentes = 0;
+          (elab.componentes || []).forEach(comp => {
+            if (comp.tipo === 'ingrediente') {
+              const ing = ingredientesMap.get(comp.componenteId);
+              const erpItem = ing ? erpMap.get(ing.productoERPlinkId) : undefined;
+              const costeReal = erpItem ? (erpItem.precioCompra / (erpItem.unidadConversion || 1)) * (1 - (erpItem.descuento || 0) / 100) : 0;
+              const costeConMerma = costeReal * (1 + (comp.merma || 0) / 100);
+              costeTotalComponentes += costeConMerma * comp.cantidad;
+            } else { // sub-elaboration
+              const costeSubElab = elabCostesMap.get(comp.componenteId) || 0;
+              const costeConMerma = costeSubElab * (1 + (comp.merma || 0) / 100);
+              costeTotalComponentes += costeConMerma * comp.cantidad;
+            }
+          });
+          const costePorUnidad = elab.produccionTotal > 0 ? costeTotalComponentes / elab.produccionTotal : 0;
+          elab.costePorUnidad = costePorUnidad;
+          elabCostesMap.set(elab.id, costePorUnidad);
+        });
 
-            // 3. Recalculate all recipes
-            allRecetas = allRecetas.map(receta => {
-                const costeMateriaPrima = (receta.elaboraciones || []).reduce((sum, elabEnReceta) => {
-                    const elabCoste = elabCostesMap.get(elabEnReceta.elaboracionId) || 0;
-                    const costeConMerma = elabCoste * (1 + (elabEnReceta.merma || 0) / 100);
-                    return sum + (costeConMerma * elabEnReceta.cantidad);
-                }, 0);
+        localStorage.setItem('elaboraciones', JSON.stringify(allElaboraciones));
 
-                const precioVenta = costeMateriaPrima * (1 + (receta.porcentajeCosteProduccion || 0) / 100);
-                
-                return { ...receta, costeMateriaPrima, precioVenta };
-            });
+        // 3. Recalculate all recipes
+        allRecetas = allRecetas.map(receta => {
+          const costeMateriaPrima = (receta.elaboraciones || []).reduce((sum, elabEnReceta) => {
+            const elabCoste = elabCostesMap.get(elabEnReceta.elaboracionId) || 0;
+            const costeConMerma = elabCoste * (1 + (elabEnReceta.merma || 0) / 100);
+            return sum + (costeConMerma * elabEnReceta.cantidad);
+          }, 0);
 
-            localStorage.setItem('recetas', JSON.stringify(allRecetas));
-            setItems(allRecetas);
-            
-            toast({ title: "¡Éxito!", description: "Se han recalculado y guardado los costes de todas las recetas." });
+          const precioVenta = costeMateriaPrima * (1 + (receta.porcentajeCosteProduccion || 0) / 100);
 
-        } catch (e) {
-            console.error(e);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron recalcular los costes.' });
-        } finally {
-            setIsRecalculating(false);
-        }
+          return { ...receta, costeMateriaPrima, precioVenta };
+        });
+
+        localStorage.setItem('recetas', JSON.stringify(allRecetas));
+        setItems(allRecetas);
+
+        toast({ title: "¡Éxito!", description: "Se han recalculado y guardado los costes de todas las recetas." });
+
+      } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron recalcular los costes.' });
+      } finally {
+        setIsRecalculating(false);
+      }
     }, 500); // Small delay to show loading state
   }
 
@@ -310,102 +323,102 @@ export default function RecetasPage() {
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Recetas..." />;
   }
-  
+
   const numSelected = selectedItems.size;
 
   return (
     <>
-    <TooltipProvider>
-      <div className="flex items-center justify-between mb-6">
-          <Input 
+      <TooltipProvider>
+        <div className="flex items-center justify-between mb-6">
+          <Input
             placeholder="Buscar recetas por nombre o categoría..."
             className="flex-grow max-w-lg"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <div className="flex gap-2">
-             {numSelected > 0 && (
+            {numSelected > 0 && (
               <>
-                <Button variant="outline" onClick={() => handleMassAction('archive')}><Archive className="mr-2"/>Archivar ({numSelected})</Button>
-                <Button variant="destructive" onClick={() => setItemToDelete('mass')}><Trash2 className="mr-2"/>Borrar ({numSelected})</Button>
+                <Button variant="outline" onClick={() => handleMassAction('archive')}><Archive className="mr-2" />Archivar ({numSelected})</Button>
+                <Button variant="destructive" onClick={() => setItemToDelete('mass')}><Trash2 className="mr-2" />Borrar ({numSelected})</Button>
               </>
             )}
-             <Button variant="outline" size="icon" onClick={handleRecalculateAll} disabled={isRecalculating}>
+            <Button variant="outline" size="icon" onClick={handleRecalculateAll} disabled={isRecalculating}>
               {isRecalculating ? <Loader2 className="animate-spin" /> : <RefreshCw />}
             </Button>
             <Button asChild>
-              <Link href="/book/recetas/nueva"><PlusCircle className="mr-2"/>Nueva Receta</Link>
+              <Link href="/book/recetas/nueva"><PlusCircle className="mr-2" />Nueva Receta</Link>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                      <Menu />
-                  </Button>
+                <Button variant="outline" size="icon">
+                  <Menu />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleImportClick}>
-                       <FileUp size={16} className="mr-2"/>Importar CSV
-                       <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept=".csv"
-                        onChange={handleImportCSV}
-                      />
-                  </DropdownMenuItem>
-                   <DropdownMenuItem onClick={handleExportCSV}>
-                       <FileDown size={16} className="mr-2"/>Exportar CSV
-                  </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleImportClick}>
+                  <FileUp size={16} className="mr-2" />Importar CSV
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept=".csv"
+                    onChange={handleImportCSV}
+                  />
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileDown size={16} className="mr-2" />Exportar CSV
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
-        
+
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 items-center">
-            <div className="lg:col-span-1">
-                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger className="w-full max-w-xs">
-                        <SelectValue placeholder="Filtrar por categoría" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Todas las Categorías</SelectItem>
-                        {categories.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
-                    </SelectContent>
-                </Select>
+          <div className="lg:col-span-1">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full max-w-xs">
+                <SelectValue placeholder="Filtrar por categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las Categorías</SelectItem>
+                {categories.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="lg:col-span-2 flex items-center justify-between gap-4">
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
+              <SelectTrigger className="w-full max-w-xs">
+                <SelectValue placeholder="Filtrar por estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Activas</SelectItem>
+                <SelectItem value="archived">Archivadas</SelectItem>
+                <SelectItem value="all">Todas</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+              <span className="text-sm text-muted-foreground">
+                Pág. {currentPage}/{totalPages || 1}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-            <div className="lg:col-span-2 flex items-center justify-between gap-4">
-                 <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-                    <SelectTrigger className="w-full max-w-xs">
-                        <SelectValue placeholder="Filtrar por estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="active">Activas</SelectItem>
-                        <SelectItem value="archived">Archivadas</SelectItem>
-                        <SelectItem value="all">Todas</SelectItem>
-                    </SelectContent>
-                </Select>
-                <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                    <span className="text-sm text-muted-foreground">
-                        Pág. {currentPage}/{totalPages || 1}
-                    </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePreviousPage}
-                        disabled={currentPage === 1}
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleNextPage}
-                        disabled={currentPage >= totalPages}
-                    >
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
+          </div>
         </div>
 
         <div className="border rounded-lg">
@@ -413,17 +426,17 @@ export default function RecetasPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">
-                   <Checkbox
-                        checked={numSelected > 0 && numSelected === paginatedItems.length}
-                        onCheckedChange={(checked) => {
-                            const newSelected = new Set(selectedItems);
-                            paginatedItems.forEach(item => {
-                                if (checked) newSelected.add(item.id);
-                                else newSelected.delete(item.id);
-                            });
-                            setSelectedItems(newSelected);
-                        }}
-                    />
+                  <Checkbox
+                    checked={numSelected > 0 && numSelected === paginatedItems.length}
+                    onCheckedChange={(checked) => {
+                      const newSelected = new Set(selectedItems);
+                      paginatedItems.forEach(item => {
+                        if (checked) newSelected.add(item.id);
+                        else newSelected.delete(item.id);
+                      });
+                      setSelectedItems(newSelected);
+                    }}
+                  />
                 </TableHead>
                 <TableHead className="py-2">Nombre Receta</TableHead>
                 <TableHead className="py-2">Categoría</TableHead>
@@ -436,29 +449,29 @@ export default function RecetasPage() {
             <TableBody>
               {paginatedItems.length > 0 ? (
                 paginatedItems.map(item => (
-                  <TableRow 
-                    key={item.id} 
+                  <TableRow
+                    key={item.id}
                     className={cn(item.isArchived && "bg-secondary/50 text-muted-foreground", "cursor-pointer")}
                     onClick={() => router.push(`/book/recetas/${item.id}`)}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Checkbox 
-                            checked={selectedItems.has(item.id)}
-                            onCheckedChange={() => handleSelect(item.id)}
-                        />
+                      <Checkbox
+                        checked={selectedItems.has(item.id)}
+                        onCheckedChange={() => handleSelect(item.id)}
+                      />
                     </TableCell>
                     <TableCell className="font-medium py-2 flex items-center gap-2">
-                        {item.requiereRevision && (
-                            <Tooltip>
-                                <TooltipTrigger>
-                                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Esta receta necesita revisión.</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        )}
-                        {item.nombre}
+                      {item.requiereRevision && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <AlertTriangle className="h-4 w-4 text-destructive" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Esta receta necesita revisión.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {item.nombre}
                     </TableCell>
                     <TableCell className="py-2">{item.categoria}</TableCell>
                     <TableCell className="py-2">{item.partidaProduccion}</TableCell>
@@ -479,7 +492,7 @@ export default function RecetasPage() {
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/book/recetas/nueva?cloneId=${item.id}`); }}>
                             <Copy className="mr-2 h-4 w-4" /> Clonar
                           </DropdownMenuItem>
-                           <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id)}}>
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
                             <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -497,8 +510,8 @@ export default function RecetasPage() {
             </TableBody>
           </Table>
         </div>
-    </TooltipProvider>
-    <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+      </TooltipProvider>
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
@@ -523,4 +536,3 @@ export default function RecetasPage() {
   );
 }
 
-  

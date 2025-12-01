@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useDeleteTransporteOrder } from '@/hooks/mutations/use-transporte-mutations';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,30 +52,31 @@ export default function TransportePage() {
   const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  
+
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
+  const deleteTransporte = useDeleteTransporteOrder();
 
   useEffect(() => {
     if (!osId) return;
 
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const currentOS = allServiceOrders.find(os => os.id === osId);
-    
+
     if (!currentOS) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
-        router.push('/pes');
-        return;
+      toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
+      router.push('/pes');
+      return;
     }
-    
+
     setServiceOrder(currentOS);
 
     if (currentOS?.space) {
-        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-        const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-        setSpaceAddress(currentSpace?.calle || '');
+      const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
+      const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
+      setSpaceAddress(currentSpace?.calle || '');
     }
 
     const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
@@ -91,15 +93,18 @@ export default function TransportePage() {
   const handleDelete = () => {
     if (!orderToDelete) return;
 
-    let allOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-    const updatedOrders = allOrders.filter((o: TransporteOrder) => o.id !== orderToDelete);
-    localStorage.setItem('transporteOrders', JSON.stringify(updatedOrders));
-    setTransporteOrders(updatedOrders.filter((o: TransporteOrder) => o.osId === osId));
-    
-    toast({ title: 'Pedido de transporte eliminado' });
-    setOrderToDelete(null);
+    deleteTransporte.mutate(orderToDelete, {
+      onSuccess: () => {
+        setTransporteOrders(prev => prev.filter(o => o.id !== orderToDelete));
+        toast({ title: 'Pedido de transporte eliminado' });
+        setOrderToDelete(null);
+      },
+      onError: () => {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el pedido' });
+      }
+    });
   };
-  
+
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Transporte..." />;
   }
@@ -116,75 +121,75 @@ export default function TransportePage() {
       </div>
 
       <Card>
-          <CardHeader><CardTitle>Pedidos de Transporte Realizados</CardTitle></CardHeader>
-          <CardContent>
-               <div className="border rounded-lg">
-                  <Table>
-                      <TableHeader>
-                      <TableRow>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Proveedor</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Recogida</TableHead>
-                          <TableHead>Entrega</TableHead>
-                          <TableHead>Importe</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                      {transporteOrders.length > 0 ? (
-                          transporteOrders.map(order => (
-                          <TableRow key={order.id}>
-                              <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
-                              <TableCell>{order.proveedorNombre}</TableCell>
-                              <TableCell>{order.tipoTransporte}</TableCell>
-                              <TableCell>{order.lugarRecogida} a las {order.horaRecogida}</TableCell>
-                              <TableCell>{order.lugarEntrega} a las {order.horaEntrega}</TableCell>
-                              <TableCell>{formatCurrency(order.precio)}</TableCell>
-                              <TableCell>
-                              <Badge variant={statusVariant[order.status]}>
-                                  {order.status}
-                              </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                              <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                      <span className="sr-only">Abrir menú</span>
-                                      <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/os/${osId}/transporte/pedido?orderId=${order.id}`)}>
-                                      <Pencil className="mr-2 h-4 w-4" />
-                                      Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Eliminar
-                                  </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                              </DropdownMenu>
-                              </TableCell>
-                          </TableRow>
-                          ))
-                      ) : (
-                          <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
-                              No hay pedidos de transporte para esta Orden de Servicio.
-                          </TableCell>
-                          </TableRow>
-                      )}
-                      </TableBody>
-                  </Table>
-              </div>
-              {transporteOrders.length > 0 && (
-                  <div className="flex justify-end mt-4 text-xl font-bold">
-                      Importe Total: {formatCurrency(totalAmount)}
-                  </div>
-              )}
-          </CardContent>
+        <CardHeader><CardTitle>Pedidos de Transporte Realizados</CardTitle></CardHeader>
+        <CardContent>
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Proveedor</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Recogida</TableHead>
+                  <TableHead>Entrega</TableHead>
+                  <TableHead>Importe</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transporteOrders.length > 0 ? (
+                  transporteOrders.map(order => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{order.proveedorNombre}</TableCell>
+                      <TableCell>{order.tipoTransporte}</TableCell>
+                      <TableCell>{order.lugarRecogida} a las {order.horaRecogida}</TableCell>
+                      <TableCell>{order.lugarEntrega} a las {order.horaEntrega}</TableCell>
+                      <TableCell>{formatCurrency(order.precio)}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant[order.status]}>
+                          {order.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menú</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/os/${osId}/transporte/pedido?orderId=${order.id}`)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-24 text-center">
+                      No hay pedidos de transporte para esta Orden de Servicio.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {transporteOrders.length > 0 && (
+            <div className="flex justify-end mt-4 text-xl font-bold">
+              Importe Total: {formatCurrency(totalAmount)}
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>

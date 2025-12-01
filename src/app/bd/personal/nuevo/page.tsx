@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, UserPlus } from 'lucide-react';
+import { Loader2, Save, X, Database, Users, ChevronRight } from 'lucide-react';
 import type { Personal } from '@/types';
 import { DEPARTAMENTOS_PERSONAL } from '@/types';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -102,23 +103,38 @@ export default function NuevoPersonalPage() {
 
   return (
     <>
+      <div className="sticky top-12 z-30 bg-background/95 backdrop-blur-sm border-b">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Link href="/bd" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                <Database className="h-5 w-5" />
+                <span>Bases de datos</span>
+              </Link>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              <Link href="/bd/personal" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                <Users className="h-5 w-5" />
+                <span>Personal Interno</span>
+              </Link>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              <span className="flex items-center gap-2 font-bold text-primary">
+                <span>Nuevo Empleado</span>
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" type="button" onClick={() => router.push('/bd/personal')}> <X className="mr-2" /> Cancelar</Button>
+              <Button type="submit" form="personal-form" disabled={isLoading}>
+                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                <span className="ml-2">Guardar</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
           <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <UserPlus className="h-8 w-8" />
-                <h1 className="text-3xl font-headline font-bold">Nuevo Empleado</h1>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" type="button" onClick={() => router.push('/bd/personal')}> <X className="mr-2" /> Cancelar</Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                  <span className="ml-2">Guardar</span>
-                </Button>
-              </div>
-            </div>
-
             <Card>
               <CardHeader><CardTitle className="text-lg">Información del Empleado</CardTitle></CardHeader>
               <CardContent className="space-y-4">

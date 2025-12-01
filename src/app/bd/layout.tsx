@@ -58,6 +58,28 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
         return bdNavLinks.find(link => pathname.startsWith(link.path));
     }, [pathname]);
 
+    const thirdLevelBreadcrumb = useMemo(() => {
+        if (!currentPage) return null;
+
+        // Check if we're in a sub-route (not just the base path)
+        if (pathname === currentPage.path) return null;
+
+        const pathAfterBase = pathname.replace(currentPage.path, '');
+
+        if (pathAfterBase === '/nuevo') {
+            // Determine label based on the section
+            if (currentPage.path.includes('personal')) return 'Nuevo Empleado';
+            if (currentPage.path.includes('categorias-recetas')) return 'Nueva Categoría';
+            if (currentPage.path.includes('espacios')) return 'Nuevo Espacio';
+            return 'Nuevo';
+        } else if (pathAfterBase.match(/^\/[^/]+$/)) {
+            // It's an ID route like /[id]
+            return 'Editar';
+        }
+
+        return null;
+    }, [pathname, currentPage]);
+
     if (!isMounted) {
         return <div className="h-screen w-full bg-background" />;
     }
@@ -85,10 +107,21 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
                             {currentPage && (
                                 <>
                                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                    <Link href={currentPage.path} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                                    <Link href={currentPage.path} className={cn(
+                                        "flex items-center gap-2 transition-colors",
+                                        thirdLevelBreadcrumb ? "text-muted-foreground hover:text-primary" : "font-bold text-primary"
+                                    )}>
                                         <currentPage.icon className="h-5 w-5" />
                                         <span>{currentPage.title}</span>
                                     </Link>
+                                </>
+                            )}
+                            {thirdLevelBreadcrumb && (
+                                <>
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-bold text-primary">
+                                        {thirdLevelBreadcrumb}
+                                    </span>
                                 </>
                             )}
                         </div>

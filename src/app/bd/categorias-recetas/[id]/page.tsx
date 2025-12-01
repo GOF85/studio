@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { supabase } from '@/lib/supabase';
 
 export default function EditarCategoriaRecetaPage() {
   const router = useRouter();
@@ -32,38 +33,55 @@ export default function EditarCategoriaRecetaPage() {
   });
 
   useEffect(() => {
-    const allItems = JSON.parse(localStorage.getItem('categoriasRecetas') || '[]') as CategoriaReceta[];
-    const item = allItems.find(p => p.id === id);
-    if (item) {
-      form.reset(item);
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la categoría.' });
-      router.push('/bd/categorias-recetas');
-    }
+    const fetchCategoria = async () => {
+      const { data: item, error } = await supabase
+        .from('categorias_recetas')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !item) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la categoría.' });
+        router.push('/bd/categorias-recetas');
+      } else {
+        form.reset(item);
+      }
+    };
+    fetchCategoria();
   }, [id, form, router, toast]);
 
-  function onSubmit(data: CategoriaRecetaFormValues) {
+  async function onSubmit(data: CategoriaRecetaFormValues) {
     setIsLoading(true);
 
-    let allItems = JSON.parse(localStorage.getItem('categoriasRecetas') || '[]') as CategoriaReceta[];
-    const index = allItems.findIndex(p => p.id === id);
+    const { error } = await supabase
+      .from('categorias_recetas')
+      .update({
+        nombre: data.nombre,
+        snack: data.snack
+      })
+      .eq('id', id);
 
-    if (index !== -1) {
-      allItems[index] = data;
-      localStorage.setItem('categoriasRecetas', JSON.stringify(allItems));
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar la categoría: ' + error.message });
+    } else {
       toast({ description: 'Categoría actualizada correctamente.' });
+      router.push('/bd/categorias-recetas');
     }
-    
-    router.push('/bd/categorias-recetas');
     setIsLoading(false);
   }
-  
-  const handleDelete = () => {
-    let allItems = JSON.parse(localStorage.getItem('categoriasRecetas') || '[]') as CategoriaReceta[];
-    const updatedItems = allItems.filter(p => p.id !== id);
-    localStorage.setItem('categoriasRecetas', JSON.stringify(updatedItems));
-    toast({ title: 'Categoría eliminada' });
-    router.push('/bd/categorias-recetas');
+
+  const handleDelete = async () => {
+    const { error } = await supabase
+      .from('categorias_recetas')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la categoría: ' + error.message });
+    } else {
+      toast({ title: 'Categoría eliminada' });
+      router.push('/bd/categorias-recetas');
+    }
   };
 
   return (
@@ -77,15 +95,15 @@ export default function EditarCategoriaRecetaPage() {
                 <h1 className="text-3xl font-headline font-bold">Editar Categoría de Receta</h1>
               </div>
               <div className="flex gap-2">
-                 <Button variant="outline" type="button" onClick={() => router.push('/bd/categorias-recetas')}> <X className="mr-2"/> Cancelar</Button>
-                 <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/> Borrar</Button>
+                <Button variant="outline" type="button" onClick={() => router.push('/bd/categorias-recetas')}> <X className="mr-2" /> Cancelar</Button>
+                <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2" /> Borrar</Button>
                 <Button type="submit" disabled={isLoading}>
                   {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                   <span className="ml-2">Guardar Cambios</span>
                 </Button>
               </div>
             </div>
-            
+
             <Card>
               <CardHeader><CardTitle className="text-lg">Información de la Categoría</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -115,20 +133,20 @@ export default function EditarCategoriaRecetaPage() {
           </form>
         </Form>
       </main>
-        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminará permanentemente la categoría.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la categoría.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

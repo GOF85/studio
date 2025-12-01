@@ -33,13 +33,16 @@ const generalDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
   { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', path: '/bd/espacios', icon: ShoppingBag },
   { id: '3', name: 'Artículos MICE', description: 'Gestión de artículos de Almacén, Bodega, Bio y Alquiler.', path: '/bd/articulos', icon: Package },
   { id: '6', name: 'Tipo Servicio (Briefing)', description: 'Gestión de los tipos de servicio para el comercial.', path: '/bd/tipo-servicio', icon: Soup },
-  { id: '15', name: 'Categorías de Recetas', description: 'Gestiona las categorías para clasificar las recetas.', path: '/bd/categorias-recetas', icon: BookHeart },
   { id: '9', name: 'Atípicos (Conceptos)', description: 'Gestión de conceptos de gastos varios.', path: '/bd/atipicos-db', icon: Percent },
   { id: '10', name: 'Objetivos de Gasto', description: 'Plantillas para el análisis de rentabilidad.', path: '/bd/objetivos-gasto', icon: Target },
   { id: '12', name: 'Decoración (Conceptos)', description: 'Gestión de conceptos de decoración.', path: '/bd/decoracion-db', icon: Flower2 },
   { id: '13', name: 'Base de Datos ERP', description: 'Gestión de precios y productos de proveedores.', path: '/bd/erp', icon: Package },
   { id: '14', name: 'Familias ERP', description: 'Relaciona códigos de familia ERP con Familia y Categoría.', path: '/bd/familiasERP', icon: Layers },
   { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', path: '/bd/plantillas-pedidos', icon: FilePlus2 },
+];
+
+const bookGastronomicoList: Omit<DatabaseEntry, 'itemCount'>[] = [
+  { id: '15', name: 'Categorías de Recetas', description: 'Gestiona las categorías para clasificar las recetas.', path: '/bd/categorias-recetas', icon: BookHeart },
   { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', path: '/bd/formatos-expedicion', icon: Package },
 ];
 
@@ -60,6 +63,7 @@ const cprDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
 export default function BdPage() {
   const { data, loadAllData } = useDataStore();
   const [generalDatabases, setGeneralDatabases] = useState<DatabaseEntry[]>([]);
+  const [bookGastronomicoDBs, setBookGastronomicoDBs] = useState<DatabaseEntry[]>([]);
   const [providerDatabases, setProviderDatabases] = useState<DatabaseEntry[]>([]);
   const [cprDatabases, setCprDatabases] = useState<DatabaseEntry[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -98,6 +102,7 @@ export default function BdPage() {
     }
 
     setGeneralDatabases(updateCounts(generalDatabasesList));
+    setBookGastronomicoDBs(updateCounts(bookGastronomicoList));
     setProviderDatabases(updateCounts(providerDatabasesList));
     setCprDatabases(updateCounts(cprDatabasesList));
   }, [isMounted, data]);
@@ -162,6 +167,7 @@ export default function BdPage() {
         <div className="grid lg:grid-cols-2 gap-8">
           {renderTable(generalDatabases, 'Bases de Datos Generales y de Catering', <Database />)}
           <div className="space-y-8">
+            {renderTable(bookGastronomicoDBs, 'Bases de datos Book Gastronómico', <BookHeart />, 'Gestión de categorías y formatos para el sistema de recetas.')}
             {renderTable(providerDatabases, 'Bases de Datos de Proveedores', <Users />, 'Gestión centralizada de todos los proveedores y sus catálogos de servicios.')}
             {renderTable(cprDatabases, 'Configuración del CPR', <Factory />, 'Parámetros para la cuenta de explotación del Centro de Producción.')}
           </div>

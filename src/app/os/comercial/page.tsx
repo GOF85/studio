@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { PlusCircle, Trash2, Save, Pencil, DollarSign, Check } from 'lucide-react';
 import { format, differenceInMinutes, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { supabase } from '@/lib/supabase';
 
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio, ComercialAjuste } from '@/types';
 import { osFormSchema, type OsFormValues } from '@/app/os/[id]/info/page';
@@ -61,94 +62,94 @@ const briefingItemSchema = z.object({
 type BriefingItemFormValues = z.infer<typeof briefingItemSchema>;
 
 const financialSchema = osFormSchema.pick({
-    agencyPercentage: true,
-    spacePercentage: true,
-    agencyCommissionValue: true,
-    spaceCommissionValue: true,
+  agencyPercentage: true,
+  spacePercentage: true,
+  agencyCommissionValue: true,
+  spaceCommissionValue: true,
 });
 
 type FinancialFormValues = z.infer<typeof financialSchema>;
 
-function FinancialCalculator ({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net:number) => void }) {
-    const { control } = useFormContext();
-    const agencyPercentage = useWatch({ control, name: 'agencyPercentage' });
-    const spacePercentage = useWatch({ control, name: 'spacePercentage' });
-  
-    const facturacionNeta = useMemo(() => {
-      const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
-      const net = totalFacturacion * (1 - totalPercentage / 100);
-      return net;
-    }, [totalFacturacion, agencyPercentage, spacePercentage]);
-  
-    useEffect(() => {
-      onNetChange(facturacionNeta);
-    }, [facturacionNeta, onNetChange]);
-  
-  
-    return (
-      <FormItem className="mt-auto invisible">
-        <FormLabel className="text-lg">Facturación Neta</FormLabel>
-        <FormControl>
-          <Input
-            readOnly
-            value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-            className="font-bold text-primary h-12 text-xl"
-          />
-        </FormControl>
-      </FormItem>
-    );
-  }
+function FinancialCalculator({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net: number) => void }) {
+  const { control } = useFormContext();
+  const agencyPercentage = useWatch({ control, name: 'agencyPercentage' });
+  const spacePercentage = useWatch({ control, name: 'spacePercentage' });
+
+  const facturacionNeta = useMemo(() => {
+    const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
+    const net = totalFacturacion * (1 - totalPercentage / 100);
+    return net;
+  }, [totalFacturacion, agencyPercentage, spacePercentage]);
+
+  useEffect(() => {
+    onNetChange(facturacionNeta);
+  }, [facturacionNeta, onNetChange]);
+
+
+  return (
+    <FormItem className="mt-auto invisible">
+      <FormLabel className="text-lg">Facturación Neta</FormLabel>
+      <FormControl>
+        <Input
+          readOnly
+          value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+          className="font-bold text-primary h-12 text-xl"
+        />
+      </FormControl>
+    </FormItem>
+  );
+}
 
 export default function ComercialPage() {
-    const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
-    const [ajustes, setAjustes] = useState<ComercialAjuste[]>([]);
-    const [isMounted, setIsMounted] = useState(false);
-    const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
+  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
+  const [ajustes, setAjustes] = useState<ComercialAjuste[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+  const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
 
-    const nuevoAjusteConceptoRef = useRef<HTMLInputElement>(null);
-    const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
+  const nuevoAjusteConceptoRef = useRef<HTMLInputElement>(null);
+  const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
 
-    const router = useRouter();
-    const params = useParams();
-    const osId = params.id as string;
-    const { toast } = useToast();
-    
-    const totalBriefing = useMemo(() => {
-        return briefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
-    }, [briefing]);
+  const router = useRouter();
+  const params = useParams();
+  const osId = params.id as string;
+  const { toast } = useToast();
 
-    const totalAjustes = useMemo(() => {
-        return ajustes.reduce((acc, ajuste) => acc + ajuste.importe, 0);
-    }, [ajustes]);
+  const totalBriefing = useMemo(() => {
+    return briefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
+  }, [briefing]);
 
-    const facturacionFinal = useMemo(() => totalBriefing + totalAjustes, [totalBriefing, totalAjustes]);
+  const totalAjustes = useMemo(() => {
+    return ajustes.reduce((acc, ajuste) => acc + ajuste.importe, 0);
+  }, [ajustes]);
 
-    const financialForm = useForm<FinancialFormValues>({
-        resolver: zodResolver(financialSchema),
-        defaultValues: {
-            agencyPercentage: 0,
-            spacePercentage: 0,
-            agencyCommissionValue: 0,
-            spaceCommissionValue: 0,
-        }
-    });
+  const facturacionFinal = useMemo(() => totalBriefing + totalAjustes, [totalBriefing, totalAjustes]);
 
-    const watchedAgencyPercentage = financialForm.watch('agencyPercentage');
-    const watchedSpacePercentage = financialForm.watch('spacePercentage');
-    const watchedAgencyValue = financialForm.watch('agencyCommissionValue');
-    const watchedSpaceValue = financialForm.watch('spaceCommissionValue');
+  const financialForm = useForm<FinancialFormValues>({
+    resolver: zodResolver(financialSchema),
+    defaultValues: {
+      agencyPercentage: 0,
+      spacePercentage: 0,
+      agencyCommissionValue: 0,
+      spaceCommissionValue: 0,
+    }
+  });
 
-    const facturacionNeta = useMemo(() => {
-      const agencyCommission = (facturacionFinal * (watchedAgencyPercentage || 0) / 100) + (watchedAgencyValue || 0);
-      const spaceCommission = (facturacionFinal * (watchedSpacePercentage || 0) / 100) + (watchedSpaceValue || 0);
-      return facturacionFinal - agencyCommission - spaceCommission;
-    }, [facturacionFinal, watchedAgencyPercentage, watchedSpacePercentage, watchedAgencyValue, watchedSpaceValue]);
+  const watchedAgencyPercentage = financialForm.watch('agencyPercentage');
+  const watchedSpacePercentage = financialForm.watch('spacePercentage');
+  const watchedAgencyValue = financialForm.watch('agencyCommissionValue');
+  const watchedSpaceValue = financialForm.watch('spaceCommissionValue');
+
+  const facturacionNeta = useMemo(() => {
+    const agencyCommission = (facturacionFinal * (watchedAgencyPercentage || 0) / 100) + (watchedAgencyValue || 0);
+    const spaceCommission = (facturacionFinal * (watchedSpacePercentage || 0) / 100) + (watchedSpaceValue || 0);
+    return facturacionFinal - agencyCommission - spaceCommission;
+  }, [facturacionFinal, watchedAgencyPercentage, watchedSpacePercentage, watchedAgencyValue, watchedSpaceValue]);
 
 
-   const saveFinancials = useCallback(() => {
+  const saveFinancials = useCallback(() => {
     if (!serviceOrder) return;
 
     const data = financialForm.getValues();
@@ -158,39 +159,50 @@ export default function ComercialPage() {
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const index = allServiceOrders.findIndex(os => os.id === osId);
     if (index !== -1) {
-        allServiceOrders[index] = { 
-            ...allServiceOrders[index], 
-            facturacion: facturacionFinal,
-            agencyPercentage: data.agencyPercentage,
-            spacePercentage: data.spacePercentage,
-            agencyCommissionValue: data.agencyCommissionValue,
-            spaceCommissionValue: data.spaceCommissionValue,
-            comisionesAgencia: agencyCommission,
-            comisionesCanon: spaceCommission,
-        };
-        localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
-        setServiceOrder(allServiceOrders[index]);
+      allServiceOrders[index] = {
+        ...allServiceOrders[index],
+        facturacion: facturacionFinal,
+        agencyPercentage: data.agencyPercentage,
+        spacePercentage: data.spacePercentage,
+        agencyCommissionValue: data.agencyCommissionValue,
+        spaceCommissionValue: data.spaceCommissionValue,
+        comisionesAgencia: agencyCommission,
+        comisionesCanon: spaceCommission,
+      };
+      localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+      setServiceOrder(allServiceOrders[index]);
     }
   }, [serviceOrder, osId, facturacionFinal, financialForm]);
 
   useEffect(() => {
-    const storedTipos = localStorage.getItem('tipoServicio');
-    if (storedTipos) {
-      setTiposServicio(JSON.parse(storedTipos));
-    }
-    
-    const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}') as {[key: string]: ComercialAjuste[]};
+    const loadTiposServicio = async () => {
+      try {
+        const { data } = await supabase
+          .from('tipos_servicio_briefing')
+          .select('*')
+          .order('nombre');
+
+        if (data) {
+          setTiposServicio(data.map(t => ({ id: t.id, servicio: t.nombre })));
+        }
+      } catch (error) {
+        console.error('Error loading service types:', error);
+      }
+    };
+    loadTiposServicio();
+
+    const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}') as { [key: string]: ComercialAjuste[] };
 
     if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
-      if(currentOS){
+      if (currentOS) {
         setServiceOrder(currentOS);
         financialForm.reset({
-            agencyPercentage: currentOS.agencyPercentage || 0,
-            spacePercentage: currentOS.spacePercentage || 0,
-            agencyCommissionValue: currentOS.agencyCommissionValue || 0,
-            spaceCommissionValue: currentOS.spaceCommissionValue || 0,
+          agencyPercentage: currentOS.agencyPercentage || 0,
+          spacePercentage: currentOS.spacePercentage || 0,
+          agencyCommissionValue: currentOS.agencyCommissionValue || 0,
+          spaceCommissionValue: currentOS.spaceCommissionValue || 0,
         });
       } else {
         router.push('/pes');
@@ -199,15 +211,15 @@ export default function ComercialPage() {
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
       const currentBriefing = allBriefings.find(b => b.osId === osId);
       setBriefing(currentBriefing || { osId, items: [] });
-      
+
       setAjustes(allAjustes[osId] || []);
     }
     setIsMounted(true);
   }, [osId, router, financialForm]);
 
-   useEffect(() => {
+  useEffect(() => {
     if (serviceOrder && facturacionFinal !== serviceOrder.facturacion) {
-        saveFinancials();
+      saveFinancials();
     }
   }, [facturacionFinal, serviceOrder, saveFinancials]);
 
@@ -231,7 +243,7 @@ export default function ComercialPage() {
     localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
     setBriefing(newBriefing);
   };
-  
+
   const handleSaveFinancials = (data: FinancialFormValues) => {
     saveFinancials();
     toast({ title: 'Datos financieros actualizados' });
@@ -268,7 +280,7 @@ export default function ComercialPage() {
     saveBriefing({ ...briefing, items: newItems });
     toast({ title: 'Hito eliminado' });
   };
-  
+
   const calculateDuration = (start: string, end: string) => {
     try {
       const startTime = parse(start, 'HH:mm', new Date());
@@ -284,11 +296,11 @@ export default function ComercialPage() {
   };
 
   const saveAjustes = (newAjustes: ComercialAjuste[]) => {
-      if(!osId) return;
-      const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}');
-      allAjustes[osId] = newAjustes;
-      localStorage.setItem('comercialAjustes', JSON.stringify(allAjustes));
-      setAjustes(newAjustes);
+    if (!osId) return;
+    const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}');
+    allAjustes[osId] = newAjustes;
+    localStorage.setItem('comercialAjustes', JSON.stringify(allAjustes));
+    setAjustes(newAjustes);
   };
 
   const handleAddAjuste = () => {
@@ -296,37 +308,37 @@ export default function ComercialPage() {
     const importe = nuevoAjusteImporteRef.current?.value;
 
     if (!concepto || !importe) {
-        toast({ variant: 'destructive', title: 'Error', description: 'El concepto y el importe son obligatorios.' });
-        return;
+      toast({ variant: 'destructive', title: 'Error', description: 'El concepto y el importe son obligatorios.' });
+      return;
     }
     const newAjustes = [...ajustes, { id: Date.now().toString(), concepto, importe: parseFloat(importe) }];
     saveAjustes(newAjustes);
 
-    if(nuevoAjusteConceptoRef.current) nuevoAjusteConceptoRef.current.value = '';
-    if(nuevoAjusteImporteRef.current) nuevoAjusteImporteRef.current.value = '';
+    if (nuevoAjusteConceptoRef.current) nuevoAjusteConceptoRef.current.value = '';
+    if (nuevoAjusteImporteRef.current) nuevoAjusteImporteRef.current.value = '';
   };
-  
+
   const handleDeleteAjuste = (id: string) => {
-      const newAjustes = ajustes.filter(a => a.id !== id);
-      saveAjustes(newAjustes);
+    const newAjustes = ajustes.filter(a => a.id !== id);
+    saveAjustes(newAjustes);
   }
-  
+
   const handleAddLocation = (newLocation: string) => {
     if (!serviceOrder) return;
-    
+
     const updatedOS = {
-        ...serviceOrder,
-        deliveryLocations: [...(serviceOrder.deliveryLocations || []), newLocation]
+      ...serviceOrder,
+      deliveryLocations: [...(serviceOrder.deliveryLocations || []), newLocation]
     };
-    
+
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const osIndex = allServiceOrders.findIndex(os => os.id === serviceOrder.id);
-    
+
     if (osIndex !== -1) {
-        allServiceOrders[osIndex] = updatedOS;
-        localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
-        setServiceOrder(updatedOS);
-        toast({ title: 'Localización añadida', description: `Se ha guardado "${newLocation}" en la Orden de Servicio.`})
+      allServiceOrders[osIndex] = updatedOS;
+      localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+      setServiceOrder(updatedOS);
+      toast({ title: 'Localización añadida', description: `Se ha guardado "${newLocation}" en la Orden de Servicio.` })
     }
   }
 
@@ -347,21 +359,21 @@ export default function ComercialPage() {
         importeFijo: item?.importeFijo || 0,
       }
     });
-    
+
     useEffect(() => {
-        form.reset({
-            id: item?.id || '',
-            fecha: item?.fecha || (serviceOrder?.startDate ? format(new Date(serviceOrder.startDate), 'yyyy-MM-dd') : ''),
-            horaInicio: item?.horaInicio || '09:00',
-            horaFin: item?.horaFin || '10:00',
-            conGastronomia: item?.conGastronomia || false,
-            descripcion: item?.descripcion || '',
-            comentarios: item?.comentarios || '',
-            sala: item?.sala || '',
-            asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
-            precioUnitario: item?.precioUnitario || 0,
-            importeFijo: item?.importeFijo || 0,
-        })
+      form.reset({
+        id: item?.id || '',
+        fecha: item?.fecha || (serviceOrder?.startDate ? format(new Date(serviceOrder.startDate), 'yyyy-MM-dd') : ''),
+        horaInicio: item?.horaInicio || '09:00',
+        horaFin: item?.horaFin || '10:00',
+        conGastronomia: item?.conGastronomia || false,
+        descripcion: item?.descripcion || '',
+        comentarios: item?.comentarios || '',
+        sala: item?.sala || '',
+        asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
+        precioUnitario: item?.precioUnitario || 0,
+        importeFijo: item?.importeFijo || 0,
+      })
     }, [item, serviceOrder, form])
 
 
@@ -369,7 +381,7 @@ export default function ComercialPage() {
     const precioUnitario = form.watch('precioUnitario');
     const importeFijo = form.watch('importeFijo');
     const total = useMemo(() => (asistentes * precioUnitario) + (importeFijo || 0), [asistentes, precioUnitario, importeFijo]);
-    
+
     const locationOptions = useMemo(() => {
       return serviceOrder?.deliveryLocations?.map(loc => ({ label: loc, value: loc })) || [];
     }, [serviceOrder]);
@@ -398,25 +410,25 @@ export default function ComercialPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <FormField control={form.control} name="fecha" render={({field}) => <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem> } />
-                <FormField control={form.control} name="horaInicio" render={({field}) => <FormItem><FormLabel>Hora Inicio</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
-                <FormField control={form.control} name="horaFin" render={({field}) => <FormItem><FormLabel>Hora Fin</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
-                <FormField control={form.control} name="sala" render={({field}) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Sala</FormLabel>
-                       <Combobox
-                          options={locationOptions}
-                          value={field.value || ''}
-                          onChange={handleLocationChange}
-                          placeholder="Busca o crea una sala..."
-                          searchPlaceholder="Buscar sala..."
-                      />
-                      <FormMessage />
-                    </FormItem>
-                 )} />
-                <FormField control={form.control} name="asistentes" render={({field}) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl></FormItem> } />
-                <FormField control={form.control} name="precioUnitario" render={({field}) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
-                 <FormField control={form.control} name="importeFijo" render={({field}) => <FormItem><FormLabel>Importe Fijo</FormLabel><FormControl><Input placeholder="Importe Fijo" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="fecha" render={({ field }) => <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>} />
+                <FormField control={form.control} name="horaInicio" render={({ field }) => <FormItem><FormLabel>Hora Inicio</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>} />
+                <FormField control={form.control} name="horaFin" render={({ field }) => <FormItem><FormLabel>Hora Fin</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>} />
+                <FormField control={form.control} name="sala" render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Sala</FormLabel>
+                    <Combobox
+                      options={locationOptions}
+                      value={field.value || ''}
+                      onChange={handleLocationChange}
+                      placeholder="Busca o crea una sala..."
+                      searchPlaceholder="Buscar sala..."
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="asistentes" render={({ field }) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl></FormItem>} />
+                <FormField control={form.control} name="precioUnitario" render={({ field }) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl></FormItem>} />
+                <FormField control={form.control} name="importeFijo" render={({ field }) => <FormItem><FormLabel>Importe Fijo</FormLabel><FormControl><Input placeholder="Importe Fijo" type="number" step="0.01" {...field} /></FormControl></FormItem>} />
                 <FormItem>
                   <FormLabel>Total</FormLabel>
                   <FormControl>
@@ -425,41 +437,41 @@ export default function ComercialPage() {
                 </FormItem>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                <FormField control={form.control} name="descripcion" render={({field}) => (
-                    <FormItem><FormLabel>Descripción</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un tipo de servicio" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                {tiposServicio.map(tipo => <SelectItem key={tipo.id} value={tipo.servicio}>{tipo.servicio}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </FormItem> 
+                <FormField control={form.control} name="descripcion" render={({ field }) => (
+                  <FormItem><FormLabel>Descripción</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un tipo de servicio" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {tiposServicio.map(tipo => <SelectItem key={tipo.id} value={tipo.servicio}>{tipo.servicio}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
                 )} />
                 <FormField
-                    control={form.control}
-                    name="conGastronomia"
-                    render={({ field }) => (
+                  control={form.control}
+                  name="conGastronomia"
+                  render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3">
-                        <FormControl>
+                      <FormControl>
                         <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
                         />
-                        </FormControl>
-                        <FormLabel className="!m-0">
-                            Con gastronomía
-                        </FormLabel>
+                      </FormControl>
+                      <FormLabel className="!m-0">
+                        Con gastronomía
+                      </FormLabel>
                     </FormItem>
-                    )}
+                  )}
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="comentarios" render={({field}) => <FormItem><FormLabel>Comentarios</FormLabel><FormControl><Textarea placeholder="Comentarios" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="comentarios" render={({ field }) => <FormItem><FormLabel>Comentarios</FormLabel><FormControl><Textarea placeholder="Comentarios" {...field} /></FormControl></FormItem>} />
               </div>
-              
+
               <DialogFooter>
-                 <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
-                 <Button type="submit"><Save className="mr-2" /> Guardar</Button>
+                <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                <Button type="submit"><Save className="mr-2" /> Guardar</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -475,95 +487,95 @@ export default function ComercialPage() {
   return (
     <>
       <FormProvider {...financialForm}>
-           <Accordion type="single" collapsible className="w-full mb-4">
-              <AccordionItem value="item-1">
-                  <Card>
-                      <AccordionTrigger className="p-2">
-                          <div className="flex items-center justify-between w-full">
-                              <CardTitle className="text-base flex items-center gap-2 px-2"><DollarSign/>Información Financiera y Ajustes</CardTitle>
-                               <div className="text-sm font-bold pr-4">
-                                  <span className="text-black dark:text-white">Facturación Neta: </span>
-                                  <span className="text-green-600">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                              </div>
-                          </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                           <div className="grid lg:grid-cols-2 gap-4 p-4 pt-0">
-                              <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()} className="flex flex-col space-y-2">
-                                  <h3 className="text-base font-semibold border-b pb-1">Información Financiera</h3>
-                                  <div className="grid grid-cols-2 gap-4 items-end">
-                                      <FormItem>
-                                          <FormLabel className="text-xs">Fact. Briefing</FormLabel>
-                                          <FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm" /></FormControl>
-                                      </FormItem>
-                                      <FormItem>
-                                          <FormLabel className="text-xs">Facturación Final</FormLabel>
-                                          <FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm"/></FormControl>
-                                      </FormItem>
-                                      <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
-                                          <FormItem>
-                                          <FormLabel className="text-xs">% Agencia</FormLabel>
-                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
-                                          </FormItem>
-                                      )} />
-                                      <FormField control={financialForm.control} name="agencyCommissionValue" render={({ field }) => (
-                                          <FormItem>
-                                          <FormLabel className="text-xs">Comisión Agencia (€)</FormLabel>
-                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
-                                          </FormItem>
-                                      )} />
-                                       <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
-                                          <FormItem>
-                                          <FormLabel className="text-xs">% Espacio</FormLabel>
-                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
-                                          </FormItem>
-                                      )} />
-                                        <FormField control={financialForm.control} name="spaceCommissionValue" render={({ field }) => (
-                                          <FormItem>
-                                          <FormLabel className="text-xs">Canon Espacio (€)</FormLabel>
-                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
-                                          </FormItem>
-                                      )} />
-                                  </div>
-                              </form>
-                              <div className="space-y-2">
-                                  <h3 className="text-base font-semibold border-b pb-1">Ajustes a la Facturación</h3>
-                                  <div className="border rounded-lg">
-                                      <Table>
-                                          <TableBody>
-                                              {ajustes.map(ajuste => (
-                                              <TableRow key={ajuste.id}>
-                                                  <TableCell className="font-medium p-1 text-sm">{ajuste.concepto}</TableCell>
-                                                  <TableCell className="text-right p-1 text-sm">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell>
-                                                  <TableCell className="w-12 text-right p-0 pr-1">
-                                                      <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteAjuste(ajuste.id)}>
-                                                          <Trash2 className="h-4 w-4" />
-                                                      </Button>
-                                                  </TableCell>
-                                              </TableRow>
-                                              ))}
-                                          </TableBody>
-                                          <TableFooter>
-                                          <TableRow>
-                                              <TableCell className="p-1">
-                                                  <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs"/>
-                                              </TableCell>
-                                              <TableCell className="text-right p-1">
-                                                  <Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-24 text-xs"/>
-                                              </TableCell>
-                                              <TableCell className="text-right p-1">
-                                                  <Button type="button" onClick={handleAddAjuste} size="sm" className="h-8 text-xs">Añadir</Button>
-                                              </TableCell>
-                                          </TableRow>
-                                      </TableFooter>
-                                      </Table>
-                                  </div>
-                              </div>
-                          </div>
-                      </AccordionContent>
-                  </Card>
-              </AccordionItem>
-          </Accordion>
+        <Accordion type="single" collapsible className="w-full mb-4">
+          <AccordionItem value="item-1">
+            <Card>
+              <AccordionTrigger className="p-2">
+                <div className="flex items-center justify-between w-full">
+                  <CardTitle className="text-base flex items-center gap-2 px-2"><DollarSign />Información Financiera y Ajustes</CardTitle>
+                  <div className="text-sm font-bold pr-4">
+                    <span className="text-black dark:text-white">Facturación Neta: </span>
+                    <span className="text-green-600">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid lg:grid-cols-2 gap-4 p-4 pt-0">
+                  <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()} className="flex flex-col space-y-2">
+                    <h3 className="text-base font-semibold border-b pb-1">Información Financiera</h3>
+                    <div className="grid grid-cols-2 gap-4 items-end">
+                      <FormItem>
+                        <FormLabel className="text-xs">Fact. Briefing</FormLabel>
+                        <FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm" /></FormControl>
+                      </FormItem>
+                      <FormItem>
+                        <FormLabel className="text-xs">Facturación Final</FormLabel>
+                        <FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm" /></FormControl>
+                      </FormItem>
+                      <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">% Agencia</FormLabel>
+                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={financialForm.control} name="agencyCommissionValue" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Comisión Agencia (€)</FormLabel>
+                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">% Espacio</FormLabel>
+                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={financialForm.control} name="spaceCommissionValue" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Canon Espacio (€)</FormLabel>
+                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                        </FormItem>
+                      )} />
+                    </div>
+                  </form>
+                  <div className="space-y-2">
+                    <h3 className="text-base font-semibold border-b pb-1">Ajustes a la Facturación</h3>
+                    <div className="border rounded-lg">
+                      <Table>
+                        <TableBody>
+                          {ajustes.map(ajuste => (
+                            <TableRow key={ajuste.id}>
+                              <TableCell className="font-medium p-1 text-sm">{ajuste.concepto}</TableCell>
+                              <TableCell className="text-right p-1 text-sm">{ajuste.importe.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                              <TableCell className="w-12 text-right p-0 pr-1">
+                                <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteAjuste(ajuste.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                        <TableFooter>
+                          <TableRow>
+                            <TableCell className="p-1">
+                              <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs" />
+                            </TableCell>
+                            <TableCell className="text-right p-1">
+                              <Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-24 text-xs" />
+                            </TableCell>
+                            <TableCell className="text-right p-1">
+                              <Button type="button" onClick={handleAddAjuste} size="sm" className="h-8 text-xs">Añadir</Button>
+                            </TableCell>
+                          </TableRow>
+                        </TableFooter>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </Card>
+          </AccordionItem>
+        </Accordion>
       </FormProvider>
 
       <Card>

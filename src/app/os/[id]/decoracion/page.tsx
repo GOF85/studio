@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { useDeleteDecoracionOrder } from '@/hooks/mutations/use-decoracion-mutations';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,11 +44,12 @@ export default function DecoracionPage() {
   const [decoracionOrders, setDecoracionOrders] = useState<DecoracionOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  
+
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
+  const deleteDecoracion = useDeleteDecoracionOrder();
 
   useEffect(() => {
     if (osId) {
@@ -59,8 +61,8 @@ export default function DecoracionPage() {
       const relatedOrders = allDecoracionOrders.filter(order => order.osId === osId);
       setDecoracionOrders(relatedOrders);
     } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
-        router.push('/pes');
+      toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
+      router.push('/pes');
     }
     setIsMounted(true);
   }, [osId, router, toast]);
@@ -72,15 +74,18 @@ export default function DecoracionPage() {
   const handleDelete = () => {
     if (!orderToDelete) return;
 
-    let allOrders = JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as DecoracionOrder[];
-    const updatedOrders = allOrders.filter((o: DecoracionOrder) => o.id !== orderToDelete);
-    localStorage.setItem('decoracionOrders', JSON.stringify(updatedOrders));
-    setDecoracionOrders(updatedOrders.filter((o: DecoracionOrder) => o.osId === osId));
-    
-    toast({ title: 'Gasto de decoración eliminado' });
-    setOrderToDelete(null);
+    deleteDecoracion.mutate(orderToDelete, {
+      onSuccess: () => {
+        setDecoracionOrders(prev => prev.filter(o => o.id !== orderToDelete));
+        toast({ title: 'Gasto de decoración eliminado' });
+        setOrderToDelete(null);
+      },
+      onError: () => {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar' });
+      }
+    });
   };
-  
+
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Decoración..." />;
   }
@@ -97,63 +102,63 @@ export default function DecoracionPage() {
       </div>
 
       <Card>
-          <CardHeader><CardTitle>Gastos de Decoración Registrados</CardTitle></CardHeader>
-          <CardContent>
-               <div className="border rounded-lg">
-                  <Table>
-                      <TableHeader>
-                      <TableRow>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Concepto</TableHead>
-                          <TableHead>Importe</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                      {decoracionOrders.length > 0 ? (
-                          decoracionOrders.map(order => (
-                          <TableRow key={order.id}>
-                              <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
-                              <TableCell>{order.concepto}</TableCell>
-                              <TableCell>{formatCurrency(order.precio)}</TableCell>
-                              <TableCell className="text-right">
-                              <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                      <span className="sr-only">Abrir menú</span>
-                                      <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/decoracion/pedido?osId=${osId}&orderId=${order.id}`)}>
-                                      <Pencil className="mr-2 h-4 w-4" />
-                                      Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Eliminar
-                                  </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                              </DropdownMenu>
-                              </TableCell>
-                          </TableRow>
-                          ))
-                      ) : (
-                          <TableRow>
-                          <TableCell colSpan={4} className="h-24 text-center">
-                              No hay gastos de decoración para esta Orden de Servicio.
-                          </TableCell>
-                          </TableRow>
-                      )}
-                      </TableBody>
-                  </Table>
-              </div>
-              {decoracionOrders.length > 0 && (
-                  <div className="flex justify-end mt-4 text-xl font-bold">
-                      Importe Total: {formatCurrency(totalAmount)}
-                  </div>
-              )}
-          </CardContent>
+        <CardHeader><CardTitle>Gastos de Decoración Registrados</CardTitle></CardHeader>
+        <CardContent>
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Concepto</TableHead>
+                  <TableHead>Importe</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {decoracionOrders.length > 0 ? (
+                  decoracionOrders.map(order => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{order.concepto}</TableCell>
+                      <TableCell>{formatCurrency(order.precio)}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menú</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/decoracion/pedido?osId=${osId}&orderId=${order.id}`)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      No hay gastos de decoración para esta Orden de Servicio.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {decoracionOrders.length > 0 && (
+            <div className="flex justify-end mt-4 text-xl font-bold">
+              Importe Total: {formatCurrency(totalAmount)}
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>

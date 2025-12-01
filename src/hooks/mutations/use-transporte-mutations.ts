@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase';;
 import type { TransporteOrder } from '@/types';
 
-const supabase = createClient();
+
 
 /**
  * Hook to create a new transport order

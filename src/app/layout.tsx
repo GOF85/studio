@@ -9,6 +9,8 @@ import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
 import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indicator';
 import { QueryProvider } from '@/providers/query-provider';
+import { MigrationBanner } from '@/components/migration-banner';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 // Force dynamic rendering to prevent static generation issues with useSearchParams
 export const dynamic = 'force-dynamic';
@@ -46,7 +48,9 @@ export default function RootLayout({
               </NProgressProvider>
             </ImpersonatedUserProvider>
           </AuthProvider>
+          <MigrationBanner />
           <Toaster />
+          <SpeedInsights />
         </QueryProvider>
       </body>
     </html>
