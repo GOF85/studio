@@ -651,7 +651,7 @@ export default function EntregaFormPage() {
             styles: { fontSize: 9, cellPadding: 0.5 },
             columnStyles: { 0: { fontStyle: 'bold' } }
         });
-        finalY = (doc as any).lastAutoTable.finalY + 10;
+        finalY = doc.lastAutoTable.finalY + 10;
 
         // --- DESGLOSE POR HITOS ---
         let totalLogisticsCost = 0;
@@ -703,7 +703,7 @@ export default function EntregaFormPage() {
                 styles: { fontSize: 8 },
                 columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' } }
             });
-            finalY = (doc as any).lastAutoTable.finalY + 5;
+            finalY = doc.lastAutoTable.finalY + 5;
             
             doc.setFontSize(10);
             doc.setFont('helvetica', 'bold');
@@ -740,10 +740,10 @@ export default function EntregaFormPage() {
             styles: { fontSize: 9, cellPadding: 1 },
             columnStyles: { 1: { halign: 'right' } }
         });
-        finalY = (doc as any).lastAutoTable.finalY + 10;
+        finalY = doc.lastAutoTable.finalY + 10;
         
         // --- FOOTER ---
-        const pageCount = (doc as any).internal.getNumberOfPages();
+        const pageCount = doc.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
             doc.setFontSize(8);

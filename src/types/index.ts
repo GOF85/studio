@@ -704,6 +704,14 @@ export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
 export const TECNICAS_COCCION = ['Horneado / Asado', 'Fritura', 'Guiso / Estofado', 'Plancha / Salteado', 'Vapor / Hervido', 'Crudo / Marinado', 'Baja Temperatura / Sous-vide'] as const;
 export type TecnicaCoccion = typeof TECNICAS_COCCION[number];
 
+export type ImagenReceta = {
+    id: string;
+    url: string;
+    esPrincipal: boolean;
+    descripcion?: string;
+    orden: number;
+}
+
 export type Receta = {
     id: string;
     numeroReceta?: string;
@@ -723,12 +731,12 @@ export type Receta = {
     elaboraciones: ElaboracionEnReceta[];
     menajeAsociado: { id: string; menajeId: string; descripcion: string; ratio: number }[];
     instruccionesMiseEnPlace: string;
-    fotosMiseEnPlaceURLs?: { value: string }[];
+    fotosMiseEnPlace?: ImagenReceta[];
     instruccionesRegeneracion: string;
-    fotosRegeneracionURLs?: { value: string }[];
+    fotosRegeneracion?: ImagenReceta[];
     instruccionesEmplatado: string;
-    fotosEmplatadoURLs?: { value: string }[];
-    fotosComercialesURLs?: { value: string }[];
+    fotosEmplatado?: ImagenReceta[];
+    fotosComerciales?: ImagenReceta[];
     perfilSaborPrincipal?: SaborPrincipal;
     perfilSaborSecundario?: string[];
     perfilTextura?: string[];

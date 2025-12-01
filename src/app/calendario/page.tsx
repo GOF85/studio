@@ -22,7 +22,6 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import {
   Dialog,
   DialogContent,
@@ -66,7 +65,6 @@ const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' 
 export default function CalendarioServiciosPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
   const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
 
@@ -96,7 +94,6 @@ export default function CalendarioServiciosPage() {
     });
 
     setEvents(allEvents);
-    setIsMounted(true);
   }, []);
 
   const monthStart = startOfMonth(currentDate);
@@ -124,10 +121,6 @@ export default function CalendarioServiciosPage() {
 
   const nextMonth = () => setCurrentDate(add(currentDate, { months: 1 }));
   const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
-
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Calendario..." />;
-  }
 
   return (
     <TooltipProvider delayDuration={100}>

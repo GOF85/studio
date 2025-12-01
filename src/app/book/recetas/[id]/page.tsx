@@ -35,7 +35,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatUnit, cn } from '@/lib/utils';
 import Image from 'next/image';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
@@ -83,12 +82,12 @@ const recetaFormSchema = z.object({
     elaboraciones: z.array(elaboracionEnRecetaSchema).default([]),
     menajeAsociado: z.array(menajeEnRecetaSchema).optional().default([]),
     instruccionesMiseEnPlace: z.string().optional().default(''),
-    fotosComercialesURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
-    fotosMiseEnPlaceURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
+    fotosMiseEnPlace: z.array(z.object({ id: z.string(), url: z.string(), esPrincipal: z.boolean(), descripcion: z.string().optional(), orden: z.number() })).optional().default([]),
     instruccionesRegeneracion: z.string().optional().default(''),
-    fotosRegeneracionURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
+    fotosRegeneracion: z.array(z.object({ id: z.string(), url: z.string(), esPrincipal: z.boolean(), descripcion: z.string().optional(), orden: z.number() })).optional().default([]),
     instruccionesEmplatado: z.string().optional().default(''),
-    fotosEmplatadoURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
+    fotosEmplatado: z.array(z.object({ id: z.string(), url: z.string(), esPrincipal: z.boolean(), descripcion: z.string().optional(), orden: z.number() })).optional().default([]),
+    fotosComerciales: z.array(z.object({ id: z.string(), url: z.string(), esPrincipal: z.boolean(), descripcion: z.string().optional(), orden: z.number() })).optional().default([]),
     perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional(),
     perfilSaborSecundario: z.array(z.string()).optional().default([]),
     perfilTextura: z.array(z.string()).optional().default([]),
@@ -344,10 +343,10 @@ const defaultValues: Partial<RecetaFormValues> = {
     porcentajeCosteProduccion: 30,
     elaboraciones: [],
     menajeAsociado: [],
-    fotosComercialesURLs: [],
-    fotosEmplatadoURLs: [],
-    fotosMiseEnPlaceURLs: [],
-    fotosRegeneracionURLs: [],
+    fotosComerciales: [],
+    fotosEmplatado: [],
+    fotosMiseEnPlace: [],
+    fotosRegeneracion: [],
     perfilSaborSecundario: [],
     perfilTextura: [],
     tipoCocina: [],
@@ -370,7 +369,6 @@ function RecetaFormPage() {
     const isEditing = !isNew && id;
 
     const [isLoading, setIsLoading] = useState(false);
-    const [isDataLoaded, setIsDataLoaded] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -460,56 +458,72 @@ function RecetaFormPage() {
             };
             loadCategorias();
 
-            const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+            const loadReceta = async () => {
+                const currentId = isEditing ? id : cloneId;
 
-            let foundReceta: Receta | undefined;
+                if (currentId) {
+                    // Load from Supabase
+                    const { data: receta, error } = await supabase
+                        .from('recetas')
+                        .select('*')
+                        .eq('id', currentId)
+                        .single();
 
-            const currentId = isEditing ? id : cloneId;
-
-            if (currentId) {
-                foundReceta = allRecetas.find(e => e.id === currentId);
-
-                if (foundReceta) {
-                    initialValues = { ...foundReceta };
-                    if (cloneId) {
-                        initialValues.id = Date.now().toString();
-                        initialValues.nombre = `${foundReceta.nombre} (Copia)`;
+                    if (error) {
+                        console.error('Error loading receta:', error);
+                    } else if (receta) {
+                        initialValues = { ...receta };
+                        if (cloneId) {
+                            initialValues.id = Date.now().toString();
+                            initialValues.nombre = `${receta.nombre} (Copia)`;
+                        }
                     }
-                }
-            } else if (isNew) {
-                const lastRecipe = allRecetas.reduce((last, current) => {
-                    if (!current.numeroReceta || !last?.numeroReceta) return current;
-                    const currentNum = parseInt(current.numeroReceta.substring(2));
-                    const lastNum = parseInt(last.numeroReceta.substring(2));
-                    return currentNum > lastNum ? current : last;
-                }, null as Receta | null);
-                const lastNum = lastRecipe && lastRecipe.numeroReceta ? parseInt(lastRecipe.numeroReceta.substring(2)) : 0;
-                const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
-                initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum };
-            }
+                } else if (isNew) {
+                    // Generate new recipe number
+                    const { data: allRecetas, error } = await supabase
+                        .from('recetas')
+                        .select('numero_receta')
+                        .order('numero_receta', { ascending: false })
+                        .limit(1);
 
-            if (initialValues) {
-                const processedData = {
-                    ...defaultValues,
-                    ...initialValues,
-                    responsableEscandallo: initialValues.responsableEscandallo || '',
-                    fotosComercialesURLs: (initialValues.fotosComercialesURLs || []).map(url => typeof url === 'string' ? { value: url } : url),
-                    fotosEmplatadoURLs: (initialValues.fotosEmplatadoURLs || []).map(url => typeof url === 'string' ? { value: url } : url),
-                    fotosMiseEnPlaceURLs: (initialValues.fotosMiseEnPlaceURLs || []).map(url => typeof url === 'string' ? { value: url } : url),
-                    fotosRegeneracionURLs: (initialValues.fotosRegeneracionURLs || []).map(url => typeof url === 'string' ? { value: url } : url),
-                };
-                form.reset(processedData as RecetaFormValues);
-                recalculateCostsAndAllergens();
-            } else if (isEditing) {
-                toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
-                router.push('/book/recetas');
-            }
+                    if (error) {
+                        console.error('[ERROR] Error loading last recipe number:', error);
+                        console.error('[ERROR] Error details:', JSON.stringify(error, null, 2));
+                    }
+
+                    const lastRecipe = allRecetas?.[0];
+                    const lastNumber = lastRecipe?.numero_receta ? parseInt(lastRecipe.numero_receta.split('-')[1]) : 0;
+                    const newNumber = `R-${(lastNumber + 1).toString().padStart(4, '0')}`;
+
+                    form.setValue('numeroReceta', newNumber);
+                    initialValues = { ...defaultValues, id: Date.now().toString() }; // Set other defaults, numeroReceta is set directly
+                }
+
+                if (initialValues) {
+                    const processedData = {
+                        ...defaultValues,
+                        ...initialValues,
+                        responsableEscandallo: initialValues.responsableEscandallo || '',
+                        fotosComerciales: initialValues.fotosComerciales || [],
+                        fotosEmplatado: initialValues.fotosEmplatado || [],
+                        fotosMiseEnPlace: initialValues.fotosMiseEnPlace || [],
+                        fotosRegeneracion: initialValues.fotosRegeneracion || [],
+                    };
+                    form.reset(processedData as RecetaFormValues);
+                    recalculateCostsAndAllergens();
+                } else if (isEditing) {
+                    toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
+                    router.push('/book/recetas');
+                }
+
+
+            };
+            loadReceta();
 
         } catch (e) {
             console.error("Error crítico durante la carga de datos:", e);
             toast({ variant: 'destructive', title: 'Error de carga', description: 'No se pudieron cargar los datos necesarios.' });
-        } finally {
-            setIsDataLoaded(true);
+
         }
     }, [id, cloneId, isNew, isEditing, form, router, toast, recalculateCostsAndAllergens]);
 
@@ -579,56 +593,119 @@ function RecetaFormPage() {
         })
     };
 
-    const onSubmit = (data: RecetaFormValues) => {
+    const onSubmit = async (data: RecetaFormValues) => {
         setIsLoading(true);
-        let allItems = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
 
-        if (data.requiereRevision && !data.fechaRevision) {
-            data.fechaRevision = new Date().toISOString();
-        }
-
-        const dataToSave: Receta = {
-            ...data,
-            costeMateriaPrima,
-            precioVenta: pvpTeorico,
-            alergenos,
-            partidaProduccion: partidasProduccion.join(', '),
-        };
-
-        if (isEditing && !cloneId) {
-            const index = allItems.findIndex(p => p.id === id);
-            if (index !== -1) {
-                allItems[index] = dataToSave;
-                toast({ description: 'Receta actualizada correctamente.' });
+        try {
+            if (data.requiereRevision && !data.fechaRevision) {
+                data.fechaRevision = new Date().toISOString();
             }
-        } else {
-            allItems.push(dataToSave);
-            toast({ description: cloneId ? 'Receta clonada correctamente.' : 'Receta creada correctamente.' });
-        }
 
-        localStorage.setItem('recetas', JSON.stringify(allItems));
-        setIsLoading(false);
-        form.reset(dataToSave as RecetaFormValues);
+            // Map form data (camelCase) to database schema (snake_case)
+            const dataToSave = {
+                id: data.id,
+                numero_receta: data.numeroReceta,
+                nombre: data.nombre,
+                nombre_en: data.nombre_en,
+                visible_para_comerciales: data.visibleParaComerciales,
+                is_archived: data.isArchived,
+                descripcion_comercial: data.descripcionComercial,
+                descripcion_comercial_en: data.descripcionComercial_en,
+                responsable_escandallo: data.responsableEscandallo,
+                categoria: data.categoria,
+                gramaje_total: data.gramajeTotal,
+                estacionalidad: data.estacionalidad,
+                tipo_dieta: data.tipoDieta,
+                porcentaje_coste_produccion: data.porcentajeCosteProduccion,
+                elaboraciones: data.elaboraciones,
+                menaje_asociado: data.menajeAsociado,
+                instrucciones_mise_en_place: data.instruccionesMiseEnPlace,
+                fotos_mise_en_place: data.fotosMiseEnPlace,
+                instrucciones_regeneracion: data.instruccionesRegeneracion,
+                fotos_regeneracion: data.fotosRegeneracion,
+                instrucciones_emplatado: data.instruccionesEmplatado,
+                fotos_emplatado: data.fotosEmplatado,
+                fotos_comerciales: data.fotosComerciales,
+                perfil_sabor_secundario: data.perfilSaborSecundario,
+                perfil_textura: data.perfilTextura,
+                tipo_cocina: data.tipoCocina,
+                receta_origen: data.recetaOrigen,
+                formato_servicio_ideal: data.formatoServicioIdeal,
+                equipamiento_critico: data.equipamientoCritico,
+                dificultad_produccion: data.dificultadProduccion,
+                estabilidad_buffet: data.estabilidadBuffet,
+                etiquetas_tendencia: data.etiquetasTendencia,
+                requiere_revision: data.requiereRevision,
+                comentario_revision: data.comentarioRevision,
+                fecha_revision: data.fechaRevision || null,
+                coste_materia_prima: costeMateriaPrima,
+                precio_venta: pvpTeorico,
+                alergenos: alergenos,
+                partida_produccion: partidasProduccion.join(', '),
+            };
 
-        if (!isEditing || cloneId) {
-            router.push('/book/recetas');
-        } else {
-            router.replace(`/book/recetas/${id}?t=${Date.now()}`);
+            if (isEditing && !cloneId) {
+                // Update existing recipe
+                const { error } = await supabase
+                    .from('recetas')
+                    .update(dataToSave)
+                    .eq('id', id);
+
+                if (error) throw error;
+                toast({ description: 'Receta actualizada correctamente.' });
+            } else {
+                // Insert new recipe
+                const { error } = await supabase
+                    .from('recetas')
+                    .insert([dataToSave]);
+
+                if (error) throw error;
+                toast({ description: cloneId ? 'Receta clonada correctamente.' : 'Receta creada correctamente.' });
+            }
+
+            // Reset form with the original camelCase data, not the snake_case DB data
+            const formResetData: RecetaFormValues = {
+                ...data,
+                costeMateriaPrima,
+                precioVenta: pvpTeorico,
+                alergenos,
+                partidaProduccion: partidasProduccion.join(', '),
+            };
+            form.reset(formResetData);
+
+            if (!isEditing || cloneId) {
+                router.push('/book/recetas');
+            } else {
+                router.replace(`/book/recetas/${id}?t=${Date.now()}`);
+            }
+        } catch (error: any) {
+            console.error('Error saving recipe:', error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setIsLoading(false);
         }
     }
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!isEditing) return;
-        let allItems = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        const updatedItems = allItems.filter(p => p.id !== id);
-        localStorage.setItem('recetas', JSON.stringify(updatedItems));
-        toast({ title: 'Receta eliminada' });
-        router.push('/book/recetas');
+
+        try {
+            const { error } = await supabase
+                .from('recetas')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            toast({ title: 'Receta eliminada' });
+            router.push('/book/recetas');
+        } catch (error: any) {
+            console.error('Error deleting recipe:', error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        }
     }
 
-    if (!isDataLoaded) {
-        return <LoadingSkeleton title="Cargando receta..." />;
-    }
+
 
     const pageTitle = cloneId ? 'Clonar Receta' : (isNew ? 'Nueva Receta' : 'Editar Receta');
 

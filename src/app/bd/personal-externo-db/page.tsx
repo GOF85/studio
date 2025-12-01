@@ -32,7 +32,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
 import { downloadCSVTemplate } from '@/lib/utils';
@@ -42,7 +41,6 @@ const CSV_HEADERS = ["id", "proveedorId", "nombre", "apellido1", "apellido2", "n
 function PersonalExternoPageContent() {
   const [items, setItems] = useState<PersonalExternoDB[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [providerFilter, setProviderFilter] = useState('all');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -61,7 +59,6 @@ function PersonalExternoPageContent() {
     let storedProveedores = localStorage.getItem('proveedores');
     setProveedores(storedProveedores ? JSON.parse(storedProveedores).filter((p: Proveedor) => p.tipos.includes('Personal')) : []);
 
-    setIsMounted(true);
   }, []);
 
   const filteredItems = useMemo(() => {
@@ -144,144 +141,10 @@ function PersonalExternoPageContent() {
     toast({ title: 'Exportación completada' });
   };
 
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Personal Externo..." />;
-  }
-
-  return (
-    <>
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <Input
-          placeholder="Buscar por nombre o DNI..."
-          className="flex-grow max-w-lg"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <Select value={providerFilter} onValueChange={setProviderFilter}>
-          <SelectTrigger className="w-full md:w-[240px]">
-            <SelectValue placeholder="Filtrar por ETT" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las ETTs</SelectItem>
-            {proveedores.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <div className="flex-grow flex justify-end gap-2">
-          <Button onClick={() => router.push('/bd/personal-externo-db/nuevo')}>
-            <PlusCircle className="mr-2" />
-            Nuevo
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon"><Menu /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
-                <FileUp size={16} className="mr-2" />Importar CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_personal_externo.csv')}>
-                <FileDown size={16} className="mr-2" />Descargar Plantilla
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportCSV}>
-                <FileDown size={16} className="mr-2" />Exportar CSV
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre Completo</TableHead>
-              <TableHead>DNI</TableHead>
-              <TableHead>Proveedor (ETT)</TableHead>
-              <TableHead>Teléfono</TableHead>
-              <TableHead className="text-right w-24">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredItems.length > 0 ? (
-              filteredItems.map(item => (
-                <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/personal-externo-db/${item.id}`)}>
-                  <TableCell className="font-medium">{item.nombreCompleto}</TableCell>
-                  <TableCell>{item.id}</TableCell>
-                  <TableCell>{proveedoresMap.get(item.proveedorId) || 'Desconocido'}</TableCell>
-                  <TableCell>{item.telefono}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                          <span className="sr-only">Abrir menú</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/bd/personal-externo-db/${item.id}`)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  No se encontraron trabajadores.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el registro del trabajador.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={handleDelete}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
-            <AlertDialogDescription>
-              Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="!justify-center gap-4">
-            <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
-            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
-}
 
 export default function PersonalExternoPage() {
   return (
-    <Suspense fallback={<LoadingSkeleton title="Cargando Personal Externo..." />}>
+    <Suspense>
       <PersonalExternoPageContent />
     </Suspense>
   )

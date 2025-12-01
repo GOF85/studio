@@ -29,7 +29,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
 
 const statusOptions: TransporteOrder['status'][] = ['Pendiente', 'Confirmado', 'En Ruta', 'Entregado'];
@@ -55,7 +54,6 @@ export default function PedidoTransportePage() {
   const orderId = searchParams.get('orderId');
   const isEditing = !!orderId;
 
-  const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [proveedores, setProveedores] = useState<ProveedorTransporte[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -105,7 +103,6 @@ export default function PedidoTransportePage() {
       })
     }
     
-    setIsMounted(true);
   }, [osId, orderId, form, isEditing]);
 
   const selectedProviderId = form.watch('proveedorId');
@@ -150,132 +147,3 @@ export default function PedidoTransportePage() {
     router.push(`/os/${osId}/transporte`);
   };
 
-  if (!isMounted || !serviceOrder) {
-    return <LoadingSkeleton title="Cargando Pedido de Transporte..." />;
-  }
-
-  return (
-    <>
-      <main className="container mx-auto px-4 py-8">
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/transporte`)} className="mb-2">
-                            <ArrowLeft className="mr-2" />
-                            Volver al Módulo
-                        </Button>
-                        <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Truck />{isEditing ? 'Editar' : 'Nuevo'} Pedido de Transporte</h1>
-                        <p className="text-muted-foreground">Para la OS: {serviceOrder.serviceNumber}</p>
-                    </div>
-                     <div className="flex gap-2">
-                        <Button variant="outline" type="button" onClick={() => router.push(`/os/${osId}/transporte`)}>
-                            <X className="mr-2 h-4 w-4" />
-                            Cancelar
-                        </Button>
-                        <Button type="submit"><Save className="mr-2" /> Guardar Pedido</Button>
-                    </div>
-                </div>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Detalles del Pedido</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                           <FormField control={form.control} name="fecha" render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel>Fecha del Servicio</FormLabel>
-                                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                                    <PopoverTrigger asChild>
-                                        <FormControl>
-                                        <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                            {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige una fecha</span>}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                        </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={field.value} onSelect={(date) => {field.onChange(date); setIsCalendarOpen(false);}} initialFocus locale={es} />
-                                    </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                             <FormField control={form.control} name="proveedorId" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Proveedor y Tipo de Transporte</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            {proveedores.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreProveedor} - {p.tipoTransporte}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                             <FormItem>
-                                <FormLabel>Precio</FormLabel>
-                                <FormControl>
-                                    <Input value={selectedProvider ? selectedProvider.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'N/A'} readOnly />
-                                </FormControl>
-                            </FormItem>
-                        </div>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            <FormField control={form.control} name="lugarRecogida" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Lugar de Recogida</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
-                            <FormField control={form.control} name="horaRecogida" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Hora de Recogida</FormLabel>
-                                <FormControl><Input type="time" {...field} /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
-                             <FormField control={form.control} name="lugarEntrega" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Lugar de Entrega</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
-                            <FormField control={form.control} name="horaEntrega" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Hora de Entrega</FormLabel>
-                                <FormControl><Input type="time" {...field} /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
-                        </div>
-                         <FormField control={form.control} name="observaciones" render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Observaciones para la Carga</FormLabel>
-                            <FormControl><Textarea {...field} rows={4} /></FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )} />
-                        {isEditing && 
-                             <FormField control={form.control} name="status" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Estado</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger className="w-[180px]"><SelectValue placeholder="Estado..." /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            {statusOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </FormItem>
-                            )} />
-                        }
-                    </CardContent>
-                </Card>
-            </form>
-        </Form>
-      </main>
-    </>
-  );
-}

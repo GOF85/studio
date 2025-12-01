@@ -10,7 +10,6 @@ import type { MaterialOrder, OrderItem, Proveedor, ServiceOrder } from '@/types'
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { formatNumber, formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -37,7 +36,6 @@ export default function IncidenciasRetornoPage() {
     const [incidencias, setIncidencias] = useState<ReturnIncidencia[]>([]);
     const [serviceOrdersMap, setServiceOrdersMap] = useState<Map<string, ServiceOrder>>(new Map());
     const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-    const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [providerFilter, setProviderFilter] = useState('all');
     const [osToDelete, setOsToDelete] = useState<string | null>(null);
@@ -52,7 +50,7 @@ export default function IncidenciasRetornoPage() {
         setServiceOrdersMap(new Map(allServiceOrders.map(os => [os.id, os])));
         setProveedores(allProveedores);
         setIncidencias(loadedIncidencias.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
-        setIsMounted(true);
+
     }, []);
 
     const groupedAndFilteredIncidencias: GroupedIncidencias[] = useMemo(() => {
@@ -161,9 +159,7 @@ export default function IncidenciasRetornoPage() {
         setOsToDelete(null);
     }
 
-    if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Incidencias de Retorno..." />;
-    }
+
     
     const getGroupedIncidentsByType = (incidencias: ReturnIncidencia[]) => {
         return incidencias.reduce((acc, inc) => {

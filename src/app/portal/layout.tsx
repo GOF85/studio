@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, ChevronRight, Activity, UserCog, Factory, Users, Truck } from 'lucide-react';
 import { useAuth } from '@/providers/auth-provider';
-import type { Proveedor } from '@/types';
+import { useProveedor } from '@/hooks/use-data-queries';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -24,27 +24,14 @@ const breadcrumbNameMap: { [key: string]: { name: string; icon: React.ElementTyp
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const { user, profile, isProvider, isLoading } = useAuth();
-    const [proveedor, setProveedor] = useState<Proveedor | null>(null);
+    const { profile } = useAuth();
+    const { data: proveedor, isLoading: isLoadingProveedor } = useProveedor(profile?.proveedor_id);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
-        if (profile?.proveedor_id) {
-            // In a real app, we should fetch this from Supabase "proveedores" table
-            // For now, we keep the localStorage fallback or fetch from DB if we implement it
-            // Let's try to fetch from DB first, then fallback to localStorage for migration
-            const fetchProveedor = async () => {
-                // TODO: Fetch from Supabase
-                const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-                const currentProveedor = allProveedores.find(p => p.id === profile.proveedor_id);
-                setProveedor(currentProveedor || null);
-            };
-            fetchProveedor();
-        } else {
-            setProveedor(null);
-        }
-    }, [profile]);
+    }, []);
+
 
     const pathSegments = useMemo(() => {
         const segments = pathname.split('/').filter(Boolean);
@@ -78,8 +65,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                                 );
                             }) : <Skeleton className="h-5 w-64" />}
                         </div>
-                        {isMounted && proveedor && (
-                            <Badge variant="outline">{proveedor.nombreComercial}</Badge>
+                        {isLoadingProveedor ? (
+                            <Skeleton className="h-5 w-32" />
+                        ) : proveedor && (
+                            <Badge variant="outline">{proveedor.nombre_comercial}</Badge>
                         )}
                     </div>
                 </div>

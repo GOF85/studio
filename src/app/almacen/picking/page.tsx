@@ -17,7 +17,6 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ServiceOrder, PickingSheet } from '@/types';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -32,7 +31,6 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function GestionPickingPage() {
-    const [isMounted, setIsMounted] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfToday(),
         to: addDays(startOfToday(), 7),
@@ -45,7 +43,7 @@ export default function GestionPickingPage() {
     const { toast } = useToast();
 
     useEffect(() => {
-        setIsMounted(true);
+
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const serviceOrdersMap = new Map(allServiceOrders.map(os => [os.id, os]));
         
@@ -92,9 +90,7 @@ export default function GestionPickingPage() {
         }).sort((a, b) => new Date(a.fechaNecesidad).getTime() - new Date(b.fechaNecesidad).getTime());
     }, [pickingSheets, dateRange, searchTerm]);
 
-    if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Gestión de Picking..." />;
-    }
+
     
     const getStatusVariant = (status: PickingSheet['status']): 'default' | 'secondary' | 'outline' => {
         if(status === 'Listo') return 'default';

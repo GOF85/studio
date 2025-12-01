@@ -11,7 +11,6 @@ import type { OrdenFabricacion, Personal, Elaboracion, IngredienteInterno, Artic
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -186,7 +185,6 @@ export default function ProduccionPage() {
   const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);
   const [elaboraciones, setElaboraciones] = useState<Map<string, Elaboracion>>(new Map());
   const [ingredientes, setIngredientes] = useState<Map<string, IngredienteConERP>>(new Map());
-  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -209,7 +207,6 @@ export default function ProduccionPage() {
     if(lastSelected) {
         setSelectedCocinero(lastSelected);
     }
-    setIsMounted(true);
   }, []);
 
   const handleSelectCocinero = (cocinero: string) => {
@@ -243,105 +240,3 @@ export default function ProduccionPage() {
       .filter(Boolean) as IngredienteConERP[];
   }
 
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Taller de Producción..." />;
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex flex-col items-center gap-4 mb-8">
-        <ChefHat className="h-16 w-16 text-primary" />
-        <h1 className="text-4xl font-headline font-bold">Taller de Producción</h1>
-        <div className="w-full max-w-sm">
-            <Select onValueChange={handleSelectCocinero} value={selectedCocinero || ''}>
-                <SelectTrigger className="h-12 text-lg">
-                    <SelectValue placeholder="Selecciona tu nombre para empezar..." />
-                </SelectTrigger>
-                <SelectContent>
-                    {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre} {p.apellidos}</SelectItem>)}
-                </SelectContent>
-            </Select>
-        </div>
-      </div>
-
-      <Tabs defaultValue="tareas">
-        <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="tareas">Mis Tareas</TabsTrigger>
-            <TabsTrigger value="etiquetas">Impresión de Etiquetas</TabsTrigger>
-        </TabsList>
-        <TabsContent value="tareas" className="mt-4">
-             {selectedCocinero && (
-                <div className="border rounded-lg">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Elaboración</TableHead>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Cantidad</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead>Cronómetro</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredOrdenesTareas.length > 0 ? (
-                                filteredOrdenesTareas.map(of => (
-                                   <TareaRow key={of.id} of={of} router={router} />
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="h-48 text-center text-lg text-muted-foreground">
-                                        No tienes órdenes de fabricación asignadas.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            )}
-        </TabsContent>
-        <TabsContent value="etiquetas" className="mt-4">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Etiquetado de Producción Finalizada</CardTitle>
-                    <CardDescription>Selecciona un lote para generar su etiqueta.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Lote (OF)</TableHead>
-                                <TableHead>Elaboración</TableHead>
-                                <TableHead>Fecha Finalización</TableHead>
-                                <TableHead className="text-right">Acción</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredOrdenesFinalizadas.length > 0 ? (
-                                filteredOrdenesFinalizadas.map(of => {
-                                   const elab = elaboraciones.get(of.elaboracionId);
-                                   const ings = elab ? getIngredientesForElaboracion(elab.id) : [];
-                                   return (
-                                     <TableRow key={of.id}>
-                                        <TableCell><Badge variant="secondary">{of.id}</Badge></TableCell>
-                                        <TableCell>{of.elaboracionNombre}</TableCell>
-                                        <TableCell>{of.fechaFinalizacion ? format(new Date(of.fechaFinalizacion), 'dd/MM/yyyy HH:mm') : '-'}</TableCell>
-                                        <TableCell className="text-right">
-                                            <PrintLabelDialog of={of} elaboracion={elab || null} ingredientes={ings} />
-                                        </TableCell>
-                                    </TableRow>
-                                  )
-                                })
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center">No hay órdenes de fabricación finalizadas por ti.</TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}

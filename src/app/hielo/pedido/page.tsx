@@ -20,7 +20,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
 import {
   Table,
@@ -107,7 +106,6 @@ export default function PedidoHieloPage() {
   const orderId = searchParams.get('orderId');
   const isEditing = !!orderId;
 
-  const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
@@ -151,8 +149,7 @@ export default function PedidoHieloPage() {
         observaciones: '',
       });
     }
-    
-    setIsMounted(true);
+
   }, [osId, orderId, form, isEditing]);
 
   const selectedProviderId = form.watch('proveedorId');
@@ -213,8 +210,8 @@ export default function PedidoHieloPage() {
     router.push(`/os/${osId}/hielo`);
   };
 
-  if (!isMounted || !serviceOrder) {
-    return <LoadingSkeleton title="Cargando Pedido de Hielo..." />;
+  if (!serviceOrder) {
+
   }
 
   return (

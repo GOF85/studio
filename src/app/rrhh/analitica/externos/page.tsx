@@ -7,7 +7,6 @@ import { format, parseISO, startOfToday, subDays, isWithinInterval, endOfDay, st
 import { es } from 'date-fns/locale';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, PersonalMiceOrder, PersonalExterno, SolicitudPersonalCPR, CategoriaPersonal, Proveedor, Personal, PersonalExternoDB } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -77,7 +76,6 @@ type AnaliticaData = {
 
 
 export default function AnaliticaExternosPage() {
-    const [isMounted, setIsMounted] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfMonth(new Date()),
         to: endOfMonth(new Date()),
@@ -105,7 +103,6 @@ export default function AnaliticaExternosPage() {
         setPersonalInterno(JSON.parse(localStorage.getItem('personal') || '[]'));
         setPersonalExternoDB(JSON.parse(localStorage.getItem('personalExternoDB') || '[]'));
         setTiposPersonal(JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]);
-        setIsMounted(true);
     }, []);
 
     const uniqueProveedores = useMemo(() => {
@@ -128,7 +125,7 @@ export default function AnaliticaExternosPage() {
     }
 
     const analiticaData: AnaliticaData = useMemo(() => {
-        if (!isMounted || !dateRange?.from) return { costeTotal: 0, costePlanificado: 0, desviacionCoste: 0, horasTotales: 0, horasPlanificadas: 0, desviacionHoras: 0, numTurnos: 0, costePorProveedor: [], horasPorCategoria: [], detalleCompleto: [] };
+        if (!dateRange?.from) return { costeTotal: 0, costePlanificado: 0, desviacionCoste: 0, horasTotales: 0, horasPlanificadas: 0, desviacionHoras: 0, numTurnos: 0, costePorProveedor: [], horasPorCategoria: [], detalleCompleto: [] };
 
         const rangeStart = startOfDay(dateRange.from);
         const rangeEnd = endOfDay(dateRange.to || dateRange.from);
@@ -228,7 +225,7 @@ export default function AnaliticaExternosPage() {
             detalleCompleto: detalleCompleto.sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()),
         };
 
-    }, [isMounted, dateRange, proveedorFilter, osFilter, allPersonalMice, allPersonalExterno, allSolicitudesCPR, proveedores, personalInterno, personalExternoDB, tiposPersonal]);
+    }, [dateRange, proveedorFilter, osFilter, allPersonalMice, allPersonalExterno, allSolicitudesCPR, proveedores, personalInterno, personalExternoDB, tiposPersonal]);
     
     const { workerPerformanceSummary, performanceTotals } = useMemo(() => {
         if (!analiticaData.detalleCompleto) return { workerPerformanceSummary: [], performanceTotals: { totalJornadas: 0, totalHorasReales: 0, totalCosteReal: 0, mediaValoracion: 0 }};
@@ -335,277 +332,3 @@ export default function AnaliticaExternosPage() {
         setIsDatePickerOpen(false);
     };
     
-    if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Analítica de RRHH..." />;
-    }
-
-    return (
-        <main>
-            <Card className="mb-6">
-                <CardContent className="p-4 flex flex-col xl:flex-row gap-4">
-                     <div className="flex flex-wrap items-center gap-2">
-                         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                            <PopoverTrigger asChild>
-                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[260px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
-                            </PopoverContent>
-                        </Popover>
-                         <div className="flex gap-1">
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('month')}>Mes</Button>
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
-                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
-                        </div>
-                    </div>
-                     <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                         <Select value={proveedorFilter} onValueChange={setProveedorFilter}>
-                            <SelectTrigger><div className="flex items-center gap-2 text-xs truncate"><Users /> <SelectValue /></div></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los Proveedores ETT</SelectItem>
-                                {uniqueProveedores.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                         <Input
-                            placeholder="Buscar por OS / Centro..."
-                            value={osFilter}
-                            onChange={(e) => setOsFilter(e.target.value)}
-                        />
-                    </div>
-                </CardContent>
-            </Card>
-            <div className="grid gap-2 md:grid-cols-4 lg:grid-cols-7 mb-6">
-                <KpiCard title="Coste Total Personal" value={formatCurrency(analiticaData.costeTotal)} icon={Euro} description="Suma de costes reales en el periodo." />
-                <KpiCard title="Coste / Hora Medio" value={formatCurrency(analiticaData.horasTotales > 0 ? analiticaData.costeTotal / analiticaData.horasTotales : 0)} icon={Shuffle} description="Coste real total / Horas reales totales." />
-                <KpiCard title="Horas Totales Trabajadas" value={formatNumber(analiticaData.horasTotales, 2)} icon={Clock} description="Suma de todas las horas reales trabajadas."/>
-                <KpiCard title="Nº Total de Turnos" value={formatNumber(analiticaData.numTurnos, 0)} icon={Users} description="Número total de jornadas individuales."/>
-                <KpiCard title="Desviación de Coste" value={formatCurrency(analiticaData.desviacionCoste)} icon={analiticaData.desviacionCoste > 0 ? TrendingDown : TrendingUp} className={analiticaData.desviacionCoste > 0 ? 'text-destructive' : 'text-green-600'} description="Coste Real vs. Planificado."/>
-                <KpiCard title="Desviación de Horas" value={formatNumber(analiticaData.desviacionHoras, 2) + 'h'} icon={analiticaData.desviacionHoras > 0 ? TrendingDown : TrendingUp} className={analiticaData.desviacionHoras > 0 ? 'text-destructive' : 'text-green-600'} description="Horas Reales vs. Planificadas."/>
-                <KpiCard title="Valoración Media" value={formatNumber(performanceTotals.mediaValoracion, 2)} icon={Star} description="Valoración media de todo el personal externo."/>
-            </div>
-            
-            <Tabs defaultValue="resumen">
-                <TabsList className="grid w-full grid-cols-3 mb-6">
-                    <TabsTrigger value="resumen">Resumen Gráfico</TabsTrigger>
-                    <TabsTrigger value="detalle">Detalle por Turno</TabsTrigger>
-                    <TabsTrigger value="valoracion">Rendimiento de Empleados</TabsTrigger>
-                </TabsList>
-                <TabsContent value="resumen">
-                    <div className="grid lg:grid-cols-2 gap-8 mb-8">
-                        <Card>
-                            <CardHeader><CardTitle>Coste Real por Proveedor ETT</CardTitle></CardHeader>
-                            <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={analiticaData.costePorProveedor} layout="vertical" margin={{ left: 100 }}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
-                                        <YAxis type="category" dataKey="name" width={100} stroke="#888888" fontSize={12} />
-                                        <Tooltip formatter={(value:any) => formatCurrency(value)} />
-                                        <Bar dataKey="value" name="Coste" fill="hsl(var(--primary))" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader><CardTitle>Horas Reales por Categoría Profesional</CardTitle></CardHeader>
-                            <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={analiticaData.horasPorCategoria} layout="vertical" margin={{ left: 100 }}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis type="number" tickFormatter={(value) => `${value}h`} />
-                                        <YAxis type="category" dataKey="name" width={100} stroke="#888888" fontSize={12} />
-                                        <Tooltip formatter={(value:any) => `${formatNumber(value, 2)} horas`} />
-                                        <Bar dataKey="value" name="Horas" fill="hsl(var(--primary))" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-                 <TabsContent value="detalle">
-                     <Card>
-                        <CardHeader><CardTitle>Detalle por Turno</CardTitle></CardHeader>
-                        <CardContent>
-                            <div className="border rounded-lg max-h-[60vh] overflow-y-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Nombre</TableHead>
-                                            <TableHead>Tipo</TableHead>
-                                            <TableHead>OS / Centro</TableHead>
-                                            <TableHead>Fecha</TableHead>
-                                            <TableHead>Horario Plan.</TableHead>
-                                            <TableHead>Horario Real</TableHead>
-                                            <TableHead className="text-right">H. Plan.</TableHead>
-                                            <TableHead className="text-right">H. Reales</TableHead>
-                                            <TableHead className="text-right">Coste Plan.</TableHead>
-                                            <TableHead className="text-right">Coste Real</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {analiticaData.detalleCompleto.map(t => {
-                                            const hasDeviation = Math.abs(t.horasReales - t.horasPlanificadas) > 0.1;
-                                            return (
-                                            <TableRow key={t.id} className={cn(hasDeviation && "bg-amber-50")}>
-                                                <TableCell className="font-semibold">{t.nombre}</TableCell>
-                                                <TableCell>
-                                                    <Badge variant={t.esExterno ? 'outline' : 'secondary'}>
-                                                        {t.proveedor}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell><Badge variant="outline">{t.osNumber}</Badge></TableCell>
-                                                <TableCell>{format(new Date(t.fecha), 'dd/MM/yy')}</TableCell>
-                                                <TableCell>{t.horarioPlanificado}</TableCell>
-                                                <TableCell className={cn(hasDeviation && "font-bold text-amber-700")}>{t.horarioReal || '-'}</TableCell>
-                                                <TableCell className="text-right font-mono">{formatNumber(t.horasPlanificadas, 2)}h</TableCell>
-                                                <TableCell className="text-right font-mono">{formatNumber(t.horasReales, 2)}h</TableCell>
-                                                <TableCell className="text-right font-mono">{formatCurrency(t.costePlanificado)}</TableCell>
-                                                <TableCell className="text-right font-mono">{formatCurrency(t.costeReal)}</TableCell>
-                                            </TableRow>
-                                        )})}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                 </TabsContent>
-                 <TabsContent value="valoracion">
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Resumen Global del Personal Externo</CardTitle>
-                                <CardDescription>Totales para todos los trabajadores externos en el periodo seleccionado.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Table>
-                                <TableBody>
-                                <TableRow>
-                                    <TableHead className="font-bold">Total Jornadas</TableHead>
-                                    <TableCell>{performanceTotals.totalJornadas}</TableCell>
-                                    <TableHead className="font-bold">Total Horas Reales</TableHead>
-                                    <TableCell>{formatNumber(performanceTotals.totalHorasReales, 2)}h</TableCell>
-                                    <TableHead className="font-bold">Coste Real Total</TableHead>
-                                    <TableCell>{formatCurrency(performanceTotals.totalCosteReal)}</TableCell>
-                                    <TableHead className="font-bold">Valoración Media</TableHead>
-                                    <TableCell className="flex items-center gap-2">
-                                        <StarRating rating={performanceTotals.mediaValoracion} /> ({formatNumber(performanceTotals.mediaValoracion, 2)})
-                                    </TableCell>
-                                </TableRow>
-                                </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader><CardTitle>Resumen de Rendimiento por Trabajador Externo</CardTitle></CardHeader>
-                             <CardContent>
-                                 <div className="border rounded-lg max-h-96 overflow-y-auto">
-                                     <Table>
-                                         <TableHeader>
-                                             <TableRow>
-                                                 <TableHead>Nombre</TableHead>
-                                                 <TableHead>ETT</TableHead>
-                                                 <TableHead className="text-center">Jornadas Realizadas</TableHead>
-                                                 <TableHead>Valoración Media</TableHead>
-                                             </TableRow>
-                                         </TableHeader>
-                                         <TableBody>
-                                             {workerPerformanceSummary.map(w => (
-                                                 <TableRow key={w.id} onClick={() => setSelectedWorkerForModal({ id: w.id, nombre: w.nombre })} className="cursor-pointer hover:bg-muted/50">
-                                                     <TableCell className="font-semibold">{w.nombre}</TableCell>
-                                                     <TableCell><Badge variant="secondary">{w.proveedor}</Badge></TableCell>
-                                                     <TableCell className="text-center">{w.totalJornadas}</TableCell>
-                                                     <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            <StarRating rating={w.avgRating} />
-                                                            <span className="text-muted-foreground text-sm">({formatNumber(w.avgRating, 2)})</span>
-                                                        </div>
-                                                     </TableCell>
-                                                 </TableRow>
-                                             ))}
-                                         </TableBody>
-                                     </Table>
-                                 </div>
-                             </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader><CardTitle>Detalle de Valoraciones</CardTitle></CardHeader>
-                            <CardContent>
-                                <div className="border rounded-lg max-h-[60vh] overflow-y-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Nombre</TableHead>
-                                                <TableHead>OS / Centro</TableHead>
-                                                <TableHead>Fecha</TableHead>
-                                                <TableHead className="text-center">Valoración</TableHead>
-                                                <TableHead>Comentarios</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {analiticaData.detalleCompleto.filter(t => t.rating).map(t => (
-                                                <TableRow key={t.id}>
-                                                    <TableCell className="font-semibold">{t.nombre}</TableCell>
-                                                    <TableCell><Badge variant="outline">{t.osNumber}</Badge></TableCell>
-                                                    <TableCell>{format(new Date(t.fecha), 'dd/MM/yy')}</TableCell>
-                                                    <TableCell className="text-center font-bold text-lg text-amber-500">
-                                                        <div className="flex justify-center">
-                                                            <StarRating rating={t.rating || 0} />
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-sm text-muted-foreground">{t.comentarios}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                 </TabsContent>
-            </Tabs>
-             <Dialog open={!!selectedWorkerForModal} onOpenChange={() => setSelectedWorkerForModal(null)}>
-                <DialogContent className="max-w-4xl">
-                    <DialogHeader className="flex-row justify-between items-center">
-                        <DialogTitle>Historial de Servicios: {selectedWorkerForModal?.nombre}</DialogTitle>
-                         <Button variant="outline" size="sm" onClick={handlePrintWorkerHistory}>
-                            <Printer className="mr-2 h-4 w-4" />
-                            Imprimir Historial
-                        </Button>
-                    </DialogHeader>
-                    <div className="max-h-[60vh] overflow-y-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Fecha</TableHead>
-                                    <TableHead>OS / Centro</TableHead>
-                                    <TableHead>Horario Real</TableHead>
-                                    <TableHead>Horas</TableHead>
-                                    <TableHead>Coste</TableHead>
-                                    <TableHead>Valoración</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {selectedWorkerDetails?.turnos.map(t => (
-                                    <TableRow key={t.id}>
-                                        <TableCell>{format(new Date(t.fecha), 'dd/MM/yy')}</TableCell>
-                                        <TableCell><Badge variant="outline">{t.osNumber}</Badge></TableCell>
-                                        <TableCell>{t.horarioReal}</TableCell>
-                                        <TableCell>{formatNumber(t.horasReales, 2)}h</TableCell>
-                                        <TableCell>{formatCurrency(t.costeReal)}</TableCell>
-                                        <TableCell><StarRating rating={t.rating || 0} /></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </DialogContent>
-            </Dialog>
-        </main>
-    );
-}

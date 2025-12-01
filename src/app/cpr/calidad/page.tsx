@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import {
   Select,
   SelectContent,
@@ -51,7 +50,6 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
 
 export default function CalidadPage() {
   const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
   const [ofForIncident, setOfForIncident] = useState<OrdenFabricacion | null>(null);
@@ -78,7 +76,6 @@ export default function CalidadPage() {
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     setElaboracionesMap(new Map(allElaboraciones.map(e => [e.id, e])));
 
-    setIsMounted(true);
   }, []);
   
   const handleValidate = (ofId: string) => {
@@ -190,152 +187,3 @@ export default function CalidadPage() {
   };
 
 
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Control de Calidad..." />;
-  }
-
-  const renderStatusBadge = (of: OrdenFabricacion) => {
-    if (of.incidencia) return <Badge variant="destructive">Incidencia</Badge>;
-    if (of.okCalidad) return <Badge className="bg-green-600">Validado</Badge>;
-    if (of.estado === 'Finalizado') return <Badge variant="secondary">Pendiente Calidad</Badge>;
-    return <Badge variant="outline">{of.estado}</Badge>
-  }
-
-  return (
-    <div>
-       <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
-        <div className="relative flex-grow">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Buscar por Nº de Lote o Elaboración..."
-            className="pl-8 w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-            <PopoverTrigger asChild>
-                <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal md:w-[300px]", !dateRange && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
-            </PopoverContent>
-        </Popover>
-        <div className="flex items-center space-x-2">
-            <Checkbox id="showAll" checked={showAll} onCheckedChange={(checked) => setShowAll(Boolean(checked))} />
-            <Label htmlFor="showAll">Ver todos los lotes</Label>
-        </div>
-        <Button variant="secondary" onClick={handleClearFilters}>Limpiar Filtros</Button>
-      </div>
-
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Lote / OF</TableHead>
-              <TableHead>Elaboración</TableHead>
-              <TableHead>Cantidad Producida</TableHead>
-              <TableHead>Valoración Lote</TableHead>
-              <TableHead>Fecha Producción</TableHead>
-              <TableHead>Responsable</TableHead>
-              {showAll && <TableHead>Estado Calidad</TableHead>}
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredItems.length > 0 ? (
-              filteredItems.map(of => {
-                  const elab = elaboracionesMap.get(of.elaboracionId);
-                  const costeLote = (elab?.costePorUnidad || 0) * (of.cantidadReal || of.cantidadTotal);
-                  return (
-                <TableRow key={of.id}>
-                  <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.id}</TableCell>
-                  <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.elaboracionNombre}</TableCell>
-                  <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.cantidadReal || of.cantidadTotal} {of.unidad}</TableCell>
-                  <TableCell className="font-semibold">{formatCurrency(costeLote)}</TableCell>
-                  <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.fechaFinalizacion ? format(new Date(of.fechaFinalizacion), 'dd/MM/yyyy') : '-'}</TableCell>
-                  <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>
-                    <Badge variant="secondary">{of.responsable}</Badge>
-                  </TableCell>
-                   {showAll && <TableCell>{renderStatusBadge(of)}</TableCell>}
-                  <TableCell className="text-right space-x-2">
-                     <Button variant="destructive" size="sm" onClick={() => openIncidentDialog(of)} disabled={of.okCalidad || of.incidencia}>
-                        <AlertTriangle className="mr-2 h-4 w-4" />
-                        Incidencia
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700" disabled={of.okCalidad || of.incidencia}>
-                            <CheckCircle className="mr-2 h-4 w-4"/>
-                            Validar
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                          <AlertDialogHeader>
-                              <AlertDialogTitle>Confirmar Validación de Calidad</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                  Confirma que el lote <strong>{of.id} ({of.elaboracionNombre})</strong> cumple con los estándares de calidad. Se te asignará como responsable de esta validación. Esta acción añadirá la producción al stock de elaboraciones.
-                              </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleValidate(of.id)}>Confirmar y Validar</AlertDialogAction>
-                          </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              )})
-            ) : (
-              <TableRow>
-                <TableCell colSpan={showAll ? 8 : 7} className="h-24 text-center">
-                  No hay órdenes de fabricación que coincidan con los filtros.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-       <AlertDialog open={!!ofForIncident} onOpenChange={(open) => !open && setOfForIncident(null)}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Registrar Incidencia en Lote</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Ajusta la cantidad real si es necesario y describe el problema. Esto marcará la OF con una incidencia y la sacará del flujo normal.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="cantidad-incidencia">Cantidad Real Producida ({ofForIncident?.unidad})</Label>
-                        <Input 
-                            id="cantidad-incidencia" 
-                            type="number"
-                            step="0.01"
-                            value={incidentData.cantidadReal}
-                            onChange={(e) => setIncidentData(prev => ({...prev, cantidadReal: parseFloat(e.target.value) || 0}))}
-                        />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="observaciones-incidencia">Observaciones de la Incidencia</Label>
-                        <Textarea 
-                            id="observaciones-incidencia"
-                            placeholder="Ej: Se quemó parte de la producción, contaminación cruzada, etc."
-                            value={incidentData.observaciones}
-                            onChange={(e) => setIncidentData(prev => ({...prev, observaciones: e.target.value}))}
-                        />
-                    </div>
-                </div>
-                <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setOfForIncident(null)}>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleSetIncident}>Confirmar Incidencia</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-    </div>
-  );
-}

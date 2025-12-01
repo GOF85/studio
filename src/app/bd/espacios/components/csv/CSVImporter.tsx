@@ -17,8 +17,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { createEspacio } from '@/services/espacios-service';
-import type { EspacioV2 } from '@/types/espacios';
+import type { EspacioV2, TipoCocina, RelacionComercial, DificultadMontaje } from '@/types/espacios';
 import { cn } from '@/lib/utils';
+
+const TIPO_COCINA_OPCIONES: TipoCocina[] = ['Cocina completa', 'Office de regeneración', 'Sin cocina'];
+const RELACION_COMERCIAL_OPCIONES: RelacionComercial[] = ['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación'];
+const DIFICULTAD_MONTAJE_OPCIONES: DificultadMontaje[] = [1, 2, 3, 4, 5];
 
 interface CSVImporterProps {
     onClose: () => void;
@@ -35,6 +39,31 @@ interface ValidationResult {
     errors: string[];
     isValid: boolean;
 }
+
+const validateAndAssignEnum = <T extends string | number>(
+    rowValue: string,
+    allowedValues: readonly T[],
+    errors: string[],
+    errorMsg: string
+): T | undefined => {
+    if (!rowValue) return undefined;
+
+    const foundValue = allowedValues.find(v => String(v).toLowerCase() === rowValue.toLowerCase());
+    if (foundValue !== undefined) {
+        return foundValue;
+    }
+
+    // Try parsing as number if T is number
+    if (typeof allowedValues[0] === 'number') {
+        const numValue = Number(rowValue);
+        if (allowedValues.includes(numValue as T)) {
+            return numValue as T;
+        }
+    }
+    
+    errors.push(`${errorMsg}: '${rowValue}'`);
+    return undefined;
+};
 
 export function CSVImporter({ onClose, onSuccess }: CSVImporterProps) {
     const [file, setFile] = useState<File | null>(null);
@@ -121,13 +150,13 @@ export function CSVImporter({ onClose, onSuccess }: CSVImporterProps) {
         data.accesoVehiculos = row['Acceso Vehículos'];
         data.horarioMontajeDesmontaje = row['Horario Montaje/Desmontaje'];
         data.potenciaTotal = row['Potencia Total'];
-        data.tipoCocina = row['Tipo Cocina'] as any; // TODO: Validar enum
+        data.tipoCocina = validateAndAssignEnum(row['Tipo Cocina'], TIPO_COCINA_OPCIONES, errors, 'Valor inválido para Tipo Cocina');
         data.limitadorSonido = row['Limitador Sonido'] === 'Sí';
-        if (row['Dificultad Montaje']) data.dificultadMontaje = Number(row['Dificultad Montaje']) as any;
+        data.dificultadMontaje = validateAndAssignEnum(row['Dificultad Montaje'], DIFICULTAD_MONTAJE_OPCIONES, errors, 'Valor inválido para Dificultad Montaje');
         if (row['Penalización Personal (%)']) data.penalizacionPersonalMontaje = Number(row['Penalización Personal (%)']);
 
         // Evaluación
-        data.relacionComercial = (row['Relación Comercial'] as any) || 'Sin Relación';
+        data.relacionComercial = validateAndAssignEnum(row['Relación Comercial'], RELACION_COMERCIAL_OPCIONES, errors, 'Valor inválido para Relación Comercial') || 'Sin Relación';
         if (row['Valoración Comercial']) data.valoracionComercial = Number(row['Valoración Comercial']);
         if (row['Valoración Operaciones']) data.valoracionOperaciones = Number(row['Valoración Operaciones']);
         data.perfilClienteIdeal = row['Perfil Cliente Ideal'];

@@ -28,7 +28,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
@@ -44,7 +43,6 @@ const ITEMS_PER_PAGE = 20;
 
 function ArticulosERPPageContent() {
     const [items, setItems] = useState<ArticuloERP[]>([]);
-    const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
     const [providerFilter, setProviderFilter] = useState('all');
@@ -112,7 +110,6 @@ function ArticulosERPPageContent() {
                 setItems(mappedItems);
             }
 
-            setIsMounted(true);
         }
 
         loadData();
@@ -365,152 +362,10 @@ function ArticulosERPPageContent() {
         }
     };
 
-    if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Artículos ERP..." />;
-    }
-
-    return (
-        <>
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-                <Input
-                    placeholder="Buscar..."
-                    className="flex-grow max-w-xs"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>{types.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'Todos los Tipos' : t}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select value={providerFilter} onValueChange={setProviderFilter}>
-                    <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>{providers.map(p => <SelectItem key={p} value={p}>{p === 'all' ? 'Todos los Proveedores' : p}</SelectItem>)}</SelectContent>
-                </Select>
-                <div className="flex-grow flex justify-end items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
-                    <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon">
-                                <Menu />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={handleFactusolSync} disabled={isSyncing}>
-                                <RefreshCw size={16} className={`mr-2 ${isSyncing ? 'animate-spin' : ''}`} />Sincronizar con Factusol
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsImportAlertOpen(true); }}>
-                                <FileUp size={16} className="mr-2" />Importar CSV
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExportCSV}>
-                                <FileDown size={16} className="mr-2" />Exportar CSV
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-
-
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
-                onChange={(e) => {
-                    const delimiter = fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';';
-                    if (delimiter) {
-                        handleImportCSV(e, delimiter);
-                    }
-                }}
-            />
-
-            <div className="border rounded-lg">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="p-2">Producto</TableHead>
-                            <TableHead className="p-2">Ref. ERP</TableHead>
-                            <TableHead className="p-2">Proveedor</TableHead>
-                            <TableHead className="p-2 text-right">P. Compra</TableHead>
-                            <TableHead className="p-2 text-right">Desc. %</TableHead>
-                            <TableHead className="p-2 text-right">Factor Conv.</TableHead>
-                            <TableHead className="p-2 text-right">Precio/Unidad</TableHead>
-                            <TableHead className="p-2">Unidad</TableHead>
-                            <TableHead className="p-2">Tipo (Familia)</TableHead>
-                            <TableHead className="p-2">Categoría MICE</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {paginatedItems.length > 0 ? (
-                            paginatedItems.map(item => {
-                                const precioCalculado = item.precio || 0;
-                                return (
-                                    <TableRow key={item.id}>
-                                        <TableCell className="p-2 text-xs font-medium">{item.nombreProductoERP}</TableCell>
-                                        <TableCell className="p-2 text-xs">{item.idreferenciaerp}</TableCell>
-                                        <TableCell className="p-2 text-xs">{item.nombreProveedor}</TableCell>
-                                        <TableCell className="p-2 text-xs text-right">{formatCurrency(item.precioCompra)}</TableCell>
-                                        <TableCell className="p-2 text-xs text-right">{item.descuento}%</TableCell>
-                                        <TableCell className="p-2 text-xs text-right">{item.unidadConversion}</TableCell>
-                                        <TableCell className="p-2 text-xs text-right font-semibold">{formatCurrency(precioCalculado)}</TableCell>
-                                        <TableCell className="p-2 text-xs">{formatUnit(item.unidad)}</TableCell>
-                                        <TableCell className="p-2 text-xs">{item.tipo}</TableCell>
-                                        <TableCell className="p-2 text-xs">{item.categoriaMice}</TableCell>
-                                    </TableRow>
-                                );
-                            })
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={10} className="h-24 text-center">No se encontraron artículos que coincidan con la búsqueda.</TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-
-            <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="!justify-center gap-4">
-                        <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-                        <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            {syncLog.length > 0 && (
-                <AlertDialog open={syncLog.length > 0} onOpenChange={() => setSyncLog([])}>
-                    <AlertDialogContent className="max-w-2xl">
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Log de Sincronización</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Detalles del proceso de sincronización con Factusol.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <div className="max-h-96 overflow-y-auto">
-                            <pre className="text-xs bg-secondary p-4 rounded">
-                                {syncLog.join('\n')}
-                            </pre>
-                        </div>
-                        <AlertDialogFooter>
-                            <AlertDialogAction onClick={() => setSyncLog([])}>Cerrar</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            )}
-        </>
-    );
-}
 
 export default function ArticulosERPPage() {
     return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Artículos ERP..." />}>
+        <Suspense>
             <ArticulosERPPageContent />
         </Suspense>
     )

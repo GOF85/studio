@@ -5,7 +5,6 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useDataStore } from '@/hooks/use-data-store';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote, Factory } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,10 +65,8 @@ export default function BdPage() {
   const [bookGastronomicoDBs, setBookGastronomicoDBs] = useState<DatabaseEntry[]>([]);
   const [providerDatabases, setProviderDatabases] = useState<DatabaseEntry[]>([]);
   const [cprDatabases, setCprDatabases] = useState<DatabaseEntry[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
     loadAllData();
   }, [loadAllData]);
 
@@ -105,9 +102,8 @@ export default function BdPage() {
     setBookGastronomicoDBs(updateCounts(bookGastronomicoList));
     setProviderDatabases(updateCounts(providerDatabasesList));
     setCprDatabases(updateCounts(cprDatabasesList));
-  }, [isMounted, data]);
+  }, [data]);
 
-  if (!isMounted) return null;
 
   const renderTable = (dbs: DatabaseEntry[], title: string, icon: React.ReactNode, description?: string) => (
     <Card>

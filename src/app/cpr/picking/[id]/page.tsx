@@ -9,7 +9,6 @@ import { format, isBefore } from 'date-fns';
 import type { ServiceOrder, OrdenFabricacion, ContenedorDinamico, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Alergeno, IngredienteInterno, ArticuloERP, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
@@ -346,7 +345,6 @@ function PickingPageContent() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
-    const [isMounted, setIsMounted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const router = useRouter();
@@ -421,7 +419,6 @@ function PickingPageContent() {
                 setPickingState(savedState);
             }
         }
-        setIsMounted(true);
     }, [osId, savePickingState]); 
 
     const { lotesPendientesPorHito, isPickingComplete, elabMap, lotesNecesarios } = useMemo(() => {
@@ -562,8 +559,7 @@ function PickingPageContent() {
         setShowDeleteConfirm(false);
     }
 
-    if (!isMounted || !serviceOrder) {
-        return <LoadingSkeleton title="Cargando Picking..." />;
+    if (!serviceOrder) {
     }
     
     return (
@@ -718,7 +714,7 @@ function PickingPageContent() {
 
 function PickingDetailPageWrapper() {
   return (
-    <Suspense fallback={<LoadingSkeleton title="Cargando picking..." />}>
+    <Suspense>
       <PickingPageContent />
     </Suspense>
   )

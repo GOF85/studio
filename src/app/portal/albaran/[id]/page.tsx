@@ -9,7 +9,6 @@ import SignatureCanvas from 'react-signature-canvas';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { TransporteOrder, PedidoEntrega, ProductoVenta, Entrega } from '@/types';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -24,7 +23,6 @@ export default function AlbaranPage() {
     const [deliveryItems, setDeliveryItems] = useState<PedidoEntrega['hitos'][0]['items']>([]);
     const [entrega, setEntrega] = useState<Entrega | null>(null);
     const [expedicionNumero, setExpedicionNumero] = useState('');
-    const [isMounted, setIsMounted] = useState(false);
     const [signedBy, setSignedBy] = useState('');
     const [dni, setDni] = useState('');
     const sigCanvas = useRef<SignatureCanvas>(null);
@@ -60,7 +58,6 @@ export default function AlbaranPage() {
             }
         }
 
-        setIsMounted(true);
     }, [id]);
 
     const clearSignature = () => {
@@ -194,101 +191,3 @@ export default function AlbaranPage() {
     };
 
 
-    if (!isMounted || !order) {
-        return <LoadingSkeleton title="Cargando Albarán..." />;
-    }
-
-    const isDelivered = order.status === 'Entregado';
-
-    return (
-        <main className="container mx-auto px-4 py-8 max-w-4xl">
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <CardTitle>Albarán de Entrega</CardTitle>
-                            <CardDescription className="font-mono text-lg">{expedicionNumero}</CardDescription>
-                        </div>
-                        <Badge variant={isDelivered ? 'default' : 'secondary'} className={isDelivered ? 'bg-green-600' : ''}>
-                            {order.status}
-                        </Badge>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                     <div className="grid md:grid-cols-2 gap-4 text-sm mb-6">
-                        <div className="space-y-1">
-                            <h3 className="font-bold mb-1 flex items-center gap-2"><Building className="h-4 w-4"/>Información de Entrega</h3>
-                            <p className="font-semibold text-base">{entrega?.client || ''}</p>
-                            <p className="flex items-center gap-2"><MapPin className="h-4 w-4"/>{order.lugarEntrega}</p>
-                            <p className="flex items-center gap-2"><Clock className="h-4 w-4"/>Hora de entrega: {order.horaEntrega}</p>
-                        </div>
-                        {order.observaciones && (
-                             <div className="space-y-1">
-                                 <h3 className="font-bold mb-1">Observaciones</h3>
-                                 <p className="text-muted-foreground">{order.observaciones}</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <h3 className="font-bold mb-2">Contenido del Pedido</h3>
-                    <div className="border rounded-md divide-y">
-                        {deliveryItems.map(item => (
-                            <div key={item.id} className="flex justify-between items-center p-3">
-                                <div className="flex items-center gap-3">
-                                    <Package className="h-5 w-5 text-muted-foreground"/>
-                                    <span>{item.nombre}</span>
-                                </div>
-                                <span className="font-semibold">{item.quantity} uds.</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    <Separator className="my-6" />
-
-                    {isDelivered && order.firmaUrl ? (
-                        <div>
-                            <h3 className="font-bold mb-2">Confirmación de Entrega</h3>
-                            <div className="border rounded-lg p-4 bg-secondary/50">
-                                <p className="flex items-center gap-2 mb-2">
-                                    <User className="h-4 w-4"/>Recibido por: 
-                                    <span className="font-semibold">{order.firmadoPor} {order.dniReceptor && `(${order.dniReceptor})`}</span>
-                                    {order.fechaFirma && <span className="text-muted-foreground text-xs ml-auto">({format(new Date(order.fechaFirma), 'dd/MM/yyyy HH:mm', { locale: es })})</span>}
-                                </p>
-                                <img src={order.firmaUrl} alt="Firma del receptor" className="border rounded-md bg-white w-full h-auto"/>
-                                <Button onClick={handlePrintSigned} className="mt-4 w-full" disabled={isPrinting}>
-                                    {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
-                                    {isPrinting ? 'Generando...' : 'Previsualizar Albarán (PDF)'}
-                                </Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            <h3 className="font-bold">Confirmación de Entrega</h3>
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <Label htmlFor="signedBy">Recibido por (Nombre y Apellidos)</Label>
-                                    <Input id="signedBy" value={signedBy} onChange={(e) => setSignedBy(e.target.value)} />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="dni">DNI (Opcional)</Label>
-                                    <Input id="dni" value={dni} onChange={(e) => setDni(e.target.value)} />
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                <Label>Firma del Cliente</Label>
-                                <div className="border rounded-md bg-white">
-                                    <SignatureCanvas ref={sigCanvas} penColor='black' canvasProps={{className: 'w-full h-32'}} />
-                                </div>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <Button variant="outline" onClick={clearSignature}>Limpiar Firma</Button>
-                                <Button onClick={handleSaveSignature}><CheckCircle className="mr-2"/>Confirmar Entrega</Button>
-                            </div>
-                        </div>
-                    )}
-                     <Button variant="secondary" className="w-full mt-8" onClick={() => router.push('/portal/transporte')}>Volver al listado</Button>
-                </CardContent>
-            </Card>
-        </main>
-    )
-}
