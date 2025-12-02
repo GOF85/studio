@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Save, X, Package, Trash2 } from 'lucide-react';
+import { Loader2, Save, X, Package, Trash2, Link as LinkIcon, CircleX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -14,9 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
+import type { ArticuloERP } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useDataStore } from '@/hooks/use-data-store';
 import { articuloSchema, type ArticuloFormValues } from '../nuevo/page';
+import { ErpArticleSelector } from '../components/ErpArticleSelector';
 
 export default function EditarArticuloPage() {
     const router = useRouter();
@@ -27,6 +29,9 @@ export default function EditarArticuloPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const { toast } = useToast();
     const { loadAllData } = useDataStore();
+    const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]); // New state
+    const [erpSearchTerm, setErpSearchTerm] = useState(''); // New state
+    const [isErpSelectorOpen, setIsErpSelectorOpen] = useState(false); // New state
 
     const form = useForm<ArticuloFormValues>({
         resolver: zodResolver(articuloSchema),
@@ -46,6 +51,7 @@ export default function EditarArticuloPage() {
         },
     });
 
+    // Effect to load the current article data
     useEffect(() => {
         async function loadArticulo() {
             const { data, error } = await supabase
@@ -75,9 +81,59 @@ export default function EditarArticuloPage() {
                 loc: data.loc || '',
             });
         }
-
         loadArticulo();
     }, [id, form, router, toast]);
+
+    // Effect to load ERP articles
+    useEffect(() => {
+        async function loadArticulosERP() {
+            const { data, error } = await supabase
+                .from('articulos_erp')
+                .select('*');
+
+            if (error) {
+                console.error('Error loading articulos_erp:', error);
+                setArticulosERP([]);
+            } else {
+                const mappedArticulos = (data || []).map((row: any) => ({
+                    id: row.id,
+                    idreferenciaerp: row.erp_id || row.idreferenciaerp || '',
+                    idProveedor: row.proveedor_id || '',
+                    nombreProveedor: row.nombre_proveedor || 'Sin proveedor',
+                    nombreProductoERP: row.nombre || '',
+                    referenciaProveedor: row.referencia_proveedor || '',
+                    familiaCategoria: row.familia_categoria || '',
+                    precioCompra: row.precio_compra || 0,
+                    descuento: row.descuento || 0,
+                    unidadConversion: row.unidad_conversion || 1,
+                    precio: row.precio || 0,
+                    precioAlquiler: row.precio_alquiler || 0,
+                    unidad: row.unidad_medida || 'UD',
+                    tipo: row.tipo || '',
+                    categoriaMice: row.categoria_mice || '',
+                    alquiler: row.alquiler || false,
+                    observaciones: row.observaciones || '',
+                })) as ArticuloERP[];
+                setArticulosERP(mappedArticulos);
+            }
+        }
+        loadArticulosERP();
+    }, []); // Run only once on mount
+
+    const selectedErpId = form.watch('erpId');
+    const selectedErpProduct = useMemo(() => articulosERP.find(p => p.idreferenciaerp === selectedErpId), [articulosERP, selectedErpId]);
+
+    const handleErpSelect = (erpId: string) => {
+        form.setValue('erpId', erpId, { shouldDirty: true });
+        setIsErpSelectorOpen(false);
+    };
+
+    const calculatePrice = (p: ArticuloERP) => {
+        if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
+        const basePrice = p.precioCompra / (p.unidadConversion || 1);
+        const discount = p.descuento || 0;
+        return basePrice * (1 - discount / 100);
+    };
 
     async function onSubmit(data: ArticuloFormValues) {
         setIsLoading(true);
@@ -174,9 +230,25 @@ export default function EditarArticuloPage() {
                                         </FormItem>
                                     )} />
 
-                                    <FormField control={form.control} name="erpId" render={({ field }) => (
-                                        <FormItem><FormLabel>ID ERP (Opcional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                    )} />
+                                    <div>
+                                        <FormLabel>Vínculo con Artículo ERP</FormLabel>
+                                        {selectedErpProduct ? (
+                                            <div className="border rounded-md p-2 space-y-1">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
+                                                        <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
+                                                    </div>
+                                                    <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" type="button" onClick={() => form.setValue('erpId', '', { shouldDirty: true })}><CircleX className="mr-1 h-3 w-3" />Desvincular</Button>
+                                                </div>
+                                                <p className="font-bold text-primary text-sm">{calculatePrice(selectedErpProduct).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {selectedErpProduct.unidad}</p>
+                                            </div>
+                                        ) : (
+                                            <Button variant="secondary" type="button" className="w-full h-16 border-dashed border-2" onClick={() => setIsErpSelectorOpen(true)}>
+                                                <LinkIcon className="mr-2" />Vincular Artículo ERP
+                                            </Button>
+                                        )}
+                                    </div>
 
                                     <FormField control={form.control} name="loc" render={({ field }) => (
                                         <FormItem><FormLabel>Ubicación (LOC)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -248,6 +320,14 @@ export default function EditarArticuloPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            <ErpArticleSelector
+                open={isErpSelectorOpen}
+                onOpenChange={setIsErpSelectorOpen}
+                onSelect={handleErpSelect}
+                articulosERP={articulosERP}
+                searchTerm={erpSearchTerm}
+                setSearchTerm={setErpSearchTerm}
+            />
         </>
     );
 }

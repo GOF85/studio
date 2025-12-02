@@ -37,7 +37,7 @@ import { downloadCSVTemplate } from '@/lib/utils';
 import { useDataStore } from '@/hooks/use-data-store';
 import { supabase } from '@/lib/supabase';
 
-const CSV_HEADERS = ["id", "nombre", "categoria", "precioVenta", "precioAlquiler", "producidoPorPartner", "partnerId", "recetaId"];
+const CSV_HEADERS = ["id", "erp_id", "nombre", "categoria", "es_habitual", "precio_venta", "precio_alquiler", "precio_reposicion", "unidad_venta", "stock_seguridad", "tipo", "loc", "imagen", "producido_por_partner", "partner_id", "receta_id", "subcategoria"];
 
 function ArticulosPageContent() {
   const { data, loadAllData } = useDataStore();
@@ -55,7 +55,8 @@ function ArticulosPageContent() {
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    loadAllData();
+  }, [loadAllData]);
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
@@ -100,19 +101,33 @@ function ArticulosPageContent() {
       delimiter,
       complete: async (results) => {
         if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
-          toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
+          toast({
+            variant: 'destructive',
+            title: 'Error de formato',
+            description: `El CSV debe contener todas las columnas correctas. Columnas esperadas: ${CSV_HEADERS.join(', ')}`,
+            duration: 10000,
+          });
           return;
         }
 
         const importedData = results.data.map((item: any) => ({
           id: item.id || crypto.randomUUID(),
+          erp_id: item.erp_id || null,
           nombre: item.nombre,
           categoria: item.categoria,
-          precio_venta: parseFloat(item.precioVenta) || 0,
-          precio_alquiler: parseFloat(item.precioAlquiler) || 0,
-          producido_por_partner: item.producidoPorPartner === 'true',
-          partner_id: item.partnerId || null,
-          receta_id: item.recetaId || null
+          es_habitual: item.es_habitual === 'true' || item.es_habitual === true,
+          precio_venta: parseFloat(item.precio_venta) || 0,
+          precio_alquiler: parseFloat(item.precio_alquiler) || 0,
+          precio_reposicion: parseFloat(item.precio_reposicion) || 0,
+          unidad_venta: parseFloat(item.unidad_venta) || null,
+          stock_seguridad: parseFloat(item.stock_seguridad) || null,
+          tipo: item.tipo || null,
+          loc: item.loc || null,
+          imagen: item.imagen || null,
+          producido_por_partner: item.producido_por_partner === 'true' || item.producido_por_partner === true,
+          partner_id: item.partner_id || null,
+          receta_id: item.receta_id || null,
+          subcategoria: item.subcategoria || null
         }));
 
         const { error } = await supabase
@@ -145,7 +160,27 @@ function ArticulosPageContent() {
       return;
     }
 
-    const csv = Papa.unparse(items, { columns: CSV_HEADERS });
+    const dataToExport = items.map((item: any) => ({
+      id: item.id,
+      erp_id: item.erpId,
+      nombre: item.nombre,
+      categoria: item.categoria,
+      es_habitual: item.esHabitual,
+      precio_venta: item.precioVenta,
+      precio_alquiler: item.precioAlquiler,
+      precio_reposicion: item.precioReposicion,
+      unidad_venta: item.unidadVenta,
+      stock_seguridad: item.stockSeguridad,
+      tipo: item.tipo,
+      loc: item.loc,
+      imagen: item.imagen,
+      producido_por_partner: item.producidoPorPartner,
+      partner_id: item.partnerId,
+      receta_id: item.recetaId,
+      subcategoria: item.subcategoria,
+    }));
+
+    const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -213,7 +248,7 @@ function ArticulosPageContent() {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
-              <TableHead>ID</TableHead>
+              {/* <TableHead>ID</TableHead> */}
               <TableHead>Categoría</TableHead>
               <TableHead>Precio Venta</TableHead>
               <TableHead>Precio Alquiler</TableHead>
@@ -225,7 +260,7 @@ function ArticulosPageContent() {
               filteredItems.map(item => (
                 <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/articulos/${item.id}`)}>
                   <TableCell className="font-medium">{item.nombre}</TableCell>
-                  <TableCell>{item.id}</TableCell>
+                  {/* <TableCell>{item.id}</TableCell> */}
                   <TableCell>{item.categoria}</TableCell>
                   <TableCell>{item.precioVenta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                   <TableCell>{item.precioAlquiler > 0 ? item.precioAlquiler.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-'}</TableCell>
@@ -251,7 +286,7 @@ function ArticulosPageContent() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   No se encontraron artículos.
                 </TableCell>
               </TableRow>

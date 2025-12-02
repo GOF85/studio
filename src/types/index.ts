@@ -312,7 +312,7 @@ export type Espacio = {
 };
 
 
-export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler', 'Menaje', 'Decoracion', 'Servicios', 'Otros'] as const;
+export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler', 'Menaje', 'Decoracion', 'Servicios', 'Gastronomia', 'Otros'] as const;
 export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];
 
 export type ArticuloCatering = {
