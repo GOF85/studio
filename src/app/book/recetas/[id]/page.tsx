@@ -43,6 +43,9 @@ import { ElaborationForm, type ElaborationFormValues } from '@/components/book/e
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ImageUploader } from '@/components/book/images/ImageUploader';
+import { ImageGallery } from '@/components/book/images/ImageGallery';
+import type { ImagenReceta } from '@/types/index';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -52,7 +55,7 @@ const elaboracionEnRecetaSchema = z.object({
     cantidad: z.coerce.number().min(0),
     coste: z.coerce.number().optional().default(0),
     gramaje: z.coerce.number().default(0),
-    alergenos: z.array(z.string()).optional().default([]),
+    alergenos: z.array(z.enum(ALERGENOS)).optional().default([]),
     unidad: z.enum(UNIDADES_MEDIDA),
     merma: z.coerce.number().optional().default(0),
 });
@@ -83,12 +86,12 @@ const recetaFormSchema = z.object({
     elaboraciones: z.array(elaboracionEnRecetaSchema).default([]),
     menajeAsociado: z.array(menajeEnRecetaSchema).optional().default([]),
     instruccionesMiseEnPlace: z.string().optional().default(''),
-    fotosComercialesURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
-    fotosMiseEnPlaceURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
+    fotosMiseEnPlace: z.array(z.custom<ImagenReceta>()).default([]),
     instruccionesRegeneracion: z.string().optional().default(''),
-    fotosRegeneracionURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
+    fotosRegeneracion: z.array(z.custom<ImagenReceta>()).default([]),
     instruccionesEmplatado: z.string().optional().default(''),
-    fotosEmplatadoURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
+    fotosEmplatado: z.array(z.custom<ImagenReceta>()).default([]),
+    fotosComerciales: z.array(z.custom<ImagenReceta>()).default([]),
     perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional(),
     perfilSaborSecundario: z.array(z.string()).optional().default([]),
     perfilTextura: z.array(z.string()).optional().default([]),
@@ -148,6 +151,112 @@ function SortableTableRow({ field, index, remove, form }: { field: ElaboracionEn
                 <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button>
             </TableCell>
         </TableRow>
+    );
+}
+
+function RecipeImageSection({
+    form,
+    name,
+    folder,
+    title,
+    description
+}: {
+    form: any,
+    name: "fotosComerciales" | "fotosMiseEnPlace" | "fotosRegeneracion" | "fotosEmplatado",
+    folder: string,
+    title: string,
+    description?: string
+}) {
+    const images = form.watch(name) || [];
+
+    const handleUpload = (url: string, filename: string) => {
+        const newImage: ImagenReceta = {
+            id: `img-${Date.now()}`,
+            url,
+            esPrincipal: images.length === 0,
+            orden: images.length,
+            descripcion: filename
+        };
+        form.setValue(name, [...images, newImage], { shouldDirty: true });
+    };
+
+    const handleReorder = (newOrder: ImagenReceta[]) => {
+        form.setValue(name, newOrder.map((img, index) => ({ ...img, orden: index })), { shouldDirty: true });
+    };
+
+    const handleDelete = (id: string) => {
+        const newImages = images.filter((img: ImagenReceta) => img.id !== id);
+        // Reassign principal if needed
+        if (images.find((img: ImagenReceta) => img.id === id)?.esPrincipal && newImages.length > 0) {
+            newImages[0].esPrincipal = true;
+        }
+        form.setValue(name, newImages, { shouldDirty: true });
+    };
+
+    const handleSetPrincipal = (id: string) => {
+        const newImages = images.map((img: ImagenReceta) => ({
+            ...img,
+            esPrincipal: img.id === id
+        }));
+        form.setValue(name, newImages, { shouldDirty: true });
+    };
+
+    // Determine the instruction field name based on the image field name
+    const getInstructionFieldName = () => {
+        if (name === "fotosMiseEnPlace") return "instruccionesMiseEnPlace";
+        if (name === "fotosRegeneracion") return "instruccionesRegeneracion";
+        if (name === "fotosEmplatado") return "instruccionesEmplatado";
+        if (name === "fotosComerciales") return "descripcionComercial";
+        return null;
+    };
+
+    const instructionFieldName = getInstructionFieldName();
+
+    return (
+        <div className="space-y-4">
+            <div>
+                <Label className="text-base">{title}</Label>
+                {description && <p className="text-sm text-muted-foreground">{description}</p>}
+            </div>
+
+            {/* Text field for instructions */}
+            {instructionFieldName && (
+                <FormField
+                    control={form.control}
+                    name={instructionFieldName}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>
+                                {name === "fotosComerciales" ? "Descripción Comercial" : "Instrucciones"}
+                            </FormLabel>
+                            <FormControl>
+                                <Textarea
+                                    {...field}
+                                    rows={4}
+                                    placeholder={
+                                        name === "fotosComerciales"
+                                            ? "Descripción para la carta..."
+                                            : "Escribe las instrucciones detalladas..."
+                                    }
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
+
+            <ImageUploader
+                folder={folder}
+                onUploadComplete={handleUpload}
+            />
+            <ImageGallery
+                imagenes={images}
+                onReorder={handleReorder}
+                onDelete={handleDelete}
+                onSetPrincipal={handleSetPrincipal}
+            />
+        </div>
     );
 }
 
@@ -344,10 +453,14 @@ const defaultValues: Partial<RecetaFormValues> = {
     porcentajeCosteProduccion: 30,
     elaboraciones: [],
     menajeAsociado: [],
-    fotosComercialesURLs: [],
-    fotosEmplatadoURLs: [],
-    fotosMiseEnPlaceURLs: [],
-    fotosRegeneracionURLs: [],
+    instruccionesMiseEnPlace: '',
+    fotosMiseEnPlace: [],
+    instruccionesRegeneracion: '',
+    fotosRegeneracion: [],
+    instruccionesEmplatado: '',
+    fotosEmplatado: [],
+    fotosComerciales: [],
+    perfilSaborPrincipal: undefined,
     perfilSaborSecundario: [],
     perfilTextura: [],
     tipoCocina: [],
@@ -444,73 +557,149 @@ function RecetaFormPage() {
     useEffect(() => {
         let initialValues: Partial<RecetaFormValues> | null = null;
 
-        try {
-            setIsDataLoaded(false);
-            const loadCategorias = async () => {
-                const { data, error } = await supabase
+        const loadData = async () => {
+            try {
+                setIsDataLoaded(false);
+
+                // Load categories
+                const { data: categoriasData, error: categoriasError } = await supabase
                     .from('categorias_recetas')
                     .select('*')
                     .order('nombre', { ascending: true });
 
-                if (error) {
-                    console.error('Error loading categorias:', error);
+                if (categoriasError) {
+                    console.error('Error loading categorias:', categoriasError);
                 } else {
-                    setDbCategorias(data || []);
+                    setDbCategorias(categoriasData || []);
                 }
-            };
-            loadCategorias();
 
-            const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+                const currentId = isEditing ? id : cloneId;
 
-            let foundReceta: Receta | undefined;
+                if (currentId) {
+                    // Load recipe from Supabase
+                    const { data: recetaData, error: recetaError } = await supabase
+                        .from('recetas')
+                        .select('*')
+                        .eq('id', currentId)
+                        .single();
 
-            const currentId = isEditing ? id : cloneId;
-
-            if (currentId) {
-                foundReceta = allRecetas.find(e => e.id === currentId);
-
-                if (foundReceta) {
-                    initialValues = { ...foundReceta };
-                    if (cloneId) {
-                        initialValues.id = Date.now().toString();
-                        initialValues.nombre = `${foundReceta.nombre} (Copia)`;
+                    if (recetaError) {
+                        console.error('Error loading recipe:', recetaError);
+                        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
+                        router.push('/book/recetas');
+                        return;
                     }
+
+                    if (recetaData) {
+                        // Clone recipe if needed
+                        if (cloneId) {
+                            recetaData.id = Date.now().toString();
+                            recetaData.nombre = `${recetaData.nombre} (Copia)`;
+                        }
+
+                        // Handle images - process both old and new formats
+                        const processImages = (images: any[]): ImagenReceta[] => {
+                            if (!images || !Array.isArray(images)) return [];
+                            return images.map((img: any, index: number) => {
+                                if (typeof img === 'string') {
+                                    return {
+                                        id: `img-${Date.now()}-${index}`,
+                                        url: img,
+                                        esPrincipal: index === 0,
+                                        orden: index
+                                    };
+                                }
+                                // Handle old format { value: string }
+                                if (img.value) {
+                                    return {
+                                        id: `img-${Date.now()}-${index}`,
+                                        url: img.value,
+                                        esPrincipal: index === 0,
+                                        orden: index
+                                    };
+                                }
+                                // Already in correct format
+                                return img;
+                            });
+                        };
+
+                        initialValues = {
+                            ...defaultValues,
+                            id: recetaData.id,
+                            numeroReceta: recetaData.numero_receta,
+                            nombre: recetaData.nombre,
+                            nombre_en: recetaData.nombre_en || '',
+                            visibleParaComerciales: recetaData.visible_para_comerciales ?? true,
+                            isArchived: recetaData.is_archived ?? false,
+                            descripcionComercial: recetaData.descripcion_comercial || '',
+                            descripcionComercial_en: recetaData.descripcion_comercial_en || '',
+                            responsableEscandallo: recetaData.responsable_escandallo || '',
+                            categoria: recetaData.categoria || '',
+                            gramajeTotal: recetaData.gramaje_total || 0,
+                            estacionalidad: recetaData.estacionalidad || 'MIXTO',
+                            tipoDieta: recetaData.tipo_dieta || 'NINGUNO',
+                            porcentajeCosteProduccion: recetaData.porcentaje_coste_produccion || 30,
+                            elaboraciones: recetaData.elaboraciones || [],
+                            menajeAsociado: recetaData.menaje_asociado || [],
+                            instruccionesMiseEnPlace: recetaData.instrucciones_mise_en_place || '',
+                            fotosMiseEnPlace: processImages(recetaData.fotos_mise_en_place || []),
+                            instruccionesRegeneracion: recetaData.instrucciones_regeneracion || '',
+                            fotosRegeneracion: processImages(recetaData.fotos_regeneracion || []),
+                            instruccionesEmplatado: recetaData.instrucciones_emplatado || '',
+                            fotosEmplatado: processImages(recetaData.fotos_emplatado || []),
+                            fotosComerciales: processImages(recetaData.fotos_comerciales || []),
+                            perfilSaborPrincipal: recetaData.perfil_sabor_principal,
+                            perfilSaborSecundario: recetaData.perfil_sabor_secundario || [],
+                            perfilTextura: recetaData.perfil_textura || [],
+                            tipoCocina: recetaData.tipo_cocina || [],
+                            recetaOrigen: recetaData.receta_origen || '',
+                            temperaturaServicio: recetaData.temperatura_servicio,
+                            tecnicaCoccionPrincipal: recetaData.tecnica_coccion_principal,
+                            potencialMiseEnPlace: recetaData.potencial_mise_en_place,
+                            formatoServicioIdeal: recetaData.formato_servicio_ideal || [],
+                            equipamientoCritico: recetaData.equipamiento_critico || [],
+                            dificultadProduccion: recetaData.dificultad_produccion || 3,
+                            estabilidadBuffet: recetaData.estabilidad_buffet || 3,
+                            escalabilidad: recetaData.escalabilidad,
+                            etiquetasTendencia: recetaData.etiquetas_tendencia || [],
+                            requiereRevision: recetaData.requiere_revision ?? false,
+                            comentarioRevision: recetaData.comentario_revision || '',
+                            fechaRevision: recetaData.fecha_revision || '',
+                        };
+                    }
+                } else if (isNew) {
+                    // Generate new recipe number
+                    const { data: allRecetas, error } = await supabase
+                        .from('recetas')
+                        .select('numero_receta')
+                        .order('numero_receta', { ascending: false })
+                        .limit(1);
+
+                    if (error) {
+                        console.error('Error loading last recipe number:', error);
+                    }
+
+                    const lastRecipe = allRecetas?.[0];
+                    const lastNumber = lastRecipe?.numero_receta ? parseInt(lastRecipe.numero_receta.split('-')[1]) : 0;
+                    const newNumber = `R-${(lastNumber + 1).toString().padStart(4, '0')}`;
+
+                    initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNumber };
                 }
-            } else if (isNew) {
-                const lastRecipe = allRecetas.reduce((last, current) => {
-                    if (!current.numeroReceta || !last?.numeroReceta) return current;
-                    const currentNum = parseInt(current.numeroReceta.substring(2));
-                    const lastNum = parseInt(last.numeroReceta.substring(2));
-                    return currentNum > lastNum ? current : last;
-                }, null as Receta | null);
-                const lastNum = lastRecipe && lastRecipe.numeroReceta ? parseInt(lastRecipe.numeroReceta.substring(2)) : 0;
-                const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
-                initialValues = { ...defaultValues, id: Date.now().toString(), numeroReceta: newNum };
-            }
 
-            if (initialValues) {
-                const processedData = {
-                    ...defaultValues,
-                    ...initialValues,
-                    responsableEscandallo: initialValues.responsableEscandallo || '',
-                    fotosComercialesURLs: (initialValues.fotosComercialesURLs || []).map(url => typeof url === 'string' ? { value: url } : url),
-                    fotosEmplatadoURLs: (initialValues.fotosEmplatadoURLs || []).map(url => typeof url === 'string' ? { value: url } : url),
-                    fotosMiseEnPlaceURLs: (initialValues.fotosMiseEnPlaceURLs || []).map(url => typeof url === 'string' ? { value: url } : url),
-                    fotosRegeneracionURLs: (initialValues.fotosRegeneracionURLs || []).map(url => typeof url === 'string' ? { value: url } : url),
-                };
-                form.reset(processedData as RecetaFormValues);
-                recalculateCostsAndAllergens();
-            } else if (isEditing) {
-                toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la receta.' });
-                router.push('/book/recetas');
-            }
+                if (initialValues) {
+                    form.reset(initialValues as RecetaFormValues);
+                    recalculateCostsAndAllergens();
+                }
 
-        } catch (e) {
-            console.error("Error crítico durante la carga de datos:", e);
-            toast({ variant: 'destructive', title: 'Error de carga', description: 'No se pudieron cargar los datos necesarios.' });
-        } finally {
-            setIsDataLoaded(true);
-        }
+            } catch (e) {
+                console.error("Error crítico durante la carga de datos:", e);
+                toast({ variant: 'destructive', title: 'Error de carga', description: 'No se pudieron cargar los datos necesarios.' });
+            } finally {
+                setIsDataLoaded(true);
+            }
+        };
+
+        loadData();
     }, [id, cloneId, isNew, isEditing, form, router, toast, recalculateCostsAndAllergens]);
 
     const { costeMateriaPrima, alergenos, partidasProduccion } = useMemo(() => {
@@ -579,51 +768,121 @@ function RecetaFormPage() {
         })
     };
 
-    const onSubmit = (data: RecetaFormValues) => {
+    const onSubmit = async (data: RecetaFormValues) => {
         setIsLoading(true);
-        let allItems = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
 
         if (data.requiereRevision && !data.fechaRevision) {
             data.fechaRevision = new Date().toISOString();
         }
 
-        const dataToSave: Receta = {
-            ...data,
-            costeMateriaPrima,
-            precioVenta: pvpTeorico,
-            alergenos,
-            partidaProduccion: partidasProduccion.join(', '),
-        };
+        try {
+            // Map form data (camelCase) to database schema (snake_case)
+            const dataToSave = {
+                id: data.id,
+                numero_receta: data.numeroReceta,
+                nombre: data.nombre,
+                nombre_en: data.nombre_en,
+                visible_para_comerciales: data.visibleParaComerciales,
+                is_archived: data.isArchived,
+                descripcion_comercial: data.descripcionComercial,
+                descripcion_comercial_en: data.descripcionComercial_en,
+                responsable_escandallo: data.responsableEscandallo,
+                categoria: data.categoria,
+                gramaje_total: data.gramajeTotal,
+                estacionalidad: data.estacionalidad,
+                tipo_dieta: data.tipoDieta,
+                porcentaje_coste_produccion: data.porcentajeCosteProduccion,
+                elaboraciones: data.elaboraciones,
+                menaje_asociado: data.menajeAsociado,
+                instrucciones_mise_en_place: data.instruccionesMiseEnPlace,
+                fotos_mise_en_place: data.fotosMiseEnPlace,
+                instrucciones_regeneracion: data.instruccionesRegeneracion,
+                fotos_regeneracion: data.fotosRegeneracion,
+                instrucciones_emplatado: data.instruccionesEmplatado,
+                fotos_emplatado: data.fotosEmplatado,
+                fotos_comerciales: data.fotosComerciales,
+                perfil_sabor_principal: data.perfilSaborPrincipal,
+                perfil_sabor_secundario: data.perfilSaborSecundario,
+                perfil_textura: data.perfilTextura,
+                tipo_cocina: data.tipoCocina,
+                receta_origen: data.recetaOrigen,
+                temperatura_servicio: data.temperaturaServicio,
+                tecnica_coccion_principal: data.tecnicaCoccionPrincipal,
+                potencial_mise_en_place: data.potencialMiseEnPlace,
+                formato_servicio_ideal: data.formatoServicioIdeal,
+                equipamiento_critico: data.equipamientoCritico,
+                dificultad_produccion: data.dificultadProduccion,
+                estabilidad_buffet: data.estabilidadBuffet,
+                escalabilidad: data.escalabilidad,
+                etiquetas_tendencia: data.etiquetasTendencia,
+                requiere_revision: data.requiereRevision,
+                comentario_revision: data.comentarioRevision,
+                fecha_revision: data.fechaRevision || null,
+                coste_materia_prima: costeMateriaPrima,
+                precio_venta: pvpTeorico,
+                alergenos: alergenos,
+                partida_produccion: partidasProduccion.join(', '),
+            };
 
-        if (isEditing && !cloneId) {
-            const index = allItems.findIndex(p => p.id === id);
-            if (index !== -1) {
-                allItems[index] = dataToSave;
+            if (isEditing && !cloneId) {
+                // Update existing recipe
+                const { error } = await supabase
+                    .from('recetas')
+                    .update(dataToSave)
+                    .eq('id', id);
+
+                if (error) throw error;
                 toast({ description: 'Receta actualizada correctamente.' });
+            } else {
+                // Insert new recipe
+                const { error } = await supabase
+                    .from('recetas')
+                    .insert([dataToSave]);
+
+                if (error) throw error;
+                toast({ description: cloneId ? 'Receta clonada correctamente.' : 'Receta creada correctamente.' });
             }
-        } else {
-            allItems.push(dataToSave);
-            toast({ description: cloneId ? 'Receta clonada correctamente.' : 'Receta creada correctamente.' });
-        }
 
-        localStorage.setItem('recetas', JSON.stringify(allItems));
-        setIsLoading(false);
-        form.reset(dataToSave as RecetaFormValues);
+            // Reset form with the original camelCase data
+            const formResetData: RecetaFormValues = {
+                ...data,
+                costeMateriaPrima,
+                precioVenta: pvpTeorico,
+                alergenos,
+                partidaProduccion: partidasProduccion.join(', '),
+            };
+            form.reset(formResetData);
 
-        if (!isEditing || cloneId) {
-            router.push('/book/recetas');
-        } else {
-            router.replace(`/book/recetas/${id}?t=${Date.now()}`);
+            if (!isEditing || cloneId) {
+                router.push('/book/recetas');
+            } else {
+                router.replace(`/book/recetas/${id}?t=${Date.now()}`);
+            }
+        } catch (error: any) {
+            console.error('Error saving recipe:', error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setIsLoading(false);
         }
     }
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!isEditing) return;
-        let allItems = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        const updatedItems = allItems.filter(p => p.id !== id);
-        localStorage.setItem('recetas', JSON.stringify(updatedItems));
-        toast({ title: 'Receta eliminada' });
-        router.push('/book/recetas');
+
+        try {
+            const { error } = await supabase
+                .from('recetas')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            toast({ title: 'Receta eliminada' });
+            router.push('/book/recetas');
+        } catch (error: any) {
+            console.error('Error deleting recipe:', error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        }
     }
 
     if (!isDataLoaded) {
@@ -751,7 +1010,15 @@ function RecetaFormPage() {
 
                                             <Separator className="my-4" />
 
-                                            <ImageUploadSection name="fotosComercialesURLs" title="Información Comercial" form={form} description="Añade fotos para la propuesta comercial y una descripción atractiva." />
+                                            <Separator className="my-4" />
+
+                                            <RecipeImageSection
+                                                name="fotosComerciales"
+                                                title="Información Comercial"
+                                                folder="recetas/comercial"
+                                                form={form}
+                                                description="Añade fotos para la propuesta comercial y una descripción atractiva."
+                                            />
                                         </CardContent>
                                     </Card>
                                 </TabsContent>
@@ -844,9 +1111,24 @@ function RecetaFormPage() {
                                             <CardTitle className="flex items-center gap-2 text-lg"><FilePenLine />Instrucciones y Medios</CardTitle>
                                         </CardHeader>
                                         <CardContent className="grid lg:grid-cols-3 gap-6 pt-2">
-                                            <ImageUploadSection name="fotosMiseEnPlaceURLs" title="Instrucciones Mise en Place" form={form} />
-                                            <ImageUploadSection name="fotosRegeneracionURLs" title="Instrucciones Regeneración" form={form} />
-                                            <ImageUploadSection name="fotosEmplatadoURLs" title="Instrucciones Emplatado" form={form} />
+                                            <RecipeImageSection
+                                                name="fotosMiseEnPlace"
+                                                title="Instrucciones Mise en Place"
+                                                folder="recetas/MEP"
+                                                form={form}
+                                            />
+                                            <RecipeImageSection
+                                                name="fotosRegeneracion"
+                                                title="Instrucciones Regeneración"
+                                                folder="recetas/regeneracion"
+                                                form={form}
+                                            />
+                                            <RecipeImageSection
+                                                name="fotosEmplatado"
+                                                title="Instrucciones Emplatado"
+                                                folder="recetas/emplatado"
+                                                form={form}
+                                            />
                                         </CardContent>
                                     </Card>
                                 </TabsContent>

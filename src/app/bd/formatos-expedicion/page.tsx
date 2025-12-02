@@ -35,11 +35,14 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import Papa from 'papaparse';
 import { downloadCSVTemplate } from '@/lib/utils';
+import { useDataStore } from '@/hooks/use-data-store';
+import { supabase } from '@/lib/supabase';
 
 const CSV_HEADERS = ["id", "nombre"];
 
 function FormatosExpedicionPageContent() {
-  const [items, setItems] = useState<FormatoExpedicion[]>([]);
+  const { data, loadAllData, refreshData } = useDataStore();
+  const items = data.formatosExpedicionDB || [];
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -50,10 +53,9 @@ function FormatosExpedicionPageContent() {
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
-    let storedData = localStorage.getItem('formatosExpedicionDB');
-    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, []);
+    loadAllData();
+  }, [loadAllData]);
 
   const filteredItems = useMemo(() => {
     return items.filter(item =>
@@ -61,12 +63,20 @@ function FormatosExpedicionPageContent() {
     );
   }, [items, searchTerm]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!itemToDelete) return;
-    const updatedData = items.filter(i => i.id !== itemToDelete);
-    localStorage.setItem('formatosExpedicionDB', JSON.stringify(updatedData));
-    setItems(updatedData);
-    toast({ title: 'Formato eliminado' });
+
+    const { error } = await supabase
+      .from('formatos_expedicion')
+      .delete()
+      .eq('id', itemToDelete);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error al eliminar', description: error.message });
+    } else {
+      toast({ title: 'Formato eliminado' });
+      refreshData();
+    }
     setItemToDelete(null);
   };
 
@@ -81,26 +91,27 @@ function FormatosExpedicionPageContent() {
       header: true,
       skipEmptyLines: true,
       delimiter,
-      complete: (results) => {
+      complete: async (results) => {
         if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
           toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${CSV_HEADERS.join(', ')}` });
           setIsImportAlertOpen(false);
           return;
         }
 
-        const existingIds = new Set(items.map(item => item.id));
-        const importedData: FormatoExpedicion[] = results.data.map((item: any, index: number) => {
-          let id = item.id;
-          if (!id || id.trim() === '' || existingIds.has(id)) {
-            id = `${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`;
-          }
-          existingIds.add(id);
-          return { ...item, id };
-        });
+        const importedData: Omit<FormatoExpedicion, 'id'>[] = results.data.map((item: any) => ({
+          nombre: item.nombre
+        }));
 
-        localStorage.setItem('formatosExpedicionDB', JSON.stringify(importedData));
-        setItems(importedData);
-        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        const { error } = await supabase
+          .from('formatos_expedicion')
+          .insert(importedData);
+
+        if (error) {
+          toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        } else {
+          toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+          refreshData();
+        }
         setIsImportAlertOpen(false);
       },
       error: (error) => {

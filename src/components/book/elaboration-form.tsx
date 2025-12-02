@@ -6,7 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Component, ChefHat, PlusCircle, Trash2, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon, RefreshCw, Sprout, AlertTriangle } from 'lucide-react';
-import type { Elaboracion, IngredienteInterno, UnidadMedida, ArticuloERP, PartidaProduccion, FormatoExpedicion, Alergeno } from '@/types';
+import type { Elaboracion, IngredienteInterno, UnidadMedida, ArticuloERP, PartidaProduccion, FormatoExpedicion, Alergeno, ImagenReceta } from '@/types';
 import { UNIDADES_MEDIDA, ALERGENOS } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { AllergenBadge } from '../icons/allergen-badge';
 import { ComponenteSelector } from '@/components/book/componente-selector';
 import { Switch } from '../ui/switch';
+import { ElaboracionImageManager } from './images/ElaboracionImageManager';
 
 const componenteSchema = z.object({
     id: z.string(),
@@ -45,7 +46,13 @@ const elaboracionFormSchema = z.object({
     partidaProduccion: z.enum(['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION']),
     componentes: z.array(componenteSchema).min(1, 'Debe tener al menos un componente'),
     instruccionesPreparacion: z.string().optional().default(''),
-    fotosProduccionURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
+    fotos: z.array(z.object({
+        id: z.string(),
+        url: z.string(),
+        descripcion: z.string().optional(),
+        esPrincipal: z.boolean(),
+        orden: z.number()
+    })).optional().default([]),
     videoProduccionURL: z.string().url().or(z.literal('')).optional(),
     formatoExpedicion: z.string().optional().default(''),
     ratioExpedicion: z.coerce.number().optional().default(0),
@@ -62,7 +69,6 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
     const [elaboracionesData, setElaboracionesData] = useState<Map<string, Elaboracion>>(new Map());
-    const [newImageUrl, setNewImageUrl] = useState('');
     const [formatosExpedicion, setFormatosExpedicion] = useState<FormatoExpedicion[]>([]);
     const { toast } = useToast();
 
@@ -76,11 +82,6 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
         name: 'componentes',
     });
 
-    const { fields: fotosFields, append: appendFoto, remove: removeFoto } = useFieldArray({
-        control: form.control,
-        name: 'fotosProduccionURLs',
-    });
-
     const watchedComponentes = form.watch('componentes');
     const watchedProduccionTotal = form.watch('produccionTotal');
 
@@ -90,15 +91,22 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
 
     useEffect(() => {
         const loadData = async () => {
-            const storedFormatos = JSON.parse(localStorage.getItem('formatosExpedicionDB') || '[]') as FormatoExpedicion[];
-            setFormatosExpedicion(storedFormatos);
-
             const { supabase } = await import('@/lib/supabase');
 
-            const [ingredientesResult, erpResult] = await Promise.all([
+            const [ingredientesResult, erpResult, formatosResult, elaboracionesResult, componentesResult] = await Promise.all([
                 supabase.from('ingredientes_internos').select('*'),
-                supabase.from('articulos_erp').select('*')
+                supabase.from('articulos_erp').select('*'),
+                supabase.from('formatos_expedicion').select('*'),
+                supabase.from('elaboraciones').select('*'),
+                supabase.from('elaboracion_componentes').select('*')
             ]);
+
+            // Load formatos expedición from Supabase
+            const storedFormatos = (formatosResult.data || []).map((row: any) => ({
+                id: row.id,
+                nombre: row.nombre
+            })) as FormatoExpedicion[];
+            setFormatosExpedicion(storedFormatos);
 
             const storedInternos = (ingredientesResult.data || []).map((row: any) => ({
                 id: row.id,
@@ -126,7 +134,40 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
             const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
             setIngredientesData(new Map(combinedIngredientes.map(i => [i.id, i])));
 
-            const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+            // Load elaboraciones from Supabase
+            const rawElaboraciones = elaboracionesResult.data || [];
+            const rawComponentes = componentesResult.data || [];
+
+            const allElaboraciones: Elaboracion[] = rawElaboraciones.map((e: any) => ({
+                id: e.id,
+                nombre: e.nombre,
+                partidaProduccion: e.partida,
+                unidadProduccion: e.unidad_produccion,
+                instruccionesPreparacion: e.instrucciones,
+                caducidadDias: e.caducidad_dias,
+                costePorUnidad: e.coste_unitario,
+                produccionTotal: e.produccion_total || 1,
+                fotosProduccionURLs: e.fotos_produccion_urls || [],
+                videoProduccionURL: e.video_produccion_url || '',
+                formatoExpedicion: e.formato_expedicion || '',
+                ratioExpedicion: e.ratio_expedicion || 0,
+                tipoExpedicion: e.tipo_expedicion || 'REFRIGERADO',
+                requiereRevision: e.requiere_revision || false,
+                comentarioRevision: e.comentario_revision || '',
+                fechaRevision: e.fecha_revision || undefined,
+                componentes: rawComponentes
+                    .filter((c: any) => c.elaboracion_padre_id === e.id)
+                    .map((c: any) => ({
+                        id: c.id,
+                        tipo: c.tipo_componente === 'ARTICULO' ? 'ingrediente' : 'elaboracion',
+                        componenteId: c.componente_id,
+                        nombre: '',
+                        cantidad: c.cantidad_neta,
+                        merma: c.merma_aplicada,
+                        costePorUnidad: 0
+                    }))
+            }));
+
             setElaboracionesData(new Map(allElaboraciones.map(e => [e.id, e])));
         };
         loadData();
@@ -163,16 +204,6 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
             merma: 0,
         });
         toast({ title: 'Elaboración añadida', duration: 1000 });
-    }
-
-    const handleAddImageUrl = () => {
-        try {
-            const url = new URL(newImageUrl);
-            appendFoto({ value: url.href });
-            setNewImageUrl('');
-        } catch (e) {
-            toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.' });
-        }
     }
 
     const { costeTotal, costePorUnidad, alergenosPresentes, alergenosTrazas } = useMemo(() => {
@@ -496,7 +527,9 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                                                     <TooltipTrigger asChild>
                                                                         <div className="flex items-center gap-2">
                                                                             {field.tipo === 'ingrediente' ? <ChefHat size={16} className="text-muted-foreground" /> : <SubElabIcon size={16} className="text-muted-foreground" />}
-                                                                            {field.nombre}
+                                                                            {field.nombre || (field.tipo === 'ingrediente'
+                                                                                ? (componenteData as IngredienteConERP)?.nombreIngrediente
+                                                                                : (componenteData as Elaboracion)?.nombre) || 'Sin nombre'}
                                                                             {needsReview && <AlertTriangle size={14} className="text-amber-500" />}
                                                                         </div>
                                                                     </TooltipTrigger>
@@ -582,24 +615,19 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                     <FormField control={form.control} name="videoProduccionURL" render={({ field }) => (
                                         <FormItem><FormLabel>URL Vídeo Producción</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
-                                    <div className="space-y-2">
-                                        <FormLabel>Fotos de Producción</FormLabel>
-                                        <div className="flex gap-2">
-                                            <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Pega una URL de imagen..." />
-                                            <Button type="button" variant="outline" onClick={handleAddImageUrl}><LinkIcon className="mr-2" />Añadir URL</Button>
-                                        </div>
-                                        {form.formState.errors.fotosProduccionURLs && <p className="text-sm font-medium text-destructive">{(form.formState.errors.fotosProduccionURLs as any).message}</p>}
-                                        <div className="grid grid-cols-3 gap-2 pt-2">
-                                            {fotosFields.map((field, index) => (
-                                                <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
-                                                    <Image src={(field as any).value} alt={`Foto de producción ${index + 1}`} fill className="object-cover" />
-                                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                        <Button type="button" variant="destructive" size="icon" onClick={() => removeFoto(index)}><Trash2 /></Button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                    <FormField control={form.control} name="fotos" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Fotos de Producción</FormLabel>
+                                            <FormControl>
+                                                <ElaboracionImageManager
+                                                    elaboracionId={form.watch('id')}
+                                                    imagenes={field.value || []}
+                                                    onImagesChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
                                     <Card>
                                         <CardHeader className="py-3">
                                             <CardTitle className="text-base">Datos de Expedición</CardTitle>

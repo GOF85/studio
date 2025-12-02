@@ -67,25 +67,144 @@ export default function RecetasPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      const storedData = localStorage.getItem('recetas');
-      setItems(storedData ? JSON.parse(storedData) : []);
+      try {
+        // Load recipes from Supabase
+        const { data: recetas, error: recetasError } = await supabase
+          .from('recetas')
+          .select('*')
+          .order('nombre', { ascending: true });
 
-      // Load categories from Supabase
-      const { data: categorias, error } = await supabase
-        .from('categorias_recetas')
-        .select('*')
-        .order('nombre', { ascending: true });
+        if (recetasError) {
+          console.error('Error loading recetas:', recetasError);
+          toast({
+            variant: 'destructive',
+            title: 'Error al cargar recetas',
+            description: recetasError.message
+          });
+        }
 
-      if (error) {
-        console.error('Error loading categorias:', error);
-      } else {
-        setCategories((categorias || []).map(c => c.nombre));
+        // Load recipe details from Supabase
+        const { data: detalles, error: detallesError } = await supabase
+          .from('receta_detalles')
+          .select('*');
+
+        if (detallesError) {
+          console.error('Error loading receta_detalles:', detallesError);
+        }
+
+        // Map to Receta type
+        const recetasMapped: Receta[] = (recetas || []).map((r: any) => ({
+          id: r.id,
+          numeroReceta: r.numero_receta || '',
+          nombre: r.nombre || '',
+          nombre_en: r.nombre_en || '',
+          visibleParaComerciales: r.visible_para_comerciales ?? true,
+          isArchived: r.is_archived ?? false,
+          descripcionComercial: r.descripcion_comercial || '',
+          descripcionComercial_en: r.descripcion_comercial_en || '',
+          responsableEscandallo: r.responsable_escandallo || '',
+          categoria: r.categoria || '',
+          partidaProduccion: r.partida_produccion || '',
+          gramajeTotal: r.gramaje_total || 0,
+          estacionalidad: r.estacionalidad || 'MIXTO',
+          tipoDieta: r.tipo_dieta || 'NINGUNO',
+          porcentajeCosteProduccion: r.porcentaje_coste_produccion || 0,
+          elaboraciones: (detalles || [])
+            .filter((d: any) => d.receta_id === r.id)
+            .map((d: any) => ({
+              id: d.id,
+              elaboracionId: d.elaboracion_id,
+              nombre: d.nombre || '',
+              cantidad: d.cantidad || 0,
+              coste: d.coste || 0,
+              gramaje: d.gramaje || 0,
+              unidad: d.unidad || 'UD',
+              merma: d.merma || 0,
+            })),
+          menajeAsociado: r.menaje_asociado || [],
+          instruccionesMiseEnPlace: r.instrucciones_mise_en_place || '',
+          fotosMiseEnPlace: Array.isArray(r.fotos_mise_en_place_urls)
+            ? r.fotos_mise_en_place_urls.map((url: string, idx: number) => ({
+              id: `${r.id}-mise-${idx}`,
+              url,
+              esPrincipal: idx === 0,
+              orden: idx
+            }))
+            : [],
+          instruccionesRegeneracion: r.instrucciones_regeneracion || '',
+          fotosRegeneracion: Array.isArray(r.fotos_regeneracion_urls)
+            ? r.fotos_regeneracion_urls.map((url: string, idx: number) => ({
+              id: `${r.id}-regen-${idx}`,
+              url,
+              esPrincipal: idx === 0,
+              orden: idx
+            }))
+            : [],
+          instruccionesEmplatado: r.instrucciones_emplatado || '',
+          fotosEmplatado: Array.isArray(r.fotos_emplatado_urls)
+            ? r.fotos_emplatado_urls.map((url: string, idx: number) => ({
+              id: `${r.id}-empl-${idx}`,
+              url,
+              esPrincipal: idx === 0,
+              orden: idx
+            }))
+            : [],
+          fotosComerciales: Array.isArray(r.fotos_comerciales_urls)
+            ? r.fotos_comerciales_urls.map((url: string, idx: number) => ({
+              id: `${r.id}-com-${idx}`,
+              url,
+              esPrincipal: idx === 0,
+              orden: idx
+            }))
+            : [],
+          perfilSaborPrincipal: r.perfil_sabor_principal || undefined,
+          perfilSaborSecundario: r.perfil_sabor_secundario || [],
+          perfilTextura: r.perfil_textura || [],
+          tipoCocina: r.tipo_cocina || [],
+          recetaOrigen: r.receta_origen || '',
+          temperaturaServicio: r.temperatura_servicio || undefined,
+          tecnicaCoccionPrincipal: r.tecnica_coccion_principal || undefined,
+          potencialMiseEnPlace: r.potencial_mise_en_place || undefined,
+          formatoServicioIdeal: r.formato_servicio_ideal || [],
+          equipamientoCritico: r.equipamiento_critico || [],
+          dificultadProduccion: r.dificultad_produccion || 3,
+          estabilidadBuffet: r.estabilidad_buffet || 3,
+          escalabilidad: r.escalabilidad || undefined,
+          etiquetasTendencia: r.etiquetas_tendencia || [],
+          costeMateriaPrima: r.coste_materia_prima || 0,
+          precioVenta: r.precio_venta || 0,
+          alergenos: r.alergenos || [],
+          requiereRevision: r.requiere_revision ?? false,
+          comentarioRevision: r.comentario_revision || '',
+          fechaRevision: r.fecha_revision || '',
+        }));
+
+        setItems(recetasMapped);
+
+        // Load categories from Supabase
+        const { data: categorias, error: categoriasError } = await supabase
+          .from('categorias_recetas')
+          .select('*')
+          .order('nombre', { ascending: true });
+
+        if (categoriasError) {
+          console.error('Error loading categorias:', categoriasError);
+        } else {
+          setCategories(categorias || []);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'No se pudieron cargar los datos'
+        });
+      } finally {
+        setIsMounted(true);
       }
-
-      setIsMounted(true);
     };
     loadData();
-  }, []);
+  }, [toast]);
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
@@ -216,20 +335,50 @@ export default function RecetasPage() {
     }
   };
 
-  const handleMassAction = (action: 'archive' | 'delete') => {
-    let updatedItems = [...items];
-    if (action === 'archive') {
-      updatedItems = items.map(item => selectedItems.has(item.id) ? { ...item, isArchived: true } : item);
-      toast({ title: `${selectedItems.size} recetas archivadas.` });
-    } else if (action === 'delete') {
-      updatedItems = items.filter(item => !selectedItems.has(item.id));
-      toast({ title: `${selectedItems.size} recetas eliminadas.` });
-    }
+  const handleMassAction = async (action: 'archive' | 'delete') => {
+    try {
+      const selectedIds = Array.from(selectedItems);
 
-    localStorage.setItem('recetas', JSON.stringify(updatedItems));
-    setItems(updatedItems);
-    setSelectedItems(new Set());
-    setItemToDelete(null);
+      if (action === 'archive') {
+        // Update is_archived in Supabase
+        const { error } = await supabase
+          .from('recetas')
+          .update({ is_archived: true })
+          .in('id', selectedIds);
+
+        if (error) throw error;
+
+        // Update local state
+        const updatedItems = items.map(item =>
+          selectedItems.has(item.id) ? { ...item, isArchived: true } : item
+        );
+        setItems(updatedItems);
+        toast({ title: `${selectedItems.size} recetas archivadas.` });
+      } else if (action === 'delete') {
+        // Delete from Supabase
+        const { error } = await supabase
+          .from('recetas')
+          .delete()
+          .in('id', selectedIds);
+
+        if (error) throw error;
+
+        // Update local state
+        const updatedItems = items.filter(item => !selectedItems.has(item.id));
+        setItems(updatedItems);
+        toast({ title: `${selectedItems.size} recetas eliminadas.` });
+      }
+
+      setSelectedItems(new Set());
+      setItemToDelete(null);
+    } catch (error: any) {
+      console.error('Error in mass action:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'No se pudo completar la operación'
+      });
+    }
   };
 
   const handleSelect = (itemId: string) => {
@@ -343,12 +492,17 @@ export default function RecetasPage() {
                 <Button variant="destructive" onClick={() => setItemToDelete('mass')}><Trash2 className="mr-2" />Borrar ({numSelected})</Button>
               </>
             )}
+            {/* Temporarily disabled - needs Supabase integration */}
+            {/*
             <Button variant="outline" size="icon" onClick={handleRecalculateAll} disabled={isRecalculating}>
               {isRecalculating ? <Loader2 className="animate-spin" /> : <RefreshCw />}
             </Button>
+            */}
             <Button asChild>
               <Link href="/book/recetas/nueva"><PlusCircle className="mr-2" />Nueva Receta</Link>
             </Button>
+            {/* Temporarily disabled - needs Supabase integration */}
+            {/*
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon">
@@ -371,6 +525,7 @@ export default function RecetasPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            */}
           </div>
         </div>
 

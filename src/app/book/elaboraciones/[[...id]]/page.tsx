@@ -89,14 +89,74 @@ function ElaboracionesListPage() {
   const [importType, setImportType] = useState<'elaboraciones' | 'componentes' | null>(null);
 
   const loadData = useCallback(async () => {
-    const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    const storedElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-
     const { supabase } = await import('@/lib/supabase');
-    const [ingredientesResult, erpResult] = await Promise.all([
+
+    const [
+      elaboracionesResult,
+      elaboracionComponentesResult,
+      recetasResult,
+      recetaDetallesResult,
+      ingredientesResult,
+      erpResult
+    ] = await Promise.all([
+      supabase.from('elaboraciones').select('*'),
+      supabase.from('elaboracion_componentes').select('*'),
+      supabase.from('recetas').select('id, nombre'),
+      supabase.from('receta_detalles').select('*'),
       supabase.from('ingredientes_internos').select('*'),
       supabase.from('articulos_erp').select('*')
     ]);
+
+    if (elaboracionesResult.error) {
+      console.error('Error loading elaboraciones:', elaboracionesResult.error);
+      toast({ variant: 'destructive', title: 'Error al cargar elaboraciones' });
+      return;
+    }
+
+    const rawElaboraciones = elaboracionesResult.data || [];
+    const rawComponentes = elaboracionComponentesResult.data || [];
+
+    // Reconstruct Elaboracion objects with components
+    const storedElaboraciones: Elaboracion[] = rawElaboraciones.map((e: any) => ({
+      id: e.id,
+      nombre: e.nombre,
+      partidaProduccion: e.partida,
+      unidadProduccion: e.unidad_produccion,
+      instruccionesPreparacion: e.instrucciones,
+      caducidadDias: e.caducidad_dias,
+      costePorUnidad: e.coste_unitario, // This might be recalculated
+      produccionTotal: e.produccion_total || 1,
+      fotosProduccionURLs: e.fotos_produccion_urls || [],
+      videoProduccionURL: e.video_produccion_url || '',
+      formatoExpedicion: e.formato_expedicion || '',
+      ratioExpedicion: e.ratio_expedicion || 0,
+      tipoExpedicion: e.tipo_expedicion || 'REFRIGERADO',
+      requiereRevision: e.requiere_revision || false,
+      comentarioRevision: e.comentario_revision || '',
+      fechaRevision: e.fecha_revision || undefined,
+      componentes: rawComponentes
+        .filter((c: any) => c.elaboracion_padre_id === e.id)
+        .map((c: any) => ({
+          id: c.id,
+          tipo: c.tipo_componente === 'ARTICULO' ? 'ingrediente' : 'elaboracion',
+          componenteId: c.componente_id,
+          nombre: '', // Will be filled later or fetched if needed, but for calculation we need IDs
+          cantidad: c.cantidad_neta,
+          merma: c.merma_aplicada,
+          costePorUnidad: 0 // Will be calculated
+        }))
+    }));
+
+    const storedRecetas = (recetasResult.data || []) as Receta[]; // Partial
+    const recetaDetalles = recetaDetallesResult.data || [];
+
+    // Map recipes to include their details for usage calculation
+    const recetasWithDetails = storedRecetas.map(r => ({
+      ...r,
+      elaboraciones: recetaDetalles.filter((d: any) => d.receta_id === r.id && d.tipo === 'ELABORACION').map((d: any) => ({
+        elaboracionId: d.item_id
+      }))
+    }));
 
     const storedIngredientes = (ingredientesResult.data || []).map((row: any) => ({
       id: row.id,
@@ -108,7 +168,7 @@ function ElaboracionesListPage() {
     })) as IngredienteInterno[];
 
     const storedErp = (erpResult.data || []).map((row: any) => ({
-      idreferenciaerp: row.erp_id,
+      idreferenciaerp: row.erp_id, // Assuming erp_id is the ID we use for linking
       nombreProductoERP: row.nombre,
       precioCompra: parseFloat(row.precio_compra || '0'),
       unidad: row.unidad_medida,
@@ -117,12 +177,26 @@ function ElaboracionesListPage() {
     })) as ArticuloERP[];
 
     const ingredientesMap = new Map(storedIngredientes.map(i => [i.id, i]));
-    const erpMap = new Map(storedErp.map(e => [e.idreferenciaerp, e]));
+    const erpMap = new Map(storedErp.map(e => [e.idreferenciaerp, e])); // Check if ID matches
+    // Also map by UUID if needed, but usually link is via erp_id (int/string) or UUID. 
+    // Let's assume erp_id is what's stored in producto_erp_link_id. 
+    // Wait, in `use-data-store.ts` it maps `id` to `id`. Let's check `articulos_erp` schema.
+    // Schema says `id UUID`. `ingredientes_internos` has `producto_erp_link_id`.
+    // If `producto_erp_link_id` is UUID, then we map by `id`.
+    // Let's map by `id` as well just in case.
+    const erpMapById = new Map((erpResult.data || []).map((e: any) => [e.id, {
+      ...e,
+      unidadConversion: parseFloat(e.unidad_conversion || '1'),
+      precioCompra: parseFloat(e.precio_compra || '0'),
+      descuento: parseFloat(e.descuento || '0')
+    }]));
+
+
     const elaboracionesMap = new Map(storedElaboraciones.map(e => [e.id, e]));
 
     const usageMap = new Map<string, string[]>();
-    storedRecetas.forEach(receta => {
-      (receta.elaboraciones || []).forEach(elabEnReceta => {
+    recetasWithDetails.forEach((receta: any) => {
+      (receta.elaboraciones || []).forEach((elabEnReceta: any) => {
         const currentUses = usageMap.get(elabEnReceta.elaboracionId) || [];
         if (!currentUses.includes(receta.nombre)) {
           usageMap.set(elabEnReceta.elaboracionId, [...currentUses, receta.nombre]);
@@ -136,19 +210,31 @@ function ElaboracionesListPage() {
       (elab.componentes || []).forEach(componente => {
         let costeReal = componente.costePorUnidad || 0;
 
-        if (componente.tipo === 'ingrediente' && costeReal === 0) {
+        if (componente.tipo === 'ingrediente') {
           const ingData = ingredientesMap.get(componente.componenteId);
           if (ingData) {
-            const erpData = erpMap.get(ingData.productoERPlinkId);
+            // Try to find ERP data by link ID (which might be UUID or legacy ID)
+            let erpData = erpMapById.get(ingData.productoERPlinkId);
+            // If not found, maybe it's using the other ID?
+            if (!erpData) erpData = erpMap.get(ingData.productoERPlinkId);
+
             if (erpData) {
               const unidadConversion = (erpData.unidadConversion && erpData.unidadConversion > 0) ? erpData.unidadConversion : 1;
               costeReal = (erpData.precioCompra / unidadConversion) * (1 - (erpData.descuento || 0) / 100);
             }
           }
-        } else if (componente.tipo === 'elaboracion' && costeReal === 0) {
-          const elabData = elaboracionesMap.get(componente.componenteId);
-          if (elabData && elabData.costePorUnidad) {
-            costeReal = elabData.costePorUnidad;
+        } else if (componente.tipo === 'elaboracion') {
+          // Recursive cost calculation could be expensive or cause infinite loops if circular.
+          // For now, assume linear dependency or use stored cost if available/calculated.
+          // To be safe, we can use the stored cost from the map which we are iterating.
+          // But we need to be careful about order. 
+          // Ideally, we should calculate costs in topological order.
+          // For simplicity here, we use the cost already in the object (which might be from DB).
+          // If we want dynamic recalc, we need a better approach.
+          // Let's try to find it in the map.
+          const childElab = elaboracionesMap.get(componente.componenteId);
+          if (childElab) {
+            costeReal = childElab.costePorUnidad || 0;
           }
         }
 
@@ -160,6 +246,8 @@ function ElaboracionesListPage() {
       return total / produccionTotal;
     };
 
+    // Calculate costs (simple pass - might need multiple passes or topological sort for deep nesting)
+    // For now, we trust the DB cost or simple calculation.
     const elaboracionesConDatos = storedElaboraciones.map((elab: Elaboracion) => {
       const usedInRecetas = usageMap.get(elab.id) || [];
       const costeCalculado = calculateElaboracionCost(elab);
@@ -175,7 +263,7 @@ function ElaboracionesListPage() {
 
     setItems(elaboracionesConDatos);
     setIsMounted(true);
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     loadData();
@@ -200,7 +288,7 @@ function ElaboracionesListPage() {
   const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
   const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedItems.size === 0) return;
 
     // Check if any selected item is in use
@@ -218,12 +306,24 @@ function ElaboracionesListPage() {
       return;
     }
 
-    const updatedData = items.filter(i => !selectedItems.has(i.id));
-    localStorage.setItem('elaboraciones', JSON.stringify(updatedData));
-    setItems(updatedData);
+    const { supabase } = await import('@/lib/supabase');
+
+    // Delete from Supabase
+    const { error } = await supabase
+      .from('elaboraciones')
+      .delete()
+      .in('id', Array.from(selectedItems));
+
+    if (error) {
+      console.error('Error deleting elaboraciones:', error);
+      toast({ variant: 'destructive', title: 'Error al eliminar elaboraciones' });
+      return;
+    }
+
     toast({ title: `${selectedItems.size} elaboraciones eliminadas` });
     setSelectedItems(new Set());
     setShowDeleteConfirm(false);
+    loadData(); // Reload data
   };
 
   const handleSelect = (itemId: string) => {
@@ -298,43 +398,53 @@ function ElaboracionesListPage() {
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (results) => {
+      complete: async (results) => {
+        const { supabase } = await import('@/lib/supabase');
+
         if (importType === 'elaboraciones') {
-          const importedData: Elaboracion[] = results.data.map((item: any) => ({
-            ...item,
-            produccionTotal: parseFloat(item.produccionTotal) || 0,
-            costePorUnidad: parseFloat(item.costePorUnidad) || 0,
-            ratioExpedicion: parseFloat(item.ratioExpedicion) || 0,
-            componentes: [],
-            fotosProduccionURLs: JSON.parse(item.fotosProduccionURLs || '[]'),
+          const importedData = results.data.map((item: any) => ({
+            id: item.id || crypto.randomUUID(), // Ensure ID
+            nombre: item.nombre,
+            partida: item.partidaProduccion,
+            unidad_produccion: item.unidadProduccion,
+            instrucciones: item.instruccionesPreparacion,
+            produccion_total: parseFloat(item.produccionTotal) || 1,
+            coste_unitario: parseFloat(item.costePorUnidad) || 0,
+            ratio_expedicion: parseFloat(item.ratioExpedicion) || 0,
+            formato_expedicion: item.formatoExpedicion,
+            tipo_expedicion: item.tipoExpedicion,
+            fotos_produccion_urls: item.fotosProduccionURLs ? JSON.parse(item.fotosProduccionURLs) : [],
+            video_produccion_url: item.videoProduccionURL
           }));
-          localStorage.setItem('elaboraciones', JSON.stringify(importedData));
-          loadData();
-          toast({ title: 'Importación de Elaboraciones completada', description: `Se importaron ${importedData.length} registros. Ahora importa los componentes.` });
+
+          const { error } = await supabase.from('elaboraciones').upsert(importedData);
+
+          if (error) {
+            toast({ variant: 'destructive', title: 'Error importando elaboraciones', description: error.message });
+          } else {
+            loadData();
+            toast({ title: 'Importación de Elaboraciones completada', description: `Se importaron ${importedData.length} registros.` });
+          }
+
         } else if (importType === 'componentes') {
-          let elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-          const elabMap = new Map(elaboraciones.map(e => [e.id, e]));
+          const importedComponentes = results.data.map((compData: any) => ({
+            elaboracion_padre_id: compData.id_elaboracion_padre,
+            tipo_componente: compData.tipo_componente === 'ingrediente' ? 'ARTICULO' : 'ELABORACION',
+            componente_id: compData.id_componente,
+            cantidad_neta: parseFloat(compData.cantidad) || 0,
+            merma_aplicada: parseFloat(compData.merma) || 0
+          }));
 
-          results.data.forEach((compData: any) => {
-            const elab = elabMap.get(compData.id_elaboracion_padre);
-            if (elab) {
-              const newComponent: ComponenteElaboracion = {
-                id: `${compData.id_componente}-${Date.now()}`,
-                tipo: compData.tipo_componente,
-                componenteId: compData.id_componente,
-                nombre: 'temp',
-                cantidad: parseFloat(compData.cantidad) || 0,
-                merma: parseFloat(compData.merma) || 0,
-                costePorUnidad: 0,
-              };
-              if (!elab.componentes) elab.componentes = [];
-              elab.componentes.push(newComponent);
-            }
-          });
+          // We might want to clear existing components for these elaborations first?
+          // For now just insert.
+          const { error } = await supabase.from('elaboracion_componentes').insert(importedComponentes);
 
-          localStorage.setItem('elaboraciones', JSON.stringify(Array.from(elabMap.values())));
-          loadData();
-          toast({ title: 'Importación de Componentes completada', description: `Se procesaron ${results.data.length} componentes.` });
+          if (error) {
+            toast({ variant: 'destructive', title: 'Error importando componentes', description: error.message });
+          } else {
+            loadData();
+            toast({ title: 'Importación de Componentes completada', description: `Se procesaron ${results.data.length} componentes.` });
+          }
         }
       },
       error: (err) => toast({ variant: 'destructive', title: 'Error de importación', description: err.message })
@@ -539,70 +649,154 @@ function ElaborationFormPage() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   useEffect(() => {
-    let elabToLoad: Partial<ElaborationFormValues> | null = null;
-    try {
-      const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const loadElaboration = async () => {
+      const { supabase } = await import('@/lib/supabase');
+      let elabToLoad: Partial<ElaborationFormValues> | null = null;
 
-      if (cloneId) {
-        const elabToClone = allElaboraciones.find(e => e.id === cloneId);
-        if (elabToClone) {
-          elabToLoad = { ...elabToClone, id: Date.now().toString(), nombre: `${elabToClone.nombre} (Copia)` };
+      try {
+        if (cloneId) {
+          // Fetch clone source
+          const { data: elabData, error } = await supabase.from('elaboraciones').select('*').eq('id', cloneId).single();
+          if (elabData) {
+            const { data: componentesData } = await supabase.from('elaboracion_componentes').select('*').eq('elaboracion_padre_id', cloneId);
+
+            elabToLoad = {
+              id: crypto.randomUUID(), // New ID
+              nombre: `${elabData.nombre} (Copia)`,
+              produccionTotal: elabData.produccion_total || 1,
+              unidadProduccion: elabData.unidad_produccion,
+              partidaProduccion: elabData.partida,
+              instruccionesPreparacion: elabData.instrucciones,
+              videoProduccionURL: elabData.video_produccion_url,
+              fotos: elabData.fotos || [],
+              formatoExpedicion: elabData.formato_expedicion,
+              ratioExpedicion: elabData.ratio_expedicion,
+              tipoExpedicion: elabData.tipo_expedicion,
+              componentes: (componentesData || []).map((c: any) => ({
+                id: crypto.randomUUID(),
+                tipo: c.tipo_componente === 'ARTICULO' ? 'ingrediente' : 'elaboracion',
+                componenteId: c.componente_id,
+                nombre: '', // Will be resolved by form
+                cantidad: c.cantidad_neta,
+                merma: c.merma_aplicada,
+                costePorUnidad: 0
+              }))
+            };
+          }
+        } else if (isEditing) {
+          const { data: elabData, error } = await supabase.from('elaboraciones').select('*').eq('id', idParam).single();
+          if (elabData) {
+            const { data: componentesData } = await supabase.from('elaboracion_componentes').select('*').eq('elaboracion_padre_id', idParam);
+
+            elabToLoad = {
+              id: elabData.id,
+              nombre: elabData.nombre,
+              produccionTotal: elabData.produccion_total || 1,
+              unidadProduccion: elabData.unidad_produccion,
+              partidaProduccion: elabData.partida,
+              instruccionesPreparacion: elabData.instrucciones,
+              videoProduccionURL: elabData.video_produccion_url,
+              fotos: elabData.fotos || [],
+              formatoExpedicion: elabData.formato_expedicion,
+              ratioExpedicion: elabData.ratio_expedicion,
+              tipoExpedicion: elabData.tipo_expedicion,
+              requiereRevision: elabData.requiere_revision,
+              comentarioRevision: elabData.comentario_revision,
+              fechaRevision: elabData.fecha_revision,
+              componentes: (componentesData || []).map((c: any) => ({
+                id: c.id,
+                tipo: c.tipo_componente === 'ARTICULO' ? 'ingrediente' : 'elaboracion',
+                componenteId: c.componente_id,
+                nombre: '', // Will be resolved by form
+                cantidad: c.cantidad_neta,
+                merma: c.merma_aplicada,
+                costePorUnidad: 0
+              }))
+            };
+          }
+        } else if (isNew) {
+          elabToLoad = {
+            id: crypto.randomUUID(),
+            nombre: '',
+            produccionTotal: 1,
+            unidadProduccion: 'KG',
+            partidaProduccion: 'FRIO',
+            componentes: [],
+            tipoExpedicion: 'REFRIGERADO',
+            formatoExpedicion: '',
+            ratioExpedicion: 0,
+            instruccionesPreparacion: '',
+            videoProduccionURL: '',
+            fotos: [],
+          };
         }
-      } else if (isEditing) {
-        elabToLoad = allElaboraciones.find(e => e.id === idParam) || null;
-      } else if (isNew) {
-        elabToLoad = {
-          id: Date.now().toString(),
-          nombre: '',
-          produccionTotal: 1,
-          unidadProduccion: 'KG',
-          partidaProduccion: 'FRIO',
-          componentes: [],
-          tipoExpedicion: 'REFRIGERADO',
-          formatoExpedicion: '',
-          ratioExpedicion: 0,
-          instruccionesPreparacion: '',
-          videoProduccionURL: '',
-          fotosProduccionURLs: [],
-        };
+
+        setInitialData(elabToLoad);
+      } catch (e) {
+        console.error('[DEBUG] Error during data loading:', e);
+        toast({ variant: 'destructive', title: 'Error cargando datos' });
+      } finally {
+        setIsDataLoaded(true);
       }
+    };
 
-      setInitialData(elabToLoad);
-    } catch (e) {
-      console.error('[DEBUG] Error during data loading:', e);
-    } finally {
-      setIsDataLoaded(true);
-    }
-
-  }, [idParam, isNew, isEditing, cloneId]);
+    loadElaboration();
+  }, [idParam, isNew, isEditing, cloneId, toast]);
 
   const handleSave = async (data: ElaborationFormValues, costePorUnidad: number) => {
     setIsLoading(true);
-    let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    let message = '';
+    const { supabase } = await import('@/lib/supabase');
 
-    const dataToSave: Elaboracion = {
-      ...data,
-      costePorUnidad: costePorUnidad,
-    };
+    try {
+      const elaboracionData = {
+        id: data.id,
+        nombre: data.nombre,
+        partida: data.partidaProduccion,
+        unidad_produccion: data.unidadProduccion,
+        instrucciones: data.instruccionesPreparacion,
+        produccion_total: data.produccionTotal,
+        coste_unitario: costePorUnidad,
+        fotos: data.fotos,
+        video_produccion_url: data.videoProduccionURL,
+        formato_expedicion: data.formatoExpedicion,
+        ratio_expedicion: data.ratioExpedicion,
+        tipo_expedicion: data.tipoExpedicion,
+        requiere_revision: data.requiereRevision,
+        comentario_revision: data.comentarioRevision,
+        fecha_revision: data.fechaRevision
+      };
 
-    if (isEditing && !cloneId) {
-      const index = allItems.findIndex(p => p.id === idParam);
-      if (index !== -1) {
-        allItems[index] = dataToSave;
-        message = 'Elaboración actualizada correctamente.';
+      // Upsert elaboracion
+      const { error: elabError } = await supabase.from('elaboraciones').upsert(elaboracionData);
+      if (elabError) throw elabError;
+
+      // Handle components
+      // First delete existing components for this elaboration
+      const { error: deleteError } = await supabase.from('elaboracion_componentes').delete().eq('elaboracion_padre_id', data.id);
+      if (deleteError) throw deleteError;
+
+      // Insert new components
+      if (data.componentes && data.componentes.length > 0) {
+        const componentesToInsert = data.componentes.map(c => ({
+          elaboracion_padre_id: data.id,
+          tipo_componente: c.tipo === 'ingrediente' ? 'ARTICULO' : 'ELABORACION',
+          componente_id: c.componenteId,
+          cantidad_neta: c.cantidad,
+          merma_aplicada: c.merma
+        }));
+
+        const { error: compError } = await supabase.from('elaboracion_componentes').insert(componentesToInsert);
+        if (compError) throw compError;
       }
-    } else {
-      allItems.push(dataToSave);
-      message = cloneId ? 'Elaboración clonada correctamente.' : 'Elaboración creada correctamente.';
+
+      toast({ description: 'Elaboración guardada correctamente.' });
+      router.push('/book/elaboraciones');
+    } catch (error: any) {
+      console.error('Error saving elaboration:', error);
+      toast({ variant: 'destructive', title: 'Error al guardar', description: error.message });
+    } finally {
+      setIsLoading(false);
     }
-
-    localStorage.setItem('elaboraciones', JSON.stringify(allItems));
-
-    await new Promise(resolve => setTimeout(resolve, 500));
-    toast({ description: message });
-    setIsLoading(false);
-    router.push('/book/elaboraciones');
   }
 
   if (!isDataLoaded) {

@@ -244,7 +244,12 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 { data: personalEntregaDB },
                 { data: ordenesFabricacionDB },
                 { data: pickingSheetsDB },
-                { data: returnSheetsDB }
+                { data: returnSheetsDB },
+                { data: categoriasRecetasDB },
+                { data: ingredientesInternosDB },
+                { data: elaboracionesDB },
+                { data: tiposServicioBriefingDB },
+                { data: formatosExpedicionDB }
             ] = await Promise.all([
                 supabase.from('eventos').select('*'),
                 supabase.from('familias').select('*'),
@@ -270,7 +275,12 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 supabase.from('personal_entrega').select('*'),
                 supabase.from('ordenes_fabricacion').select('*'),
                 supabase.from('hojas_picking').select('*'),
-                supabase.from('hojas_retorno').select('*')
+                supabase.from('hojas_retorno').select('*'),
+                supabase.from('categorias_recetas').select('*'),
+                supabase.from('ingredientes_internos').select('*'),
+                supabase.from('elaboraciones').select('*'),
+                supabase.from('tipos_servicio_briefing').select('*'),
+                supabase.from('formatos_expedicion').select('*')
             ]);
 
             // Map Supabase 'eventos' to 'ServiceOrder'
@@ -692,8 +702,15 @@ export const useDataStore = create<DataStore>((set, get) => ({
                     Familia: f.nombre,
                     Categoria: f.categoria_padre || ''
                 })),
-                ingredientesInternos: loadFromLocalStorage<IngredienteInterno[]>('ingredientesInternos', []),
-                elaboraciones: (elaboraciones || []).map((e: any) => ({
+                ingredientesInternos: (ingredientesInternosDB || []).map((i: any) => ({
+                    id: i.id,
+                    nombreIngrediente: i.nombre_ingrediente,
+                    productoERPlinkId: i.producto_erp_link_id,
+                    alergenosPresentes: i.alergenos_presentes,
+                    alergenosTrazas: i.alergenos_trazas,
+                    historialRevisiones: i.historial_revisiones,
+                })),
+                elaboraciones: (elaboracionesDB || []).map((e: any) => ({
                     id: e.id,
                     nombre: e.nombre,
                     partidaProduccion: e.partida,
@@ -748,7 +765,11 @@ export const useDataStore = create<DataStore>((set, get) => ({
                     instruccionesEmplatado: ''
                 })),
 
-                categoriasRecetas: loadFromLocalStorage<CategoriaReceta[]>('categoriasRecetas', []),
+                categoriasRecetas: (categoriasRecetasDB || []).map((c: any) => ({
+                    id: c.id,
+                    nombre: c.nombre,
+                    snack: c.snack
+                })),
                 portalUsers: loadFromLocalStorage<PortalUser[]>('portalUsers', []),
                 comercialAjustes: loadFromLocalStorage<Record<string, ComercialAjuste[]>>('comercialAjustes', {}),
                 productosVenta: loadFromLocalStorage<ProductoVenta[]>('productosVenta', []),
@@ -780,7 +801,11 @@ export const useDataStore = create<DataStore>((set, get) => ({
                     recetaId: a.receta_id,
                     subcategoria: a.subcategoria
                 })),
-                tipoServicio: loadFromLocalStorage<TipoServicio[]>('tipoServicio', []),
+                tipoServicio: (tiposServicioBriefingDB || []).map((t: any) => ({
+                    id: t.id,
+                    nombre: t.nombre,
+                    descripcion: t.descripcion
+                })),
                 tiposPersonal: loadFromLocalStorage<CategoriaPersonal[]>('tiposPersonal', []),
                 proveedores: (proveedores || []).map((p: any) => ({
                     id: p.id,
@@ -803,7 +828,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 decoracionDB: loadFromLocalStorage<DecoracionDBItem[]>('decoracionDB', []),
                 atipicosDB: loadFromLocalStorage<AtipicoDBItem[]>('atipicosDB', []),
                 pedidoPlantillas: loadFromLocalStorage<PedidoPlantilla[]>('pedidoPlantillas', []),
-                formatosExpedicionDB: loadFromLocalStorage<FormatoExpedicion[]>('formatosExpedicionDB', []),
+                formatosExpedicionDB: (formatosExpedicionDB || []).map((f: any) => ({
+                    id: f.id,
+                    nombre: f.nombre
+                })),
                 solicitudesPersonalCPR: loadFromLocalStorage<SolicitudPersonalCPR[]>('solicitudesPersonalCPR', []),
                 incidenciasRetorno: loadFromLocalStorage<any[]>('incidenciasRetorno', []),
                 precios: loadFromLocalStorage<Precio[]>('precios', []),
