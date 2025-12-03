@@ -210,7 +210,9 @@ export function useRecetas() {
                 categoria: '',
                 estacionalidad: 'MIXTO' as const,
                 tipoDieta: 'NINGUNO' as const,
-                porcentajeCosteProduccion: 0,
+                requiereRevision: r.requiere_revision,
+                comentarioRevision: r.comentario_revision,
+                fechaRevision: r.fecha_revision,
                 elaboraciones: (detalles || [])
                     .filter((d: any) => d.receta_id === r.id)
                     .map((d: any) => ({
@@ -287,6 +289,9 @@ export function useElaboraciones() {
                 caducidadDias: e.caducidad_dias,
                 costeUnitario: e.coste_unitario,
                 produccionTotal: 0,
+                requiereRevision: e.requiere_revision,
+                comentarioRevision: e.comentario_revision,
+                fechaRevision: e.fecha_revision,
                 componentes: (componentes || [])
                     .filter((c: any) => c.elaboracion_padre_id === e.id)
                     .map((c: any) => ({

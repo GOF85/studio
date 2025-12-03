@@ -20,38 +20,6 @@ import { supabase } from '@/lib/supabase';
 import { useDataStore } from '@/hooks/use-data-store';
 import { ErpArticleSelector } from '../components/ErpArticleSelector';
 
-export const articuloSchema = z.object({
-    id: z.string(),
-    nombre: z.string().min(1, 'El nombre es requerido'),
-    categoria: z.string().min(1, 'La categoría es requerida'),
-    precioVenta: z.preprocess(
-        a => parseFloat(z.string().parse(a)),
-        z.number().positive('El precio de venta debe ser positivo')
-    ),
-    precioAlquiler: z.preprocess(
-        a => parseFloat(z.string().parse(a)),
-        z.number().nonnegative('El precio de alquiler no puede ser negativo')
-    ),
-    precioReposicion: z.preprocess(
-        a => parseFloat(z.string().parse(a)),
-        z.number().positive('El precio de reposición debe ser positivo')
-    ),
-    erpId: z.string().optional(),
-    producidoPorPartner: z.boolean(),
-    esHabitual: z.boolean(),
-    stockSeguridad: z.preprocess(
-        a => parseInt(z.string().parse(a), 10),
-        z.number().int().nonnegative('El stock de seguridad no puede ser negativo')
-    ),
-    unidadVenta: z.preprocess(
-        a => parseInt(z.string().parse(a), 10),
-        z.number().int().positive('La unidad de venta debe ser un entero positivo')
-    ),
-    loc: z.string().optional(),
-});
-
-export type ArticuloFormValues = z.infer<typeof articuloSchema>;
-
 
 
 export default function NuevoArticuloPage() {
