@@ -51,16 +51,81 @@ npm run build
 npm run start
 ```
 
-# File Overview
+# Project Structure
 
-*   `src/app`: This directory contains all of the pages for the application. Each subdirectory corresponds to a route in the application.
-*   `src/components`: This directory contains all of the reusable components for the application.
-*   `src/lib`: This directory contains all of the utility functions and libraries for the application.
-*   `src/hooks`: This directory contains all of the custom React hooks for the application.
-*   `src/services`: This directory contains all of the services for the application, which are used to interact with external APIs.
-*   `src/types`: This directory contains all of the TypeScript types for the application.
-*   `supabase`: This directory contains all of the Supabase-related files, including the database schema and migrations.
-*   `migrations`: This directory contains all of the database migrations.
+The project follows a clean, organized structure with all source files at the root level:
+
+## Directory Structure
+
+```
+studio/
+├── app/                          ← Next.js App Router
+│   ├── (auth)/                   ← Public authentication routes
+│   │   └── login/
+│   ├── (dashboard)/              ← Private routes (requires auth)
+│   │   ├── layout.tsx            ← Dashboard layout with Header
+│   │   ├── page.tsx              ← Main dashboard
+│   │   ├── book/                 ← Gastronomic Book (recipes, ingredients)
+│   │   ├── control-explotacion/  ← Financial control
+│   │   ├── entregas/             ← MICE deliveries
+│   │   ├── analitica/            ← Analytics and reports
+│   │   ├── bd/                   ← Databases (clients, providers, etc.)
+│   │   ├── cpr/                  ← Production Center
+│   │   ├── os/                   ← Service Orders
+│   │   ├── rrhh/                 ← Human Resources
+│   │   └── ...                   ← Other modules
+│   ├── api/                      ← API routes
+│   ├── globals.css               ← Global styles
+│   └── layout.tsx                ← Root layout (global providers)
+│
+├── components/                   ← Reusable UI components
+│   ├── ui/                       ← shadcn-ui components
+│   ├── layout/                   ← Layout components (Header, etc.)
+│   ├── dashboard/
+│   └── ...
+│
+├── lib/                          ← Utilities and configuration
+│   ├── supabase.ts               ← Supabase client
+│   ├── utils.ts                  ← General utilities
+│   └── constants.ts
+│
+├── hooks/                        ← Custom React hooks
+│   ├── use-data-store.ts         ← Global data store
+│   ├── use-supabase.ts           ← Supabase hooks
+│   └── ...
+│
+├── types/                        ← TypeScript type definitions
+│   └── index.ts
+│
+├── providers/                    ← React Context providers
+│   ├── auth-provider.tsx
+│   └── query-provider.tsx
+│
+├── services/                     ← External service integrations
+├── ai/                           ← AI configuration (Genkit)
+├── migrations/                   ← Database migrations (SQL files)
+└── middleware.ts                 ← Auth & route protection
+```
+
+## Key Features
+
+### Route Organization
+- **Route Groups**: Uses `(auth)` and `(dashboard)` for logical separation
+- **Nested Layouts**: Dashboard routes share a common layout with Header
+- **Protected Routes**: Middleware automatically protects all routes except `/login`
+
+### Path Aliases
+All imports use the `@/` alias pointing to the root:
+```typescript
+import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
+import type { ServiceOrder } from '@/types';
+```
+
+### Middleware
+- Protects all routes except public ones
+- Uses `@supabase/ssr` for session management
+- Automatic redirect to `/login` for unauthenticated users
 
 # Data Migration
 
@@ -69,9 +134,11 @@ A major data migration was completed to move all business data from `localStorag
 You can find more information about the migration in the following files:
 
 *   `MIGRATION_README.md`
-*   `migration_localStorage_to_supabase.sql`
-*   `src/lib/migrate-localStorage.ts`
-*   `src/app/migration/page.tsx`
+*   `migrations/` directory (SQL migration files)
+*   `lib/migrate-localStorage.ts`
+*   `app/(dashboard)/migration/page.tsx`
+
+For detailed structure documentation, see `ESTRUCTURA_PROYECTO.md`.
 
 # Development Conventions
 

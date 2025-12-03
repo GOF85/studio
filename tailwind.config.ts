@@ -1,12 +1,12 @@
 /** @type {import('tailwindcss').Config} */
-import {fontFamily} from 'tailwindcss/defaultTheme';
+import { fontFamily } from 'tailwindcss/defaultTheme';
 
 module.exports = {
   darkMode: ["class"],
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   prefix: "",
   theme: {
@@ -18,12 +18,12 @@ module.exports = {
       },
     },
     extend: {
-       fontFamily: {
+      fontFamily: {
         body: ['var(--font-body)', ...fontFamily.sans],
         headline: ['var(--font-headline)', ...fontFamily.sans],
         code: ['monospace'],
       },
-       typography: (theme) => ({
+      typography: (theme: any) => ({
         DEFAULT: {
           css: {
             h1: {

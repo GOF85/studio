@@ -24,10 +24,10 @@
     ],
     "paths": {
       "@/*": [
-        "./src/*"
+        "./*"
       ],
       "@/types": [
-        "./src/types/index.ts"
+        "./types/index.ts"
       ],
       "@/dnd/*": [
         "./components/dnd/*"
