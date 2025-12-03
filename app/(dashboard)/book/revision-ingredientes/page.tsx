@@ -1,22 +1,51 @@
-
-
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, CheckSquare } from 'lucide-react';
+import { AlertTriangle, CheckSquare, Calendar } from 'lucide-react';
 import { useRecetas, useElaboraciones } from '@/hooks/use-data-queries';
 import type { Receta, Elaboracion } from '@/types';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+function formatDate(dateString: string | undefined): string {
+    if (!dateString) return 'Sin fecha';
+
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(date);
+}
+
+interface RevisionCardProps {
+    nombre: string;
+    comentario: string | undefined;
+    fecha: string | undefined;
+    onClick: () => void;
+}
+
+function RevisionCard({ nombre, comentario, fecha, onClick }: RevisionCardProps) {
+    return (
+        <div
+            className="flex items-center gap-4 p-4 border rounded-lg hover:bg-amber-50 cursor-pointer transition-colors"
+            onClick={onClick}
+        >
+            <div className="w-1/4 font-medium text-sm">
+                <span className="hover:text-primary line-clamp-2">{nombre}</span>
+            </div>
+            <div className="w-1/2 text-sm text-muted-foreground">
+                <p className="line-clamp-2">{comentario || 'Sin comentario de revisión'}</p>
+            </div>
+            <div className="w-1/4 flex items-center gap-2 text-sm text-muted-foreground justify-end">
+                <Calendar className="h-4 w-4" />
+                <span>{formatDate(fecha)}</span>
+            </div>
+        </div>
+    );
+}
 
 export default function RevisionPage() {
     const router = useRouter();
@@ -36,7 +65,7 @@ export default function RevisionPage() {
     }
 
     return (
-        <TooltipProvider>
+        <div>
             <div className="flex items-center gap-4 mb-8">
                 <CheckSquare className="h-8 w-8 text-primary" />
                 <h1 className="text-3xl font-headline font-bold">Revisión Gastronómica</h1>
@@ -50,34 +79,22 @@ export default function RevisionPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="border rounded-lg">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nombre de la Receta</TableHead>
-                                        <TableHead>Categoría</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {recetasParaRevisar.length > 0 ? (
-                                        recetasParaRevisar.map(receta => (
-                                            <TableRow key={receta.id} className="cursor-pointer hover:bg-amber-50" onClick={() => router.push(`/book/recetas/${receta.id}`)}>
-                                                <TableCell className="font-medium">
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild><span className="hover:text-primary">{receta.nombre}</span></TooltipTrigger>
-                                                        <TooltipContent side="right"><p className="max-w-sm">{receta.comentarioRevision || 'Sin comentario de revisión.'}</p></TooltipContent>
-                                                    </Tooltip>
-                                                </TableCell>
-                                                <TableCell>{receta.categoria}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={2} className="h-24 text-center">No hay recetas que necesiten revisión.</TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                        <div className="space-y-2">
+                            {recetasParaRevisar.length > 0 ? (
+                                recetasParaRevisar.map(receta => (
+                                    <RevisionCard
+                                        key={receta.id}
+                                        nombre={receta.nombre}
+                                        comentario={receta.comentarioRevision}
+                                        fecha={receta.fechaRevision}
+                                        onClick={() => router.push(`/book/recetas/${receta.id}`)}
+                                    />
+                                ))
+                            ) : (
+                                <div className="h-24 flex items-center justify-center text-muted-foreground">
+                                    No hay recetas que necesiten revisión.
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -90,38 +107,26 @@ export default function RevisionPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="border rounded-lg">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nombre de la Elaboración</TableHead>
-                                        <TableHead>Partida de Producción</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {elaboracionesParaRevisar.length > 0 ? (
-                                        elaboracionesParaRevisar.map(elab => (
-                                            <TableRow key={elab.id} className="cursor-pointer hover:bg-amber-50" onClick={() => router.push(`/book/elaboraciones/${elab.id}`)}>
-                                                <TableCell className="font-medium">
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild><span className="hover:text-primary">{elab.nombre}</span></TooltipTrigger>
-                                                        <TooltipContent side="right"><p className="max-w-sm">{elab.comentarioRevision || 'Sin comentario de revisión.'}</p></TooltipContent>
-                                                    </Tooltip>
-                                                </TableCell>
-                                                <TableCell>{elab.partidaProduccion}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={2} className="h-24 text-center">No hay elaboraciones que necesiten revisión.</TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                        <div className="space-y-2">
+                            {elaboracionesParaRevisar.length > 0 ? (
+                                elaboracionesParaRevisar.map(elab => (
+                                    <RevisionCard
+                                        key={elab.id}
+                                        nombre={elab.nombre}
+                                        comentario={elab.comentarioRevision}
+                                        fecha={elab.fechaRevision}
+                                        onClick={() => router.push(`/book/elaboraciones/${elab.id}`)}
+                                    />
+                                ))
+                            ) : (
+                                <div className="h-24 flex items-center justify-center text-muted-foreground">
+                                    No hay elaboraciones que necesiten revisión.
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
             </div>
-        </TooltipProvider>
+        </div>
     );
 }

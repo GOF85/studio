@@ -205,6 +205,7 @@ export function useRecetas() {
                 precioVenta: r.precio_venta,
                 costeTeorico: r.coste_teorico,
                 estado: r.estado,
+                isArchived: r.is_archived ?? false,
                 visibleParaComerciales: true,
                 responsableEscandallo: '',
                 categoria: '',

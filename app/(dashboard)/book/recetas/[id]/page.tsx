@@ -637,25 +637,57 @@ function RecetaFormPage() {
             fechaRevision: e.fecha_revision
         }));
 
-        const updatedDbElaboraciones = allElaboraciones.map(e => {
+        // Calculate costs iteratively to handle elaboration dependencies
+        // Create a mutable copy for cost calculation
+        const elaboracionesWithCosts = allElaboraciones.map(e => ({
+            ...e,
+            costePorUnidad: 0
+        }));
+
+        // Helper function to calculate cost for a single elaboration
+        const calculateElabCost = (elab: Elaboracion, elabMap: Map<string, number>): number => {
             let costeTotalComponentes = 0;
-            (e.componentes || []).forEach(comp => {
+            (elab.componentes || []).forEach(comp => {
                 if (comp.tipo === 'ingrediente') {
                     const ing = ingMap.get(comp.componenteId);
                     const costeReal = ing?.erp ? (ing.erp.precioCompra / (ing.erp.unidadConversion || 1)) * (1 - (ing.erp.descuento || 0) / 100) : 0;
                     costeTotalComponentes += costeReal * comp.cantidad * (1 + (comp.merma || 0) / 100);
                 } else if (comp.tipo === 'elaboracion') {
-                    const subElab = allElaboraciones.find(sub => sub.id === comp.componenteId);
-                    costeTotalComponentes += (subElab?.costePorUnidad || 0) * comp.cantidad * (1 + (comp.merma || 0) / 100);
+                    const subElabCost = elabMap.get(comp.componenteId) || 0;
+                    costeTotalComponentes += subElabCost * comp.cantidad * (1 + (comp.merma || 0) / 100);
                 }
             });
-            const costePorUnidad = e.produccionTotal > 0 ? costeTotalComponentes / e.produccionTotal : 0;
-            return {
-                ...e,
-                costePorUnidad: costePorUnidad,
-                alergenos: calculateElabAlergenos(e, ingMap),
-            };
-        });
+            return elab.produccionTotal > 0 ? costeTotalComponentes / elab.produccionTotal : 0;
+        };
+
+        // Iteratively calculate costs until stable (max 10 iterations to prevent infinite loops)
+        const costMap = new Map<string, number>();
+        let changed = true;
+        let iterations = 0;
+        const maxIterations = 10;
+
+        while (changed && iterations < maxIterations) {
+            changed = false;
+            iterations++;
+
+            elaboracionesWithCosts.forEach(elab => {
+                const newCost = calculateElabCost(elab, costMap);
+                const oldCost = costMap.get(elab.id) || 0;
+
+                // Check if cost changed significantly (more than 0.0001 to account for floating point)
+                if (Math.abs(newCost - oldCost) > 0.0001) {
+                    changed = true;
+                    costMap.set(elab.id, newCost);
+                }
+            });
+        }
+
+        // Apply calculated costs to elaborations
+        const updatedDbElaboraciones = elaboracionesWithCosts.map(e => ({
+            ...e,
+            costePorUnidad: costMap.get(e.id) || 0,
+            alergenos: calculateElabAlergenos(e, ingMap),
+        }));
 
         setDbElaboraciones(updatedDbElaboraciones);
 

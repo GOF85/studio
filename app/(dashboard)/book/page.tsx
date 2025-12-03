@@ -175,9 +175,9 @@ export default function BookDashboardPage() {
                 <p className="text-muted-foreground">Una visión general del contenido de tu base de datos gastronómica.</p>
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mb-12">
-                <StatCard title="Total Recetas" value={stats.totalRecetas} icon={BookHeart} description="Número total de recetas en el sistema." href="/book/recetas" />
-                <StatCard title="Recetas Activas" value={stats.totalRecetasActivas} icon={BookHeart} description="Recetas visibles para comerciales." href="/book/recetas" />
-                <StatCard title="Recetas Archivadas" value={stats.totalRecetasArchivadas} icon={Archive} description="Recetas ocultas y fuera de uso." href="/book/recetas" />
+                <StatCard title="Total Recetas" value={stats.totalRecetas} icon={BookHeart} description="Número total de recetas en el sistema." href="/book/recetas?filter=all" />
+                <StatCard title="Recetas Activas" value={stats.totalRecetasActivas} icon={BookHeart} description="Recetas visibles para comerciales." href="/book/recetas?filter=active" />
+                <StatCard title="Recetas Archivadas" value={stats.totalRecetasArchivadas} icon={Archive} description="Recetas ocultas y fuera de uso." href="/book/recetas?filter=archived" />
                 <StatCard title="Total Elaboraciones" value={stats.totalElaboraciones} icon={Component} description="Componentes y sub-recetas." href="/book/elaboraciones" />
                 <StatCard title="Total Ingredientes" value={stats.totalIngredientes} icon={ChefHat} description="Materias primas vinculadas a ERP." href="/book/ingredientes" />
             </div>
