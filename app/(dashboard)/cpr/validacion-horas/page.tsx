@@ -59,7 +59,7 @@ export default function ValidacionHorasPage() {
         setPersonalExternoDB(new Map(storedPersonalExterno.map(p => [p.id, { nombre: p.nombreCompleto }])));
 
         const storedPersonalInterno = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        setPersonalInternoDB(new Map(storedPersonalInterno.map(p => [p.id, { nombre: `${p.nombre} ${p.apellidos}` }])))
+        setPersonalInternoDB(new Map(storedPersonalInterno.map(p => [p.id, { nombre: `${p.nombre} ${p.apellido1}` }])))
 
     }, []);
 

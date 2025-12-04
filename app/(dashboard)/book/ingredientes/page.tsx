@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -308,10 +308,14 @@ function IngredientesPageContent() {
     const [headerActions, setHeaderActions] = useState<React.ReactNode>(null);
 
     const router = useRouter();
+    const searchParams = useSearchParams();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
-    const [showOnlyPending, setShowOnlyPending] = useState(true);
+    const [showOnlyPending, setShowOnlyPending] = useState(() => {
+        const pendingParam = searchParams.get('pending');
+        return pendingParam === 'true' ? true : true;
+    });
     const [filterByUsage, setFilterByUsage] = useState(false);
     const [ingredientesEnUso, setIngredientesEnUso] = useState<Set<string>>(new Set());
 

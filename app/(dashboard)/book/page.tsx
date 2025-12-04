@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { BookHeart, ChefHat, Component, Archive, Trash2, BookCheck, ComponentIcon } from 'lucide-react';
+import { BookHeart, ChefHat, Component, Archive, Trash2, BookCheck, ComponentIcon, AlertCircle } from 'lucide-react';
 import { useMemo } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { Receta, Elaboracion } from '@/types';
+import { subMonths, startOfToday, isBefore } from 'date-fns';
 
 // Import React Query hooks
 import { useRecetas, useElaboraciones } from '@/hooks/use-data-queries';
@@ -63,7 +64,29 @@ export default function BookDashboardPage() {
         },
     });
 
-    const isLoading = loadingRecetas || loadingElaboraciones || loadingIngredientes;
+    // Query to count ingredientes pending review (based on historialRevisiones)
+    const { data: ingredientesPendingCount = 0, isLoading: loadingIngredientesPending } = useQuery({
+        queryKey: ['ingredientesPendingCount'],
+        queryFn: async () => {
+            const sixMonthsAgo = subMonths(startOfToday(), 6);
+            
+            const { data, error } = await supabase
+                .from('ingredientes_internos')
+                .select('id, historial_revisiones');
+
+            if (error) throw error;
+            
+            // Count ingredientes that need review (no revision history or last revision older than 6 months)
+            const count = (data || []).filter(item => {
+                const latestRevision = item.historial_revisiones?.[item.historial_revisiones.length - 1];
+                return !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
+            }).length;
+            
+            return count;
+        },
+    });
+
+    const isLoading = loadingRecetas || loadingElaboraciones || loadingIngredientes || loadingIngredientesPending;
 
     const stats = useMemo(() => {
         if (isLoading) {
@@ -76,6 +99,7 @@ export default function BookDashboardPage() {
                 elaboracionesHuerfanas: 0,
                 recetasParaRevisarCount: 0,
                 elaboracionesParaRevisarCount: 0,
+                ingredientesPendingCount: 0,
             };
         }
 
@@ -104,8 +128,9 @@ export default function BookDashboardPage() {
             elaboracionesHuerfanas,
             recetasParaRevisarCount,
             elaboracionesParaRevisarCount,
+            ingredientesPendingCount,
         };
-    }, [recetas, elaboraciones, ingredientesCount, isLoading]);
+    }, [recetas, elaboraciones, ingredientesCount, ingredientesPendingCount, isLoading]);
 
     if (isLoading) {
         return <LoadingSkeleton title="Cargando Panel de Control del Book..." />;
@@ -155,6 +180,14 @@ export default function BookDashboardPage() {
                     description="Elaboraciones marcadas manualmente para su revisión."
                     href="/book/revision-ingredientes"
                     colorClass={stats.elaboracionesParaRevisarCount > 0 ? "bg-red-50" : "bg-green-50"}
+                />
+                <StatCard
+                    title="Ingredientes Pendientes de Revisión"
+                    value={stats.ingredientesPendingCount}
+                    icon={AlertCircle}
+                    description="Ingredientes con última actualización mayor a 6 meses."
+                    href="/book/ingredientes?pending=true"
+                    colorClass={stats.ingredientesPendingCount > 0 ? "bg-red-50" : "bg-green-50"}
                 />
             </div>
         </main>

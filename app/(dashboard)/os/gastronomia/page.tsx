@@ -69,7 +69,7 @@ export default function GastronomiaPage() {
 
     // Sync: Remove orders that are no longer in the briefing
     const briefingItemIds = new Set(briefingItemsWithGastro.map(i => i.id));
-    const finalOrders = syncedOrders.filter(order => briefingItemIds.has(order.id));
+    const finalOrders: GastronomyOrder[] = syncedOrders.filter(order => briefingItemIds.has(order.id)) as unknown as GastronomyOrder[];
     if (osGastroOrders.length !== finalOrders.length) {
         needsUpdate = true;
     }

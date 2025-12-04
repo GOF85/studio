@@ -187,6 +187,7 @@ export default function AlquilerPage() {
             return {
                 ...item, 
                 orderId: order.id, 
+                orderContract: order.contractNumber,
                 contractNumber: order.contractNumber, 
                 solicita: order.solicita, 
                 tipo: item.tipo, 

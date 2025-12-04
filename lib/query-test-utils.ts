@@ -3,9 +3,9 @@
  * Helpers for testing components that use React Query hooks
  */
 
+import React, { type ReactElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, type RenderOptions } from '@testing-library/react';
-import { type ReactElement, type ReactNode } from 'react';
 
 /**
  * Create a test query client with sensible defaults
@@ -35,12 +35,8 @@ export function createTestQueryClient() {
 export function createQueryWrapper(queryClient?: QueryClient) {
     const client = queryClient || createTestQueryClient();
 
-    return function Wrapper({children}: { children: ReactNode }) {
-        return (
-            <QueryClientProvider client={client}>
-            {children}
-            </QueryClientProvider>
-        );
+    return function Wrapper({ children }: { children: ReactNode }) {
+        return React.createElement(QueryClientProvider, { client }, children as any);
     };
 }
 

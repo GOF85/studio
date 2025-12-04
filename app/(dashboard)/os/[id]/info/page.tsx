@@ -266,15 +266,15 @@ export default function InfoPage() {
     return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
   }, [briefingItems]);
 
-  const getFullName = (p: Personal) => `${p.nombre} ${p.apellidos}`;
+  const getFullName = (p: Personal) => `${p.nombre} ${p.apellido1}`;
 
-  const personalSala = useMemo(() => personal.filter(p => p.departamento === 'Sala' && p.nombre && p.apellidos), [personal]);
-  const personalPase = useMemo(() => personal.filter(p => p.departamento === 'Pase' && p.nombre && p.apellidos), [personal]);
-  const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre && p.apellidos), [personal]);
-  const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'Comercial' && p.nombre && p.apellidos), [personal]);
-  const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre && p.apellidos), [personal]);
-  const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre && p.apellidos), [personal]);
-  const personalOperaciones = useMemo(() => personal.filter(p => p.departamento === 'Operaciones' && p.nombre && p.apellidos), [personal]);
+  const personalSala = useMemo(() => personal.filter(p => p.departamento === 'Sala' && p.nombre && p.apellido1), [personal]);
+  const personalPase = useMemo(() => personal.filter(p => p.departamento === 'Pase' && p.nombre && p.apellido1), [personal]);
+  const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre && p.apellido1), [personal]);
+  const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'Comercial' && p.nombre && p.apellido1), [personal]);
+  const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre && p.apellido1), [personal]);
+  const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre && p.apellido1), [personal]);
+  const personalOperaciones = useMemo(() => personal.filter(p => p.departamento === 'Operaciones' && p.nombre && p.apellido1), [personal]);
   const validEspacios = useMemo(() => espacios.filter(e => e.identificacion.nombreEspacio), [espacios]);
   const espacioOptions = useMemo(() => validEspacios.map(e => ({label: e.identificacion.nombreEspacio, value: e.identificacion.nombreEspacio})), [validEspacios]);
 
@@ -289,7 +289,7 @@ export default function InfoPage() {
   const handlePersonalChange = (name: string, phoneField: keyof OsFormValues, mailField: keyof OsFormValues) => {
     const person = personal.find(p => getFullName(p) === name);
     setValue(phoneField, person?.telefono || '', { shouldDirty: true });
-    setValue(mailField, person?.mail || '', { shouldDirty: true });
+    setValue(mailField, person?.email || '', { shouldDirty: true });
   }
 
   const handleEspacioChange = (name: string) => {
@@ -327,7 +327,7 @@ export default function InfoPage() {
   useEffect(() => {
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-    setPersonal(allPersonal.filter(p => p.nombre && p.apellidos));
+    setPersonal(allPersonal.filter(p => p.nombre && p.apellido1));
     setEspacios(allEspacios.filter(e => e.identificacion.nombreEspacio));
 
     let currentOS: ServiceOrder | null = null;

@@ -38,13 +38,14 @@
       "@types/papaparse",
       "@types/nprogress",
       "jspdf-autotable",
-      "@types/react-signature-canvas"
+      "@types/react-signature-canvas",
+      "vitest/globals"
     ]
   },
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "next-env.d.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [

@@ -200,6 +200,7 @@ export default function BioPage() {
                 ...item, 
                 quantity: cantidadAjustada,
                 orderId: order.id, 
+                orderContract: order.contractNumber,
                 contractNumber: order.contractNumber, 
                 solicita: order.solicita, 
                 tipo: item.tipo, 

@@ -61,7 +61,7 @@ export default function IncidenciasPickingPage() {
                             fechaNecesidad: sheet.fechaNecesidad,
                             item: {
                                 ...item,
-                                solicita: sheet.solicitante,
+                                solicita: sheet.solicita,
                                 orderId: item.orderId, // Ensure the original MaterialOrder ID is preserved
                             },
                             comment: state.incidentComment,

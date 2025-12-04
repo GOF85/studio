@@ -183,10 +183,10 @@ export default function PickingSheetPage() {
                     Hoja de Picking <Badge variant="outline" className="text-2xl">{sheet.id}</Badge>
                 </h1>
                  <div className="flex items-center gap-3">
-                    {sheet.solicitante && (
-                        <Badge variant={sheet.solicitante === 'Sala' ? 'default' : 'outline'} className={cn("text-lg", sheet.solicitante === 'Sala' ? 'bg-blue-600' : 'bg-orange-500')}>
-                            {sheet.solicitante === 'Sala' ? <Users size={16} className="mr-1.5"/> : <Soup size={16} className="mr-1.5"/>}
-                            {sheet.solicitante}
+                    {sheet.solicita && (
+                        <Badge variant={sheet.solicita === 'Sala' ? 'default' : 'outline'} className={cn("text-lg", sheet.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500')}>
+                            {sheet.solicita === 'Sala' ? <Users size={16} className="mr-1.5"/> : <Soup size={16} className="mr-1.5"/>}
+                            {sheet.solicita}
                         </Badge>
                     )}
                      <Button onClick={() => setIsFinalizeDialogOpen(true)} disabled={!isComplete || sheet.status === 'Listo'}>

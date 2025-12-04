@@ -191,6 +191,7 @@ export default function AlmacenPage() {
                 ...item, 
                 quantity: item.quantity,
                 orderId: order.id, 
+                orderContract: order.contractNumber,
                 contractNumber: order.contractNumber, 
                 solicita: order.solicita, 
                 tipo: item.tipo, 

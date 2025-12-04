@@ -258,7 +258,7 @@ export default function ProduccionPage() {
                     <SelectValue placeholder="Selecciona tu nombre para empezar..." />
                 </SelectTrigger>
                 <SelectContent>
-                    {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre} {p.apellidos}</SelectItem>)}
+                    {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre} {p.apellido1}</SelectItem>)}
                 </SelectContent>
             </Select>
         </div>

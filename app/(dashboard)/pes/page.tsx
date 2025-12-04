@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, isBefore, startOfToday } from 'date-fns';
@@ -41,9 +42,46 @@ export default function PrevisionServiciosPage() {
   const router = useRouter();
 
   useEffect(() => {
-    let storedOrders = localStorage.getItem('serviceOrders');
-    setServiceOrders(storedOrders ? JSON.parse(storedOrders) : []);
-    setIsMounted(true);
+    async function load() {
+      try {
+        const { data: eventos, error } = await supabase.from('eventos').select('*');
+        if (error) throw error;
+
+        if (Array.isArray(eventos) && eventos.length > 0) {
+          const mapped: ServiceOrder[] = eventos.map((e: any) => {
+            const base: Partial<ServiceOrder> = {
+              id: e.id,
+              serviceNumber: e.numero_expediente,
+              client: e.nombre_evento || `Cliente ID ${e.cliente_id}`,
+              startDate: e.fecha_inicio,
+              endDate: e.fecha_fin,
+              status: e.estado === 'CONFIRMADO' ? 'Confirmado' : 'Borrador',
+              asistentes: e.comensales || 0,
+              vertical: e.vertical || 'Catering',
+              comercial: e.comercial_id ? `Comercial ID ${e.comercial_id}` : '',
+              space: e.espacio_id ? `Espacio ID ${e.espacio_id}` : '',
+              isVip: !!e.is_vip,
+              serviceName: e.nombre_evento || '',
+              serviceNumberInternal: e.numero_expediente || '',
+            };
+            return { ...base, ...e } as unknown as ServiceOrder;
+          });
+
+          setServiceOrders(mapped);
+          setIsMounted(true);
+          return;
+        }
+      } catch (err) {
+        // If Supabase fails or returns no data, fall back to localStorage during migration
+        console.warn('Supabase fetch for eventos failed, falling back to localStorage.', err);
+      }
+
+      const storedOrders = typeof window !== 'undefined' ? localStorage.getItem('serviceOrders') : null;
+      setServiceOrders(storedOrders ? JSON.parse(storedOrders) : []);
+      setIsMounted(true);
+    }
+
+    load();
   }, []);
 
   const availableMonths = useMemo(() => {

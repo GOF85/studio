@@ -183,7 +183,7 @@ export default function PersonalMicePage() {
     const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
     const otherOsOrders = allOrders.filter(o => o.osId !== osId);
     
-    const currentOsOrders: PersonalMiceOrder[] = data.personal.map(p => ({ ...p, osId }));
+    const currentOsOrders: PersonalMiceOrder[] = data.personal.map(p => ({ ...p, osId })) as unknown as PersonalMiceOrder[];
 
     const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
     localStorage.setItem('personalMiceOrders', JSON.stringify(updatedAllOrders));

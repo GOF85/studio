@@ -154,12 +154,12 @@ export default function GestionPickingPage() {
                                         <TableRow key={sheet.id} onClick={() => handleStartPicking(sheet.id)} className="cursor-pointer">
                                             <TableCell className="font-mono"><Badge>{sheet.id}</Badge></TableCell>
                                             <TableCell>{sheet.os?.serviceNumber}</TableCell>
-                                            <TableCell>{sheet.os?.client}</TableCell>
+                                             <TableCell>{sheet.os?.client}</TableCell>
                                              <TableCell>
-                                                {sheet.solicitante && (
-                                                    <Badge variant={sheet.solicitante === 'Sala' ? 'default' : 'outline'} className={sheet.solicitante === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
-                                                        {sheet.solicitante === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}
-                                                        {sheet.solicitante}
+                                                {sheet.solicita && (
+                                                    <Badge variant={sheet.solicita === 'Sala' ? 'default' : 'outline'} className={sheet.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
+                                                        {sheet.solicita === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}
+                                                        {sheet.solicita}
                                                     </Badge>
                                                 )}
                                             </TableCell>

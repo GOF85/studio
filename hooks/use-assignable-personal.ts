@@ -43,8 +43,8 @@ export function useAssignablePersonal(turno: UnifiedTurno | null) {
         }
     } else if (turno.type === 'CPR' && ('estado' in turno) && (turno.estado === 'Solicitado' || turno.estado === 'Aprobada')) {
          workers = allPersonalInterno
-            .filter(p => p.departamento === 'CPR' || p.departamento === 'Cocina')
-            .map(p => ({ label: `${p.nombre} ${p.apellidos}`, value: p.id, id: p.id }));
+          .filter(p => p.departamento === 'CPR' || p.departamento === 'Cocina')
+          .map(p => ({ label: `${p.nombre} ${p.apellido1}`, value: p.id, id: p.id }));
     }
 
     setAssignableWorkers(workers);

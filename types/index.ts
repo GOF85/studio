@@ -335,6 +335,9 @@ export type ArticuloCatering = {
     subcategoria?: string;
 }
 
+// Backwards-compatible alias: some files still import `AlquilerDBItem`
+export type AlquilerDBItem = ArticuloCatering;
+
 
 export type TipoServicio = {
     id: string;
@@ -349,6 +352,9 @@ export type ProveedorTransporte = {
     precio: number;
     tipo: 'Catering' | 'Entregas';
 }
+
+// Backwards-compatible alias: some files expect `TipoTransporte`
+export type TipoTransporte = ProveedorTransporte;
 
 export type CategoriaPersonal = {
     id: string;
@@ -518,6 +524,10 @@ export type PersonalExterno = {
     observacionesGenerales?: string;
     hojaFirmadaUrl?: string;
 };
+
+// Backwards-compatible turno status constant/type expected by older code
+export const ESTADO_TURNO_PERSONAL = ['Solicitado', 'Asignado', 'Cerrado'] as const;
+export type EstadoTurnoPersonal = typeof ESTADO_TURNO_PERSONAL[number];
 
 export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;
 export type AjusteConcepto = typeof AJUSTE_CONCEPTO_OPCIONES[number];
