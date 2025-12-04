@@ -80,7 +80,7 @@ export default function RecetasPage() {
           .order('nombre', { ascending: true });
 
         if (recetasError) {
-          console.error('Error loading recetas:', recetasError);
+          console.error('Error loading recetas:', JSON.stringify(recetasError, null, 2));
           toast({
             variant: 'destructive',
             title: 'Error al cargar recetas',

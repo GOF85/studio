@@ -5,8 +5,7 @@ import { useFormContext } from 'react-hook-form';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Image as ImageIcon } from 'lucide-react';
-import { ImageUploader } from '../images/ImageUploader';
-import { ImageGallery } from '../images/ImageGallery';
+import { ImageManager } from '@/components/book/images/ImageManager';
 import type { EspacioFormValues } from '@/lib/validations/espacios';
 import type { ImagenEspacio } from '@/types/espacios';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 export function ImagenesTab() {
     const form = useFormContext<EspacioFormValues>();
     const imagenes = form.watch('imagenes') || [];
-    const espacioId = form.watch('id');
+    const espacioId = form.watch('id' as any);
     const [activeTab, setActiveTab] = useState('fotos');
 
     const handleUploadComplete = (url: string, filename: string, categoria: 'foto' | 'plano' = 'foto') => {
@@ -25,11 +24,11 @@ export function ImagenesTab() {
             esPrincipal: imagenes.length === 0 && categoria === 'foto', // Only photos can be principal by default
             descripcion: filename,
             orden: imagenes.length,
-            categoria
+            categoria: categoria as 'foto' | 'plano'
         };
 
         const newImages = [...imagenes, newImage];
-        form.setValue('imagenes', newImages, { shouldDirty: true });
+        form.setValue('imagenes', newImages as any, { shouldDirty: true });
     };
 
     const handleReorder = (newOrder: ImagenEspacio[]) => {
@@ -46,13 +45,14 @@ export function ImagenesTab() {
         // Assign these orders to the new order
         const updatedNewOrder = newOrder.map((img, index) => ({
             ...img,
-            orden: availableOrders[index] !== undefined ? availableOrders[index] : (otherImages.length + index) // Fallback
+            orden: availableOrders[index] !== undefined ? availableOrders[index] : (otherImages.length + index), // Fallback
+            categoria: (img.categoria || 'foto') as 'foto' | 'plano'
         }));
 
         // Merge and sort by orden to keep consistent global state
         const allImages = [...otherImages, ...updatedNewOrder].sort((a, b) => a.orden - b.orden);
 
-        form.setValue('imagenes', allImages, { shouldDirty: true });
+        form.setValue('imagenes', allImages as any, { shouldDirty: true });
     };
 
     const handleDelete = (id: string) => {
@@ -95,10 +95,16 @@ export function ImagenesTab() {
                         </TabsList>
 
                         <TabsContent value="fotos" className="space-y-6">
-                            <ImageUploader
-                                espacioId={espacioId}
-                                onUploadComplete={(url, name) => handleUploadComplete(url, name, 'foto')}
+                            <ImageManager
+                                images={fotos as any}
+                                onUpload={(url, name) => handleUploadComplete(url, name, 'foto')}
+                                onReorder={handleReorder as any}
+                                onDelete={handleDelete}
+                                onSetPrincipal={handleSetPrincipal}
+                                folder={espacioId || 'temp'}
+                                bucket="espacios-images"
                                 label="foto"
+                                enableCamera={true}
                             />
                             <div className="text-sm text-muted-foreground">
                                 {fotos.length === 0
@@ -106,19 +112,19 @@ export function ImagenesTab() {
                                     : `${fotos.length} fotos subidas. Arrastra para reordenar.`
                                 }
                             </div>
-                            <ImageGallery
-                                imagenes={fotos}
-                                onReorder={handleReorder}
-                                onDelete={handleDelete}
-                                onSetPrincipal={handleSetPrincipal}
-                            />
                         </TabsContent>
 
                         <TabsContent value="planos" className="space-y-6">
-                            <ImageUploader
-                                espacioId={espacioId}
-                                onUploadComplete={(url, name) => handleUploadComplete(url, name, 'plano')}
+                            <ImageManager
+                                images={planos as any}
+                                onUpload={(url, name) => handleUploadComplete(url, name, 'plano')}
+                                onReorder={handleReorder as any}
+                                onDelete={handleDelete}
+                                onSetPrincipal={handleSetPrincipal}
+                                folder={espacioId || 'temp'}
+                                bucket="espacios-images"
                                 label="plano"
+                                enableCamera={true}
                             />
                             <div className="text-sm text-muted-foreground">
                                 {planos.length === 0
@@ -126,12 +132,6 @@ export function ImagenesTab() {
                                     : `${planos.length} planos subidos. Arrastra para reordenar.`
                                 }
                             </div>
-                            <ImageGallery
-                                imagenes={planos}
-                                onReorder={handleReorder}
-                                onDelete={handleDelete}
-                                onSetPrincipal={handleSetPrincipal}
-                            />
                         </TabsContent>
                     </Tabs>
                 </CardContent>

@@ -35,10 +35,10 @@ export function createTestQueryClient() {
 export function createQueryWrapper(queryClient?: QueryClient) {
     const client = queryClient || createTestQueryClient();
 
-    return function Wrapper({ children }: { children: ReactNode }) {
+    return function Wrapper({children}: { children: ReactNode }) {
         return (
-            <QueryClientProvider client= { client } >
-            { children }
+            <QueryClientProvider client={client}>
+            {children}
             </QueryClientProvider>
         );
     };

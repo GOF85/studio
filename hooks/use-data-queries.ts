@@ -191,11 +191,15 @@ export function useRecetas() {
 
             if (recetasError) throw recetasError;
 
-            const { data: detalles, error: detallesError } = await supabase
-                .from('receta_detalles')
-                .select('*');
+            const { data: elaboraciones, error: elabError } = await supabase
+                .from('elaboraciones')
+                .select('id, nombre, alergenos'); // Fetch name and allergens
 
-            if (detallesError) throw detallesError;
+            if (elabError) {
+                console.warn('Error fetching elaboraciones:', elabError);
+            }
+
+            const elabMap = new Map((elaboraciones || []).map((e: any) => [e.id, e]));
 
             // Map to Receta type
             return (recetas || []).map((r: any) => ({
@@ -208,28 +212,32 @@ export function useRecetas() {
                 isArchived: r.is_archived ?? false,
                 visibleParaComerciales: true,
                 responsableEscandallo: '',
-                categoria: '',
+                categoria: r.categoria || '',
                 estacionalidad: 'MIXTO' as const,
                 tipoDieta: 'NINGUNO' as const,
                 requiereRevision: r.requiere_revision,
                 comentarioRevision: r.comentario_revision,
                 fechaRevision: r.fecha_revision,
-                elaboraciones: (detalles || [])
-                    .filter((d: any) => d.receta_id === r.id)
-                    .map((d: any) => ({
-                        id: d.id,
-                        elaboracionId: d.item_id,
-                        nombre: 'Item ' + d.item_id,
-                        cantidad: d.cantidad,
-                        coste: 0,
-                        gramaje: 0,
-                        unidad: 'UD' as const,
-                        merma: 0,
-                    })),
-                menajeAsociado: [],
+                elaboraciones: (r.elaboraciones || [])
+                    .map((d: any) => {
+                        const elab = elabMap.get(d.elaboracionId);
+                        return {
+                            id: d.id,
+                            elaboracionId: d.elaboracionId,
+                            nombre: elab ? elab.nombre : d.nombre,
+                            cantidad: d.cantidad,
+                            coste: d.coste || 0,
+                            gramaje: d.gramaje || 0,
+                            unidad: d.unidad || 'UD',
+                            merma: d.merma || 0,
+                            alergenos: elab ? elab.alergenos : (d.alergenos || []),
+                        };
+                    }),
+                menajeAsociado: r.menaje_asociado || [],
                 instruccionesMiseEnPlace: '',
                 instruccionesRegeneracion: '',
                 instruccionesEmplatado: '',
+                alergenos: r.alergenos || [],
             }));
         },
     });
@@ -257,6 +265,21 @@ export function useCreateReceta() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['recetas'] });
+        },
+    });
+}
+
+export function useCategoriasRecetas() {
+    return useQuery({
+        queryKey: ['categoriasRecetas'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('categorias_recetas')
+                .select('*')
+                .order('nombre');
+
+            if (error) throw error;
+            return data || [];
         },
     });
 }

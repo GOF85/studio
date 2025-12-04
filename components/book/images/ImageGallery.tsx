@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Trash2, Star, GripVertical, Maximize2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import type { ImagenReceta } from '@/types/index';
+import { cn } from '@/lib/utils';
 
 interface SortableImageProps {
     imagen: ImagenReceta;
@@ -115,9 +116,11 @@ interface ImageGalleryProps {
     onReorder: (newOrder: ImagenReceta[]) => void;
     onDelete: (id: string) => void;
     onSetPrincipal: (id: string) => void;
+    children?: React.ReactNode;
+    className?: string;
 }
 
-export function ImageGallery({ imagenes, onReorder, onDelete, onSetPrincipal }: ImageGalleryProps) {
+export function ImageGallery({ imagenes, onReorder, onDelete, onSetPrincipal, children, className }: ImageGalleryProps) {
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
@@ -136,10 +139,6 @@ export function ImageGallery({ imagenes, onReorder, onDelete, onSetPrincipal }: 
         }
     }
 
-    if (imagenes.length === 0) {
-        return null;
-    }
-
     return (
         <DndContext
             sensors={sensors}
@@ -150,7 +149,8 @@ export function ImageGallery({ imagenes, onReorder, onDelete, onSetPrincipal }: 
                 items={imagenes.map(img => img.id)}
                 strategy={rectSortingStrategy}
             >
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
+                <div className={cn("grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4", className)}>
+                    {children}
                     {imagenes.map((imagen) => (
                         <SortableImage
                             key={imagen.id}

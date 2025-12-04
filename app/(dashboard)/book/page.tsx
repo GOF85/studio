@@ -3,16 +3,15 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { BookHeart, ChefHat, Component, Shield, Archive, Trash2, BookCheck, ComponentIcon } from 'lucide-react';
+import { BookHeart, ChefHat, Component, Archive, Trash2, BookCheck, ComponentIcon } from 'lucide-react';
 import { useMemo } from 'react';
-import { isBefore, subMonths, startOfToday, isWithinInterval, addYears } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { Receta, Elaboracion, IngredienteInterno } from '@/types';
+import type { Receta, Elaboracion } from '@/types';
 
 // Import React Query hooks
-import { useRecetas, useElaboraciones, useEventos, useGastronomyOrders } from '@/hooks/use-data-queries';
+import { useRecetas, useElaboraciones } from '@/hooks/use-data-queries';
 
 type StatCardProps = {
     title: string;
@@ -44,38 +43,27 @@ function StatCard({ title, value, icon: Icon, description, href, colorClass }: S
     return href ? <Link href={href}>{content}</Link> : content;
 }
 
-// Hook for ingredientes internos
-function useIngredientesInternos() {
-    return useQuery({
-        queryKey: ['ingredientesInternos'],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('ingredientes_internos')
-                .select('*');
 
-            if (error) throw error;
-
-            return (data || []).map((row: any): IngredienteInterno => ({
-                id: row.id,
-                nombreIngrediente: row.nombre_ingrediente,
-                productoERPlinkId: row.producto_erp_link_id,
-                alergenosPresentes: row.alergenos_presentes || [],
-                alergenosTrazas: row.alergenos_trazas || [],
-                historialRevisiones: row.historial_revisiones || [],
-            }));
-        },
-    });
-}
 
 export default function BookDashboardPage() {
     // Load all data with React Query
     const { data: recetas = [], isLoading: loadingRecetas } = useRecetas();
     const { data: elaboraciones = [], isLoading: loadingElaboraciones } = useElaboraciones();
-    const { data: ingredientes = [], isLoading: loadingIngredientes } = useIngredientesInternos();
-    const { data: serviceOrders = [], isLoading: loadingEventos } = useEventos();
-    const { data: gastroOrders = [], isLoading: loadingGastro } = useGastronomyOrders();
 
-    const isLoading = loadingRecetas || loadingElaboraciones || loadingIngredientes || loadingEventos || loadingGastro;
+    // Simple query to count ingredientes
+    const { data: ingredientesCount = 0, isLoading: loadingIngredientes } = useQuery({
+        queryKey: ['ingredientesCount'],
+        queryFn: async () => {
+            const { count, error } = await supabase
+                .from('ingredientes_internos')
+                .select('*', { count: 'exact', head: true });
+
+            if (error) throw error;
+            return count || 0;
+        },
+    });
+
+    const isLoading = loadingRecetas || loadingElaboraciones || loadingIngredientes;
 
     const stats = useMemo(() => {
         if (isLoading) {
@@ -86,7 +74,6 @@ export default function BookDashboardPage() {
                 totalElaboraciones: 0,
                 totalIngredientes: 0,
                 elaboracionesHuerfanas: 0,
-                ingredientesPorVerificarCount: 0,
                 recetasParaRevisarCount: 0,
                 elaboracionesParaRevisarCount: 0,
             };
@@ -102,67 +89,23 @@ export default function BookDashboardPage() {
         // --- Lógica para Elaboraciones Huérfanas ---
         const elaboracionesEnUso = new Set<string>();
         recetas.forEach(receta => {
-            (receta.elaboraciones || []).forEach(elab => {
+            (receta.elaboraciones || []).forEach((elab: any) => {
                 elaboracionesEnUso.add(elab.elaboracionId);
             });
         });
         const elaboracionesHuerfanas = elaboraciones.filter(elab => !elaboracionesEnUso.has(elab.id)).length;
-
-        // --- Lógica para Ingredientes por Verificar ---
-        const confirmedOrders = serviceOrders.filter(os => os.status === 'Confirmado');
-
-        const today = startOfToday();
-        const sixMonthsAgo = subMonths(today, 6);
-
-        const recetasEnUsoIds = new Set<string>();
-        confirmedOrders.forEach(os => {
-            const osDate = new Date(os.startDate);
-            if (isWithinInterval(osDate, { start: today, end: addYears(today, 1) })) {
-                gastroOrders
-                    .filter(go => go.osId === os.id)
-                    .forEach(pedido => {
-                        (pedido.items || []).forEach(item => {
-                            if (item.type === 'item') recetasEnUsoIds.add(item.id);
-                        });
-                    });
-            }
-        });
-
-        const elaboracionesEnUsoIds = new Set<string>();
-        recetas.forEach(receta => {
-            if (recetasEnUsoIds.has(receta.id)) {
-                (receta.elaboraciones || []).forEach(elab => elaboracionesEnUsoIds.add(elab.elaboracionId));
-            }
-        });
-
-        const ingredientesEnUsoIds = new Set<string>();
-        elaboraciones.forEach(elab => {
-            if (elaboracionesEnUsoIds.has(elab.id)) {
-                (elab.componentes || []).forEach(comp => {
-                    if (comp.tipo === 'ingrediente') ingredientesEnUsoIds.add(comp.componenteId);
-                });
-            }
-        });
-
-        const ingredientesPorVerificar = ingredientes.filter(ing => {
-            const latestRevision = ing.historialRevisiones?.[ing.historialRevisiones.length - 1];
-            const necesitaRevision = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
-            const estaEnUso = ingredientesEnUsoIds.has(ing.id);
-            return necesitaRevision && estaEnUso;
-        });
 
         return {
             totalRecetas,
             totalRecetasActivas,
             totalRecetasArchivadas,
             totalElaboraciones: elaboraciones.length,
-            totalIngredientes: ingredientes.length,
+            totalIngredientes: ingredientesCount,
             elaboracionesHuerfanas,
-            ingredientesPorVerificarCount: ingredientesPorVerificar.length,
             recetasParaRevisarCount,
             elaboracionesParaRevisarCount,
         };
-    }, [recetas, elaboraciones, ingredientes, serviceOrders, gastroOrders, isLoading]);
+    }, [recetas, elaboraciones, ingredientesCount, isLoading]);
 
     if (isLoading) {
         return <LoadingSkeleton title="Cargando Panel de Control del Book..." />;
@@ -188,7 +131,7 @@ export default function BookDashboardPage() {
                 <h2 className="text-2xl font-headline font-semibold tracking-tight">Mantenimiento y Calidad de Datos</h2>
                 <p className="text-muted-foreground">Tareas pendientes para asegurar la integridad y precisión de los datos del book.</p>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <StatCard
                     title="Elaboraciones Huérfanas"
                     value={stats.elaboracionesHuerfanas}
@@ -196,14 +139,6 @@ export default function BookDashboardPage() {
                     description="Elaboraciones que no se usan en ninguna receta. Candidatas a ser eliminadas."
                     href="/book/elaboraciones?huérfanas=true"
                     colorClass={stats.elaboracionesHuerfanas > 0 ? "bg-amber-50" : "bg-green-50"}
-                />
-                <StatCard
-                    title="Ingredientes por Verificar"
-                    value={stats.ingredientesPorVerificarCount}
-                    icon={Shield}
-                    description="Ingredientes en uso cuya información de alérgenos/ERP necesita ser validada."
-                    href="/book/verificacionIngredientes"
-                    colorClass={stats.ingredientesPorVerificarCount > 0 ? "bg-amber-50" : "bg-green-50"}
                 />
                 <StatCard
                     title="Recetas Pendientes de Revisión"

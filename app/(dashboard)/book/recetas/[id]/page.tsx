@@ -43,6 +43,7 @@ import { ElaborationForm, type ElaborationFormValues } from '@/components/book/e
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ImageManager } from '@/components/book/images/ImageManager';
 import { ImageUploader } from '@/components/book/images/ImageUploader';
 import { ImageGallery } from '@/components/book/images/ImageGallery';
 import type { ImagenReceta } from '@/types/index';
@@ -69,7 +70,7 @@ const menajeEnRecetaSchema = z.object({
 
 const recetaFormSchema = z.object({
     id: z.string(),
-    numeroReceta: z.string().optional(),
+    numeroReceta: z.string().optional().nullable(),
     nombre: z.string().min(1, 'El nombre es obligatorio'),
     nombre_en: z.string().optional().default(''),
     visibleParaComerciales: z.boolean().default(true),
@@ -78,10 +79,10 @@ const recetaFormSchema = z.object({
     descripcionComercial_en: z.string().optional().default(''),
     responsableEscandallo: z.string().optional().default(''),
     categoria: z.string().min(1, 'La categoría es obligatoria'),
-    partidaProduccion: z.string().optional(),
+    partidaProduccion: z.string().optional().nullable(),
     gramajeTotal: z.coerce.number().optional().default(0),
-    estacionalidad: z.enum(['INVIERNO', 'VERANO', 'MIXTO']),
-    tipoDieta: z.enum(['VEGETARIANO', 'VEGANO', 'AMBOS', 'NINGUNO']),
+    estacionalidad: z.enum(['INVIERNO', 'VERANO', 'MIXTO']).optional().nullable(),
+    tipoDieta: z.enum(['VEGETARIANO', 'VEGANO', 'AMBOS', 'NINGUNO']).optional().nullable(),
     porcentajeCosteProduccion: z.coerce.number().optional().default(30),
     elaboraciones: z.array(elaboracionEnRecetaSchema).default([]),
     menajeAsociado: z.array(menajeEnRecetaSchema).optional().default([]),
@@ -92,23 +93,23 @@ const recetaFormSchema = z.object({
     instruccionesEmplatado: z.string().optional().default(''),
     fotosEmplatado: z.array(z.custom<ImagenReceta>()).default([]),
     fotosComerciales: z.array(z.custom<ImagenReceta>()).default([]),
-    perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional(),
+    perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional().nullable(),
     perfilSaborSecundario: z.array(z.string()).optional().default([]),
     perfilTextura: z.array(z.string()).optional().default([]),
     tipoCocina: z.array(z.string()).optional().default([]),
     recetaOrigen: z.string().optional().default(''),
-    temperaturaServicio: z.enum(['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO']).optional(),
-    tecnicaCoccionPrincipal: z.enum(TECNICAS_COCCION).optional(),
-    potencialMiseEnPlace: z.enum(['COMPLETO', 'PARCIAL', 'AL_MOMENTO']).optional(),
+    temperaturaServicio: z.enum(['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO']).optional().nullable(),
+    tecnicaCoccionPrincipal: z.enum(TECNICAS_COCCION).optional().nullable(),
+    potencialMiseEnPlace: z.enum(['COMPLETO', 'PARCIAL', 'AL_MOMENTO']).optional().nullable(),
     formatoServicioIdeal: z.array(z.string()).optional().default([]),
     equipamientoCritico: z.array(z.string()).optional().default([]),
     dificultadProduccion: z.coerce.number().min(1).max(5).optional().default(3),
     estabilidadBuffet: z.coerce.number().min(1).max(5).optional().default(3),
-    escalabilidad: z.enum(['FACIL', 'MEDIA', 'DIFICIL']).optional(),
+    escalabilidad: z.enum(['FACIL', 'MEDIA', 'DIFICIL']).optional().nullable(),
     etiquetasTendencia: z.array(z.string()).optional().default([]),
     requiereRevision: z.boolean().optional().default(false),
     comentarioRevision: z.string().optional().default(''),
-    fechaRevision: z.string().optional(),
+    fechaRevision: z.string().optional().nullable(),
 });
 
 type RecetaFormValues = z.infer<typeof recetaFormSchema>;
@@ -246,15 +247,15 @@ function RecipeImageSection({
                 />
             )}
 
-            <ImageUploader
-                folder={folder}
-                onUploadComplete={handleUpload}
-            />
-            <ImageGallery
-                imagenes={images}
+            <ImageManager
+                images={images}
+                onUpload={handleUpload}
                 onReorder={handleReorder}
                 onDelete={handleDelete}
                 onSetPrincipal={handleSetPrincipal}
+                folder={folder}
+                enableCamera={true}
+                label={title.toLowerCase()}
             />
         </div>
     );
@@ -490,6 +491,7 @@ function ElaborationSelector({ allElaboraciones, onSelect }: { allElaboraciones:
 
 const defaultValues: Partial<RecetaFormValues> = {
     id: '',
+    numeroReceta: '',
     nombre: '',
     nombre_en: '',
     visibleParaComerciales: true,
@@ -585,7 +587,7 @@ function RecetaFormPage() {
         // Map ERP
         const storedErp: ArticuloERP[] = (erpData || []).map((a: any) => ({
             id: a.id,
-            idreferenciaerp: a.id_referencia_erp || a.idreferenciaerp,
+            idreferenciaerp: a.erp_id || a.id_referencia_erp || a.idreferenciaerp,
             idProveedor: a.id_proveedor,
             nombreProductoERP: a.nombre_producto_erp,
             referenciaProveedor: a.referencia_proveedor,
@@ -603,7 +605,12 @@ function RecetaFormPage() {
             observaciones: a.observaciones
         }));
 
-        const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp || i.id, i]));
+        const erpMap = new Map<string, ArticuloERP>();
+        storedErp.forEach(i => {
+            if (i.id) erpMap.set(i.id, i);
+            if (i.idreferenciaerp) erpMap.set(i.idreferenciaerp, i);
+        });
+
         const ingMap = new Map(storedInternos.map(ing => [ing.id, { ...ing, erp: erpMap.get(ing.productoERPlinkId) }]));
         setIngredientesMap(ingMap);
 
@@ -756,7 +763,7 @@ function RecetaFormPage() {
                             return images.map((img: any, index: number) => {
                                 if (typeof img === 'string') {
                                     return {
-                                        id: `img-${Date.now()}-${index}`,
+                                        id: `${recetaData.id}-img-${index}`,
                                         url: img,
                                         esPrincipal: index === 0,
                                         orden: index
@@ -765,7 +772,7 @@ function RecetaFormPage() {
                                 // Handle old format { value: string }
                                 if (img.value) {
                                     return {
-                                        id: `img-${Date.now()}-${index}`,
+                                        id: `${recetaData.id}-img-${index}`,
                                         url: img.value,
                                         esPrincipal: index === 0,
                                         orden: index
@@ -776,11 +783,29 @@ function RecetaFormPage() {
                             });
                         };
 
+                        // Generate new recipe number for clone
+                        let newRecipeNumber = '';
+                        if (cloneId) {
+                            const { data: allRecetas, error } = await supabase
+                                .from('recetas')
+                                .select('numero_receta')
+                                .order('numero_receta', { ascending: false })
+                                .limit(1);
+
+                            if (error) {
+                                console.error('Error loading last recipe number:', error);
+                            }
+
+                            const lastRecipe = allRecetas?.[0];
+                            const lastNumber = lastRecipe?.numero_receta ? parseInt(lastRecipe.numero_receta.split('-')[1]) : 0;
+                            newRecipeNumber = `R-${(lastNumber + 1).toString().padStart(4, '0')}`;
+                        }
+
                         initialValues = {
                             ...defaultValues,
-                            id: recetaData.id,
-                            numeroReceta: recetaData.numero_receta,
-                            nombre: recetaData.nombre,
+                            id: cloneId ? Date.now().toString() : recetaData.id, // New ID for clone
+                            numeroReceta: cloneId ? newRecipeNumber : recetaData.numero_receta,
+                            nombre: cloneId ? `${recetaData.nombre} (Copia)` : recetaData.nombre,
                             nombre_en: recetaData.nombre_en || '',
                             visibleParaComerciales: recetaData.visible_para_comerciales ?? true,
                             isArchived: recetaData.is_archived ?? false,
@@ -913,7 +938,7 @@ function RecetaFormPage() {
     }
 
     const onError = (errors: any) => {
-        console.error("Errores de validación del formulario:", errors);
+        console.error("Errores de validación del formulario:", JSON.stringify(errors, null, 2));
         toast({
             variant: 'destructive',
             title: 'Error de validación',
@@ -923,6 +948,24 @@ function RecetaFormPage() {
 
     const onSubmit = async (data: RecetaFormValues) => {
         setIsLoading(true);
+
+        // Ensure numeroReceta exists
+        if (!data.numeroReceta) {
+            try {
+                const { data: allRecetas } = await supabase
+                    .from('recetas')
+                    .select('numero_receta')
+                    .order('numero_receta', { ascending: false })
+                    .limit(1);
+
+                const lastRecipe = allRecetas?.[0];
+                const lastNumber = lastRecipe?.numero_receta ? parseInt(lastRecipe.numero_receta.split('-')[1]) : 0;
+                data.numeroReceta = `R-${(lastNumber + 1).toString().padStart(4, '0')}`;
+            } catch (e) {
+                console.error("Error generating recipe number:", e);
+                data.numeroReceta = `R-${Date.now()}`; // Fallback
+            }
+        }
 
         if (data.requiereRevision && !data.fechaRevision) {
             data.fechaRevision = new Date().toISOString();
@@ -1084,10 +1127,15 @@ function RecetaFormPage() {
                                                         <FormLabel htmlFor="archived-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Archive /><InfoTooltip text="Archivar oculta la receta de todas las listas y selectores." /></FormLabel>
                                                     </FormItem>
                                                 )} />
+                                                <FormField control={form.control} name="numeroReceta" render={({ field }) => (
+                                                    <FormItem className="flex flex-col">
+                                                        <FormControl><Input {...field} value={field.value || ''} disabled className="bg-muted h-9 w-auto min-w-[100px]" /></FormControl>
+                                                    </FormItem>
+                                                )} />
                                             </div>
                                         </CardHeader>
                                         <CardContent className="space-y-3 pt-2">
-                                            <div className="grid md:grid-cols-2 gap-3">
+                                            <div className="grid gap-3" style={{ gridTemplateColumns: '3fr 1fr' }}>
                                                 <FormField control={form.control} name="nombre" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                                                 <FormField control={form.control} name="responsableEscandallo" render={({ field }) => (
                                                     <FormItem className="flex flex-col">
@@ -1283,7 +1331,7 @@ function RecetaFormPage() {
                                         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BrainCircuit />Clasificación Gastronómica</CardTitle></CardHeader>
                                         <CardContent className="space-y-4">
                                             <div className="grid md:grid-cols-3 gap-4">
-                                                <FormField control={form.control} name="perfilSaborPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Sabor Principal <InfoTooltip text="¿Cuál es el sabor dominante que define el plato?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl><SelectContent>{SABORES_PRINCIPALES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                                <FormField control={form.control} name="perfilSaborPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Sabor Principal <InfoTooltip text="¿Cuál es el sabor dominante que define el plato?" /></FormLabel><Select onValueChange={field.onChange} value={field.value ?? undefined}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl><SelectContent>{SABORES_PRINCIPALES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
                                                 <FormField control={form.control} name="perfilSaborSecundario" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Sabores Secundarios <InfoTooltip text="¿Qué otras notas de sabor son perceptibles?" /></FormLabel><MultiSelect options={['Picante', 'Ahumado', 'Cítrico', 'Herbáceo', 'Floral'].map(s => ({ label: s, value: s }))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..." /></FormItem>)} />
                                                 <FormField control={form.control} name="perfilTextura" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Texturas <InfoTooltip text="¿Qué texturas clave se encuentran en el plato?" /></FormLabel><MultiSelect options={['Crujiente', 'Cremoso', 'Meloso', 'Gelatinoso', 'Esponjoso', 'Líquido'].map(s => ({ label: s, value: s }))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..." /></FormItem>)} />
                                             </div>
@@ -1293,14 +1341,14 @@ function RecetaFormPage() {
                                             </div>
                                             <Separator />
                                             <div className="grid md:grid-cols-3 gap-4">
-                                                <FormField control={form.control} name="temperaturaServicio" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Temperatura de Servicio <InfoTooltip text="¿Cómo se debe servir este plato?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl><SelectContent>{['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                                <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Técnica Principal <InfoTooltip text="¿Cuál es la técnica de cocción más relevante?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl><SelectContent>{TECNICAS_COCCION.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                                <FormField control={form.control} name="potencialMiseEnPlace" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Potencial de MEP <InfoTooltip text="¿Cuánto trabajo se puede adelantar antes del servicio?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl><SelectContent>{['COMPLETO', 'PARCIAL', 'AL_MOMENTO'].map(s => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                                <FormField control={form.control} name="temperaturaServicio" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Temperatura de Servicio <InfoTooltip text="¿Cómo se debe servir este plato?" /></FormLabel><Select onValueChange={field.onChange} value={field.value ?? undefined}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl><SelectContent>{['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                                <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Técnica Principal <InfoTooltip text="¿Cuál es la técnica de cocción más relevante?" /></FormLabel><Select onValueChange={field.onChange} value={field.value ?? undefined}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl><SelectContent>{TECNICAS_COCCION.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                                <FormField control={form.control} name="potencialMiseEnPlace" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Potencial de MEP <InfoTooltip text="¿Cuánto trabajo se puede adelantar antes del servicio?" /></FormLabel><Select onValueChange={field.onChange} value={field.value ?? undefined}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl><SelectContent>{['COMPLETO', 'PARCIAL', 'AL_MOMENTO'].map(s => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}</SelectContent></Select></FormItem>)} />
                                             </div>
                                             <div className="grid md:grid-cols-2 gap-4">
                                                 <FormField control={form.control} name="dificultadProduccion" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Dificultad de Producción (1-5) <InfoTooltip text="¿Cuán difícil es producir este plato en grandes cantidades?" /></FormLabel><FormControl><Input type="number" min="1" max="5" {...field} /></FormControl></FormItem>)} />
                                                 <FormField control={form.control} name="estabilidadBuffet" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Estabilidad en Buffet (1-5) <InfoTooltip text="Del 1 al 5, ¿cuánto tiempo aguanta en perfectas condiciones en un buffet?" /></FormLabel><FormControl><Input type="number" min="1" max="5" {...field} /></FormControl></FormItem>)} />
-                                                <FormField control={form.control} name="escalabilidad" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Escalabilidad <InfoTooltip text="¿Es fácil, medio o difícil aumentar la producción de 50 a 500 raciones?" /></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl><SelectContent>{['FACIL', 'MEDIA', 'DIFICIL'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                                <FormField control={form.control} name="escalabilidad" render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-1.5">Escalabilidad <InfoTooltip text="¿Es fácil, medio o difícil aumentar la producción de 50 a 500 raciones?" /></FormLabel><Select onValueChange={field.onChange} value={field.value ?? undefined}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl><SelectContent>{['FACIL', 'MEDIA', 'DIFICIL'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>)} />
                                             </div>
                                             <Separator />
                                             <div className="grid md:grid-cols-2 gap-4">
@@ -1314,7 +1362,7 @@ function RecetaFormPage() {
                         </form>
                     </FormProvider>
                 </main>
-            </TooltipProvider>
+            </TooltipProvider >
             <AlertDialog
                 open={showDeleteConfirm}
                 onOpenChange={setShowDeleteConfirm}
