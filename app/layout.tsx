@@ -11,6 +11,7 @@ import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indic
 import { QueryProvider } from '@/providers/query-provider';
 import { MigrationBanner } from '@/components/migration-banner';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics } from '@vercel/analytics/next';
 
 // Force dynamic rendering to prevent static generation issues with useSearchParams
 export const dynamic = 'force-dynamic';
@@ -48,6 +49,7 @@ export default function RootLayout({
           <MigrationBanner />
           <Toaster />
           <SpeedInsights />
+          <Analytics />
         </QueryProvider>
       </body>
     </html >
