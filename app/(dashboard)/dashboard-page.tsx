@@ -4,115 +4,15 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart, CheckCircle2, Clock, AlertCircle, Building2 } from 'lucide-react';
+import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart, CheckCircle2, Clock, AlertCircle, Building2, Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
+import { useToast } from '@/hooks/use-toast';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { DashboardMetricCard } from '@/components/dashboard/metric-card';
 import { Badge } from '@/components/ui/badge';
 
-type MenuItem = {
-    title: string;
-    href: string;
-    icon: LucideIcon;
-    className?: string;
-    description?: string;
-    badge?: {
-        label: string;
-        variant?: 'default' | 'secondary' | 'destructive' | 'outline';
-    };
-}
-
-const planningItems: MenuItem[] = [
-    {
-        title: 'Previsión de Servicios',
-        href: '/pes',
-        icon: ClipboardList,
-        description: 'Planifica y gestiona servicios futuros',
-        badge: { label: '3 activos', variant: 'secondary' }
-    },
-    {
-        title: 'Calendario de Servicios',
-        href: '/calendario',
-        icon: Calendar,
-        description: 'Vista temporal de todos los eventos',
-        badge: { label: 'Hoy: 2', variant: 'default' }
-    },
-    {
-        title: 'Entregas MICE',
-        href: '/entregas',
-        icon: Truck,
-        className: "theme-orange",
-        description: 'Gestión de entregas y logística',
-        badge: { label: '1 pendiente', variant: 'destructive' }
-    },
-];
-
-const coreOpsItems: MenuItem[] = [
-    {
-        title: 'Book Gastronómico',
-        href: '/book',
-        icon: BookHeart,
-        description: 'Recetas, ingredientes y elaboraciones',
-    },
-    {
-        title: 'Producción (CPR)',
-        href: '/cpr',
-        icon: Factory,
-        description: 'Centro de producción y costes',
-    },
-    {
-        title: 'Almacén',
-        href: '/almacen',
-        icon: Warehouse,
-        description: 'Control de stock e inventario',
-    },
-];
-
-const reportingItems: MenuItem[] = [
-    {
-        title: 'Analítica',
-        href: '/analitica',
-        icon: BarChart3,
-        description: 'Métricas y KPIs del negocio',
-    },
-    {
-        title: 'Control de Explotación',
-        href: '/control-explotacion',
-        icon: AreaChart,
-        description: 'Seguimiento financiero operativo',
-    },
-];
-
-const adminItems: MenuItem[] = [
-    {
-        title: 'Recursos Humanos',
-        href: '/rrhh',
-        icon: Users,
-        description: 'Gestión de personal y equipos',
-    },
-    {
-        title: 'Portales Externos',
-        href: '/portal',
-        icon: Users,
-        description: 'Acceso para clientes y colaboradores',
-    },
-    {
-        title: 'Bases de Datos',
-        href: '/bd',
-        icon: Package,
-        description: 'Proveedores, artículos y configuración',
-    },
-];
-
-const commercialItems: MenuItem[] = [
-    {
-        title: 'Catálogo de Espacios',
-        href: '/bd/espacios',
-        icon: Building2,
-        description: 'Gestión de venues y espacios para eventos',
-        badge: { label: 'Nuevo', variant: 'default' }
-    },
-];
+import { planningItems, coreOpsItems, reportingItems, adminItems, commercialItems, type MenuItem } from '@/lib/nav-config';
 
 export function Section({ title, items }: { title: string, items: MenuItem[] }) {
     if (items.length === 0) return null;
@@ -151,14 +51,28 @@ export function Section({ title, items }: { title: string, items: MenuItem[] }) 
     )
 }
 
-export function DashboardPage() {
-    const [metrics, setMetrics] = useState({
-        serviciosHoy: 0,
-        paxHoy: 0,
-        serviciosSemana: 0,
-        paxSemana: 0,
-        hitosConGastronomia: 0,
-        totalAsistentes: 0,
+interface DashboardMetrics {
+    serviciosHoy: number;
+    paxHoy: number;
+    serviciosSemana: number;
+    paxSemana: number;
+    hitosConGastronomia: number;
+    totalAsistentes: number;
+}
+
+export default function DashboardPage() {
+    const { toast } = useToast();
+    const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    const refreshData = async () => {
+        setLoading(true);
+        // Re-fetch data logic would go here, effectively simulated by reload or router.refresh
+        window.location.reload();
+    };
+
+    const { isPulling, pullDistance } = usePullToRefresh({
+        onRefresh: refreshData
     });
 
     useEffect(() => {
@@ -227,14 +141,34 @@ export function DashboardPage() {
                 hitosConGastronomia,
                 totalAsistentes,
             });
+            setLoading(false);
         };
 
         calculateMetrics();
     }, []);
 
+    if (loading || !metrics) {
+        return (
+            <div className="flex flex-col min-h-screen items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="mt-2 text-muted-foreground">Cargando datos...</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex flex-col min-h-screen">
-            <main className="flex-grow container mx-auto px-4 py-6">
+        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 relative">
+            {/* Pull To Refresh Indicator */}
+            {isPulling && (
+                <div
+                    className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 flex items-center justify-center p-2 bg-background rounded-full shadow-lg transition-all duration-200"
+                    style={{ opacity: Math.min(pullDistance / 100, 1), transform: `translate(-50%, ${pullDistance / 2}px)` }}
+                >
+                    <Loader2 className={`h-6 w-6 text-primary ${pullDistance > 150 ? 'animate-spin' : ''}`} />
+                </div>
+            )}
+
+            <div className="flex flex-col space-y-2">
                 <DashboardHeader />
 
                 {/* Metrics Section */}
@@ -277,7 +211,7 @@ export function DashboardPage() {
                     <Section title="Análisis y Reportes" items={reportingItems} />
                     <Section title="Administración y Colaboradores" items={adminItems} />
                 </div>
-            </main>
+            </div>
             <footer className="py-4 border-t mt-auto">
                 <div className="container mx-auto px-4 flex justify-between items-center text-sm text-muted-foreground">
                     <div>
@@ -288,6 +222,6 @@ export function DashboardPage() {
                     </div>
                 </div>
             </footer>
-        </div>
+        </div >
     );
 }

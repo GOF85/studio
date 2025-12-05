@@ -7,7 +7,7 @@ import type { Alergeno } from "@/types";
 import { Badge } from "../ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-export const AllergenBadge = ({ allergen, isTraza = false }: { allergen: Alergeno, isTraza?: boolean }) => {
+export const AllergenBadge = ({ allergen, isTraza = false, className }: { allergen: Alergeno, isTraza?: boolean, className?: string }) => {
     const info = ALERGENOS_INFO[allergen];
     if (!info) return null;
 
@@ -19,7 +19,8 @@ export const AllergenBadge = ({ allergen, isTraza = false }: { allergen: Alergen
                         className={cn(
                             "text-white text-xs font-bold w-10 h-5 flex items-center justify-center cursor-default",
                             info.color,
-                            isTraza && "opacity-60"
+                            isTraza && "opacity-60",
+                            className
                         )}
                         style={{ backgroundColor: info.color.startsWith('bg-') ? undefined : info.color }}
                     >

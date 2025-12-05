@@ -1,11 +1,11 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Component, ChefHat, PlusCircle, Trash2, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon, RefreshCw, Sprout, AlertTriangle } from 'lucide-react';
+import { Loader2, Component, ChefHat, PlusCircle, Trash2, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon, RefreshCw, Sprout, AlertTriangle, Plus, GripVertical, Info, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { MobileDataCard, DataRow } from '@/components/ui/mobile-data-card';
 import type { Elaboracion, IngredienteInterno, UnidadMedida, ArticuloERP, PartidaProduccion, FormatoExpedicion, Alergeno, ImagenReceta } from '@/types';
 import { UNIDADES_MEDIDA, ALERGENOS } from '@/types';
 
@@ -36,6 +36,8 @@ const componenteSchema = z.object({
     cantidad: z.coerce.number().positive('La cantidad debe ser mayor que 0'),
     costePorUnidad: z.coerce.number().optional().default(0),
     merma: z.coerce.number().optional().default(0),
+    coste: z.coerce.number().optional().default(0), // Added for mobile card display
+    unidad: z.string().optional().default('UD'), // Added for mobile card display
 });
 
 const elaboracionFormSchema = z.object({
@@ -64,12 +66,14 @@ const elaboracionFormSchema = z.object({
 
 export type ElaborationFormValues = z.infer<typeof elaboracionFormSchema>;
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
+type ComponenteElaboracionForm = z.infer<typeof componenteSchema>;
 
 export function ElaborationForm({ initialData, onSave, isSubmitting }: { initialData: Partial<ElaborationFormValues> | null, onSave: (data: ElaborationFormValues, costePorUnidad: number) => void | Promise<void>, isSubmitting: boolean }) {
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
     const [elaboracionesData, setElaboracionesData] = useState<Map<string, Elaboracion>>(new Map());
     const [formatosExpedicion, setFormatosExpedicion] = useState<FormatoExpedicion[]>([]);
+    const [showComponents, setShowComponents] = useState(false); // New state for conditional rendering
     const { toast } = useToast();
 
     const form = useForm<ElaborationFormValues>({
@@ -176,32 +180,38 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     const handleSelectIngrediente = (ingrediente: IngredienteConERP) => {
         const erpItem = ingrediente.erp;
         let costeReal = 0;
+        let unidad = 'UD';
         if (erpItem) {
             const unidadConversion = (erpItem.unidadConversion && erpItem.unidadConversion > 0) ? erpItem.unidadConversion : 1;
             costeReal = (erpItem.precioCompra / unidadConversion) * (1 - (erpItem.descuento || 0) / 100);
+            unidad = erpItem.unidad || 'UD';
         }
 
         append({
-            id: `${ingrediente.id}-${Date.now()}`,
+            id: `${ingrediente.id} -${Date.now()} `,
             tipo: 'ingrediente',
             componenteId: ingrediente.id,
             nombre: ingrediente.nombreIngrediente,
             cantidad: 1,
             costePorUnidad: costeReal,
             merma: 0,
+            coste: costeReal, // Populate for mobile card
+            unidad: unidad, // Populate for mobile card
         });
         toast({ title: 'Ingrediente añadido', duration: 1000 });
     }
 
     const handleSelectElaboracion = (elab: Elaboracion) => {
         append({
-            id: `${elab.id}-${Date.now()}`,
+            id: `${elab.id} -${Date.now()} `,
             tipo: 'elaboracion',
             componenteId: elab.id,
             nombre: elab.nombre,
             cantidad: 1,
             costePorUnidad: elab.costePorUnidad || 0,
             merma: 0,
+            coste: elab.costePorUnidad || 0, // Populate for mobile card
+            unidad: elab.unidadProduccion || 'UD', // Populate for mobile card
         });
         toast({ title: 'Elaboración añadida', duration: 1000 });
     }
@@ -457,125 +467,179 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="border rounded-lg">
-                                        <Table>
-                                            <TableHeader><TableRow><TableHead className="py-2 px-3">Componente</TableHead><TableHead className="w-32 py-2 px-3">Cantidad</TableHead><TableHead className="w-24 py-2 px-3">% Merma</TableHead><TableHead className="w-28 py-2 px-3">Unidad</TableHead><TableHead className="w-32 py-2 px-3 text-right">Coste Total</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
-                                            <TableBody>
-                                                {fields.length === 0 && <TableRow><TableCell colSpan={5} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
+                                    {!showComponents ? (
+                                        <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setShowComponents(true)}>
+                                            <p>Los componentes están ocultos para ahorrar espacio.</p>
+                                            <Button variant="link" onClick={() => setShowComponents(true)}>Mostrar Componentes</Button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {/* Mobile View: Card List */}
+                                            <div className="md:hidden space-y-4">
                                                 {fields.map((field, index) => {
-                                                    const componenteData = field.tipo === 'ingrediente'
-                                                        ? ingredientesData.get(field.componenteId)
-                                                        : elaboracionesData.get(field.componenteId);
-
-                                                    const unidad = field.tipo === 'ingrediente'
-                                                        ? ((componenteData as IngredienteConERP)?.erp?.unidadConversion && (componenteData as IngredienteConERP).erp!.unidadConversion > 1 ? 'Ud' : (componenteData as IngredienteConERP)?.erp?.unidad || 'UD')
-                                                        : (componenteData as Elaboracion)?.unidadProduccion || 'UD';
-
-                                                    // Recalcular coste si es necesario
-                                                    let currentCost = field.costePorUnidad || 0;
-                                                    if (field.tipo === 'ingrediente' && currentCost === 0) {
-                                                        const erpData = (componenteData as IngredienteConERP)?.erp;
-                                                        if (erpData) {
-                                                            const unidadConversion = (erpData.unidadConversion && erpData.unidadConversion > 0) ? erpData.unidadConversion : 1;
-                                                            currentCost = (erpData.precioCompra / unidadConversion) * (1 - (erpData.descuento || 0) / 100);
-                                                        }
-                                                    }
-
-                                                    // Calcular coste total de este componente
-                                                    const costeConMermaComponente = currentCost * (1 + (field.merma || 0) / 100);
-                                                    const costeTotalComponente = costeConMermaComponente * (field.cantidad || 0);
-
-                                                    // Verificar si ingrediente necesita revisión (más de 6 meses)
-                                                    let needsReview = false;
-                                                    if (field.tipo === 'ingrediente') {
-                                                        const ingData = componenteData as IngredienteConERP;
-                                                        if (ingData?.historialRevisiones && ingData.historialRevisiones.length > 0) {
-                                                            const lastReview = new Date(ingData.historialRevisiones[ingData.historialRevisiones.length - 1].fecha);
-                                                            const sixMonthsAgo = new Date();
-                                                            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                                                            needsReview = lastReview < sixMonthsAgo;
-                                                        } else {
-                                                            needsReview = true; // Sin revisiones
-                                                        }
-                                                    }
-
-                                                    // Tooltip mejorado y estructurado
-                                                    const tooltipLines = [
-                                                        `💰 COSTES`,
-                                                        `  • Unitario: ${formatCurrency(currentCost)} / ${formatUnit(unidad)}`,
-                                                        `  • Con merma (${field.merma || 0}%): ${formatCurrency(costeConMermaComponente)} / ${formatUnit(unidad)}`,
-                                                        `  • Total línea: ${formatCurrency(costeTotalComponente)}`,
-                                                    ];
-
-                                                    if (field.tipo === 'ingrediente') {
-                                                        const erpData = (componenteData as IngredienteConERP)?.erp;
-                                                        if (erpData) {
-                                                            tooltipLines.push(`\n📦 DATOS ERP`);
-                                                            tooltipLines.push(`  • Precio: ${formatCurrency(erpData.precioCompra)} / ${formatUnit(erpData.unidad)}`);
-                                                            if (erpData.descuento) tooltipLines.push(`  • Descuento: ${erpData.descuento}%`);
-                                                            if (erpData.nombreProveedor) tooltipLines.push(`  • Proveedor: ${erpData.nombreProveedor}`);
-                                                            if (erpData.referenciaProveedor) tooltipLines.push(`  • Ref: ${erpData.referenciaProveedor}`);
-                                                        }
-                                                    }
-
-                                                    const tooltipText = tooltipLines.join('\n');
-
+                                                    const item = field as ComponenteElaboracionForm;
+                                                    const subtotal = item.coste * item.cantidad;
                                                     return (
-                                                        <TableRow key={field.id}>
-                                                            <TableCell className="font-medium py-1 px-3">
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <div className="flex items-center gap-2">
-                                                                            {field.tipo === 'ingrediente' ? <ChefHat size={16} className="text-muted-foreground" /> : <SubElabIcon size={16} className="text-muted-foreground" />}
-                                                                            {field.nombre || (field.tipo === 'ingrediente'
-                                                                                ? (componenteData as IngredienteConERP)?.nombreIngrediente
-                                                                                : (componenteData as Elaboracion)?.nombre) || 'Sin nombre'}
-                                                                            {needsReview && <AlertTriangle size={14} className="text-amber-500" />}
-                                                                        </div>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent className="font-mono text-xs whitespace-pre-wrap max-w-sm">
-                                                                        {tooltipText}
-                                                                        {needsReview && <p className="mt-2 text-amber-500 font-bold">⚠️ Requiere revisión de alérgenos</p>}
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TableCell>
-                                                            <TableCell className="py-1 px-3">
-                                                                <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
-                                                                    <FormItem><FormControl><Input
+                                                        <MobileDataCard
+                                                            key={field.id}
+                                                            title={item.nombre}
+                                                            subtitle={<span className="text-xs uppercase">{item.tipo}</span>}
+                                                            actions={
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(index)}>
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            }
+                                                        >
+                                                            <DataRow label="Cantidad" value={
+                                                                <div className="flex items-center justify-end gap-2 w-32">
+                                                                    <Input
                                                                         type="number"
                                                                         step="any"
-                                                                        {...qField}
-                                                                        onChange={(e) => qField.onChange(parseFloat(e.target.value) || 0)}
-                                                                        className="h-8"
-                                                                    /></FormControl></FormItem>
-                                                                )} />
-                                                            </TableCell>
-                                                            <TableCell className="py-1 px-3">
-                                                                <FormField control={form.control} name={`componentes.${index}.merma`} render={({ field: mField }) => (
-                                                                    <FormItem><FormControl><Input
-                                                                        type="number"
-                                                                        step="any"
-                                                                        {...mField}
-                                                                        onChange={(e) => mField.onChange(parseFloat(e.target.value) || 0)}
-                                                                        className="h-8"
-                                                                    /></FormControl></FormItem>
-                                                                )} />
-                                                            </TableCell>
-                                                            <TableCell className="py-1 px-3">
-                                                                {formatUnit(unidad)}
-                                                            </TableCell>
-                                                            <TableCell className="py-1 px-3 text-right font-semibold">
-                                                                {formatCurrency(costeTotalComponente)}
-                                                            </TableCell>
-                                                            <TableCell className="py-1 px-3"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button></TableCell>
-                                                        </TableRow>
-                                                    )
+                                                                        className="h-8 text-right"
+                                                                        {...form.register(`componentes.${index}.cantidad`, { valueAsNumber: true })}
+                                                                    />
+                                                                    <span className="text-xs text-muted-foreground w-6">{item.unidad}</span>
+                                                                </div>
+                                                            } />
+                                                            <DataRow label="Merma %" value={
+                                                                <Input
+                                                                    type="number"
+                                                                    className="h-8 w-20 text-right"
+                                                                    {...form.register(`componentes.${index}.merma`, { valueAsNumber: true })}
+                                                                />
+                                                            } />
+                                                            <DataRow label="Coste/Ud" value={formatCurrency(item.coste)} />
+                                                            <DataRow label="Subtotal" value={<span className="font-bold">{formatCurrency(subtotal)}</span>} />
+                                                        </MobileDataCard>
+                                                    );
                                                 })}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
+                                                {fields.length === 0 && (
+                                                    <p className="text-center text-muted-foreground py-4">No hay componentes.</p>
+                                                )}
+                                            </div>
+
+                                            {/* Desktop View: Table */}
+                                            <div className="hidden md:block rounded-md border">
+                                                <Table>
+                                                    <TableHeader><TableRow><TableHead className="py-2 px-3">Componente</TableHead><TableHead className="w-32 py-2 px-3">Cantidad</TableHead><TableHead className="w-24 py-2 px-3">% Merma</TableHead><TableHead className="w-28 py-2 px-3">Unidad</TableHead><TableHead className="w-32 py-2 px-3 text-right">Coste Total</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
+                                                    <TableBody>
+                                                        {fields.length === 0 && <TableRow><TableCell colSpan={5} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
+                                                        {fields.map((field, index) => {
+                                                            const componenteData = field.tipo === 'ingrediente'
+                                                                ? ingredientesData.get(field.componenteId)
+                                                                : elaboracionesData.get(field.componenteId);
+
+                                                            const unidad = field.tipo === 'ingrediente'
+                                                                ? ((componenteData as IngredienteConERP)?.erp?.unidadConversion && (componenteData as IngredienteConERP).erp!.unidadConversion > 1 ? 'Ud' : (componenteData as IngredienteConERP)?.erp?.unidad || 'UD')
+                                                                : (componenteData as Elaboracion)?.unidadProduccion || 'UD';
+
+                                                            // Recalcular coste si es necesario
+                                                            let currentCost = field.costePorUnidad || 0;
+                                                            if (field.tipo === 'ingrediente' && currentCost === 0) {
+                                                                const erpData = (componenteData as IngredienteConERP)?.erp;
+                                                                if (erpData) {
+                                                                    const unidadConversion = (erpData.unidadConversion && erpData.unidadConversion > 0) ? erpData.unidadConversion : 1;
+                                                                    currentCost = (erpData.precioCompra / unidadConversion) * (1 - (erpData.descuento || 0) / 100);
+                                                                }
+                                                            }
+
+                                                            // Calcular coste total de este componente
+                                                            const costeConMermaComponente = currentCost * (1 + (field.merma || 0) / 100);
+                                                            const costeTotalComponente = costeConMermaComponente * (field.cantidad || 0);
+
+                                                            // Verificar si ingrediente necesita revisión (más de 6 meses)
+                                                            let needsReview = false;
+                                                            if (field.tipo === 'ingrediente') {
+                                                                const ingData = componenteData as IngredienteConERP;
+                                                                if (ingData?.historialRevisiones && ingData.historialRevisiones.length > 0) {
+                                                                    const lastReview = new Date(ingData.historialRevisiones[ingData.historialRevisiones.length - 1].fecha);
+                                                                    const sixMonthsAgo = new Date();
+                                                                    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+                                                                    needsReview = lastReview < sixMonthsAgo;
+                                                                } else {
+                                                                    needsReview = true; // Sin revisiones
+                                                                }
+                                                            }
+
+                                                            // Tooltip mejorado y estructurado
+                                                            const tooltipLines = [
+                                                                `💰 COSTES`,
+                                                                `  • Unitario: ${formatCurrency(currentCost)} / ${formatUnit(unidad)}`,
+                                                                `  • Con merma (${field.merma || 0}%): ${formatCurrency(costeConMermaComponente)} / ${formatUnit(unidad)}`,
+                                                                `  • Total línea: ${formatCurrency(costeTotalComponente)}`,
+                                                            ];
+
+                                                            if (field.tipo === 'ingrediente') {
+                                                                const erpData = (componenteData as IngredienteConERP)?.erp;
+                                                                if (erpData) {
+                                                                    tooltipLines.push(`\n📦 DATOS ERP`);
+                                                                    tooltipLines.push(`  • Precio: ${formatCurrency(erpData.precioCompra)} / ${formatUnit(erpData.unidad)}`);
+                                                                    if (erpData.descuento) tooltipLines.push(`  • Descuento: ${erpData.descuento}%`);
+                                                                    if (erpData.nombreProveedor) tooltipLines.push(`  • Proveedor: ${erpData.nombreProveedor}`);
+                                                                    if (erpData.referenciaProveedor) tooltipLines.push(`  • Ref: ${erpData.referenciaProveedor}`);
+                                                                }
+                                                            }
+
+                                                            const tooltipText = tooltipLines.join('\n');
+
+                                                            return (
+                                                                <TableRow key={field.id}>
+                                                                    <TableCell className="font-medium py-1 px-3">
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <div className="flex items-center gap-2">
+                                                                                    {field.tipo === 'ingrediente' ? <ChefHat size={16} className="text-muted-foreground" /> : <SubElabIcon size={16} className="text-muted-foreground" />}
+                                                                                    {field.nombre || (field.tipo === 'ingrediente'
+                                                                                        ? (componenteData as IngredienteConERP)?.nombreIngrediente
+                                                                                        : (componenteData as Elaboracion)?.nombre) || 'Sin nombre'}
+                                                                                    {needsReview && <AlertTriangle size={14} className="text-amber-500" />}
+                                                                                </div>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent className="font-mono text-xs whitespace-pre-wrap max-w-sm">
+                                                                                {tooltipText}
+                                                                                {needsReview && <p className="mt-2 text-amber-500 font-bold">⚠️ Requiere revisión de alérgenos</p>}
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TableCell>
+                                                                    <TableCell className="py-1 px-3">
+                                                                        <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
+                                                                            <FormItem><FormControl><Input
+                                                                                type="number"
+                                                                                step="any"
+                                                                                {...qField}
+                                                                                onChange={(e) => qField.onChange(parseFloat(e.target.value) || 0)}
+                                                                                className="h-8"
+                                                                            /></FormControl></FormItem>
+                                                                        )} />
+                                                                    </TableCell>
+                                                                    <TableCell className="py-1 px-3">
+                                                                        <FormField control={form.control} name={`componentes.${index}.merma`} render={({ field: mField }) => (
+                                                                            <FormItem><FormControl><Input
+                                                                                type="number"
+                                                                                step="any"
+                                                                                {...mField}
+                                                                                onChange={(e) => mField.onChange(parseFloat(e.target.value) || 0)}
+                                                                                className="h-8"
+                                                                            /></FormControl></FormItem>
+                                                                        )} />
+                                                                    </TableCell>
+                                                                    <TableCell className="py-1 px-3">
+                                                                        {formatUnit(unidad)}
+                                                                    </TableCell>
+                                                                    <TableCell className="py-1 px-3 text-right font-semibold">
+                                                                        {formatCurrency(costeTotalComponente)}
+                                                                    </TableCell>
+                                                                    <TableCell className="py-1 px-3"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                                                                </TableRow>
+                                                            )
+                                                        })}
+                                                    </TableBody >
+                                                </Table >
+                                            </div >
+                                        </>
+                                    )}
                                     {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.message}</p>}
-                                </CardContent>
+                                </CardContent >
                                 <CardFooter className="flex-col items-start gap-3 mt-4">
                                     <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout />Resumen de Alérgenos</h4>
                                     <div className="w-full space-y-2">
@@ -601,8 +665,8 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                         </div>
                                     </div>
                                 </CardFooter>
-                            </Card>
-                        </TabsContent>
+                            </Card >
+                        </TabsContent >
                         <TabsContent value="preparacion" className="mt-4">
                             <Card>
                                 <CardHeader className="py-3">
@@ -668,9 +732,9 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                 </CardContent>
                             </Card>
                         </TabsContent>
-                    </Tabs>
-                </form>
-            </Form>
-        </TooltipProvider>
+                    </Tabs >
+                </form >
+            </Form >
+        </TooltipProvider >
     );
 }

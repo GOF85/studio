@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown, MoreHorizontal, Pencil, Trash2, Archive, CheckSquare, RefreshCw, Loader2 } from 'lucide-react';
+import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown, MoreHorizontal, Pencil, Trash2, Archive, CheckSquare, RefreshCw, Loader2, Image as ImageIcon } from 'lucide-react';
 import type { Receta, CategoriaReceta, Elaboracion, IngredienteInterno, ArticuloERP, ComponenteElaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +45,11 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import Image from 'next/image';
+import { EmptyState } from '@/components/ui/empty-state';
+
 const ITEMS_PER_PAGE = 20;
 
 const CSV_HEADERS = ["id", "numeroReceta", "nombre", "nombre_en", "visibleParaComerciales", "isArchived", "descripcionComercial", "descripcionComercial_en", "responsableEscandallo", "categoria", "partidaProduccion", "gramajeTotal", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "fotosMiseEnPlaceURLs", "instruccionesRegeneracion", "fotosRegeneracionURLs", "instruccionesEmplatado", "fotosEmplatadoURLs", "fotosComercialesURLs", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "recetaOrigen", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "precioVenta", "alergenos", "requiereRevision", "comentarioRevision", "fechaRevision"];
@@ -65,6 +70,7 @@ export default function RecetasPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [showImages, setShowImages] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -327,9 +333,9 @@ export default function RecetasPage() {
           alergenos: safeJsonParse(item.alergenos),
         }));
 
-        localStorage.setItem('recetas', JSON.stringify(importedData));
+        // localStorage.setItem('recetas', JSON.stringify(importedData)); // REMOVED LEGACY
         setItems(importedData);
-        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros. (Nota: No se guardan en BD permanentemente en esta versión, usar 'Guardar' individualmente)` });
       },
       error: (error) => {
         toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
@@ -406,71 +412,111 @@ export default function RecetasPage() {
     }
   }
 
-  const handleRecalculateAll = () => {
+  const handleRecalculateAll = async () => {
     setIsRecalculating(true);
+    toast({ title: 'Recalculando costes...', description: 'Esto puede tardar unos segundos.' });
 
-    // Simulating async operation
-    setTimeout(() => {
-      try {
-        // 1. Load all necessary data
-        const allErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-        const allIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        let allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-        let allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    try {
+      // 1. Load all necessary data from Supabase
+      const [
+        { data: erpData },
+        { data: ingData },
+        { data: elabData },
+        { data: elabCompData },
+        { data: recetasData },
+        { data: recetaDetallesData }
+      ] = await Promise.all([
+        supabase.from('articulos_erp').select('*'),
+        supabase.from('ingredientes_internos').select('*'),
+        supabase.from('elaboraciones').select('*'),
+        supabase.from('elaboracion_componentes').select('*'),
+        supabase.from('recetas').select('*'),
+        supabase.from('receta_detalles').select('*')
+      ]);
 
-        const erpMap = new Map(allErp.map(item => [item.idreferenciaerp, item]));
-        const ingredientesMap = new Map(allIngredientes.map(item => [item.id, item]));
+      if (!erpData || !ingData || !elabData || !recetasData) throw new Error("Error al cargar datos de Supabase");
 
-        // 2. Recalculate all elaborations
-        const elabCostesMap = new Map<string, number>();
+      // Map Data for easier access
+      const erpMap = new Map(erpData.map((item: any) => [item.erp_id || item.id_referencia_erp, item]));
+      const ingMap = new Map(ingData.map((item: any) => [
+        item.id,
+        { ...item, erp: erpMap.get(item.producto_erp_link_id) }
+      ]));
 
-        allElaboraciones.forEach(elab => {
-          let costeTotalComponentes = 0;
-          (elab.componentes || []).forEach(comp => {
-            if (comp.tipo === 'ingrediente') {
-              const ing = ingredientesMap.get(comp.componenteId);
-              const erpItem = ing ? erpMap.get(ing.productoERPlinkId) : undefined;
-              const costeReal = erpItem ? (erpItem.precioCompra / (erpItem.unidadConversion || 1)) * (1 - (erpItem.descuento || 0) / 100) : 0;
-              const costeConMerma = costeReal * (1 + (comp.merma || 0) / 100);
-              costeTotalComponentes += costeConMerma * comp.cantidad;
-            } else { // sub-elaboration
-              const costeSubElab = elabCostesMap.get(comp.componenteId) || 0;
-              const costeConMerma = costeSubElab * (1 + (comp.merma || 0) / 100);
-              costeTotalComponentes += costeConMerma * comp.cantidad;
+      // 2. Recalculate Elaborations
+      // We need to order elaborations to handle dependencies (simple approach: iterative)
+      let elabCostesMap = new Map<string, number>();
+      let updatedElabs = elabData.map((e: any) => ({
+        id: e.id,
+        produccionTotal: e.produccion_total,
+        componentes: (elabCompData || []).filter((c: any) => c.elaboracion_padre_id === e.id),
+        costeUnitario: e.coste_unitario
+      }));
+
+      // Iterative calculation (max 5 passes)
+      for (let i = 0; i < 5; i++) {
+        updatedElabs.forEach(elab => {
+          let costeTotal = 0;
+          elab.componentes.forEach((comp: any) => {
+            let costeComp = 0;
+            if (comp.tipo_componente === 'ARTICULO') {
+              const ing = ingMap.get(comp.componente_id);
+              if (ing?.erp) {
+                const precioBase = (ing.erp.precio_compra || 0) / (ing.erp.unidad_conversion || 1);
+                costeComp = precioBase * (1 - (ing.erp.descuento || 0) / 100);
+              }
+            } else { // ELABORACION
+              costeComp = elabCostesMap.get(comp.componente_id) || 0;
             }
+            costeTotal += costeComp * comp.cantidad_neta * (1 + (comp.merma_aplicada || 0) / 100);
           });
-          const costePorUnidad = elab.produccionTotal > 0 ? costeTotalComponentes / elab.produccionTotal : 0;
-          elab.costePorUnidad = costePorUnidad;
-          elabCostesMap.set(elab.id, costePorUnidad);
+          const costeUnitario = elab.produccionTotal > 0 ? costeTotal / elab.produccionTotal : 0;
+          elab.costeUnitario = costeUnitario;
+          elabCostesMap.set(elab.id, costeUnitario);
         });
-
-        localStorage.setItem('elaboraciones', JSON.stringify(allElaboraciones));
-
-        // 3. Recalculate all recipes
-        allRecetas = allRecetas.map(receta => {
-          const costeMateriaPrima = (receta.elaboraciones || []).reduce((sum, elabEnReceta) => {
-            const elabCoste = elabCostesMap.get(elabEnReceta.elaboracionId) || 0;
-            const costeConMerma = elabCoste * (1 + (elabEnReceta.merma || 0) / 100);
-            return sum + (costeConMerma * elabEnReceta.cantidad);
-          }, 0);
-
-          const precioVenta = costeMateriaPrima * (1 + (receta.porcentajeCosteProduccion || 0) / 100);
-
-          return { ...receta, costeMateriaPrima, precioVenta };
-        });
-
-        localStorage.setItem('recetas', JSON.stringify(allRecetas));
-        setItems(allRecetas);
-
-        toast({ title: "¡Éxito!", description: "Se han recalculado y guardado los costes de todas las recetas." });
-
-      } catch (e) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron recalcular los costes.' });
-      } finally {
-        setIsRecalculating(false);
       }
-    }, 500); // Small delay to show loading state
+
+      // 3. Batch Update Elaborations (Supabase doesn't support massive batch update easily, so we do it in parallel chunks or one by one if low volume)
+      // For safety/speed balance:
+      const elabUpdates = updatedElabs.map(e => ({
+        id: e.id,
+        coste_unitario: e.costeUnitario
+      }));
+
+      await supabase.from('elaboraciones').upsert(elabUpdates);
+
+
+      // 4. Recalculate Recipes
+      const updatedRecetas = recetasData.map((r: any) => {
+        const detalles = (recetaDetallesData || []).filter((d: any) => d.receta_id === r.id);
+
+        const costeMateriaPrima = detalles.reduce((sum: number, det: any) => {
+          const elabCoste = elabCostesMap.get(det.elaboracion_id) || 0;
+          // Note: receta_detalles might imply 'merma' differently? standard is (cost * qty)
+          return sum + (elabCoste * det.cantidad); // Assuming simple cost * qty for now
+        }, 0);
+
+        const precioVenta = costeMateriaPrima * (1 + (r.porcentaje_coste_produccion || 0) / 100);
+
+        return {
+          id: r.id,
+          coste_materia_prima: costeMateriaPrima,
+          precio_venta: precioVenta
+        };
+      });
+
+      await supabase.from('recetas').upsert(updatedRecetas);
+
+      // Refresh local state
+      window.location.reload(); // Simple refresh to show new data
+      toast({ title: "¡Éxito!", description: "Costes recalculados y guardados en la nube." });
+
+    } catch (e: any) {
+      console.error(e);
+      toast({ variant: 'destructive', title: 'Error', description: 'Fallo al recalcular: ' + e.message });
+    } finally {
+      setIsRecalculating(false);
+    }
   }
 
 
@@ -581,6 +627,13 @@ export default function RecetasPage() {
           </div>
         </div>
 
+        <div className="flex items-center space-x-2 justify-end mb-4">
+          <Switch id="show-images" checked={showImages} onCheckedChange={setShowImages} />
+          <Label htmlFor="show-images" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
+            <ImageIcon className="h-4 w-4" /> Mostrar Fotos
+          </Label>
+        </div>
+
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -598,6 +651,7 @@ export default function RecetasPage() {
                     }}
                   />
                 </TableHead>
+                {showImages && <TableHead className="w-20 py-2">Imagen</TableHead>}
                 <TableHead className="py-2">Nombre Receta</TableHead>
                 <TableHead className="py-2">Categoría</TableHead>
                 <TableHead className="py-2">Partida Producción</TableHead>
@@ -620,6 +674,24 @@ export default function RecetasPage() {
                         onCheckedChange={() => handleSelect(item.id)}
                       />
                     </TableCell>
+                    {showImages && (
+                      <TableCell className="p-1">
+                        {item.fotosComerciales?.find(f => f.esPrincipal) ? (
+                          <div className="relative h-12 w-16 rounded-md overflow-hidden bg-muted">
+                            <Image
+                              src={item.fotosComerciales.find(f => f.esPrincipal)!.url}
+                              alt={item.nombre}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-12 w-16 rounded-md bg-secondary/30 flex items-center justify-center">
+                            <ImageIcon className="h-4 w-4 text-muted-foreground/50" />
+                          </div>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium py-2 flex items-center gap-2">
                       {item.requiereRevision && (
                         <Tooltip>
@@ -662,8 +734,16 @@ export default function RecetasPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    No se encontraron recetas.
+                  <TableCell colSpan={showImages ? 8 : 7} className="h-64 p-0">
+                    <div className="flex items-center justify-center h-full w-full">
+                      <EmptyState
+                        icon={BookHeart}
+                        title="No hay recetas"
+                        description="No se encontraron recetas que coincidan con tus filtros. Crea una nueva o ajusta la búsqueda."
+                        action={{ label: "Crear Receta", onClick: () => router.push('/book/recetas/nueva') }}
+                        className="border-0 shadow-none bg-transparent"
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,51 +24,50 @@ export function DashboardMetricCard({
     compact = false
 }: DashboardMetricCardProps) {
     return (
-        <Card className={cn(
-            "hover:shadow-md transition-shadow transition-all duration-200",
-            compact ? "p-3" : "p-4",
-            className
-        )}>
-            <div className="flex items-center gap-3">
-                <div className={cn(
-                    "rounded-lg bg-primary/10 flex items-center justify-center shrink-0",
-                    compact ? "p-1.5 w-8 h-8" : "p-2 w-10 h-10"
+        <Card className={className}>
+            <CardHeader className={cn(
+                "flex flex-row items-center justify-between space-y-0 pb-2",
+                compact ? 'p-3' : ''
+            )}>
+                <CardTitle className={cn(
+                    "font-medium",
+                    compact ? 'text-xs' : 'text-sm'
                 )}>
-                    <Icon className={cn(
-                        "text-primary",
-                        compact ? "w-4 h-4" : "w-5 h-5"
-                    )} />
-                </div>
-                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex items-baseline gap-2">
+                    {label}
+                </CardTitle>
+                <Icon className={cn(
+                    "text-muted-foreground",
+                    compact ? 'h-3 w-3' : 'h-4 w-4'
+                )} />
+            </CardHeader>
+            <CardContent className={compact ? 'p-3 pt-0' : ''}>
+                <div className={cn(
+                    "font-bold",
+                    compact ? 'text-lg' : 'text-2xl'
+                )}>{value}</div>
+                {secondaryValue && (
+                    <div className="flex items-center gap-2 mt-1">
                         <p className={cn(
-                            "font-bold leading-none",
-                            compact ? "text-lg" : "text-2xl"
-                        )}>{value}</p>
-                        {secondaryValue && (
-                            <span className="text-xs font-medium text-muted-foreground">
-                                {secondaryValue}
+                            "text-muted-foreground",
+                            compact ? "text-[10px]" : "text-xs"
+                        )}>
+                            {secondaryValue}
+                        </p>
+                        {trend && (
+                            <span className={cn(
+                                "text-xs font-medium",
+                                trend === 'up' && "text-green-600",
+                                trend === 'down' && "text-red-600",
+                                trend === 'neutral' && "text-muted-foreground"
+                            )}>
+                                {trend === 'up' && '↑'}
+                                {trend === 'down' && '↓'}
+                                {trend === 'neutral' && '•'}
                             </span>
                         )}
                     </div>
-                    <p className={cn(
-                        "text-muted-foreground truncate",
-                        compact ? "text-[10px] uppercase tracking-wider font-medium" : "text-xs"
-                    )}>{label}</p>
-                </div>
-                {trend && (
-                    <div className={cn(
-                        "text-xs font-medium",
-                        trend === 'up' && "text-green-600",
-                        trend === 'down' && "text-red-600",
-                        trend === 'neutral' && "text-muted-foreground"
-                    )}>
-                        {trend === 'up' && '↑'}
-                        {trend === 'down' && '↓'}
-                        {trend === 'neutral' && '•'}
-                    </div>
                 )}
-            </div>
+            </CardContent>
         </Card>
     );
 }

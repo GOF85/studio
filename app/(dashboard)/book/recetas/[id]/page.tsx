@@ -47,6 +47,7 @@ import { ImageManager } from '@/components/book/images/ImageManager';
 import { ImageUploader } from '@/components/book/images/ImageUploader';
 import { ImageGallery } from '@/components/book/images/ImageGallery';
 import type { ImagenReceta } from '@/types/index';
+import { RecipeVisualView } from '@/components/book/recipes/recipe-visual-view';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -540,6 +541,7 @@ function RecetaFormPage() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+    const [mode, setMode] = useState<'view' | 'edit'>(isNew ? 'edit' : 'view'); // Default mode logic
     const { toast } = useToast();
     const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
     const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);

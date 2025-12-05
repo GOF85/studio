@@ -15,6 +15,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Menu } from 'lucide-react';
+import { allNavSections } from '@/lib/nav-config';
 
 export function Header() {
   const pathname = usePathname();
@@ -106,7 +115,58 @@ export function Header() {
       "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     )}>
       <div className="container flex h-11 md:h-12 items-center px-3 md:px-4">
-        <Link href="/" className="flex items-center gap-2 md:gap-3 -ml-1">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="md:hidden mr-2 -ml-2">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Menú</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-[300px] sm:w-[350px] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle className="text-left font-headline font-bold text-primary flex items-center gap-2">
+                <UtensilsCrossed className="h-5 w-5" />
+                MICE Catering
+              </SheetTitle>
+            </SheetHeader>
+            <nav className="flex flex-col gap-6 mt-6">
+              {allNavSections.map((section) => (
+                <div key={section.title} className="space-y-3">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">
+                    {section.title}
+                  </h4>
+                  <div className="flex flex-col space-y-1">
+                    {section.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 px-2 py-2 text-sm font-medium rounded-md hover:bg-accent hover:text-accent-foreground transition-colors",
+                          pathname === item.href && "bg-accent/50 text-accent-foreground"
+                        )}
+                      >
+                        <item.icon className={cn("h-4 w-4", item.className?.includes('theme-orange') ? 'text-orange-500' : 'text-primary')} />
+                        {item.title}
+                        {item.badge && (
+                          <span className={cn(
+                            "ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
+                            item.badge.variant === 'destructive' ? "bg-red-100 text-red-700" :
+                              item.badge.variant === 'secondary' ? "bg-gray-100 text-gray-700" :
+                                "bg-blue-100 text-blue-700"
+                          )}>
+                            {item.badge.label}
+                          </span>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </SheetContent>
+        </Sheet>
+
+        <Link href="/" className="flex items-center gap-2 md:gap-3">
           <UtensilsCrossed className="h-5 w-5 md:h-6 md:w-6 text-primary" />
           <h1 className="text-base md:text-xl font-headline font-bold text-primary tracking-tight">
             MICE Catering
