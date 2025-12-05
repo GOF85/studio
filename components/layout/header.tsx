@@ -63,14 +63,14 @@ export function Header() {
   if (isPortalModule) {
     return (
       <header className="sticky top-0 z-40 w-full border-b bg-gray-900 text-white">
-        <div className="container flex h-12 items-center">
-          <Link href="/portal" className="flex items-center gap-3">
-            <Leaf className="h-6 w-6 text-green-500" />
-            <h1 className="text-xl font-headline font-bold tracking-tight">
+        <div className="container flex h-11 md:h-12 items-center px-3 md:px-4">
+          <Link href="/portal" className="flex items-center gap-2 md:gap-3 -ml-1">
+            <Leaf className="h-5 w-5 md:h-6 md:w-6 text-green-500" />
+            <h1 className="text-base md:text-xl font-headline font-bold tracking-tight">
               Colaboradores MiceCatering
             </h1>
           </Link>
-          <nav className="flex flex-1 items-center justify-end space-x-4">
+          <nav className="flex flex-1 items-center justify-end space-x-2 md:space-x-4">
             <UserMenu />
           </nav>
         </div>
@@ -80,18 +80,18 @@ export function Header() {
 
   const getEntregasHeader = () => (
     <header className="sticky top-0 z-40 w-full border-b bg-orange-500 text-white">
-      <div className="container flex h-12 items-center">
-        <Link href="/entregas" className="flex items-center gap-3">
-          <Package className="h-6 w-6" />
-          <h1 className="text-xl font-headline font-bold tracking-tight">
+      <div className="container flex h-11 md:h-12 items-center px-3 md:px-4">
+        <Link href="/entregas" className="flex items-center gap-2 md:gap-3 -ml-1">
+          <Package className="h-5 w-5 md:h-6 md:w-6" />
+          <h1 className="text-base md:text-xl font-headline font-bold tracking-tight">
             Entregas MICE
           </h1>
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">
-          <Button asChild className="bg-emerald-700 text-white hover:bg-emerald-800">
+          <Button asChild className="bg-emerald-700 text-white hover:bg-emerald-800 h-8 text-xs md:text-sm md:h-9">
             <Link href="/">
-              <UtensilsCrossed className="mr-2 h-5 w-5" />
-              Catering
+              <UtensilsCrossed className="mr-1 md:mr-2 h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden sm:inline">Catering</span>
             </Link>
           </Button>
           <UserMenu />
@@ -105,10 +105,10 @@ export function Header() {
       "sticky top-0 z-40 w-full border-b",
       "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     )}>
-      <div className="container flex h-12 items-center">
-        <Link href="/" className="flex items-center gap-3">
-          <UtensilsCrossed className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-headline font-bold text-primary tracking-tight">
+      <div className="container flex h-11 md:h-12 items-center px-3 md:px-4">
+        <Link href="/" className="flex items-center gap-2 md:gap-3 -ml-1">
+          <UtensilsCrossed className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+          <h1 className="text-base md:text-xl font-headline font-bold text-primary tracking-tight">
             MICE Catering
           </h1>
         </Link>

@@ -119,26 +119,26 @@ export function Section({ title, items }: { title: string, items: MenuItem[] }) 
     return (
         <section>
             <h2 className="text-xl font-headline font-semibold tracking-tight mb-3">{title}</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                 {items.map(item => (
                     <Link href={item.href} key={item.href}>
                         <Card className={`hover:border-primary/80 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 h-full ${item.className || ''}`}>
-                            <CardHeader className="p-4 space-y-0">
-                                <div className="flex items-start gap-3 mb-2">
-                                    <div className="p-2 rounded-lg bg-primary/10 shrink-0">
-                                        <item.icon className="w-5 h-5 text-primary" />
+                            <CardHeader className="p-3 md:p-4 space-y-0">
+                                <div className="flex items-center md:items-start gap-2 md:gap-3 mb-1 md:mb-2">
+                                    <div className="p-1.5 md:p-2 rounded-lg bg-primary/10 shrink-0">
+                                        <item.icon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <CardTitle className="text-base leading-tight">{item.title}</CardTitle>
+                                        <CardTitle className="text-sm md:text-base leading-tight">{item.title}</CardTitle>
                                     </div>
                                     {item.badge && (
-                                        <Badge variant={item.badge.variant || 'secondary'} className="text-xs shrink-0">
+                                        <Badge variant={item.badge.variant || 'secondary'} className="text-[10px] md:text-xs shrink-0 px-1.5 py-0 h-5">
                                             {item.badge.label}
                                         </Badge>
                                     )}
                                 </div>
                                 {item.description && (
-                                    <CardDescription className="text-xs line-clamp-2 pl-11">
+                                    <CardDescription className="text-xs line-clamp-2 pl-9 md:pl-12">
                                         {item.description}
                                     </CardDescription>
                                 )}
