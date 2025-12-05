@@ -173,6 +173,25 @@
     -moz-appearance: textfield;
     appearance: textfield;
   }
+
+  /* iOS auto-zoom prevention: force 16px font on inputs on mobile */
+  @media screen and (max-width: 767px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Improve touch targets on mobile */
+  @media (pointer: coarse) {
+    button,
+    [role="button"],
+    a {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
 }
 
 @media print {

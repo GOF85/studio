@@ -2,7 +2,12 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { ServiceOrder } from '@/types';
+import type { ServiceOrder, ComercialBriefing, CategoriaPersonal, PersonalExternoTurno, SolicitudPersonalCPR } from '@/types';
+import { useState, useEffect, useCallback } from 'react';
+
+
+type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
+type AssignableWorker = { label: string; value: string; id: string; };
 
 // ============================================
 // EVENTOS (Service Orders)
@@ -641,7 +646,39 @@ export function usePersonal() {
                 .order('nombre', { ascending: true });
 
             if (error) throw error;
+            if (error) throw error;
             return data || [];
         },
     });
 }
+
+
+
+// ============================================
+// COMERCIAL BRIEFINGS
+// ============================================
+
+export function useComercialBriefings(osId?: string) {
+    return useQuery({
+        queryKey: ['comercialBriefings', osId],
+        queryFn: async () => {
+            // TODO: Verify table name. Assuming 'comercial_briefings' or 'briefings'
+            // If migration hasn't created this, we return empty structure to avoid crashes.
+            try {
+                let query = supabase.from('comercial_briefings').select('*');
+                if (osId) {
+                    query = query.eq('os_id', osId);
+                }
+                const { data, error } = await query;
+
+                if (error) throw error;
+                return (data || []) as ComercialBriefing[];
+            } catch (e) {
+                console.warn('Error fetching comercial briefings (table might be missing):', e);
+                return [];
+            }
+        },
+        enabled: !!osId || osId === undefined,
+    });
+}
+

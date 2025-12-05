@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown, MoreHorizontal, Pencil, Trash2, Archive, CheckSquare, RefreshCw, Loader2, Image as ImageIcon } from 'lucide-react';
+import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown, MoreHorizontal, Pencil, Trash2, Archive, CheckSquare, RefreshCw, Loader2, Image as ImageIcon, LayoutGrid, List } from 'lucide-react';
 import type { Receta, CategoriaReceta, Elaboracion, IngredienteInterno, ArticuloERP, ComponenteElaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,6 +49,8 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import Image from 'next/image';
 import { EmptyState } from '@/components/ui/empty-state';
+import { RecipeGrid } from '@/components/book/recipes/recipe-grid';
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -70,7 +72,7 @@ export default function RecetasPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isRecalculating, setIsRecalculating] = useState(false);
-  const [showImages, setShowImages] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   const router = useRouter();
   const { toast } = useToast();
@@ -628,128 +630,127 @@ export default function RecetasPage() {
         </div>
 
         <div className="flex items-center space-x-2 justify-end mb-4">
-          <Switch id="show-images" checked={showImages} onCheckedChange={setShowImages} />
-          <Label htmlFor="show-images" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
-            <ImageIcon className="h-4 w-4" /> Mostrar Fotos
-          </Label>
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'list' | 'grid')} className="w-auto">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="list" title="Vista de Lista"><List className="h-4 w-4" /></TabsTrigger>
+              <TabsTrigger value="grid" title="Vista de Cuadrícula"><LayoutGrid className="h-4 w-4" /></TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={numSelected > 0 && numSelected === paginatedItems.length}
-                    onCheckedChange={(checked) => {
-                      const newSelected = new Set(selectedItems);
-                      paginatedItems.forEach(item => {
-                        if (checked) newSelected.add(item.id);
-                        else newSelected.delete(item.id);
-                      });
-                      setSelectedItems(newSelected);
-                    }}
-                  />
-                </TableHead>
-                {showImages && <TableHead className="w-20 py-2">Imagen</TableHead>}
-                <TableHead className="py-2">Nombre Receta</TableHead>
-                <TableHead className="py-2">Categoría</TableHead>
-                <TableHead className="py-2">Partida Producción</TableHead>
-                <TableHead className="py-2">Coste M.P.</TableHead>
-                <TableHead className="py-2">PVP Teórico</TableHead>
-                <TableHead className="w-24 text-right py-2">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedItems.length > 0 ? (
-                paginatedItems.map(item => (
-                  <TableRow
-                    key={item.id}
-                    className={cn(item.isArchived && "bg-secondary/50 text-muted-foreground", "cursor-pointer")}
-                    onClick={() => router.push(`/book/recetas/${item.id}`)}
-                  >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selectedItems.has(item.id)}
-                        onCheckedChange={() => handleSelect(item.id)}
-                      />
-                    </TableCell>
-                    {showImages && (
-                      <TableCell className="p-1">
-                        {item.fotosComerciales?.find(f => f.esPrincipal) ? (
-                          <div className="relative h-12 w-16 rounded-md overflow-hidden bg-muted">
-                            <Image
-                              src={item.fotosComerciales.find(f => f.esPrincipal)!.url}
-                              alt={item.nombre}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="h-12 w-16 rounded-md bg-secondary/30 flex items-center justify-center">
-                            <ImageIcon className="h-4 w-4 text-muted-foreground/50" />
-                          </div>
-                        )}
+        {viewMode === 'grid' ? (
+          paginatedItems.length > 0 ? (
+            <RecipeGrid items={paginatedItems} />
+          ) : (
+            <div className="flex items-center justify-center h-64 border rounded-lg">
+              <EmptyState
+                icon={BookHeart}
+                title="No hay recetas"
+                description="No se encontraron recetas que coincidan con tus filtros."
+                action={{ label: "Crear Receta", onClick: () => router.push('/book/recetas/nueva') }}
+                className="border-0 shadow-none bg-transparent"
+              />
+            </div>
+          )
+        ) : (
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={numSelected > 0 && numSelected === paginatedItems.length}
+                      onCheckedChange={(checked) => {
+                        const newSelected = new Set(selectedItems);
+                        paginatedItems.forEach(item => {
+                          if (checked) newSelected.add(item.id);
+                          else newSelected.delete(item.id);
+                        });
+                        setSelectedItems(newSelected);
+                      }}
+                    />
+                  </TableHead>
+                  <TableHead className="py-2">Nombre Receta</TableHead>
+                  <TableHead className="py-2">Categoría</TableHead>
+                  <TableHead className="py-2">Partida Producción</TableHead>
+                  <TableHead className="py-2">Coste M.P.</TableHead>
+                  <TableHead className="py-2">PVP Teórico</TableHead>
+                  <TableHead className="w-24 text-right py-2">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedItems.length > 0 ? (
+                  paginatedItems.map(item => (
+                    <TableRow
+                      key={item.id}
+                      className={cn(item.isArchived && "bg-secondary/50 text-muted-foreground", "cursor-pointer")}
+                      onClick={() => router.push(`/book/recetas/${item.id}`)}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedItems.has(item.id)}
+                          onCheckedChange={() => handleSelect(item.id)}
+                        />
                       </TableCell>
-                    )}
-                    <TableCell className="font-medium py-2 flex items-center gap-2">
-                      {item.requiereRevision && (
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <AlertTriangle className="h-4 w-4 text-destructive" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Esta receta necesita revisión.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {item.nombre}
-                    </TableCell>
-                    <TableCell className="py-2">{item.categoria}</TableCell>
-                    <TableCell className="py-2">{item.partidaProduccion}</TableCell>
-                    <TableCell className="py-2">{formatCurrency(item.costeMateriaPrima)}</TableCell>
-                    <TableCell className="font-bold text-primary py-2">{formatCurrency(item.precioVenta)}</TableCell>
-                    <TableCell className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menú</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => router.push(`/book/recetas/${item.id}`)}>
-                            <Pencil className="mr-2 h-4 w-4" /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/book/recetas/nueva?cloneId=${item.id}`); }}>
-                            <Copy className="mr-2 h-4 w-4" /> Clonar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
-                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <TableCell className="font-medium py-2 flex items-center gap-2">
+                        {item.requiereRevision && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <AlertTriangle className="h-4 w-4 text-destructive" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Esta receta necesita revisión.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {item.nombre}
+                      </TableCell>
+                      <TableCell className="py-2">{item.categoria}</TableCell>
+                      <TableCell className="py-2">{item.partidaProduccion}</TableCell>
+                      <TableCell className="py-2">{formatCurrency(item.costeMateriaPrima)}</TableCell>
+                      <TableCell className="font-bold text-primary py-2">{formatCurrency(item.precioVenta)}</TableCell>
+                      <TableCell className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menú</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/book/recetas/${item.id}`)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/book/recetas/nueva?cloneId=${item.id}`); }}>
+                              <Copy className="mr-2 h-4 w-4" /> Clonar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
+                              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-64 p-0">
+                      <div className="flex items-center justify-center h-full w-full">
+                        <EmptyState
+                          icon={BookHeart}
+                          title="No hay recetas"
+                          description="No se encontraron recetas que coincidan con tus filtros. Crea una nueva o ajusta la búsqueda."
+                          action={{ label: "Crear Receta", onClick: () => router.push('/book/recetas/nueva') }}
+                          className="border-0 shadow-none bg-transparent"
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={showImages ? 8 : 7} className="h-64 p-0">
-                    <div className="flex items-center justify-center h-full w-full">
-                      <EmptyState
-                        icon={BookHeart}
-                        title="No hay recetas"
-                        description="No se encontraron recetas que coincidan con tus filtros. Crea una nueva o ajusta la búsqueda."
-                        action={{ label: "Crear Receta", onClick: () => router.push('/book/recetas/nueva') }}
-                        className="border-0 shadow-none bg-transparent"
-                      />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </TooltipProvider>
       <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
         <AlertDialogContent>

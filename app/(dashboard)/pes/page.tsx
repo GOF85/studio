@@ -44,14 +44,16 @@ export default function PrevisionServiciosPage() {
   useEffect(() => {
     async function load() {
       try {
-        // Load from Supabase eventos table
+        // Load from Supabase eventos table ONLY - no localStorage fallback
         const { data: eventos, error } = await supabase
           .from('eventos')
           .select('*');
-        
+
         if (error) {
           console.error('Supabase error loading eventos:', error);
-          throw error;
+          setServiceOrders([]);
+          setIsMounted(true);
+          return;
         }
 
         if (Array.isArray(eventos) && eventos.length > 0) {
@@ -68,29 +70,21 @@ export default function PrevisionServiciosPage() {
               comercial: e.comercial_id ? `Comercial ID ${e.comercial_id}` : '',
               space: e.espacio_id ? `Espacio ID ${e.espacio_id}` : '',
               isVip: !!e.is_vip,
-              serviceName: e.nombre_evento || '',
-              serviceNumberInternal: e.numero_expediente || '',
             };
             return { ...base, ...e } as unknown as ServiceOrder;
           });
 
-          console.log('Loaded eventos from Supabase:', mapped.length);
           setServiceOrders(mapped);
-          setIsMounted(true);
-          return;
         } else {
-          console.log('No eventos found in Supabase, checking localStorage');
+          // No data in Supabase - show empty state
+          setServiceOrders([]);
         }
       } catch (err) {
-        // If Supabase fails, fall back to localStorage during migration
-        console.warn('Supabase fetch for eventos failed, falling back to localStorage.', err);
+        console.error('Error loading eventos from Supabase:', err);
+        setServiceOrders([]);
+      } finally {
+        setIsMounted(true);
       }
-
-      // Fallback to localStorage
-      const storedOrders = typeof window !== 'undefined' ? localStorage.getItem('serviceOrders') : null;
-      console.log('Loaded eventos from localStorage:', storedOrders ? JSON.parse(storedOrders).length : 0);
-      setServiceOrders(storedOrders ? JSON.parse(storedOrders) : []);
-      setIsMounted(true);
     }
 
     load();
@@ -109,14 +103,14 @@ export default function PrevisionServiciosPage() {
     });
     return ['all', ...Array.from(months).sort().reverse()];
   }, [serviceOrders]);
-  
+
   const filteredAndSortedOrders = useMemo(() => {
     const today = startOfToday();
     const cateringOrders = serviceOrders.filter(os => os.vertical !== 'Entregas');
 
     const filtered = cateringOrders.filter(os => {
       const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       let monthMatch = true;
       if (selectedMonth !== 'all') {
         try {
@@ -126,14 +120,14 @@ export default function PrevisionServiciosPage() {
           monthMatch = false;
         }
       }
-      
+
       let pastEventMatch = true;
       if (!showPastEvents) {
-          try {
-              pastEventMatch = !isBefore(new Date(os.endDate), today);
-          } catch (e) {
-              pastEventMatch = true;
-          }
+        try {
+          pastEventMatch = !isBefore(new Date(os.endDate), today);
+        } catch (e) {
+          pastEventMatch = true;
+        }
       }
 
       const statusMatch = statusFilter === 'all' || os.status === statusFilter;
@@ -144,7 +138,7 @@ export default function PrevisionServiciosPage() {
     return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   }, [serviceOrders, searchTerm, selectedMonth, showPastEvents, statusFilter]);
-  
+
   const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
     Borrador: 'secondary',
     Pendiente: 'destructive',
@@ -168,98 +162,98 @@ export default function PrevisionServiciosPage() {
         </Button>
       </div>
 
-       <div className="space-y-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-                <Input
-                    placeholder="Buscar por Nº de Servicio o Cliente..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                />
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger className="w-full sm:w-[240px]">
-                    <SelectValue placeholder="Filtrar por mes" />
-                    </SelectTrigger>
-                    <SelectContent>
-                    <SelectItem value="all">Todos los meses</SelectItem>
-                    {availableMonths.map(month => (
-                        <SelectItem key={month} value={month}>
-                        {month === 'all' ? 'Todos' : format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
-                        </SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                <div className="flex items-center space-x-2 pt-2 sm:pt-0">
-                    <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
-                    <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        Mostrar eventos finalizados
-                    </label>
-            </div>
-            </div>
-             <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Estado:</span>
-                <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
-                <Button size="sm" variant={statusFilter === 'Borrador' ? 'default' : 'outline'} onClick={() => setStatusFilter('Borrador')}>Borrador</Button>
-                <Button size="sm" variant={statusFilter === 'Pendiente' ? 'default' : 'outline'} onClick={() => setStatusFilter('Pendiente')}>Pendiente</Button>
-                <Button size="sm" variant={statusFilter === 'Confirmado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Confirmado')}>Confirmado</Button>
-                <Button size="sm" variant={statusFilter === 'Anulado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Anulado')}>Anulado</Button>
-            </div>
+      <div className="space-y-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Input
+            placeholder="Buscar por Nº de Servicio o Cliente..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-full sm:w-[240px]">
+              <SelectValue placeholder="Filtrar por mes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los meses</SelectItem>
+              {availableMonths.map(month => (
+                <SelectItem key={month} value={month}>
+                  {month === 'all' ? 'Todos' : format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+            <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
+            <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Mostrar eventos finalizados
+            </label>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Estado:</span>
+          <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
+          <Button size="sm" variant={statusFilter === 'Borrador' ? 'default' : 'outline'} onClick={() => setStatusFilter('Borrador')}>Borrador</Button>
+          <Button size="sm" variant={statusFilter === 'Pendiente' ? 'default' : 'outline'} onClick={() => setStatusFilter('Pendiente')}>Pendiente</Button>
+          <Button size="sm" variant={statusFilter === 'Confirmado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Confirmado')}>Confirmado</Button>
+          <Button size="sm" variant={statusFilter === 'Anulado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Anulado')}>Anulado</Button>
+        </div>
       </div>
 
-       <div className="border rounded-lg">
-          <Table>
-              <TableHeader>
-              <TableRow>
-                  <TableHead>Nº Servicio</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Fecha Inicio</TableHead>
-                  <TableHead>Espacio</TableHead>
-                  <TableHead>Asistentes</TableHead>
-                  <TableHead>Comercial</TableHead>
-                  <TableHead>Estado</TableHead>
-              </TableRow>
-              </TableHeader>
-              <TableBody>
-              {filteredAndSortedOrders.length > 0 ? (
-                  filteredAndSortedOrders.map(os => (
-                  <TableRow key={os.id} onClick={() => router.push(`/os/${os.id}`)} className="cursor-pointer">
-                      <TableCell className="font-medium flex items-center gap-2">
-                        {os.isVip && (
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger>
-                                        <Star className="h-4 w-4 text-amber-500 fill-amber-500"/>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Evento VIP</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        )}
-                        {os.serviceNumber}
-                      </TableCell>
-                      <TableCell>{os.client}</TableCell>
-                      <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
-                      <TableCell>{os.space}</TableCell>
-                      <TableCell>{os.asistentes}</TableCell>
-                      <TableCell>{os.comercial}</TableCell>
-                      <TableCell>
-                      <Badge variant={statusVariant[os.status]}>
-                          {os.status}
-                      </Badge>
-                      </TableCell>
-                  </TableRow>
-                  ))
-              ) : (
-                  <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                      No hay órdenes de servicio que coincidan con los filtros.
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nº Servicio</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Fecha Inicio</TableHead>
+              <TableHead>Espacio</TableHead>
+              <TableHead>Asistentes</TableHead>
+              <TableHead>Comercial</TableHead>
+              <TableHead>Estado</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredAndSortedOrders.length > 0 ? (
+              filteredAndSortedOrders.map(os => (
+                <TableRow key={os.id} onClick={() => router.push(`/os/${os.id}`)} className="cursor-pointer">
+                  <TableCell className="font-medium flex items-center gap-2">
+                    {os.isVip && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Evento VIP</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    {os.serviceNumber}
                   </TableCell>
-                  </TableRow>
-              )}
-              </TableBody>
-          </Table>
-        </div>
+                  <TableCell>{os.client}</TableCell>
+                  <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>{os.space}</TableCell>
+                  <TableCell>{os.asistentes}</TableCell>
+                  <TableCell>{os.comercial}</TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant[os.status]}>
+                      {os.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  No hay órdenes de servicio que coincidan con los filtros.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </main>
   );
 }

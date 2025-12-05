@@ -42,15 +42,18 @@ type KpiCardProps = {
 
 function KpiCard({ title, value, icon: Icon, description }: KpiCardProps) {
     return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
-                {description && <p className="text-xs text-muted-foreground">{description}</p>}
-            </CardContent>
+        <Card className="p-3">
+            <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
+                    <Icon className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide truncate">{title}</p>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-base font-bold leading-none">{value}</span>
+                    </div>
+                </div>
+            </div>
         </Card>
     )
 }
@@ -252,7 +255,7 @@ export default function AnaliticaDashboardPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4 mb-6">
                 <KpiCard title="Facturación Neta Total" value={formatCurrency(totals.totalFacturacion || 0)} icon={Euro} description="Suma de Catering y Entregas" />
                 <KpiCard title="Coste Total Estimado" value={formatCurrency(totals.totalCoste || 0)} icon={TrendingDown} description="Estimación de todos los costes directos" />
                 <KpiCard title="Rentabilidad Bruta" value={formatCurrency(totals.rentabilidad || 0)} icon={TrendingUp} description="Facturación neta menos costes" />
@@ -288,8 +291,8 @@ export default function AnaliticaDashboardPage() {
                 <CardHeader>
                     <CardTitle>Rendimiento por Vertical de Negocio</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <Table>
+                <CardContent className="overflow-x-auto">
+                    <Table className="min-w-[600px]">
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Vertical</TableHead>
