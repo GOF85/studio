@@ -62,6 +62,30 @@ export function useInsertPrecioHistory() {
 }
 
 /**
+ * Hook to delete a price history entry
+ */
+export function useDeletePrecioHistory() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from('historico_precios_erp')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            // Invalidate all price history queries since we don't know the article ID easily here
+            // or we could pass it in variables if we wanted to be more specific
+            queryClient.invalidateQueries({ queryKey: ['precioHistory'] });
+            queryClient.invalidateQueries({ queryKey: ['allPrecioHistory'] });
+        },
+    });
+}
+
+/**
  * Hook to fetch all price history (with limit)
  */
 export function useAllPrecioHistory(limit: number | null = 1000) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { usePrecioHistory } from '@/hooks/use-precio-history';
+import { usePrecioHistory, useDeletePrecioHistory } from '@/hooks/use-precio-history';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/utils';
@@ -9,13 +9,43 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { Download, ArrowLeft } from 'lucide-react';
+import { Download, ArrowLeft, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from '@/hooks/use-toast';
 
 export default function ArticuloERPHistoricoPage() {
     const params = useParams();
     const articuloId = params.id as string;
     const { data: history, isLoading } = usePrecioHistory(articuloId);
+    const { toast } = useToast();
+    const deleteMutation = useDeletePrecioHistory();
+
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteMutation.mutateAsync(id);
+            toast({
+                title: "Registro eliminado",
+                description: "El registro de historial ha sido eliminado correctamente.",
+            });
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "No se pudo eliminar el registro.",
+                variant: "destructive",
+            });
+        }
+    };
 
     if (isLoading) {
         return (
@@ -168,6 +198,7 @@ export default function ArticuloERPHistoricoPage() {
                                 <TableHead>Fecha</TableHead>
                                 <TableHead className="text-right">Precio</TableHead>
                                 <TableHead className="text-right">Cambio</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -189,6 +220,32 @@ export default function ArticuloERPHistoricoPage() {
                                                     {change > 0 ? '+' : ''}{change.toFixed(1)}%
                                                 </span>
                                             )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Esta acción no se puede deshacer. Esto eliminará permanentemente este registro de historial de precios.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                            onClick={() => handleDelete(h.id)}
+                                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                        >
+                                                            Eliminar
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </TableCell>
                                     </TableRow>
                                 );
