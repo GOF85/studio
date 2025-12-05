@@ -20,7 +20,22 @@ import { supabase } from '@/lib/supabase';
 import { useDataStore } from '@/hooks/use-data-store';
 import { ErpArticleSelector } from '../components/ErpArticleSelector';
 
+export const articuloSchema = z.object({
+    id: z.string(),
+    nombre: z.string().min(1, 'El nombre es requerido'),
+    categoria: z.string().min(1, 'La categoría es requerida'),
+    precioVenta: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
+    precioAlquiler: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
+    precioReposicion: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
+    erpId: z.string().optional(),
+    producidoPorPartner: z.boolean(),
+    esHabitual: z.boolean(),
+    stockSeguridad: z.coerce.number().min(0, 'El stock debe ser mayor o igual a 0'),
+    unidadVenta: z.coerce.number().min(1, 'La unidad de venta debe ser al menos 1'),
+    loc: z.string().optional(),
+});
 
+export type ArticuloFormValues = z.infer<typeof articuloSchema>;
 
 export default function NuevoArticuloPage() {
     const router = useRouter();
