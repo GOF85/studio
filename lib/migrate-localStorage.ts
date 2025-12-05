@@ -728,6 +728,7 @@ export async function migrateAllData(
     let completed = 0;
 
     for (const migration of migrations) {
+        console.log(`[Migration] Starting ${migration.name}...`);
         if (onProgress) {
             onProgress({
                 total: migrations.length,
@@ -737,8 +738,20 @@ export async function migrateAllData(
             });
         }
 
-        const result = await migration.fn(idMap);
-        results.push(result);
+        try {
+            const result = await migration.fn(idMap);
+            console.log(`[Migration] Finished ${migration.name}: success=${result.success}, items=${result.itemsProcessed}`);
+            results.push(result);
+        } catch (err) {
+            console.error(`[Migration] CRITICAL ERROR in ${migration.name}:`, err);
+            results.push({
+                entity: migration.name,
+                success: false,
+                itemsProcessed: 0,
+                error: err instanceof Error ? err.message : 'Unknown error'
+            });
+        }
+
         completed++;
     }
 
@@ -748,7 +761,16 @@ export async function migrateAllData(
         .map(r => r.entity);
 
     if (successfulMigrations.length > 0) {
-        clearMigratedData(successfulMigrations);
+        console.log('[Migration] Clearing migrated data from localStorage:', successfulMigrations);
+        try {
+            clearMigratedData(successfulMigrations);
+            console.log('[Migration] Data cleared successfully');
+        } catch (cleanupError) {
+            console.error('[Migration] Error clearing data:', cleanupError);
+            // Don't fail the migration just because cleanup failed, but log it
+        }
+    } else {
+        console.log('[Migration] No successful migrations requiring cleanup');
     }
 
     const finalProgress: MigrationProgress = {
@@ -757,6 +779,8 @@ export async function migrateAllData(
         current: 'Completado',
         results,
     };
+
+    console.log('[Migration] All steps completed. Final progress:', finalProgress);
 
     if (onProgress) {
         onProgress(finalProgress);
