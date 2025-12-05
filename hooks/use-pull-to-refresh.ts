@@ -1,72 +1,91 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface PullToRefreshOptions {
     onRefresh?: () => Promise<void> | void;
-    threshold?: number; // Distance in pixels to trigger refresh
+    threshold?: number;
+    disabled?: boolean;
 }
 
-export function usePullToRefresh({ onRefresh, threshold = 150 }: PullToRefreshOptions = {}) {
-    const [isPulling, setIsPulling] = useState(false);
-    const [pullDistance, setPullDistance] = useState(0);
+export function usePullToRefresh({ onRefresh, threshold = 100, disabled = false }: PullToRefreshOptions = {}) {
     const router = useRouter();
+    const startYRef = useRef(0);
+    const pullDistanceRef = useRef(0);
+    const isPullingRef = useRef(false);
+    const isRefreshingRef = useRef(false);
+
+    const triggerRefresh = useCallback(async () => {
+        if (isRefreshingRef.current) return;
+        isRefreshingRef.current = true;
+
+        if (onRefresh) {
+            await onRefresh();
+        } else {
+            router.refresh();
+        }
+
+        isRefreshingRef.current = false;
+    }, [onRefresh, router]);
 
     useEffect(() => {
-        let startY = 0;
-        let currentY = 0;
+        if (disabled) return;
 
         const handleTouchStart = (e: TouchEvent) => {
-            if (window.scrollY === 0) {
-                startY = e.touches[0].clientY;
-                setIsPulling(true);
+            // Only start if we're at the very top of the page
+            if (window.scrollY <= 0 && !isRefreshingRef.current) {
+                startYRef.current = e.touches[0].clientY;
+                isPullingRef.current = true;
             }
         };
 
         const handleTouchMove = (e: TouchEvent) => {
-            if (!isPulling) return;
-            currentY = e.touches[0].clientY;
-            const diff = currentY - startY;
+            if (!isPullingRef.current || isRefreshingRef.current) return;
 
-            if (diff > 0 && window.scrollY === 0) {
-                // Resistance effect
-                setPullDistance(Math.min(diff * 0.5, threshold * 1.5));
-                // Prevent default standard browser refresh if specific criteria met (careful with this)
-                if (diff > 10) e.preventDefault();
+            const currentY = e.touches[0].clientY;
+            const diff = currentY - startYRef.current;
+
+            // Only trigger if scrolled to top AND pulling DOWN (positive diff)
+            if (diff > 0 && window.scrollY <= 0) {
+                pullDistanceRef.current = diff;
+                // Prevent default browser pull-to-refresh only after significant pull
+                if (diff > 20) {
+                    e.preventDefault();
+                }
             } else {
-                setPullDistance(0);
-                setIsPulling(false);
+                // Reset if scrolling up or not at top
+                pullDistanceRef.current = 0;
+                isPullingRef.current = false;
             }
         };
 
-        const handleTouchEnd = async () => {
-            if (!isPulling) return;
+        const handleTouchEnd = () => {
+            if (!isPullingRef.current) return;
 
-            if (pullDistance > threshold) {
-                // Trigger refresh
-                if (onRefresh) {
-                    await onRefresh();
-                } else {
-                    router.refresh();
-                }
+            if (pullDistanceRef.current > threshold && !isRefreshingRef.current) {
+                triggerRefresh();
             }
 
             // Reset
-            setPullDistance(0);
-            setIsPulling(false);
+            pullDistanceRef.current = 0;
+            isPullingRef.current = false;
+            startYRef.current = 0;
         };
 
+        // Use capture phase and check target to avoid interfering with other components
+        const options = { passive: false, capture: true };
+
         document.addEventListener('touchstart', handleTouchStart, { passive: true });
-        document.addEventListener('touchmove', handleTouchMove, { passive: false }); // non-passive to allow preventDefault
-        document.addEventListener('touchend', handleTouchEnd);
+        document.addEventListener('touchmove', handleTouchMove, options);
+        document.addEventListener('touchend', handleTouchEnd, { passive: true });
 
         return () => {
             document.removeEventListener('touchstart', handleTouchStart);
             document.removeEventListener('touchmove', handleTouchMove);
             document.removeEventListener('touchend', handleTouchEnd);
         };
-    }, [isPulling, pullDistance, onRefresh, router, threshold]);
+    }, [disabled, threshold, triggerRefresh]);
 
-    return { isPulling, pullDistance };
+    return { isRefreshing: isRefreshingRef.current };
 }

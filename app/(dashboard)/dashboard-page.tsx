@@ -71,7 +71,7 @@ export default function DashboardPage() {
         window.location.reload();
     };
 
-    const { isPulling, pullDistance } = usePullToRefresh({
+    usePullToRefresh({
         onRefresh: refreshData
     });
 
@@ -158,16 +158,6 @@ export default function DashboardPage() {
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 relative">
-            {/* Pull To Refresh Indicator */}
-            {isPulling && (
-                <div
-                    className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 flex items-center justify-center p-2 bg-background rounded-full shadow-lg transition-all duration-200"
-                    style={{ opacity: Math.min(pullDistance / 100, 1), transform: `translate(-50%, ${pullDistance / 2}px)` }}
-                >
-                    <Loader2 className={`h-6 w-6 text-primary ${pullDistance > 150 ? 'animate-spin' : ''}`} />
-                </div>
-            )}
-
             <div className="flex flex-col space-y-2">
                 <DashboardHeader />
 

@@ -21,6 +21,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  SheetClose,
 } from "@/components/ui/sheet";
 import { Menu } from 'lucide-react';
 import { allNavSections } from '@/lib/nav-config';
@@ -137,27 +138,28 @@ export function Header() {
                   </h4>
                   <div className="flex flex-col space-y-1">
                     {section.items.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                          "flex items-center gap-3 px-2 py-2 text-sm font-medium rounded-md hover:bg-accent hover:text-accent-foreground transition-colors",
-                          pathname === item.href && "bg-accent/50 text-accent-foreground"
-                        )}
-                      >
-                        <item.icon className={cn("h-4 w-4", item.className?.includes('theme-orange') ? 'text-orange-500' : 'text-primary')} />
-                        {item.title}
-                        {item.badge && (
-                          <span className={cn(
-                            "ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
-                            item.badge.variant === 'destructive' ? "bg-red-100 text-red-700" :
-                              item.badge.variant === 'secondary' ? "bg-gray-100 text-gray-700" :
-                                "bg-blue-100 text-blue-700"
-                          )}>
-                            {item.badge.label}
-                          </span>
-                        )}
-                      </Link>
+                      <SheetClose asChild key={item.href}>
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "flex items-center gap-3 px-2 py-2 text-sm font-medium rounded-md hover:bg-accent hover:text-accent-foreground transition-colors",
+                            pathname === item.href && "bg-accent/50 text-accent-foreground"
+                          )}
+                        >
+                          <item.icon className={cn("h-4 w-4", item.className?.includes('theme-orange') ? 'text-orange-500' : 'text-primary')} />
+                          {item.title}
+                          {item.badge && (
+                            <span className={cn(
+                              "ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
+                              item.badge.variant === 'destructive' ? "bg-red-100 text-red-700" :
+                                item.badge.variant === 'secondary' ? "bg-gray-100 text-gray-700" :
+                                  "bg-blue-100 text-blue-700"
+                            )}>
+                              {item.badge.label}
+                            </span>
+                          )}
+                        </Link>
+                      </SheetClose>
                     ))}
                   </div>
                 </div>
