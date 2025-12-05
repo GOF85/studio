@@ -81,7 +81,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
         defaultValues: initialData || {}
     });
 
-    const { fields, append, remove, control } = useFieldArray({
+    const { fields, append, remove } = useFieldArray({
         control: form.control,
         name: 'componentes',
     });
