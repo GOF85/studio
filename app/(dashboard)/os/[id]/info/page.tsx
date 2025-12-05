@@ -57,6 +57,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Combobox } from '@/components/ui/combobox';
+import { supabase } from '@/lib/supabase';
 
 export const osFormSchema = z.object({
   id: z.string().min(1),
@@ -325,96 +326,390 @@ export default function InfoPage() {
 
 
   useEffect(() => {
-    const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-    const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-    setPersonal(allPersonal.filter(p => p.nombre && p.apellido1));
-    setEspacios(allEspacios.filter(e => e.identificacion.nombreEspacio));
-
-    let currentOS: ServiceOrder | null = null;
-    
-    if (isEditing) {
-      setAccordionDefaultValue([]); // Collapse for existing
-      const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      currentOS = allOS.find(os => os.id === osId) || null;
-      if (currentOS) {
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const currentBriefing = allBriefings.find(b => b.osId === osId);
-        setBriefingItems(currentBriefing?.items || []);
-      } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
-        router.push('/pes');
+    async function loadData() {
+      try {
+        // Load personal from Supabase
+        const { data: personalData, error: personalError } = await supabase
+          .from('personal')
+          .select('*');
+        
+        if (personalError) throw personalError;
+        
+        const allPersonal = (personalData || []) as Personal[];
+        console.log('Loaded personal from Supabase:', allPersonal.length);
+        setPersonal(allPersonal.filter(p => p.nombre && p.apellido1));
+        
+        // Load espacios from Supabase
+        const { data: espaciosData, error: espaciosError } = await supabase
+          .from('espacios_v2')
+          .select('*');
+        
+        if (espaciosError) {
+          console.error('Error loading espacios from Supabase:', espaciosError);
+          throw espaciosError;
+        }
+        
+        console.log('Loaded espacios from Supabase:', espaciosData?.length);
+        
+        // Map espacios data - handle Supabase structure with snake_case
+        const allEspacios = (espaciosData || []).map((e: any) => {
+          return {
+            id: e.id,
+            identificacion: {
+              nombreEspacio: e.nombre || '',
+              tipoDeEspacio: e.tipos_espacio || [],
+              descripcionCorta: e.descripcion_corta || '',
+              descripcionLarga: e.descripcion_larga || '',
+              ciudad: e.ciudad || '',
+              provincia: e.provincia || '',
+              calle: e.calle || '',
+              codigoPostal: e.codigo_postal || '',
+              zona: e.zona || '',
+              estilos: e.estilos || [],
+              tags: e.tags || [],
+              idealPara: e.ideal_para || [],
+            },
+            capacidades: {
+              aforoMaximoCocktail: e.aforo_max_cocktail || 0,
+              aforoMaximoBanquete: e.aforo_max_banquete || 0,
+              salas: [],
+            },
+            logistica: {
+              accesoVehiculos: e.acceso_vehiculos || '',
+              horarioMontajeDesmontaje: e.horario_montaje_desmontaje || '',
+              montacargas: false,
+              accesoServicioIndependiente: false,
+              potenciaTotal: e.potencia_total || '',
+              tipoCocina: e.tipo_cocina || 'Sin cocina',
+              tomasAguaCocina: false,
+              desaguesCocina: false,
+              extraccionHumos: false,
+              limitadorSonido: e.limitador_sonido || false,
+              permiteMusicaExterior: false,
+              puntosAnclaje: false,
+              metricasOperativas: {
+                dificultadMontaje: e.dificultad_montaje || 0,
+                penalizacionPersonalMontaje: e.penalizacion_personal_montaje || 0,
+              },
+            },
+            evaluacionMICE: {
+              relacionComercial: e.relacion_comercial || 'Sin Relación',
+              valoracionComercial: e.valoracion_comercial || 0,
+              puntosFuertes: e.puntos_fuertes || [],
+              puntosDebiles: e.puntos_debiles || [],
+              perfilClienteIdeal: e.perfil_cliente_ideal || '',
+              exclusividadMusica: false,
+              exclusividadAudiovisuales: false,
+              valoracionOperaciones: e.valoracion_operaciones || 0,
+              factoresCriticosExito: [],
+              riesgosPotenciales: [],
+            },
+            experienciaInvitado: {
+              flow: {
+                accesoPrincipal: '',
+                recorridoInvitado: '',
+                aparcamiento: e.aparcamiento || '',
+                transportePublico: e.transporte_publico || '',
+                accesibilidadAsistentes: e.accesibilidad_asistentes || '',
+                guardarropa: false,
+                seguridadPropia: false,
+              },
+              conexionWifi: e.conexion_wifi || '',
+            },
+            contactos: [],
+            espacio: e.nombre || '',
+            carpetaDRIVE: e.carpeta_drive || '',
+            precioOrientativoAlquiler: e.precio_orientativo_alquiler?.toString() || '',
+            canonEspacioPorcentaje: e.canon_espacio_porcentaje || 0,
+            canonEspacioFijo: e.canon_espacio_fijo || 0,
+          } as Espacio;
+        });
+        
+        const filteredEspacios = allEspacios.filter(e => e.identificacion?.nombreEspacio);
+        console.log('Filtered espacios:', filteredEspacios.length, filteredEspacios.map(e => e.identificacion.nombreEspacio));
+        setEspacios(filteredEspacios);
+        
+        if (filteredEspacios.length === 0) {
+          console.warn('No valid espacios found after filtering');
+        }
+        
+      } catch (err) {
+        console.warn('Error loading personal/espacios from Supabase, falling back to localStorage', err);
+        // Fallback to localStorage
+        const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
+        console.log('Loaded from localStorage - personal:', allPersonal.length, 'espacios:', allEspacios.length);
+        setPersonal(allPersonal.filter(p => p.nombre && p.apellido1));
+        setEspacios(allEspacios.filter(e => e.identificacion.nombreEspacio));
       }
-    } else { // Creating new OS
-      currentOS = {
-        ...defaultValues,
-        id: Date.now().toString(),
-        startDate: new Date().toISOString(),
-        endDate: new Date().toISOString(),
-      } as ServiceOrder;
-      setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
-    }
 
-    if (currentOS) {
+      let currentOS: ServiceOrder | null = null;
+      
+      if (isEditing) {
+        setAccordionDefaultValue([]); // Collapse for existing
+        try {
+          // Load from Supabase
+          const { data: evento, error } = await supabase
+            .from('eventos')
+            .select('*')
+            .eq('id', osId)
+            .single();
+          
+          if (error) {
+            console.error('Error loading evento from Supabase:', error);
+            toast({ variant: 'destructive', title: 'Error', description: `No se encontró la OS ${osId}` });
+            router.push('/pes');
+            return;
+          }
+          
+          if (!evento) {
+            console.warn('Evento not found (null response)');
+            toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
+            router.push('/pes');
+            return;
+          }
+          
+          console.log('Loaded evento from Supabase:', evento);
+          
+          const responsablesData = evento.responsables || {};
+          
+          // Find the espacio name from the espacio_id
+          const espacioObj = espacios?.find((e: Espacio) => e.id === evento.espacio_id);
+          const espacioNombre = espacioObj?.identificacion?.nombreEspacio || '';
+          
+          // Map from Supabase structure to ServiceOrder
+          currentOS = {
+            id: evento.id,
+            serviceNumber: evento.numero_expediente || '',
+            serviceName: evento.nombre_evento || '',
+            startDate: evento.fecha_inicio ? new Date(evento.fecha_inicio).toISOString() : new Date().toISOString(),
+            endDate: evento.fecha_fin ? new Date(evento.fecha_fin).toISOString() : new Date().toISOString(),
+            asistentes: evento.comensales || 0,
+            space: espacioNombre,
+            serviceType: 'Evento',
+            clientName: '',
+            clientCIF: '',
+            clientPhone: '',
+            clientMail: '',
+            clientAddress: '',
+            clientCity: '',
+            clientCP: '',
+            clientCountry: '',
+            comercialName: '',
+            comercialPhone: '',
+            comercialMail: '',
+            coordinadorName: '',
+            coordinadorPhone: '',
+            coordinadorMail: '',
+            responsables: responsablesData,
+            spaceAddress: '',
+            spaceContact: '',
+            spacePhone: '',
+            spaceMail: '',
+            precioOrientativoAlquiler: '',
+            canonEspacioFijo: 0,
+            canonEspacioPorcentaje: 0,
+            carpetaDRIVE: '',
+            notas: '',
+            // Required fields with defaults
+            client: evento.nombre_evento || '',
+            finalClient: evento.nombre_evento || '',
+            contact: '',
+            phone: '',
+            spacePercentage: 0,
+            comercial: '',
+            agencyPercentage: 0,
+            facturacion: 0,
+            plane: '',
+            comments: '',
+            status: evento.estado === 'CONFIRMADO' ? 'Confirmado' : evento.estado === 'EJECUTADO' ? 'Ejecutado' : 'Borrador' as const,
+            respMetre: responsablesData.metre || '',
+            respMetrePhone: responsablesData.metre_phone || '',
+            respMetreMail: responsablesData.metre_mail || '',
+            respCocinaCPR: responsablesData.cocina_cpr || '',
+            respCocinaCPRPhone: responsablesData.cocina_cpr_phone || '',
+            respCocinaCPRMail: responsablesData.cocina_cpr_mail || '',
+            respPase: responsablesData.pase || '',
+            respPasePhone: responsablesData.pase_phone || '',
+            respPaseMail: responsablesData.pase_mail || '',
+            respCocinaPase: responsablesData.cocina_pase || '',
+            respCocinaPasePhone: responsablesData.cocina_pase_phone || '',
+            respCocinaPaseMail: responsablesData.cocina_pase_mail || '',
+            comercialAsiste: responsablesData.comercial_asiste || false,
+            rrhhAsiste: responsablesData.rrhh_asiste || false,
+            respRRHH: responsablesData.rrhh || '',
+            respRRHHPhone: responsablesData.rrhh_phone || '',
+            respRRHHMail: responsablesData.rrhh_mail || '',
+          } as unknown as ServiceOrder;
+          
+          // Load briefing items if they exist
+          const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+          const currentBriefing = allBriefings.find(b => b.osId === osId);
+          setBriefingItems(currentBriefing?.items || []);
+        } catch (err) {
+          console.error('Error loading existing OS from Supabase:', err);
+          toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
+          router.push('/pes');
+          return;
+        }
+      } else { // Creating new OS
+        currentOS = {
+          ...defaultValues,
+          id: crypto.randomUUID(),
+          startDate: new Date().toISOString(),
+          endDate: new Date().toISOString(),
+        } as ServiceOrder;
+        setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
+      }
+
+      if (currentOS) {
         setServiceOrder(currentOS);
         form.reset({
-            ...currentOS,
-            startDate: new Date(currentOS.startDate),
-            endDate: new Date(currentOS.endDate),
+          ...currentOS,
+          startDate: new Date(currentOS.startDate),
+          endDate: new Date(currentOS.endDate),
         });
+      }
+
+      setIsMounted(true);
     }
 
-    setIsMounted(true);
+    loadData();
   }, [osId, isEditing, form, router, toast]);
 
   function onSubmit(data: OsFormValues) {
     setIsLoading(true);
 
-    let allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     let message = '';
     let currentOsId = osId;
+    let serviceOrderToSave: ServiceOrder;
     
     if (isEditing) { // Update existing
-      const osIndex = allOS.findIndex(os => os.id === osId);
-      if (osIndex !== -1) {
-        allOS[osIndex] = { ...allOS[osIndex], ...data, id: osId };
-        message = 'Orden de Servicio actualizada correctamente.';
-      }
+      const newOS: ServiceOrder = {
+        ...data,
+        id: osId,
+        facturacion: data.facturacion || 0,
+        startDate: data.startDate.toISOString(),
+        endDate: data.endDate.toISOString(),
+      } as ServiceOrder;
+      message = 'Orden de Servicio actualizada correctamente.';
+      serviceOrderToSave = newOS;
     } else { // Create new
-      const existingOS = allOS.find(os => os.serviceNumber === data.serviceNumber);
-      if (existingOS) {
-        toast({
+      currentOsId = data.id;
+      const newOS: ServiceOrder = {
+        ...data,
+        facturacion: data.facturacion || 0,
+        startDate: data.startDate.toISOString(),
+        endDate: data.endDate.toISOString(),
+      } as ServiceOrder;
+      message = 'Orden de Servicio creada correctamente.';
+      serviceOrderToSave = newOS;
+    }
+
+    // Save ONLY to Supabase
+    saveToSupabase(serviceOrderToSave, message, currentOsId);
+  }
+
+  const saveToSupabase = async (serviceOrder: ServiceOrder, message: string, currentOsId: string) => {
+    try {
+      // First check if numero_expediente already exists (for new records)
+      if (!isEditing) {
+        const { data: existing, error: checkError } = await supabase
+          .from('eventos')
+          .select('id')
+          .eq('numero_expediente', serviceOrder.serviceNumber)
+          .single();
+
+        if (!checkError && existing) {
+          toast({
             variant: 'destructive',
             title: 'Error',
             description: 'Ya existe una Orden de Servicio con este número.',
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      const espacio = espacios.find(e => e.identificacion.nombreEspacio === serviceOrder.space);
+      const comercial = personal.find(p => getFullName(p) === serviceOrder.comercial);
+
+      // Prepare responsables data
+      const responsablesData = {
+        metre: (serviceOrder as any).respMetre || null,
+        metre_phone: (serviceOrder as any).respMetrePhone || null,
+        metre_mail: (serviceOrder as any).respMetreMail || null,
+        cocina_cpr: (serviceOrder as any).respCocinaCPR || null,
+        cocina_cpr_phone: (serviceOrder as any).respCocinaCPRPhone || null,
+        cocina_cpr_mail: (serviceOrder as any).respCocinaCPRMail || null,
+        pase: (serviceOrder as any).respPase || null,
+        pase_phone: (serviceOrder as any).respPasePhone || null,
+        pase_mail: (serviceOrder as any).respPaseMail || null,
+        cocina_pase: (serviceOrder as any).respCocinaPase || null,
+        cocina_pase_phone: (serviceOrder as any).respCocinaPasePhone || null,
+        cocina_pase_mail: (serviceOrder as any).respCocinaPaseMail || null,
+        rrhh: (serviceOrder as any).respRRHH || null,
+        rrhh_phone: (serviceOrder as any).respRRHHPhone || null,
+        rrhh_mail: (serviceOrder as any).respRRHHMail || null,
+      };
+
+      const eventoData = {
+        id: serviceOrder.id,
+        numero_expediente: serviceOrder.serviceNumber,
+        nombre_evento: serviceOrder.client || 'Evento sin nombre',
+        cliente_id: null,
+        fecha_inicio: serviceOrder.startDate,
+        fecha_fin: serviceOrder.endDate,
+        estado: serviceOrder.status === 'Confirmado' ? 'CONFIRMADO' : 'BORRADOR',
+        comensales: serviceOrder.asistentes || 0,
+        espacio_id: espacio ? espacio.id : null,
+        comercial_id: comercial ? comercial.id : null,
+        responsables: responsablesData,
+      };
+
+      console.log('Saving evento to Supabase:', eventoData);
+
+      const { error } = await supabase
+        .from('eventos')
+        .upsert([eventoData], { onConflict: 'id' });
+
+      if (error) {
+        console.error('Error saving to Supabase:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: `Error guardando en Supabase: ${error.message}`,
         });
         setIsLoading(false);
         return;
       }
-      currentOsId = data.id;
-      const newOS: ServiceOrder = {
-        ...data,
-        facturacion: data.facturacion || 0, // Ensure facturacion is a number
-        startDate: data.startDate.toISOString(),
-        endDate: data.endDate.toISOString(),
-      };
-      allOS.push(newOS);
-      message = 'Orden de Servicio creada correctamente.';
-    }
 
-    localStorage.setItem('serviceOrders', JSON.stringify(allOS));
-    
-    toast({ description: message });
-    setIsLoading(false);
+      console.log('Evento guardado en Supabase:', serviceOrder.id);
+      toast({ description: message });
+      setIsLoading(false);
 
-    if (!isEditing) {
-        router.push(`/os/${currentOsId}`);
-    } else {
-        form.reset(data); // Mark form as not dirty
+      if (!isEditing) {
+        router.push(`/os/${currentOsId}/info`);
+      } else {
+        form.reset({
+          ...serviceOrder,
+          startDate: new Date(serviceOrder.startDate),
+          endDate: new Date(serviceOrder.endDate)
+        } as OsFormValues); // Reset form with saved data to remove dirty state
         if (isSubmittingFromDialog) {
           router.push('/pes');
         } else {
           router.replace(`/os/${currentOsId}/info?t=${Date.now()}`);
         }
+      }
+    } catch (err) {
+      console.error('Error in saveToSupabase:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Error inesperado al guardar.',
+      });
+      setIsLoading(false);
     }
   }
   
@@ -432,12 +727,12 @@ export default function InfoPage() {
     localStorage.setItem('serviceOrders', JSON.stringify(allOS));
 
     // Delete related data from other localStorage items
-    const keysToDeleteFrom: (keyof Window['localStorage'])[] = [
+    const keysToDeleteFrom = [
       'materialOrders', 'comercialBriefings', 'gastronomyOrders', 'transporteOrders', 'hieloOrders', 
       'decoracionOrders', 'atipicosOrders', 'personalMiceOrders', 'personalExternoOrders', 'pruebasMenu', 'pedidosEntrega'
     ];
 
-    keysToDeleteFrom.forEach(key => {
+    keysToDeleteFrom.forEach((key: string) => {
         const data = JSON.parse(localStorage.getItem(key) || '[]') as { osId: string }[];
         const filteredData = data.filter(item => item.osId !== osId);
         localStorage.setItem(key, JSON.stringify(filteredData));

@@ -22,8 +22,8 @@ export async function POST() {
         const factusolService = new FactusolService({
             codfab: '1078',
             codcli: '57237',
-            basedatos: 'FS150',
-            password: 'AiQe4HeWrj6Q',
+            basedatos: 'FS151',
+            password: 'CBOgInVFmMLz',
         }, debugLog);
 
         // 2. Fetch F_ART from Factusol with all relevant fields
@@ -155,6 +155,25 @@ export async function POST() {
         // 5. Transaction: Delete All and Insert
         debugLog.push("Iniciando transacción en Supabase...");
 
+        // Store existing prices before deletion for comparison
+        debugLog.push("Guardando precios existentes para comparación...");
+        const { data: existingArticulos } = await supabase
+            .from('articulos_erp')
+            .select('erp_id, precio');
+
+        const existingPricesMap = new Map(
+            (existingArticulos || []).map(a => [a.erp_id, a.precio])
+        );
+
+        // Debug specific article if requested (hardcoded for now or via header if we could)
+        // We'll log details for a specific article if it exists in the new data
+        const debugId = '1'; // Example ID, or we could look for one that changed
+        const debugItem = articulosToInsert.find((a: any) => a.erp_id === debugId);
+        if (debugItem) {
+            const oldP = existingPricesMap.get(debugId);
+            debugLog.push(`[DEBUG] Artículo ${debugId}: Precio anterior=${oldP}, Nuevo=${debugItem.precio}`);
+        }
+
         // Delete all existing records
         const { error: deleteError } = await supabase
             .from('articulos_erp')
@@ -180,7 +199,48 @@ export async function POST() {
 
         debugLog.push(`✅ Sincronización completada. ${insertedCount} artículos insertados.`);
 
-        return NextResponse.json({ success: true, count: insertedCount, debugLog });
+        // Track price history
+        debugLog.push("Registrando historial de precios...");
+        const today = new Date().toISOString();
+        const priceHistoryEntries = [];
+        let debugComparisons = 0;
+
+        for (const newArticulo of articulosToInsert) {
+            const oldPrice = existingPricesMap.get(newArticulo.erp_id);
+            const newPrice = newArticulo.precio;
+
+            if (oldPrice === undefined || Math.abs(newPrice - oldPrice) > 0.001) {
+                priceHistoryEntries.push({
+                    articulo_erp_id: newArticulo.erp_id,
+                    fecha: today,
+                    precio_calculado: newPrice,
+                    proveedor_id: newArticulo.proveedor_id,
+                });
+            }
+        }
+
+        debugLog.push(`Total cambios detectados: ${priceHistoryEntries.length}`);
+
+        if (priceHistoryEntries.length > 0) {
+            const historyChunks = chunkArray(priceHistoryEntries, 100);
+            let historyInserted = 0;
+
+            for (const historyChunk of historyChunks) {
+                const { error: historyError } = await supabase
+                    .from('historico_precios_erp')
+                    .insert(historyChunk);
+
+                if (historyError) {
+                    debugLog.push(`⚠️ Error registrando historial: ${historyError.message}`);
+                }
+                historyInserted += historyChunk.length;
+            }
+            debugLog.push(`✅ Registrados ${historyInserted} cambios de precio en el historial.`);
+        } else {
+            debugLog.push("No se detectaron cambios de precio.");
+        }
+
+        return NextResponse.json({ success: true, count: insertedCount, priceChanges: priceHistoryEntries.length, debugLog });
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

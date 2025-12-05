@@ -44,8 +44,15 @@ export default function PrevisionServiciosPage() {
   useEffect(() => {
     async function load() {
       try {
-        const { data: eventos, error } = await supabase.from('eventos').select('*');
-        if (error) throw error;
+        // Load from Supabase eventos table
+        const { data: eventos, error } = await supabase
+          .from('eventos')
+          .select('*');
+        
+        if (error) {
+          console.error('Supabase error loading eventos:', error);
+          throw error;
+        }
 
         if (Array.isArray(eventos) && eventos.length > 0) {
           const mapped: ServiceOrder[] = eventos.map((e: any) => {
@@ -67,16 +74,21 @@ export default function PrevisionServiciosPage() {
             return { ...base, ...e } as unknown as ServiceOrder;
           });
 
+          console.log('Loaded eventos from Supabase:', mapped.length);
           setServiceOrders(mapped);
           setIsMounted(true);
           return;
+        } else {
+          console.log('No eventos found in Supabase, checking localStorage');
         }
       } catch (err) {
-        // If Supabase fails or returns no data, fall back to localStorage during migration
+        // If Supabase fails, fall back to localStorage during migration
         console.warn('Supabase fetch for eventos failed, falling back to localStorage.', err);
       }
 
+      // Fallback to localStorage
       const storedOrders = typeof window !== 'undefined' ? localStorage.getItem('serviceOrders') : null;
+      console.log('Loaded eventos from localStorage:', storedOrders ? JSON.parse(storedOrders).length : 0);
       setServiceOrders(storedOrders ? JSON.parse(storedOrders) : []);
       setIsMounted(true);
     }

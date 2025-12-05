@@ -1,9 +1,9 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Save, Trash2, Loader2, Menu, FileUp, FileDown, Database, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { Search, Upload, RefreshCw, FileDown, Filter, History, PlusCircle, Save, Trash2, Loader2, Menu, FileUp, Database, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ArticuloERP, UnidadMedida, Proveedor, FamiliaERP, HistoricoPreciosERP } from '@/types';
 import { UNIDADES_MEDIDA, articuloErpSchema } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -269,7 +269,7 @@ function ArticulosERPPageContent() {
             header: true,
             skipEmptyLines: true,
             delimiter,
-            complete: (results) => {
+            complete: async (results) => {
                 const headers = results.meta.fields || [];
                 const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
 
@@ -278,10 +278,31 @@ function ArticulosERPPageContent() {
                     return;
                 }
 
+
+
                 // --- Smart Snapshot Logic ---
                 const today = new Date();
-                const historicoPrecios: HistoricoPreciosERP[] = JSON.parse(localStorage.getItem('historicoPreciosERP') || '[]') as HistoricoPreciosERP[];
+
+                // Fetch existing price history from Supabase
+                const { data: existingHistory } = await supabase
+                    .from('historico_precios_erp')
+                    .select('*');
+
+                const historicoPrecios: HistoricoPreciosERP[] = (existingHistory || []).map(h => ({
+                    id: h.id,
+                    articuloErpId: h.articulo_erp_id,
+                    fecha: h.fecha,
+                    precioCalculado: h.precio_calculado,
+                    proveedorId: h.proveedor_id,
+                }));
+
                 const currentArticulosMap = new Map(items.map(i => [i.idreferenciaerp, i]));
+                const newPriceHistoryEntries: Array<{
+                    articulo_erp_id: string;
+                    fecha: string;
+                    precio_calculado: number;
+                    proveedor_id: string | null;
+                }> = [];
 
                 results.data.forEach((item: any) => {
                     const idreferenciaerp = item.idreferenciaerp;
@@ -300,26 +321,39 @@ function ArticulosERPPageContent() {
                         const daysSinceLastLog = lastHistoryEntry ? differenceInDays(today, parseISO(lastHistoryEntry.fecha)) : Infinity;
 
                         if (hasPriceChanged || daysSinceLastLog > 7) {
-                            historicoPrecios.push({
-                                id: `${idreferenciaerp}-${today.toISOString()}`,
-                                articuloErpId: idreferenciaerp,
+                            newPriceHistoryEntries.push({
+                                articulo_erp_id: idreferenciaerp,
                                 fecha: today.toISOString(),
-                                precioCalculado: newPrice,
-                                proveedorId: item.idProveedor,
+                                precio_calculado: newPrice,
+                                proveedor_id: item.idProveedor || null,
                             });
                         }
                     } else {
                         // If it's a new item, add it to the history
-                        historicoPrecios.push({
-                            id: `${idreferenciaerp}-${today.toISOString()}`,
-                            articuloErpId: idreferenciaerp,
+                        newPriceHistoryEntries.push({
+                            articulo_erp_id: idreferenciaerp,
                             fecha: today.toISOString(),
-                            precioCalculado: newPrice,
-                            proveedorId: item.idProveedor,
+                            precio_calculado: newPrice,
+                            proveedor_id: item.idProveedor || null,
                         });
                     }
                 });
-                localStorage.setItem('historicoPreciosERP', JSON.stringify(historicoPrecios));
+
+                // Insert new price history entries to Supabase
+                if (newPriceHistoryEntries.length > 0) {
+                    const { error: historyError } = await supabase
+                        .from('historico_precios_erp')
+                        .insert(newPriceHistoryEntries);
+
+                    if (historyError) {
+                        console.error('Error saving price history:', historyError);
+                        toast({
+                            variant: 'destructive',
+                            title: 'Advertencia',
+                            description: `Artículos importados pero error al guardar historial de precios: ${historyError.message}`
+                        });
+                    }
+                }
                 // --- End Smart Snapshot Logic ---
 
 
@@ -352,7 +386,10 @@ function ArticulosERPPageContent() {
 
                 localStorage.setItem('articulosERP', JSON.stringify(importedData));
                 setItems(importedData);
-                toast({ title: 'Importación completada', description: `Se han cargado ${importedData.length} registros y se ha actualizado el histórico de precios.` });
+                toast({
+                    title: 'Importación completada',
+                    description: `Se han cargado ${importedData.length} registros. ${newPriceHistoryEntries.length} cambios de precio registrados.`
+                });
                 setIsImportAlertOpen(false);
             },
             error: (error) => {
@@ -457,6 +494,13 @@ function ArticulosERPPageContent() {
                                         <TableCell className="p-2 text-xs">{formatUnit(item.unidad)}</TableCell>
                                         <TableCell className="p-2 text-xs">{item.tipo}</TableCell>
                                         <TableCell className="p-2 text-xs">{item.categoriaMice}</TableCell>
+                                        <TableCell className="p-2 text-xs">
+                                            <Link href={`/bd/erp/${item.idreferenciaerp}`}>
+                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                                    <History className="h-4 w-4" />
+                                                </Button>
+                                            </Link>
+                                        </TableCell>
                                     </TableRow>
                                 );
                             })

@@ -101,7 +101,7 @@ function ElaboracionesListPage() {
     ] = await Promise.all([
       supabase.from('elaboraciones').select('*'),
       supabase.from('elaboracion_componentes').select('*'),
-      supabase.from('recetas').select('id, nombre'),
+      supabase.from('recetas').select('id, nombre, elaboraciones'),
       supabase.from('receta_detalles').select('*'),
       supabase.from('ingredientes_internos').select('*'),
       supabase.from('articulos_erp').select('*')
@@ -194,15 +194,26 @@ function ElaboracionesListPage() {
 
     const elaboracionesMap = new Map(storedElaboraciones.map(e => [e.id, e]));
 
+    // Build usage map by checking elaboraciones field in recetas
     const usageMap = new Map<string, string[]>();
-    recetasWithDetails.forEach((receta: any) => {
-      (receta.elaboraciones || []).forEach((elabEnReceta: any) => {
-        const currentUses = usageMap.get(elabEnReceta.elaboracionId) || [];
-        if (!currentUses.includes(receta.nombre)) {
-          usageMap.set(elabEnReceta.elaboracionId, [...currentUses, receta.nombre]);
+
+    // For each elaboracion, find which recipes use it
+    for (const elab of rawElaboraciones) {
+      const recipesUsingThis: string[] = [];
+
+      // Check each recipe's elaboraciones JSONB field
+      for (const receta of storedRecetas) {
+        // elaboraciones is a JSONB array of objects with elaboracionId
+        const recetaElaboraciones = (receta as any).elaboraciones || [];
+        const usesThisElab = recetaElaboraciones.some((e: any) => e.elaboracionId === elab.id);
+
+        if (usesThisElab) {
+          recipesUsingThis.push(receta.nombre);
         }
-      });
-    });
+      }
+
+      usageMap.set(elab.id, recipesUsingThis);
+    }
 
     // Función para calcular el coste de una elaboración
     const calculateElaboracionCost = (elab: Elaboracion): number => {
