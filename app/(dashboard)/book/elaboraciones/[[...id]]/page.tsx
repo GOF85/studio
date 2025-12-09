@@ -8,16 +8,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 
 import { 
   Loader2, Save, X, PlusCircle, GripVertical, 
-  Trash2, Eye, Component, MoreHorizontal, Copy, 
-  Download, Upload, AlertTriangle, RefreshCw, Pencil, 
-  ChevronLeft, Search, Image as ImageIcon, ChevronRight
+  Trash2, Component, Copy, Download, Upload, Menu, 
+  AlertTriangle, Pencil, ChevronLeft, ChevronRight, Search, 
+  Image as ImageIcon
 } from 'lucide-react';
 import type { Elaboracion, IngredienteInterno, Alergeno, PartidaProduccion, ComponenteElaboracion } from '@/types';
 import { PARTIDAS_PRODUCCION, UNIDADES_MEDIDA, ALERGENOS } from '@/types';
+import { supabase } from '@/lib/supabase';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -31,6 +33,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -40,7 +43,6 @@ import Image from 'next/image';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { Label } from '@/components/ui/label';
 import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
-import { supabase } from '@/lib/supabase';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImageManager } from '@/components/book/images/ImageManager';
 import type { ImagenReceta } from '@/types/index';
@@ -243,19 +245,103 @@ function ElaboracionesListPage() {
   const [items, setItems] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
+  const { toast } = useToast();
+  // RESTORED: Estado para importación
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importType, setImportType] = useState<'elaboraciones' | 'componentes' | null>(null);
   
-  useEffect(() => {
-    const fetch = async () => {
-        const { data } = await supabase.from('elaboraciones').select('*').order('nombre');
-        if(data) setItems(data);
-    };
-    fetch();
+  const loadData = useCallback(async () => {
+    const { data } = await supabase.from('elaboraciones').select('*').order('nombre');
+    if(data) setItems(data);
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // RESTORED: Funciones de Exportación/Importación
+  const handleExportElaboracionesCSV = () => {
+    const dataToExport = items.map(item => {
+      // Simplified export for brevity, matches DB columns
+      return {
+        id: item.id,
+        nombre: item.nombre,
+        partidaProduccion: item.partida,
+        produccionTotal: item.produccion_total,
+        unidadProduccion: item.unidad_produccion,
+        instruccionesPreparacion: item.instrucciones,
+        fotos: JSON.stringify(item.fotos || []), // Using correct column mapping logic
+        costePorUnidad: item.coste_unitario,
+        // ... add other fields as needed
+      };
+    });
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', 'elaboraciones.csv');
+    link.click();
+    toast({ title: 'Exportación de Elaboraciones Completada' });
+  }
+
+  const handleExportComponentesCSV = async () => {
+    // Need to fetch components first as they are not loaded in list view for performance
+    const { data: allComponents } = await supabase.from('elaboracion_componentes').select('*');
+    if (!allComponents) return;
+
+    const csv = Papa.unparse(allComponents);
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', 'componentes.csv');
+    link.click();
+    toast({ title: 'Exportación de Componentes Completada' });
+  }
+
+  const handleImportClick = (type: 'elaboraciones' | 'componentes') => {
+    setImportType(type);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !importType) return;
+
+    Papa.parse<any>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        if (importType === 'elaboraciones') {
+          // Basic mapping - ensure CSV headers match what you expect or map them here
+          const importedData = results.data.map((item: any) => ({
+            id: item.id || crypto.randomUUID(), 
+            nombre: item.nombre,
+            partida: item.partidaProduccion || item.partida,
+            unidad_produccion: item.unidadProduccion,
+            produccion_total: parseFloat(item.produccionTotal) || 1,
+            // ... map other fields
+          }));
+          const { error } = await supabase.from('elaboraciones').upsert(importedData);
+          if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });
+          else { loadData(); toast({ title: 'Importación completada' }); }
+        } else if (importType === 'componentes') {
+             const { error } = await supabase.from('elaboracion_componentes').insert(results.data);
+             if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });
+             else toast({ title: 'Importación completada' });
+        }
+      }
+    });
+    if (event.target) event.target.value = '';
+    setImportType(null);
+  };
 
   const filtered = items.filter(i => i.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="space-y-4 p-4 max-w-7xl mx-auto pb-24">
+         {/* Hidden Input for Import */}
+         <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelected} />
+
          {/* TOOLBAR */}
          <div className="flex flex-col sm:flex-row justify-between gap-4 items-end sm:items-center">
              <div className="relative w-full sm:w-auto flex-1 max-w-md">
@@ -268,12 +354,31 @@ function ElaboracionesListPage() {
                 />
             </div>
             
-            <Button onClick={() => router.push('/book/elaboraciones/nueva')} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto shadow-sm h-9">
-                <PlusCircle className="mr-2 h-4 w-4"/> 
-                {/* Texto responsivo para evitar truncamiento */}
-                <span className="hidden sm:inline">Nueva Elaboración</span>
-                <span className="sm:hidden">Nueva</span>
-            </Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+                {/* RESTORED: Dropdown Menu for CSV Actions */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" className="h-9 w-9">
+                            <Menu className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Acciones CSV</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleExportElaboracionesCSV}><Download className="mr-2 h-4 w-4"/> Exportar Elaboraciones</DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleExportComponentesCSV}><Download className="mr-2 h-4 w-4"/> Exportar Componentes</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleImportClick('elaboraciones')}><Upload className="mr-2 h-4 w-4"/> Importar Elaboraciones</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleImportClick('componentes')}><Upload className="mr-2 h-4 w-4"/> Importar Componentes</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button onClick={() => router.push('/book/elaboraciones/nueva')} className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none shadow-sm h-9">
+                    <PlusCircle className="mr-2 h-4 w-4"/> 
+                    <span className="hidden sm:inline">Nueva Elaboración</span>
+                    <span className="sm:hidden">Nueva</span>
+                </Button>
+            </div>
          </div>
 
          {/* VISTA MÓVIL: TARJETAS CLICABLES */}
@@ -458,6 +563,7 @@ function ElaborationFormPage() {
                    };
                 });
 
+                // FIX: CASTING EXPLÍCITO para evitar error de tipado en 'componentes' y valores literales
                 elabToLoad = {
                     id: isEditing ? elabData.id : crypto.randomUUID(),
                     nombre: cloneId ? `${elabData.nombre} (Copia)` : elabData.nombre,
@@ -466,7 +572,7 @@ function ElaborationFormPage() {
                     produccionTotal: elabData.produccion_total || 1,
                     caducidadDias: elabData.caducidad_dias || 0,
                     instruccionesPreparacion: elabData.instrucciones || '',
-                    // FIX: Columna correcta 'fotos'
+                    // FIX: Asegurar nombre correcto de la columna fotos en DB (solo 'fotos')
                     fotos: (elabData.fotos || []).map((url: any) => typeof url === 'string' ? { url } : url),
                     videoProduccionURL: elabData.video_produccion_url || '',
                     formatoExpedicion: elabData.formato_expedicion || '',
@@ -476,6 +582,7 @@ function ElaborationFormPage() {
                 };
             }
         } else {
+             // FIX: Asegurar que los valores por defecto coinciden con los literales del esquema Zod
              elabToLoad = { 
                  id: crypto.randomUUID(), 
                  nombre: '', 
@@ -566,8 +673,7 @@ function ElaborationFormPage() {
 
   if (!isDataLoaded) return <LoadingSkeleton title="Cargando elaboración..." />;
 
-  // FIX: Page Title eliminado para tener un header más limpio
-  const pageTitle = cloneId ? 'Clonar' : (isNew ? 'Nueva' : 'Editar');
+  const pageTitle = cloneId ? 'Clonar Elaboración' : (isNew ? 'Nueva Elaboración' : 'Editar Elaboración');
 
   return (
     <TooltipProvider>

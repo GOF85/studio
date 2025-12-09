@@ -1,203 +1,158 @@
-📘 STYLE.MD - Sistema de Diseño: Fichas Técnicas (V2.0)
-Este sistema sigue una filosofía "Mobile-First, Desktop-Optimized", priorizando la densidad de información, la limpieza visual y la accesibilidad de las acciones principales.
+📘 STYLE.MD - Sistema de Diseño: Book Gastronómico (V3.0)
+Filosofía: "Densidad Limpia". La interfaz debe manejar mucha información técnica sin abrumar, priorizando la velocidad de operación en cocinas (móvil) y la gestión en oficina (desktop).
 
-1. Arquitectura de Página (Layout)
-Contenedor Raíz
-Debe permitir scroll infinito y dejar espacio para los botones flotantes.
+1. Arquitectura de Página (Layout Master)
+Reglas de Oro
+Sin Padding en Layout: El layout.tsx no debe tener container ni py-8. Cada página controla sus márgenes para permitir efectos "borde a borde" en móvil.
+
+Scroll Infinito + FAB: El contenedor principal debe tener pb-24 para que el contenido final no quede oculto detrás del Botón Flotante (FAB).
+
+El Patrón "Sticky Tabs" (Crítico)
+Para evitar errores de contexto (tabs que no cambian), la estructura debe ser esta jerarquía exacta:
 
 TypeScript
 
 <main className="pb-24 bg-background min-h-screen">
-  {/* Todo el contenido va aquí */}
+  <FormProvider {...form}>
+    <form>
+       {/* 1. EL COMPONENTE TABS ENVUELVE TODO */}
+       <Tabs defaultValue="general" className="w-full">
+          
+          {/* 2. HEADER STICKY (Solo contiene navegación y triggers) */}
+          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
+             <div className="px-3 pb-0">
+                <TabsList className="w-full justify-start overflow-x-auto ...">
+                   {/* ... Triggers ... */}
+                </TabsList>
+             </div>
+          </div>
+
+          {/* 3. CUERPO DEL CONTENIDO (Dentro de Tabs, fuera del Sticky) */}
+          <div className="p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5">
+              <TabsContent value="general">...</TabsContent>
+              <TabsContent value="detalle">...</TabsContent>
+          </div>
+
+       </Tabs>
+    </form>
+  </FormProvider>
 </main>
-Cabecera Pegajosa (Sticky Header)
-La cabecera siempre contiene el componente raíz <Tabs> para controlar el contenido inferior.
+2. Listados de Datos (Master View)
+Estrategia Dual
+No usamos tablas responsive HTML. Renderizamos dos interfaces distintas según el dispositivo.
 
-Posición: sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2
+A. Móvil (md:hidden) -> "Clickable Cards"
+Interacción: Toda la tarjeta es un botón. No usar botones pequeños de "Editar" o "Lápiz".
 
-Estructura:
+Estilo: bg-card border rounded-lg p-3 shadow-sm active:scale-[0.98] transition-transform.
 
-Fila Superior: Navegación (Botón Atrás) y Título (Visible solo en Desktop/Tablet).
+Indicadores de Estado: Usar una franja lateral de color absolute left-0 w-1 bg-color... para indicar estado (Activo/Archivado).
 
-Fila Inferior: Lista de Pestañas (TabsList) con scroll horizontal.
+Contenido: Título negrita, datos clave alineados con Flexbox (justify-between).
+
+B. Desktop (hidden md:block) -> "Shadcn Table"
+Estilo: Tabla estándar con TableHeader gris suave (bg-muted/40).
+
+Alineación:
+
+Texto: Izquierda.
+
+Números/Precios: Derecha (text-right font-mono).
+
+Estados: Badges o Iconos centrados.
+
+Acciones: DropdownMenu en la última columna (Editar, Clonar, Borrar).
+
+3. Formularios y Fichas (Detail View)
+Inputs de Alta Densidad
+Altura: h-8 o h-9 (Compacto).
+
+Labels: text-[10px] uppercase font-bold text-muted-foreground.
+
+Manejo de Nulos: En el value del input, usar siempre value={field.value ?? ''} para evitar errores de controlled/uncontrolled components.
+
+Estructura de Pestañas (Estándar)
+Info. General:
+
+Datos maestros (Nombre, Categoría, Switches de estado).
+
+Zona de Peligro: Tarjeta al final del todo (no flotante) para "Eliminar". Estilo border-destructive/30.
+
+Composición / Receta:
+
+Izquierda (75%): Lista de Ingredientes/Elaboraciones.
+
+Derecha/Abajo: Tarjetas de Totales (Costes y Alérgenos).
+
+Nota: En "Elaboraciones", los campos de rendimiento (Producción Total) van aquí, encima de la lista.
+
+Multimedia / Pasos:
+
+Componente ImageManager con vista de Grid.
+
+Textarea expandido para instrucciones.
+
+4. Tarjetas Especiales (Blueprints)
+Tarjeta Económica (Rentabilidad)
+Diseño para lectura rápida de márgenes.
 
 TypeScript
 
-<div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
-  <Tabs defaultValue="general" className="w-full">
-     {/* Fila 1: Navegación */}
-     <div className="flex items-center px-3 pb-2 gap-2">
-        <Button variant="ghost" ...><ChevronLeft /></Button>
-        <h1 className="text-base font-bold truncate hidden sm:block">{pageTitle}</h1>
-     </div>
-     
-     {/* Fila 2: Pestañas Scrollables */}
-     <div className="px-3">
-        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap bg-transparent p-0 h-10 gap-4 mb-0 no-scrollbar border-none">
-           {/* Triggers... */}
-        </TabsList>
-     </div>
-  </Tabs>
-</div>
-Cuerpo del Contenido
-El contenido de las pestañas vive dentro del mismo contexto <Tabs> pero fuera del div sticky.
+<Card className="border-l-4 border-l-green-600 ...">
+   {/* Fila 1 */}
+   <div className="flex w-full">
+      <div className="w-1/2">COSTE MP (Mono)</div>
+      <div className="w-1/2">MARGEN % (Input)</div>
+   </div>
+   <Separator />
+   {/* Fila 2 */}
+   <div className="text-2xl font-bold text-green-700">PVP VENTA</div>
+</Card>
+Tarjeta Alérgenos
+Iconos: Usar componente <AllergenBadge />.
 
-Estilo: p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5
+Manejo de Arrays: Siempre asegurar array: (data.alergenos || []).map(...).
 
-2. Componentes de UI (Micro-Estilos)
-A. Inputs y Etiquetas (Alta Densidad)
-Optimizados para mostrar muchos datos sin ocupar altura excesiva.
+5. Acciones Principales (FAB)
+Los botones de acción no viven en el header, viven en el pulgar del usuario.
 
-Labels (Etiquetas):
+Ubicación: fixed bottom-6 right-6 z-50.
 
-text-[10px] uppercase font-bold text-muted-foreground tracking-wide
+Botón Guardar:
 
-Uso: Siempre encima del input.
+Circular grande (h-14 w-14).
 
-Inputs / Selects:
+Verde corporativo (bg-green-600).
 
-h-8 (Altura compacta).
+Icono grande, sin texto.
 
-text-sm (Texto legible).
+Feedback de carga (Loader2 animate-spin).
 
-bg-background (Fondo blanco/oscuro estándar).
+Botón Cancelar (Opcional):
 
-B. Tarjetas (Cards)
-Diseño plano y limpio para agrupar secciones.
+Circular pequeño (h-10 w-10), encima del guardar.
 
-Contenedor: shadow-none border border-border/60.
+Rojo o Gris (variant="destructive" o outline).
 
-Cabecera de Tarjeta: p-3 pb-1 border-b bg-muted/10.
+6. Seguridad de Tipado (TypeScript Rules)
+Para evitar los errores 2322 y 2551:
 
-Título: text-sm font-bold.
+Mapeo CamelCase <-> SnakeCase:
 
-Cuerpo: p-3.
+Supabase devuelve snake_case (ej: produccion_total).
 
-C. Tablas vs. Tarjetas (Responsive)
-Patrón para listas complejas (Ingredientes, Elaboraciones).
+La App usa camelCase (ej: produccionTotal).
 
-Móvil (md:hidden):
+Regla: Hacer el mapeo manual explícito en la función loadData.
 
-Renderizar una lista de div con estilo de tarjeta (bg-background border rounded-md p-2).
+Tipos Literales:
 
-Usar Flexbox/Grid interno para alinear "Nombre", "Cantidad" y "Total".
+Si Zod espera "KG" | "L", no le pases un string.
 
-Desktop (hidden md:block):
+Usa casting: unidad: dbData.unidad as "KG" | "L".
 
-Usar <Table> estándar.
+Booleanos Estrictos:
 
-Alineación Numérica: text-right font-mono.
+Nunca pasar undefined a un switch o checkbox.
 
-Anchos Fijos: Usar w-32, w-24 para columnas numéricas para asegurar alineación.
-
-3. Grids y Distribución (Layouts por Pestaña)
-Pestaña "Info. General" (Formularios)
-Grid: grid-cols-1 lg:grid-cols-2 gap-4.
-
-Columna Izquierda: Tarjetas de datos (Inputs, Selects).
-
-Columna Derecha: Tarjeta de Imágenes principales + Configuración (Switches).
-
-Pestaña "Composición" (Receta/Elaboración)
-Grid: grid-cols-1 lg:grid-cols-12 gap-4 items-start.
-
-Columna Principal (lg:col-span-9):
-
-Tarjeta de Lista/Tabla (Ingredientes/Elaboraciones).
-
-Tarjeta de Alérgenos Totales (Siempre al final de esta columna).
-
-Columna Lateral (lg:col-span-3):
-
-Sticky: lg:sticky lg:top-36.
-
-Tarjeta de Información Económica.
-
-Pestaña "Info. Pase / Preparación"
-Grid: grid-cols-1 (Móvil) -> md:grid-cols-3 (Desktop) si son pasos separados (Mise en place, etc).
-
-Contenido: Componente unificado de Imagen + Texto (instrucciones).
-
-Pestaña "Gastronómica / Técnica"
-Grid: grid-cols-1 md:grid-cols-2 lg:grid-cols-4.
-
-Permite ver toda la clasificación técnica en una sola fila o dos en desktop.
-
-4. Tarjetas Específicas (Blueprints)
-Tarjeta Económica (Resumen)
-Diseño específico para destacar la rentabilidad.
-
-Fila Superior (50/50): Coste MP | Margen %.
-
-Labels: text-[10px] text-muted-foreground uppercase font-bold.
-
-Separador: <Separator className="mb-3"/>.
-
-Fila Inferior (Destacado): Precio Venta.
-
-Valor: text-2xl font-bold text-green-700.
-
-Tarjeta "Zona de Peligro"
-Para acciones destructivas. Se coloca al final de la pestaña "General", nunca flotante.
-
-Estilo: border-destructive/30 bg-destructive/5 shadow-none.
-
-Botón: variant="ghost" text-destructive.
-
-5. Botones de Acción (FAB)
-Los botones principales de acción flotan sobre la interfaz.
-
-Contenedor: fixed bottom-6 right-6 z-50 flex flex-col gap-3.
-
-Botón Guardar (Principal):
-
-rounded-full shadow-lg h-14 w-14
-
-Color: bg-green-600 hover:bg-green-700.
-
-Icono grande: <Save className="h-6 w-6" />.
-
-Botón Cancelar (Secundario):
-
-rounded-full shadow-lg h-10 w-10.
-
-Color: variant="destructive" (Rojo).
-
-6. Ejemplo de Implementación (Skeleton)
-TypeScript
-
-<main className="pb-24 bg-background min-h-screen">
-    <FormProvider {...form}>
-        <form>
-            {/* STICKY HEADER */}
-            <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
-                 <Tabs defaultValue="general" className="w-full">
-                    {/* Navegación */}
-                     <div className="flex px-3 pb-2 gap-2">
-                         <Button variant="ghost"><ChevronLeft /></Button>
-                         <div className="flex-1 overflow-x-auto">
-                            {/* Tabs List */}
-                            <TabsList className="...">...</TabsList>
-                         </div>
-                     </div>
-
-                    {/* CONTENIDO */}
-                    <div className="p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5">
-                        <TabsContent value="general">
-                             {/* Grid 2 Columnas */}
-                        </TabsContent>
-
-                        <TabsContent value="composicion">
-                             {/* Grid 12 Columnas (9 + 3) */}
-                        </TabsContent>
-                    </div>
-                </Tabs>
-            </div>
-
-            {/* FAB */}
-            <div className="fixed bottom-6 right-6 z-50">
-                <Button type="submit" className="rounded-full h-14 w-14 ..."><Save /></Button>
-            </div>
-        </form>
-    </FormProvider>
-</main>
+Usa: checked={data.isArchived ?? false}.
