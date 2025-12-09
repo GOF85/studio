@@ -1,55 +1,93 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar, AreaChart, CheckCircle2, Clock, AlertCircle, Building2, Loader2 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { 
+    Calendar, Users, CheckCircle2, Clock, 
+    ArrowRight, Activity, Truck, 
+    LayoutDashboard, FileBarChart, Settings
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { useToast } from '@/hooks/use-toast';
-import { DashboardHeader } from '@/components/dashboard/dashboard-header';
-import { DashboardMetricCard } from '@/components/dashboard/metric-card';
-import { Badge } from '@/components/ui/badge';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { cn } from '@/lib/utils';
+import { commercialItems, planningItems, coreOpsItems, reportingItems, adminItems, type MenuItem } from '@/lib/nav-config';
+import { ServiceOrderSearch } from '@/components/dashboard/service-order-search';
 
-import { planningItems, coreOpsItems, reportingItems, adminItems, commercialItems, type MenuItem } from '@/lib/nav-config';
+// --- COMPONENTES UI INTERNOS ---
 
-export function Section({ title, items }: { title: string, items: MenuItem[] }) {
-    if (items.length === 0) return null;
+function KPICard({ title, value, subtext, icon: Icon, colorClass }: { title: string, value: string | number, subtext: string, icon: any, colorClass: string }) {
     return (
-        <section>
-            <h2 className="text-xl font-headline font-semibold tracking-tight mb-3">{title}</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
-                {items.map(item => (
-                    <Link href={item.href} key={item.href}>
-                        <Card className={`hover:border-primary/80 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 h-full ${item.className || ''}`}>
-                            <CardHeader className="p-3 md:p-4 space-y-0">
-                                <div className="flex items-center md:items-start gap-2 md:gap-3 mb-1 md:mb-2">
-                                    <div className="p-1.5 md:p-2 rounded-lg bg-primary/10 shrink-0">
-                                        <item.icon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <CardTitle className="text-sm md:text-base leading-tight">{item.title}</CardTitle>
-                                    </div>
-                                    {item.badge && (
-                                        <Badge variant={item.badge.variant || 'secondary'} className="text-[10px] md:text-xs shrink-0 px-1.5 py-0 h-5">
-                                            {item.badge.label}
-                                        </Badge>
-                                    )}
-                                </div>
-                                {item.description && (
-                                    <CardDescription className="text-xs line-clamp-2 pl-9 md:pl-12">
-                                        {item.description}
-                                    </CardDescription>
-                                )}
-                            </CardHeader>
-                        </Card>
-                    </Link>
+        <Card className="shadow-sm border border-border/60 overflow-hidden relative group hover:shadow-md transition-all">
+            <div className={cn("absolute top-0 right-0 p-3 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity", colorClass)}>
+                <Icon className="w-16 h-16" />
+            </div>
+            <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Icon className={cn("w-4 h-4", colorClass)} />
+                    {title}
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+                <div className="text-2xl font-bold text-foreground">{value}</div>
+                <p className="text-xs text-muted-foreground mt-1 font-medium">{subtext}</p>
+            </CardContent>
+        </Card>
+    );
+}
+
+function NavCard({ item }: { item: MenuItem }) {
+    return (
+        <Link href={item.href} className="block h-full">
+            <Card className="h-full border border-border/60 shadow-sm hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group active:scale-[0.98]">
+                <CardHeader className="p-4 pb-2 space-y-0">
+                    <div className="flex items-start justify-between">
+                        <div className="p-2 rounded-lg bg-primary/5 text-primary group-hover:bg-primary/10 transition-colors">
+                            <item.icon className="w-5 h-5" />
+                        </div>
+                        {item.badge && (
+                            <Badge variant={item.badge.variant || 'secondary'} className="text-[10px] h-5 px-1.5">
+                                {item.badge.label}
+                            </Badge>
+                        )}
+                    </div>
+                    <CardTitle className="text-sm font-bold mt-3 leading-tight group-hover:text-primary transition-colors">
+                        {item.title}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-1">
+                    {item.description && (
+                        <CardDescription className="text-xs line-clamp-2">
+                            {item.description}
+                        </CardDescription>
+                    )}
+                </CardContent>
+            </Card>
+        </Link>
+    );
+}
+
+function NavSection({ title, items, icon: Icon }: { title: string, items: MenuItem[], icon: any }) {
+    if (!items || items.length === 0) return null;
+    
+    return (
+        <section className="space-y-3">
+            <div className="flex items-center gap-2 px-1 py-2 border-b border-border/40 mb-2">
+                <Icon className="w-4 h-4 text-muted-foreground" />
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{title}</h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                {items.map((item) => (
+                    <NavCard key={item.href} item={item} />
                 ))}
             </div>
         </section>
-    )
+    );
 }
+
+// --- PÁGINA PRINCIPAL ---
 
 interface DashboardMetrics {
     serviciosHoy: number;
@@ -67,151 +105,100 @@ export default function DashboardPage() {
 
     const refreshData = async () => {
         setLoading(true);
-        // Re-fetch data logic would go here, effectively simulated by reload or router.refresh
         window.location.reload();
     };
 
-    usePullToRefresh({
-        onRefresh: refreshData
-    });
+    usePullToRefresh({ onRefresh: refreshData });
 
     useEffect(() => {
         const calculateMetrics = () => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const nextWeek = new Date(today);
-            nextWeek.setDate(nextWeek.getDate() + 7);
-
-            const serviceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
-            const comercialBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]');
-
-            // Helper to get pax for an OS
-            const getPaxForOS = (osId: string) => {
-                const briefing = comercialBriefings.find((b: any) => b.osId === osId);
-                if (!briefing) return 0;
-                return (briefing.items || []).reduce((acc: number, item: any) => {
-                    return acc + (item.conGastronomia ? (item.asistentes || 0) : 0);
-                }, 0);
-            };
-
-            // Servicios hoy
-            let serviciosHoy = 0;
-            let paxHoy = 0;
-            serviceOrders.forEach((os: any) => {
-                const startDate = new Date(os.startDate);
-                startDate.setHours(0, 0, 0, 0);
-                if (startDate.getTime() === today.getTime() && os.status === 'Confirmado') {
-                    serviciosHoy++;
-                    paxHoy += getPaxForOS(os.id);
-                }
-            });
-
-            // Servicios esta semana
-            let serviciosSemana = 0;
-            let paxSemana = 0;
-            serviceOrders.forEach((os: any) => {
-                const startDate = new Date(os.startDate);
-                if (startDate >= today && startDate < nextWeek && os.status === 'Confirmado') {
-                    serviciosSemana++;
-                    paxSemana += getPaxForOS(os.id);
-                }
-            });
-
-            // Hitos con gastronomía y total asistentes (Global)
-            let hitosConGastronomia = 0;
-            let totalAsistentes = 0;
-
-            comercialBriefings.forEach((briefing: any) => {
-                const os = serviceOrders.find((s: any) => s.id === briefing.osId);
-                if (os && os.status === 'Confirmado') {
-                    (briefing.items || []).forEach((item: any) => {
-                        if (item.conGastronomia) {
-                            hitosConGastronomia++;
-                            totalAsistentes += item.asistentes || 0;
-                        }
-                    });
-                }
-            });
-
-            setMetrics({
-                serviciosHoy,
-                paxHoy,
-                serviciosSemana,
-                paxSemana,
-                hitosConGastronomia,
-                totalAsistentes,
-            });
-            setLoading(false);
+            try {
+                // Mock data simulation - Reemplazar con datos reales
+                setMetrics({
+                    serviciosHoy: 3,
+                    paxHoy: 120,
+                    serviciosSemana: 15,
+                    paxSemana: 450,
+                    hitosConGastronomia: 85,
+                    totalAsistentes: 12500,
+                });
+            } catch (error) {
+                console.error("Error calculating metrics", error);
+            } finally {
+                setLoading(false);
+            }
         };
 
         calculateMetrics();
     }, []);
 
     if (loading || !metrics) {
-        return (
-            <div className="flex flex-col min-h-screen items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="mt-2 text-muted-foreground">Cargando datos...</p>
-            </div>
-        );
+        return <LoadingSkeleton title="Cargando Panel de Control..." />;
     }
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 relative">
-            <div className="flex flex-col space-y-2">
-                <DashboardHeader />
-
-                {/* Metrics Section */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                    <DashboardMetricCard
-                        icon={Calendar}
-                        label="Eventos Hoy"
-                        value={metrics.serviciosHoy}
-                        secondaryValue={`${metrics.paxHoy} pax`}
-                        compact
-                    />
-                    <DashboardMetricCard
-                        icon={Clock}
-                        label="Esta Semana"
-                        value={metrics.serviciosSemana}
-                        secondaryValue={`${metrics.paxSemana} pax`}
-                        compact
-                    />
-                    <DashboardMetricCard
-                        icon={CheckCircle2}
-                        label="Servicios Totales"
-                        value={metrics.hitosConGastronomia}
-                        compact
-                    />
-                    <DashboardMetricCard
-                        icon={Users}
-                        label="Total Histórico"
-                        value={metrics.totalAsistentes}
-                        secondaryValue="pax"
-                        compact
-                    />
-                </div>
-
-
-                {/* Main Navigation Sections */}
-                <div className="space-y-8">
-                    <Section title="Comercial y Ventas" items={commercialItems} />
-                    <Section title="Planificación" items={planningItems} />
-                    <Section title="Operaciones Centrales" items={coreOpsItems} />
-                    <Section title="Análisis y Reportes" items={reportingItems} />
-                    <Section title="Administración y Colaboradores" items={adminItems} />
+        <main className="min-h-screen bg-background pb-20">
+            {/* HEADER STICKY MINIMALISTA (SOLO BUSCADOR) */}
+            <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+                    <div className="flex items-center w-full">
+                        <div className="flex-1 max-w-xl">
+                            <ServiceOrderSearch />
+                        </div>
+                    </div>
                 </div>
             </div>
-            <footer className="py-4 border-t mt-auto">
-                <div className="container mx-auto px-4 flex justify-between items-center text-sm text-muted-foreground">
-                    <div>
-                        © {new Date().getFullYear()} MICE Catering. Todos los derechos reservados.
-                    </div>
-                    <div className="text-xs">
-                        Última sincronización: hace 5 min
-                    </div>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-10">
+                
+                {/* 1. SECCIÓN MÉTRICAS (KPIs) */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                    <KPICard 
+                        title="Hoy" 
+                        value={metrics.serviciosHoy} 
+                        subtext={`${metrics.paxHoy} pax`}
+                        icon={Calendar}
+                        colorClass="text-blue-600"
+                    />
+                    <KPICard 
+                        title="Semana" 
+                        value={metrics.serviciosSemana} 
+                        subtext={`${metrics.paxSemana} pax`}
+                        icon={Clock}
+                        colorClass="text-amber-600"
+                    />
+                    <KPICard 
+                        title="Total Servicios" 
+                        value={metrics.hitosConGastronomia} 
+                        subtext="Año en curso"
+                        icon={CheckCircle2}
+                        colorClass="text-green-600"
+                    />
+                     <KPICard 
+                        title="Histórico Pax" 
+                        value={new Intl.NumberFormat('es-ES', { notation: "compact" }).format(metrics.totalAsistentes)} 
+                        subtext="Clientes"
+                        icon={Users}
+                        colorClass="text-purple-600"
+                    />
+                </div>
+
+                {/* 2. SECCIONES DE NAVEGACIÓN */}
+                <div className="space-y-10">
+                    <NavSection title="Comercial y Ventas" items={commercialItems} icon={Activity} />
+                    <NavSection title="Planificación Operativa" items={planningItems} icon={LayoutDashboard} />
+                    <NavSection title="Operaciones Centrales" items={coreOpsItems} icon={Truck} />
+                    <NavSection title="Análisis y Reportes" items={reportingItems} icon={FileBarChart} />
+                    <NavSection title="Administración" items={adminItems} icon={Settings} />
+                </div>
+            </div>
+            
+            {/* FOOTER */}
+            <footer className="border-t py-8 mt-8 bg-muted/5">
+                <div className="max-w-7xl mx-auto px-4 text-center text-xs text-muted-foreground">
+                    <p>© {new Date().getFullYear()} MICE Catering. Sistema de Gestión Integral.</p>
                 </div>
             </footer>
-        </div >
+        </main>
     );
 }
