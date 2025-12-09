@@ -1,176 +1,202 @@
-STYLE.MD - Blueprint de Diseño: Fichas Técnicas (Recetas/Elaboraciones)
-Este documento describe el patrón de diseño "Mobile-First pero Desktop-Optimized" para las fichas de detalle. El objetivo es maximizar la densidad de información manteniendo la limpieza visual.
+📘 STYLE.MD - Sistema de Diseño: Fichas Técnicas (V2.0)
+Este sistema sigue una filosofía "Mobile-First, Desktop-Optimized", priorizando la densidad de información, la limpieza visual y la accesibilidad de las acciones principales.
 
-1. Estructura General (Layout)
-Contenedor Principal
-Padding: Mínimo en móvil, holgado en desktop.
+1. Arquitectura de Página (Layout)
+Contenedor Raíz
+Debe permitir scroll infinito y dejar espacio para los botones flotantes.
 
-Clases: pb-24 bg-background min-h-screen (El padding inferior es para dejar sitio al botón flotante).
+TypeScript
 
-Cabecera (Sticky Header)
-La cabecera es pegajosa (sticky) y cambia drásticamente de estructura según el dispositivo para ahorrar espacio vertical.
+<main className="pb-24 bg-background min-h-screen">
+  {/* Todo el contenido va aquí */}
+</main>
+Cabecera Pegajosa (Sticky Header)
+La cabecera siempre contiene el componente raíz <Tabs> para controlar el contenido inferior.
 
-Comportamiento: sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm
+Posición: sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2
 
-Versión Móvil:
+Estructura:
 
-Fila 1: Botón "Atrás" (ChevronLeft) + Título de la página (Truncado).
+Fila Superior: Navegación (Botón Atrás) y Título (Visible solo en Desktop/Tablet).
 
-Fila 2: Barra de Pestañas con scroll horizontal.
+Fila Inferior: Lista de Pestañas (TabsList) con scroll horizontal.
 
-Versión Desktop:
+TypeScript
 
-Una sola fila: Título a la izquierda, Pestañas en el centro/izquierda, Botones secundarios a la derecha.
+<div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
+  <Tabs defaultValue="general" className="w-full">
+     {/* Fila 1: Navegación */}
+     <div className="flex items-center px-3 pb-2 gap-2">
+        <Button variant="ghost" ...><ChevronLeft /></Button>
+        <h1 className="text-base font-bold truncate hidden sm:block">{pageTitle}</h1>
+     </div>
+     
+     {/* Fila 2: Pestañas Scrollables */}
+     <div className="px-3">
+        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap bg-transparent p-0 h-10 gap-4 mb-0 no-scrollbar border-none">
+           {/* Triggers... */}
+        </TabsList>
+     </div>
+  </Tabs>
+</div>
+Cuerpo del Contenido
+El contenido de las pestañas vive dentro del mismo contexto <Tabs> pero fuera del div sticky.
 
-Navegación (Tabs)
-Estilo: "Underline" moderno.
+Estilo: p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5
 
-Contenedor: w-full justify-start overflow-x-auto flex-nowrap bg-transparent no-scrollbar
+2. Componentes de UI (Micro-Estilos)
+A. Inputs y Etiquetas (Alta Densidad)
+Optimizados para mostrar muchos datos sin ocupar altura excesiva.
 
-Triggers (Botones):
+Labels (Etiquetas):
 
-Altura reducida: h-8 o h-9.
+text-[10px] uppercase font-bold text-muted-foreground tracking-wide
 
-Estilo Activo: data-[state=active]:border-green-600 data-[state=active]:text-green-700.
+Uso: Siempre encima del input.
 
-Texto: whitespace-nowrap text-xs font-medium.
+Inputs / Selects:
 
-2. Sistema de Rejilla (Grids)
-El layout se adapta usando breakpoints de Tailwind (lg: principalmente).
+h-8 (Altura compacta).
 
-Patrón "Maestro - Detalle" (Para listas de ingredientes/componentes)
-Móvil: grid-cols-1. Todo se apila verticalmente.
+text-sm (Texto legible).
 
-Desktop (lg): grid-cols-12.
+bg-background (Fondo blanco/oscuro estándar).
 
-Izquierda (Col 1-9): Tabla de contenidos (Ingredientes/Pasos).
+B. Tarjetas (Cards)
+Diseño plano y limpio para agrupar secciones.
 
-Derecha (Col 10-12): Panel "Sticky" de Información Económica y Resúmenes.
+Contenedor: shadow-none border border-border/60.
 
-Clase del panel derecho: lg:sticky lg:top-36 (Se queda fijo al hacer scroll).
+Cabecera de Tarjeta: p-3 pb-1 border-b bg-muted/10.
 
-Patrón "Ficha de Datos" (Para Info General / Clasificación)
-Móvil: grid-cols-1.
+Título: text-sm font-bold.
 
-Desktop: grid-cols-2 o grid-cols-4 según la densidad del dato.
+Cuerpo: p-3.
 
-3. Componentes de UI
-A. Tarjetas (Cards)
-Usamos tarjetas para agrupar secciones lógicas.
+C. Tablas vs. Tarjetas (Responsive)
+Patrón para listas complejas (Ingredientes, Elaboraciones).
 
-Estilo: shadow-none border border-border/60. (Bordes sutiles, sin sombras pesadas).
+Móvil (md:hidden):
 
-Header de Tarjeta: p-3 pb-1 border-b bg-muted/10 (Separación visual clara del título).
+Renderizar una lista de div con estilo de tarjeta (bg-background border rounded-md p-2).
 
-Padding Contenido: p-3 (Compacto).
+Usar Flexbox/Grid interno para alinear "Nombre", "Cantidad" y "Total".
 
-B. Inputs y Formularios (Alta Densidad)
-Optimizados para mostrar muchos datos sin ocupar mucho alto.
+Desktop (hidden md:block):
 
-Inputs: h-8 o h-9 (Más bajos que el estándar de 10/12).
+Usar <Table> estándar.
 
-Fuentes: text-sm para valores, text-xs para etiquetas.
+Alineación Numérica: text-right font-mono.
 
-Labels: text-[10px] uppercase font-bold text-muted-foreground tracking-wide. (Etiquetas muy pequeñas, mayúsculas y gris suave para no competir con el dato).
+Anchos Fijos: Usar w-32, w-24 para columnas numéricas para asegurar alineación.
 
-Selects: Mismo estilo compacto que los inputs.
+3. Grids y Distribución (Layouts por Pestaña)
+Pestaña "Info. General" (Formularios)
+Grid: grid-cols-1 lg:grid-cols-2 gap-4.
 
-C. Tablas vs. Cards (Responsive)
-No usamos tablas HTML en móvil porque se rompen.
+Columna Izquierda: Tarjetas de datos (Inputs, Selects).
 
-Móvil: Renderizado condicional md:hidden. Se usa un diseño de Tarjeta donde cada fila de la tabla se convierte en un bloque con flexbox.
+Columna Derecha: Tarjeta de Imágenes principales + Configuración (Switches).
 
-Desktop: Renderizado condicional hidden md:block. Se usa <Table> estándar de Shadcn con anchos de columna fijos (w-24, w-32) y alineación numérica a la derecha (text-right font-mono).
+Pestaña "Composición" (Receta/Elaboración)
+Grid: grid-cols-1 lg:grid-cols-12 gap-4 items-start.
 
-D. Botones de Acción
-Principal (Guardar): Flotante (FAB).
+Columna Principal (lg:col-span-9):
 
-Posición: fixed bottom-6 right-6 z-50.
+Tarjeta de Lista/Tabla (Ingredientes/Elaboraciones).
 
-Estilo: Redondo, sombra fuerte, color primario (Verde). rounded-full shadow-lg h-14 w-14.
+Tarjeta de Alérgenos Totales (Siempre al final de esta columna).
 
-Destructivo (Borrar): Zona de Peligro.
+Columna Lateral (lg:col-span-3):
 
-Ubicación: Dentro del flujo de la página (final de la pestaña General), NO flotante.
+Sticky: lg:sticky lg:top-36.
 
-Estilo: Tarjeta con borde rojo suave border-destructive/30 bg-destructive/5.
+Tarjeta de Información Económica.
 
-4. Estilos Específicos (Clases Utilitarias)
-Tipografía de Precios/Costes
-Para datos numéricos importantes:
+Pestaña "Info. Pase / Preparación"
+Grid: grid-cols-1 (Móvil) -> md:grid-cols-3 (Desktop) si son pasos separados (Mise en place, etc).
 
-Fuente: font-mono (Monoespaciada para alinear cifras).
+Contenido: Componente unificado de Imagen + Texto (instrucciones).
 
-Tamaño: text-lg o text-xl para totales, text-sm para unitarios.
+Pestaña "Gastronómica / Técnica"
+Grid: grid-cols-1 md:grid-cols-2 lg:grid-cols-4.
 
-Color: text-green-700 para precios de venta, text-foreground para costes.
+Permite ver toda la clasificación técnica en una sola fila o dos en desktop.
 
-Imágenes (RecipeImageSection)
-Móvil: Botón pequeño "Ver Galería" en la cabecera de la sección.
+4. Tarjetas Específicas (Blueprints)
+Tarjeta Económica (Resumen)
+Diseño específico para destacar la rentabilidad.
 
-Grid: Miniaturas cuadradas o rectangulares.
+Fila Superior (50/50): Coste MP | Margen %.
 
-Modal: Pantalla completa con fondo negro para ver detalles.
+Labels: text-[10px] text-muted-foreground uppercase font-bold.
 
-5. Snippet Base para Copiar (Skeleton)
-Usa esta estructura base para la página de Elaboraciones:
+Separador: <Separator className="mb-3"/>.
 
+Fila Inferior (Destacado): Precio Venta.
+
+Valor: text-2xl font-bold text-green-700.
+
+Tarjeta "Zona de Peligro"
+Para acciones destructivas. Se coloca al final de la pestaña "General", nunca flotante.
+
+Estilo: border-destructive/30 bg-destructive/5 shadow-none.
+
+Botón: variant="ghost" text-destructive.
+
+5. Botones de Acción (FAB)
+Los botones principales de acción flotan sobre la interfaz.
+
+Contenedor: fixed bottom-6 right-6 z-50 flex flex-col gap-3.
+
+Botón Guardar (Principal):
+
+rounded-full shadow-lg h-14 w-14
+
+Color: bg-green-600 hover:bg-green-700.
+
+Icono grande: <Save className="h-6 w-6" />.
+
+Botón Cancelar (Secundario):
+
+rounded-full shadow-lg h-10 w-10.
+
+Color: variant="destructive" (Rojo).
+
+6. Ejemplo de Implementación (Skeleton)
 TypeScript
 
 <main className="pb-24 bg-background min-h-screen">
     <FormProvider {...form}>
         <form>
-            {/* 1. HEADER STICKY */}
+            {/* STICKY HEADER */}
             <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
-                <Tabs defaultValue="general" className="w-full">
-                    {/* Fila superior: Botón atrás y Título (Visible en Desktop) */}
-                    <div className="flex items-center justify-between px-3 pb-2">
-                         {/* ... Botón ChevronLeft ... */}
-                         <h1 className="hidden sm:block font-bold">Título</h1>
-                    </div>
-                    
-                    {/* Fila inferior: Lista de Pestañas Scrollable */}
-                    <div className="px-3 pb-0">
-                        <TabsList className="w-full justify-start overflow-x-auto ...">
-                            {/* ... Triggers ... */}
-                        </TabsList>
+                 <Tabs defaultValue="general" className="w-full">
+                    {/* Navegación */}
+                     <div className="flex px-3 pb-2 gap-2">
+                         <Button variant="ghost"><ChevronLeft /></Button>
+                         <div className="flex-1 overflow-x-auto">
+                            {/* Tabs List */}
+                            <TabsList className="...">...</TabsList>
+                         </div>
+                     </div>
+
+                    {/* CONTENIDO */}
+                    <div className="p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5">
+                        <TabsContent value="general">
+                             {/* Grid 2 Columnas */}
+                        </TabsContent>
+
+                        <TabsContent value="composicion">
+                             {/* Grid 12 Columnas (9 + 3) */}
+                        </TabsContent>
                     </div>
                 </Tabs>
             </div>
 
-            {/* 2. CONTENIDO PRINCIPAL */}
-            <div className="p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5">
-                <Tabs defaultValue="general">
-                    
-                    {/* PESTAÑA 1: GRID 2 COLUMNAS */}
-                    <TabsContent value="general">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                             {/* ... Tarjetas de inputs ... */}
-                        </div>
-                    </TabsContent>
-
-                    {/* PESTAÑA 2: MAESTRO-DETALLE (Lista + Sidebar) */}
-                    <TabsContent value="composicion">
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                            {/* Izquierda (Lista): 75% */}
-                            <div className="lg:col-span-9">
-                                {/* ... Card con Lista (Móvil) / Tabla (Desktop) ... */}
-                            </div>
-                            
-                            {/* Derecha (Económica Sticky): 25% */}
-                            <div className="lg:col-span-3 lg:sticky lg:top-36">
-                                {/* ... Card de Costes ... */}
-                                {/* ... Card de Alérgenos ... */}
-                            </div>
-                        </div>
-                    </TabsContent>
-
-                </Tabs>
-            </div>
-            
-            {/* 3. BOTÓN FLOTANTE */}
+            {/* FAB */}
             <div className="fixed bottom-6 right-6 z-50">
-                {/* ... Botón Save ... */}
+                <Button type="submit" className="rounded-full h-14 w-14 ..."><Save /></Button>
             </div>
         </form>
     </FormProvider>
