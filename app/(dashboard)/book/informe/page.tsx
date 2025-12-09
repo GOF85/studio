@@ -8,7 +8,7 @@ import { BookHeart, ChefHat, Component, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import type { Receta, Elaboracion, IngredienteInterno, ServiceOrder, GastronomyOrder } from '@/types';
 import { formatCurrency, formatNumber } from '@/lib/utils';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from '@/lib/recharts-lazy';
 import { startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 

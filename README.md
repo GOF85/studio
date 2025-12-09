@@ -45,4 +45,18 @@ Para mejorar calidad y DX, considera añadir:
 - Añadir `.env.example` (ya existe) y documentar variables de entorno críticas
 - Añadir workflow de CI (GitHub Actions) que corra `npm run ci` en Pull Requests
 
+## Variables de entorno adicionales
+
+Este proyecto usa un cache en memoria dentro del `middleware` para reducir
+peticiones repetidas a Supabase cuando se resuelven `numero_expediente -> id`.
+
+- `MIDDLEWARE_CACHE_TTL_SECONDS` (opcional): segundos que permanece una entrada
+	en cache. Valor por defecto: `300` (5 minutos).
+- `MIDDLEWARE_CACHE_MAX_ENTRIES` (opcional): número máximo de entradas en el
+	cache del middleware. Valor por defecto: `1000`.
+
+Nota: el cache es in-memory; en entornos Edge puede resetearse cuando el worker
+se recicla. Para caché persistente entre instancias considera usar Redis u otro
+almacenamiento externo.
+
 Si quieres, puedo aplicar los cambios recomendados automáticamente (ESLint/Prettier/Husky/CI/tests).

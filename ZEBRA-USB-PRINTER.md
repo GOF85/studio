@@ -3,7 +3,6 @@ Implementación 100 % GRATIS y LOCAL – Impresión de etiquetas desde tablet �
 
 **Objetivo:**  
 El operario pulsa un botón en la tablet → la Zebra GK420d conectada por USB al PC del almacén imprime la etiqueta en menos de 3 segundos.  
-0 € al mes para siempre.
 
 ## 1. Tabla en Supabase (una sola vez)
 

@@ -140,7 +140,6 @@ export default function BookDashboardPage() {
         <main>
             <div className="mb-10">
                 <h2 className="text-2xl font-headline font-semibold tracking-tight">Totales del Book</h2>
-                <p className="text-muted-foreground">Una visión general del contenido de tu base de datos gastronómica.</p>
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mb-12">
                 <StatCard title="Total Recetas" value={stats.totalRecetas} icon={BookHeart} description="Número total de recetas en el sistema." href="/book/recetas?filter=all" />
@@ -154,7 +153,6 @@ export default function BookDashboardPage() {
 
             <div className="my-10">
                 <h2 className="text-2xl font-headline font-semibold tracking-tight">Mantenimiento y Calidad de Datos</h2>
-                <p className="text-muted-foreground">Tareas pendientes para asegurar la integridad y precisión de los datos del book.</p>
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <StatCard

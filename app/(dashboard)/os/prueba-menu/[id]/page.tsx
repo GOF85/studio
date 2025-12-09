@@ -6,7 +6,14 @@ import { useEffect } from 'react';
 export default function PruebaMenuIdRedirectPage({ params }: { params: { id: string } }) {
     const router = useRouter();
     useEffect(() => {
-        router.replace(`/os/${params.id}/prueba-menu`);
+        try {
+            const all = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
+            const current = all.find((o: any) => o.id === params.id);
+            const serviceNumber = current?.serviceNumber;
+            router.replace(`/os/${serviceNumber || params.id}/prueba-menu`);
+        } catch (e) {
+            router.replace(`/os/${params.id}/prueba-menu`);
+        }
     }, [router, params.id]);
     return null;
 }

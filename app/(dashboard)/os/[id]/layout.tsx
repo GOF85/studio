@@ -2,7 +2,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useParams } from 'next/navigation';
+import { usePathname, useParams, useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
@@ -123,15 +124,15 @@ function OsHeaderContent({ osId }: { osId: string }) {
         <TooltipProvider>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Link href={`/os/${osId}`} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Link href={`/os/${serviceOrder.serviceNumber || osId}`} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
                         <ClipboardList className="h-5 w-5"/>
                         <span>{serviceOrder.serviceNumber}</span>
                     </Link>
                     {currentModule && (
                         <>
                          <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                         <Link href={`/os/${osId}/${currentModule.path}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                                 <Link href={`/os/${serviceOrder.serviceNumber || osId}/${currentModule.path}`} className="flex items-center gap-2 hover:text-primary transition-colors">
                             <currentModule.icon className="h-5 w-5"/>
                             <span>{currentModule.title}</span>
                          </Link>
@@ -147,7 +148,7 @@ function OsHeaderContent({ osId }: { osId: string }) {
                          </>
                     )}
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   {(currentModule?.moduleName) && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
                   {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
                 </div>
@@ -187,9 +188,55 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     const params = useParams();
     const pathname = usePathname();
     const osId = params.id as string;
+    const [serviceNumber, setServiceNumber] = useState<string | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const router = useRouter();
 
-    const dashboardHref = `/os/${osId}`;
+    useEffect(() => {
+        try {
+            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+            const current = allServiceOrders.find(o => o.id === osId);
+            if (current && current.serviceNumber) setServiceNumber(current.serviceNumber);
+        } catch (e) {
+            // ignore
+        }
+    }, [osId]);
+
+    // Ensure the visible URL uses the numero_expediente when possible.
+    useEffect(() => {
+        if (!osId) return;
+
+        // If we already have serviceNumber from localStorage, replace pathname now
+        if (serviceNumber) {
+            if (pathname.includes(`/os/${osId}`)) {
+                const newPath = pathname.replace(`/os/${osId}`, `/os/${serviceNumber}`);
+                if (newPath !== pathname) router.replace(newPath);
+            }
+            return;
+        }
+
+        // Otherwise try to fetch numero_expediente from Supabase and replace
+        (async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('eventos')
+                    .select('numero_expediente')
+                    .eq('id', osId)
+                    .single();
+                if (!error && data?.numero_expediente) {
+                    setServiceNumber(data.numero_expediente);
+                    if (pathname.includes(`/os/${osId}`)) {
+                        const newPath = pathname.replace(`/os/${osId}`, `/os/${data.numero_expediente}`);
+                        if (newPath !== pathname) router.replace(newPath);
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+        })();
+    }, [osId, serviceNumber, pathname, router]);
+
+    const dashboardHref = `/os/${serviceNumber || osId}`;
 
     return (
         <div className="container mx-auto">
@@ -209,13 +256,13 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                             <ScrollArea className="h-full p-4">
                                 <nav className="grid items-start gap-1 pb-4">
                                     <Link href={dashboardHref} onClick={() => setIsSheetOpen(false)}>
-                                        <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === `/os/${osId}` ? "bg-accent" : "transparent")}>
+                                        <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === `/os/${serviceNumber || osId}` ? "bg-accent" : "transparent")}>
                                             <LayoutDashboard className="mr-2 h-4 w-4" />
                                             <span>Panel de Control</span>
                                         </span>
                                     </Link>
                                     {navLinks.map((item, index) => {
-                                        const href = `/os/${osId}/${item.path}`;
+                                        const href = `/os/${serviceNumber || osId}/${item.path}`;
                                         return (
                                             <Link key={index} href={href} onClick={() => setIsSheetOpen(false)}>
                                                 <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname.startsWith(href) ? "bg-accent" : "transparent")}>

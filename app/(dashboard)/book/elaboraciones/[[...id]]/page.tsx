@@ -46,6 +46,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ComponenteSelector } from '@/components/book/componente-selector';
 import { Label } from '@/components/ui/label';
+import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view';
+import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 
 
 const CSV_HEADERS_ELABORACIONES = ["id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion"];
@@ -296,6 +298,36 @@ function ElaboracionesListPage() {
     return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredItems, currentPage]);
 
+  // Para infinite scroll en móvil: mostrar todos los items filtrados (sin paginación)
+  const mobileItems = useMemo(() => {
+    return filteredItems;
+  }, [filteredItems]);
+
+  // Hook para infinite scroll (deshabilitado ya que mostramos todos los items en móvil)
+  const sentinelRef = useInfiniteScroll({
+    fetchNextPage: () => {
+      // TODO: Si se implementa paginación real con useInfiniteQuery, conectar aquí
+    },
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    enabled: false,
+  });
+
+  // Definir columnas para la vista móvil
+  const mobileColumns: MobileTableColumn<ElaboracionConAlergenos & { usageCount: number; usedIn: string[] }>[] = [
+    { key: 'nombre', label: 'Nombre Elaboración', isTitle: true },
+    { key: 'partidaProduccion', label: 'Partida', format: (value) => <Badge variant="secondary">{value}</Badge> },
+    { key: 'costePorUnidad', label: 'Coste / Ud.', format: (value, row) => `${formatCurrency(value as number)} / ${formatUnit(row.unidadProduccion)}` },
+    { key: 'usageCount', label: 'Presente en Recetas', format: (value) => value },
+    { key: 'alergenosCalculados', label: 'Alérgenos', format: (value, row) => (
+      <div className="flex flex-wrap gap-1">
+        {(row.alergenosCalculados || []).map((alergeno: Alergeno) => (
+          <AllergenBadge key={alergeno} allergen={alergeno} />
+        ))}
+      </div>
+    )},
+  ];
+
   const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
   const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
 
@@ -532,7 +564,41 @@ function ElaboracionesListPage() {
         onChange={handleFileSelected}
       />
 
-      <div className="border rounded-lg">
+      {/* Vista Móvil: Tarjetas Apiladas */}
+      <div className="md:hidden space-y-4">
+        <MobileTableView
+          data={mobileItems}
+          columns={mobileColumns}
+          renderActions={(item) => (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/book/elaboraciones/${item.id}`)}
+                className="flex-1"
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/book/elaboraciones/nueva?cloneId=${item.id}`)}
+                className="flex-1"
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Clonar
+              </Button>
+            </>
+          )}
+          sentinelRef={sentinelRef}
+          isLoading={false}
+          emptyMessage="No se encontraron elaboraciones."
+        />
+      </div>
+
+      {/* Vista Escritorio: Tabla Tradicional */}
+      <div className="hidden md:block border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>

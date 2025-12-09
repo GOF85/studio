@@ -22,6 +22,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
+import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view';
+import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 
 const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   Pendiente: 'secondary',
@@ -99,6 +101,28 @@ export default function GastronomiaPage() {
             return a.horaInicio.localeCompare(b.horaInicio);
     });
   }, [briefingItems]);
+
+  // Hook para infinite scroll (sin paginación, mostrar todos)
+  const sentinelRef = useInfiniteScroll({
+    fetchNextPage: () => {},
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    enabled: false,
+  });
+
+  // Definir columnas para la vista móvil
+  const mobileColumns: MobileTableColumn<EnrichedBriefingItem>[] = [
+    { key: 'descripcion', label: 'Descripción', isTitle: true },
+    { key: 'fecha', label: 'Fecha', format: (value) => format(new Date(value), 'dd/MM/yyyy') },
+    { key: 'horaInicio', label: 'Hora' },
+    { key: 'asistentes', label: 'Asistentes' },
+    { key: 'comentarios', label: 'Comentarios' },
+    { key: 'gastro_status', label: 'Estado', format: (value) => (
+      <Badge variant={statusVariant[value as GastronomyOrderStatus || 'Pendiente']}>
+        {value || 'Pendiente'}
+      </Badge>
+    )},
+  ];
   
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />;
@@ -109,7 +133,29 @@ export default function GastronomiaPage() {
         <Card>
             <CardHeader><CardTitle>Pedidos de Gastronomía Generados</CardTitle></CardHeader>
             <CardContent>
-                 <div className="border rounded-lg overflow-x-auto">
+                {/* Vista Móvil: Tarjetas Apiladas */}
+                <div className="md:hidden space-y-4">
+                    <MobileTableView
+                        data={sortedBriefingItems}
+                        columns={mobileColumns}
+                        renderActions={(item) => (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push(`/os/${osId}/gastronomia/${item.id}`)}
+                                className="w-full"
+                            >
+                                Ver Detalles
+                            </Button>
+                        )}
+                        sentinelRef={sentinelRef}
+                        isLoading={false}
+                        emptyMessage="No hay pedidos de gastronomía. Activa la opción 'Con gastronomía' en los hitos del briefing comercial."
+                    />
+                </div>
+
+                {/* Vista Escritorio: Tabla Tradicional */}
+                <div className="hidden md:block border rounded-lg overflow-x-auto">
                     <Table>
                         <TableHeader>
                         <TableRow>

@@ -1,7 +1,10 @@
 "use client"
 
 import * as React from "react"
-import * as RechartsPrimitive from "recharts"
+import dynamic from "next/dynamic"
+
+// Lazy load recharts to reduce initial bundle size
+const RechartsPrimitive = dynamic(() => import("recharts"), { ssr: false })
 
 import { cn } from "@/lib/utils"
 

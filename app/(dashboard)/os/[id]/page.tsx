@@ -13,7 +13,14 @@ export default function OsPage() {
 
     useEffect(() => {
         if (osId) {
-            router.replace(`/os/${osId}/info`);
+            try {
+                const all = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
+                const current = all.find((o: any) => o.id === osId);
+                const serviceNumber = current?.serviceNumber;
+                router.replace(`/os/${serviceNumber || osId}/info`);
+            } catch (e) {
+                router.replace(`/os/${osId}/info`);
+            }
         }
     }, [osId, router]);
 

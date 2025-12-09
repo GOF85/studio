@@ -5,9 +5,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import SignatureCanvas from 'react-signature-canvas';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import dynamic from 'next/dynamic';
+import { loadPDFLibs } from '@/lib/pdf-lazy';
+
+// Lazy load signature canvas (requires window object)
+const SignatureCanvas = dynamic(() => import('react-signature-canvas'), { ssr: false });
 import type { TransporteOrder, PedidoEntrega, ProductoVenta, Entrega } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -27,13 +29,20 @@ export default function AlbaranPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [signedBy, setSignedBy] = useState('');
     const [dni, setDni] = useState('');
-    const sigCanvas = useRef<SignatureCanvas>(null);
+    const sigCanvas = useRef<any>(null);
     const { toast } = useToast();
     const router = useRouter();
     const params = useParams();
     const id = params.id as string;
     const [isPrinting, setIsPrinting] = useState(false);
+    const [SignatureCanvasComponent, setSignatureCanvasComponent] = useState<typeof SignatureCanvas | null>(null);
 
+    useEffect(() => {
+        // Load SignatureCanvas component on mount
+        import('react-signature-canvas').then((mod) => {
+            setSignatureCanvasComponent(() => mod.default);
+        });
+    }, []);
 
     useEffect(() => {
         const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
@@ -97,10 +106,12 @@ export default function AlbaranPage() {
         }
     };
     
-   const handlePrintSigned = () => {
+   const handlePrintSigned = async () => {
         if (!order || !order.firmaUrl || !entrega) return;
         setIsPrinting(true);
         try {
+            const { jsPDF } = await loadPDFLibs();
+            const autoTableFn = (await import('jspdf-autotable')).default;
             const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
             const margin = 15;
             const pageHeight = doc.internal.pageSize.getHeight();
@@ -130,7 +141,7 @@ export default function AlbaranPage() {
             finalY += 20;
 
             // --- Información de Entrega ---
-            autoTable(doc, {
+            autoTableFn(doc, {
                 body: [
                     [T.client, entrega.client],
                     ['Lugar Entrega', order.lugarEntrega],
@@ -144,7 +155,7 @@ export default function AlbaranPage() {
             finalY = (doc as any).lastAutoTable.finalY + 10;
 
             // --- Artículos ---
-            autoTable(doc, {
+            autoTableFn(doc, {
                 startY: finalY,
                 head: [[T.item, T.qty]],
                 body: deliveryItems.map(item => [item.nombre, `${item.quantity} uds.`]),
@@ -277,7 +288,9 @@ export default function AlbaranPage() {
                             <div className="space-y-1">
                                 <Label>Firma del Cliente</Label>
                                 <div className="border rounded-md bg-white">
-                                    <SignatureCanvas ref={sigCanvas} penColor='black' canvasProps={{className: 'w-full h-32'}} />
+                                    {SignatureCanvasComponent && (
+                                        <SignatureCanvasComponent ref={sigCanvas} penColor='black' canvasProps={{className: 'w-full h-32'}} />
+                                    )}
                                 </div>
                             </div>
                             <div className="flex justify-between items-center">

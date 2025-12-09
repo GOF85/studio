@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -448,28 +448,67 @@ export default function InfoPage() {
       if (isEditing) {
         setAccordionDefaultValue([]); // Collapse for existing
         try {
-          // Load from Supabase
-          const { data: evento, error } = await supabase
-            .from('eventos')
-            .select('*')
-            .eq('id', osId)
-            .single();
-          
+          // Try loading by UUID id first
+          let evento: any = null;
+          let error: any = null;
+
+          try {
+            const res = await supabase
+              .from('eventos')
+              .select('*')
+              .eq('id', osId)
+              .single();
+            evento = res.data;
+            error = res.error;
+          } catch (e) {
+            // Some drivers may throw; capture into error variable
+            error = e;
+          }
+
+          // If there was a DB error due to invalid UUID syntax or no result, try searching by numero_expediente
+          const isInvalidUuid = error && (error.code === '22P02' || /invalid input syntax for type uuid/i.test(String(error.message || '')));
+
+          if ((error && isInvalidUuid) || (!evento && !error)) {
+            // Try by numero_expediente
+            const res2 = await supabase
+              .from('eventos')
+              .select('*')
+              .eq('numero_expediente', osId)
+              .limit(1)
+              .single();
+            evento = res2.data;
+            error = res2.error;
+          }
+
           if (error) {
             console.error('Error loading evento from Supabase:', error);
             toast({ variant: 'destructive', title: 'Error', description: `No se encontró la OS ${osId}` });
             router.push('/pes');
             return;
           }
-          
+
           if (!evento) {
             console.warn('Evento not found (null response)');
             toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
             router.push('/pes');
             return;
           }
-          
+
           console.log('Loaded evento from Supabase:', evento);
+
+          // If we loaded by UUID but the evento has a numero_expediente,
+          // replace the address bar to show the numero_expediente (keep the rest of the path).
+          try {
+            const pathname = usePathname();
+            if (evento?.numero_expediente && osId === evento.id) {
+              const newPath = pathname.replace(`/os/${osId}`, `/os/${evento.numero_expediente}`);
+              if (newPath !== pathname) {
+                router.replace(newPath);
+              }
+            }
+          } catch (e) {
+            // usePathname may not be available in some contexts; ignore if fails
+          }
           
           const responsablesData = evento.responsables || {};
           

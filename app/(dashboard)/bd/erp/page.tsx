@@ -35,6 +35,8 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import Papa from 'papaparse';
 import { Label } from '@/components/ui/label';
 import { differenceInDays, parseISO } from 'date-fns';
+import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view';
+import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 
 import { supabase } from '@/lib/supabase';
 
@@ -155,6 +157,37 @@ function ArticulosERPPageContent() {
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
         return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }, [filteredItems, currentPage]);
+
+    // Para infinite scroll en móvil: mostrar todos los items filtrados
+    const mobileItems = useMemo(() => {
+        return filteredItems;
+    }, [filteredItems]);
+
+    // Hook para infinite scroll
+    const sentinelRef = useInfiniteScroll({
+        fetchNextPage: () => {
+            if (currentPage < totalPages) {
+                setCurrentPage(prev => prev + 1);
+            }
+        },
+        hasNextPage: currentPage < totalPages,
+        isFetchingNextPage: false,
+        enabled: true,
+    });
+
+    // Definir columnas para la vista móvil
+    const mobileColumns: MobileTableColumn<ArticuloERP>[] = [
+        { key: 'nombreProductoERP', label: 'Producto', isTitle: true },
+        { key: 'idreferenciaerp', label: 'Ref. ERP' },
+        { key: 'nombreProveedor', label: 'Proveedor' },
+        { key: 'precioCompra', label: 'P. Compra', format: (value) => formatCurrency(value as number) },
+        { key: 'descuento', label: 'Desc. %', format: (value) => `${value}%` },
+        { key: 'unidadConversion', label: 'Factor Conv.' },
+        { key: 'precio', label: 'Precio/Unidad', format: (value, row) => formatCurrency((row.precio || 0)) },
+        { key: 'unidad', label: 'Unidad', format: (value) => formatUnit(value as string) },
+        { key: 'tipo', label: 'Tipo (Familia)' },
+        { key: 'categoriaMice', label: 'Categoría MICE' },
+    ];
 
     const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
     const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
@@ -462,7 +495,27 @@ function ArticulosERPPageContent() {
                 }}
             />
 
-            <div className="border rounded-lg">
+            {/* Vista Móvil: Tarjetas Apiladas */}
+            <div className="md:hidden space-y-4">
+                <MobileTableView
+                    data={mobileItems}
+                    columns={mobileColumns}
+                    renderActions={(item) => (
+                        <Link href={`/bd/erp/${item.idreferenciaerp}`} className="w-full">
+                            <Button variant="outline" size="sm" className="w-full">
+                                <History className="mr-2 h-4 w-4" />
+                                Ver Historial
+                            </Button>
+                        </Link>
+                    )}
+                    sentinelRef={sentinelRef}
+                    isLoading={false}
+                    emptyMessage="No se encontraron artículos que coincidan con la búsqueda."
+                />
+            </div>
+
+            {/* Vista Escritorio: Tabla Tradicional */}
+            <div className="hidden md:block border rounded-lg">
                 <Table>
                     <TableHeader>
                         <TableRow>

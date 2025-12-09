@@ -33,7 +33,7 @@ import {
   PieChart,
   Pie,
   Cell,
-} from "recharts"
+} from "@/lib/recharts-lazy"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { GASTO_LABELS } from '@/lib/constants';
 import Link from 'next/link';

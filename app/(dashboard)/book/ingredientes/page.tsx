@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil, Check, CircleX } from 'lucide-react';
+import { 
+    PlusCircle, Link as LinkIcon, Menu, FileUp, FileDown, 
+    ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, 
+    Pencil, Check, CircleX, Search, ArrowUp
+} from 'lucide-react';
 import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta, FamiliaERP, ServiceOrder, GastronomyOrder } from '@/types';
 import { ALERGENOS } from '@/types';
 
@@ -22,23 +25,22 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { AllergenBadge } from '@/components/icons/allergen-badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as React from 'react';
 import { isBefore, subMonths, startOfToday, addYears, isWithinInterval, addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
-import { Combobox } from '@/components/ui/combobox';
 import { supabase } from '@/lib/supabase';
+import InfiniteScroll from 'react-infinite-scroll-component';
 
+// --- SCHEMA & TYPES ---
 const ingredienteFormSchema = z.object({
     id: z.string(),
     nombreIngrediente: z.string().min(1, 'El nombre es obligatorio'),
@@ -58,6 +60,7 @@ type IngredienteConERP = IngredienteInterno & {
 const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "alergenosPresentes", "alergenosTrazas", "historialRevisiones"];
 const ITEMS_PER_PAGE = 20;
 
+// --- MODALES Y COMPONENTES AUXILIARES ---
 
 function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, initialData: Partial<IngredienteInterno> | null, onSave: (data: IngredienteFormValues) => void }) {
     const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]);
@@ -87,7 +90,6 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
                 console.error('Error loading articulos_erp:', error);
                 setArticulosERP([]);
             } else {
-                // Map Supabase data to ArticuloERP type
                 const mappedArticulos = (data || []).map((row: any) => ({
                     id: row.id,
                     idreferenciaerp: row.erp_id || '',
@@ -134,7 +136,7 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
 
     const handleErpSelect = (erpId: string) => {
         form.setValue('productoERPlinkId', erpId, { shouldDirty: true });
-        form.trigger('productoERPlinkId'); // Manually trigger validation
+        form.trigger('productoERPlinkId');
     };
 
     const alergenosColumns = React.useMemo(() => [ALERGENOS.slice(0, 7), ALERGENOS.slice(7)], []);
@@ -306,12 +308,15 @@ function IngredientesPageContent() {
     const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
     const [editingIngredient, setEditingIngredient] = useState<Partial<IngredienteInterno> | null>(null);
     const [headerActions, setHeaderActions] = useState<React.ReactNode>(null);
+    const [showScrollTop, setShowScrollTop] = useState(false); // Estado para el botón flotante
 
     const router = useRouter();
     const searchParams = useSearchParams();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
+    
+    // Filtros
     const [showOnlyPending, setShowOnlyPending] = useState(() => {
         const pendingParam = searchParams.get('pending');
         return pendingParam === 'true' ? true : true;
@@ -320,7 +325,6 @@ function IngredientesPageContent() {
     const [ingredientesEnUso, setIngredientesEnUso] = useState<Set<string>>(new Set());
 
     const loadIngredients = useCallback(async () => {
-        // Load articulos_erp from Supabase
         const { data: articulosData, error: erpError } = await supabase
             .from('articulos_erp')
             .select('*');
@@ -351,7 +355,6 @@ function IngredientesPageContent() {
         })) as ArticuloERP[];
         const erpMap = new Map(articulosERP.map(item => [item.idreferenciaerp, item]));
 
-        // Load ingredientes from Supabase
         const { data: ingredientesData, error: ingError } = await supabase
             .from('ingredientes_internos')
             .select('*');
@@ -386,7 +389,7 @@ function IngredientesPageContent() {
 
         allServiceOrders.forEach(os => {
             const osDate = new Date(os.startDate);
-            if (osDate < today) return; // Skip past events
+            if (osDate < today) return; 
 
             const gastroOrders = allGastroOrders.filter(go => go.osId === os.id);
             gastroOrders.forEach(go => {
@@ -458,10 +461,37 @@ function IngredientesPageContent() {
         setIsMounted(true);
     }, [loadIngredients]);
 
+    // Lógica para mostrar/ocultar botón flotante
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 300) {
+                setShowScrollTop(true);
+            } else {
+                setShowScrollTop(false);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Función para volver arriba
+    const scrollToTop = () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    };
+
+    // Resetear paginación al filtrar
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, showOnlyPending, filterByUsage]);
+
     useEffect(() => {
         setHeaderActions(
-            <div className="flex gap-2">
-                <Button onClick={() => setEditingIngredient({})}><PlusCircle className="mr-2" />Nuevo Ingrediente</Button>
+            <div className="flex gap-2 w-full md:w-auto">
+                <Button onClick={() => setEditingIngredient({})} className="flex-1 md:flex-none"><PlusCircle className="mr-2 h-4 w-4" />Nuevo</Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><Menu /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -475,12 +505,8 @@ function IngredientesPageContent() {
 
     const handleExportCSV = async () => {
         try {
-            const { data: ingredientesData, error } = await supabase
-                .from('ingredientes_internos')
-                .select('*');
-
+            const { data: ingredientesData, error } = await supabase.from('ingredientes_internos').select('*');
             if (error) throw error;
-
             const dataToExport = (ingredientesData || []).map((row: any) => ({
                 id: row.id,
                 nombreIngrediente: row.nombre_ingrediente,
@@ -489,13 +515,8 @@ function IngredientesPageContent() {
                 alergenosTrazas: JSON.stringify(row.alergenos_trazas || []),
                 historialRevisiones: JSON.stringify(row.historial_revisiones || []),
             }));
-
-            if (dataToExport.length === 0) {
-                dataToExport.push(Object.fromEntries(CSV_HEADERS.map(h => [h, ''])) as any);
-            }
-
+            if (dataToExport.length === 0) dataToExport.push(Object.fromEntries(CSV_HEADERS.map(h => [h, ''])) as any);
             const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
-
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
@@ -516,11 +537,7 @@ function IngredientesPageContent() {
 
     const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
         const file = event.target.files?.[0];
-        if (!file) {
-            setIsImportAlertOpen(false);
-            return;
-        }
-
+        if (!file) { setIsImportAlertOpen(false); return; }
         Papa.parse<any>(file, {
             header: true, skipEmptyLines: true, delimiter,
             complete: async (results) => {
@@ -530,7 +547,6 @@ function IngredientesPageContent() {
                     setIsImportAlertOpen(false);
                     return;
                 }
-
                 const importedData: IngredienteInterno[] = results.data.map(item => ({
                     id: item.id || crypto.randomUUID(),
                     nombreIngrediente: item.nombreIngrediente || '',
@@ -539,37 +555,30 @@ function IngredientesPageContent() {
                     alergenosTrazas: safeJsonParse(item.alergenosTrazas),
                     historialRevisiones: safeJsonParse(item.historialRevisiones, null),
                 }));
-
-                // Batch upsert to Supabase
                 const BATCH_SIZE = 100;
                 let errorOccurred = false;
                 let processedCount = 0;
-
                 for (let i = 0; i < importedData.length; i += BATCH_SIZE) {
                     const batch = importedData.slice(i, i + BATCH_SIZE);
-                    const { error } = await supabase
-                        .from('ingredientes_internos')
-                        .upsert(batch.map(item => ({
-                            id: item.id,
-                            nombre_ingrediente: item.nombreIngrediente,
-                            producto_erp_link_id: item.productoERPlinkId,
-                            alergenos_presentes: item.alergenosPresentes,
-                            alergenos_trazas: item.alergenosTrazas,
-                            historial_revisiones: item.historialRevisiones,
-                        })), { onConflict: 'id' });
-
+                    const { error } = await supabase.from('ingredientes_internos').upsert(batch.map(item => ({
+                        id: item.id,
+                        nombre_ingrediente: item.nombreIngrediente,
+                        producto_erp_link_id: item.productoERPlinkId,
+                        alergenos_presentes: item.alergenosPresentes,
+                        alergenos_trazas: item.alergenosTrazas,
+                        historial_revisiones: item.historialRevisiones,
+                    })), { onConflict: 'id' });
                     if (error) {
                         console.error('Error importing batch:', error);
                         errorOccurred = true;
                         toast({ variant: 'destructive', title: 'Error de importación', description: `Error en el lote ${i / BATCH_SIZE + 1}: ${error.message}` });
-                        break; // Stop on error
+                        break; 
                     }
                     processedCount += batch.length;
                 }
-
                 if (!errorOccurred) {
                     toast({ title: 'Importación completada', description: `Se han importado ${processedCount} registros correctamente.` });
-                    loadIngredients(); // Reload data from Supabase
+                    loadIngredients();
                 }
                 setIsImportAlertOpen(false);
             },
@@ -607,11 +616,19 @@ function IngredientesPageContent() {
         });
     }, [ingredientes, searchTerm, showOnlyPending, filterByUsage, sixMonthsAgo, ingredientesEnUso]);
 
+    // Variables de paginación para tabla de escritorio
     const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
     const paginatedItems = useMemo(() => {
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
         return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }, [filteredItems, currentPage]);
+
+    // Variables para Infinite Scroll en Móvil
+    const currentLimit = currentPage * ITEMS_PER_PAGE;
+    const mobileVisibleItems = useMemo(() => {
+        return filteredItems.slice(0, currentLimit);
+    }, [filteredItems, currentLimit]);
+    const hasMoreMobile = mobileVisibleItems.length < filteredItems.length;
 
     const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
     const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
@@ -627,22 +644,12 @@ function IngredientesPageContent() {
 
     const handleDelete = async () => {
         if (!itemToDelete) return;
-
         try {
-            const { error } = await supabase
-                .from('ingredientes_internos')
-                .delete()
-                .eq('id', itemToDelete.id);
-
+            const { error } = await supabase.from('ingredientes_internos').delete().eq('id', itemToDelete.id);
             if (error) throw error;
-
             if (affectedElaboraciones.length > 0) {
-                toast({
-                    title: 'Recetas marcadas para revisión',
-                    description: `${affectedElaboraciones.length} elaboración(es) usaban este ingrediente y sus recetas asociadas han sido marcadas para revisión.`
-                });
+                toast({ title: 'Recetas marcadas para revisión', description: `${affectedElaboraciones.length} elaboración(es) usaban este ingrediente...` });
             }
-
             loadIngredients();
             toast({ title: 'Ingrediente eliminado' });
             setItemToDelete(null);
@@ -655,60 +662,33 @@ function IngredientesPageContent() {
     const handleSave = async (data: IngredienteFormValues) => {
         const responsable = impersonatedUser?.nombre || 'Usuario';
         const newRevision = { fecha: new Date().toISOString(), responsable };
-
         try {
-            // Check if editing or creating
-            const { data: existing } = await supabase
-                .from('ingredientes_internos')
-                .select('*')
-                .eq('id', data.id)
-                .single();
-
+            const { data: existing } = await supabase.from('ingredientes_internos').select('*').eq('id', data.id).single();
             if (existing) {
-                // Update existing
                 const updatedRevisiones = [...(existing.historial_revisiones || []), newRevision];
-                const { error } = await supabase
-                    .from('ingredientes_internos')
-                    .update({
+                const { error } = await supabase.from('ingredientes_internos').update({
                         nombre_ingrediente: data.nombreIngrediente,
                         producto_erp_link_id: data.productoERPlinkId,
                         alergenos_presentes: data.alergenosPresentes,
                         alergenos_trazas: data.alergenosTrazas,
                         historial_revisiones: updatedRevisiones,
-                    })
-                    .eq('id', data.id);
-
+                    }).eq('id', data.id);
                 if (error) throw error;
                 toast({ description: 'Ingrediente actualizado.' });
             } else {
-                // Check for duplicate name
-                const { data: duplicate } = await supabase
-                    .from('ingredientes_internos')
-                    .select('id')
-                    .ilike('nombre_ingrediente', data.nombreIngrediente)
-                    .single();
-
-                if (duplicate) {
-                    toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un ingrediente con este nombre.' });
-                    return;
-                }
-
-                // Create new
-                const { error } = await supabase
-                    .from('ingredientes_internos')
-                    .insert({
-                        id: data.id || crypto.randomUUID(), // Ensure ID for new item
+                const { data: duplicate } = await supabase.from('ingredientes_internos').select('id').ilike('nombre_ingrediente', data.nombreIngrediente).single();
+                if (duplicate) { toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un ingrediente con este nombre.' }); return; }
+                const { error } = await supabase.from('ingredientes_internos').insert({
+                        id: data.id || crypto.randomUUID(),
                         nombre_ingrediente: data.nombreIngrediente,
                         producto_erp_link_id: data.productoERPlinkId,
                         alergenos_presentes: data.alergenosPresentes,
                         alergenos_trazas: data.alergenosTrazas,
                         historial_revisiones: [newRevision],
                     });
-
                 if (error) throw error;
                 toast({ description: 'Ingrediente creado.' });
             }
-
             setEditingIngredient(null);
             loadIngredients();
         } catch (error) {
@@ -721,24 +701,161 @@ function IngredientesPageContent() {
 
     return (
         <>
-            <div className="flex items-center justify-end mb-4">
-                {headerActions}
+            {/* --- HEADER: ACCIONES Y BÚSQUEDA MÓVIL OPTIMIZADA --- */}
+            <div className="flex flex-col gap-4 mb-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    
+                    <div className="relative flex-grow md:max-w-lg">
+                         <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                         <Input 
+                            placeholder="Buscar ingrediente..." 
+                            className="pl-9 h-11 text-base shadow-sm"
+                            value={searchTerm} 
+                            onChange={(e) => setSearchTerm(e.target.value)} 
+                         />
+                    </div>
+
+                     <div className="flex justify-end">
+                        {headerActions}
+                     </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 p-1">
+                    
+                    {/* Filtros tipo Toggle/Badge */}
+                    <div className="flex items-center gap-2">
+                         <Button 
+                            variant={showOnlyPending ? "default" : "outline"} 
+                            size="sm"
+                            className={cn("h-8 rounded-full text-xs transition-all", showOnlyPending ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground border-dashed")}
+                            onClick={() => setShowOnlyPending(!showOnlyPending)}
+                         >
+                            {showOnlyPending && <Check className="mr-1 h-3 w-3" />}
+                            Pendientes
+                         </Button>
+
+                         <Button 
+                            variant={filterByUsage ? "default" : "outline"} 
+                            size="sm"
+                            className={cn("h-8 rounded-full text-xs transition-all", filterByUsage ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground border-dashed")}
+                            onClick={() => setFilterByUsage(!filterByUsage)}
+                         >
+                             {filterByUsage && <Check className="mr-1 h-3 w-3" />}
+                             En uso futuro
+                         </Button>
+                    </div>
+
+                    <div className="hidden md:flex items-center gap-1 text-sm text-muted-foreground">
+                        <span>{currentPage}/{totalPages || 1}</span>
+                        <div className="flex">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div className="flex items-center justify-between gap-4 mb-4">
-                <Input placeholder="Buscar..." className="flex-grow max-w-lg" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center space-x-2"><Checkbox id="showPending" checked={showOnlyPending} onCheckedChange={(checked) => setShowOnlyPending(Boolean(checked))} /><Label htmlFor="showPending">Solo pendientes</Label></div>
-                    <div className="flex items-center space-x-2"><Checkbox id="filterUsage" checked={filterByUsage} onCheckedChange={(checked) => setFilterByUsage(Boolean(checked))} /><Label htmlFor="filterUsage">En uso futuro</Label></div>
-                </div>
-                <div className="flex items-center justify-end gap-2">
-                    <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
-                    <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
-                </div>
+            {/* --- VISTA MÓVIL: Tarjetas SOLO TEXTO --- */}
+            <div className="md:hidden flex flex-col gap-4">
+                <InfiniteScroll
+                    dataLength={mobileVisibleItems.length} // Corregido: usa la longitud dinámica
+                    next={() => setCurrentPage((prev) => prev + 1)}
+                    hasMore={hasMoreMobile}
+                    loader={<h4 className="col-span-full text-center py-4">Cargando más...</h4>}
+                    className="flex flex-col gap-4"
+                >
+                    {mobileVisibleItems.map((item) => {
+                        const latestRevision = item.historialRevisiones?.[item.historialRevisiones.length - 1];
+                        const needsReview = !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
+                        
+                        // Cálculo de precio
+                        let formattedPrice = '-';
+                        if (item.erp) {
+                            const basePrice = (item.erp.precioCompra || 0) / (item.erp.unidadConversion || 1);
+                            const discount = item.erp.descuento || 0;
+                            const finalPrice = basePrice * (1 - discount / 100);
+                            formattedPrice = `${finalPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/${item.erp.unidad}`;
+                        }
+
+                        const formattedDate = latestRevision ? format(new Date(latestRevision.fecha), 'dd/MM/yyyy') : 'Nunca';
+
+                        return (
+                            <div key={item.id} className="bg-card border rounded-lg p-4 shadow-sm relative">
+                                {/* Header: Nombre + Menu */}
+                                <div className="flex justify-between items-start mb-3 pr-8">
+                                    <h3 className="font-bold text-lg leading-tight text-foreground">{item.nombreIngrediente}</h3>
+                                </div>
+                                
+                                {/* Absolute Menu (Top-Right) */}
+                                 <div className="absolute top-3 right-3">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
+                                                <MoreHorizontal className="h-5 w-5" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => setEditingIngredient(item)}>
+                                                <Pencil className="mr-2 h-4 w-4" /> Editar
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem className="text-destructive" onClick={() => handleAttemptDelete(item)}>
+                                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                 </div>
+
+                                {/* Grid de Detalles (Texto) - Limpio */}
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-3 text-sm">
+                                    <div className="col-span-2">
+                                         <span className="text-muted-foreground text-xs block uppercase tracking-wider">Producto ERP</span>
+                                         <span className={cn("font-medium", !item.erp && "text-destructive italic")}>
+                                            {item.erp?.nombreProductoERP || 'No vinculado'}
+                                         </span>
+                                    </div>
+                                    
+                                    <div>
+                                         <span className="text-muted-foreground text-xs block uppercase tracking-wider">Proveedor</span>
+                                         <span className="font-medium text-foreground">{item.erp?.nombreProveedor || '-'}</span>
+                                    </div>
+
+                                    <div>
+                                         <span className="text-muted-foreground text-xs block uppercase tracking-wider">Precio</span>
+                                         <span className="font-medium text-foreground">{formattedPrice}</span>
+                                    </div>
+
+                                    <div>
+                                         <span className="text-muted-foreground text-xs block uppercase tracking-wider">Cat. ERP</span>
+                                         <span className="font-medium text-foreground">{item.erp?.tipo || '-'}</span>
+                                    </div>
+
+                                    <div>
+                                         <span className="text-muted-foreground text-xs block uppercase tracking-wider">Responsable</span>
+                                         <span className="font-medium text-foreground">{latestRevision?.responsable || '-'}</span>
+                                    </div>
+
+                                     <div className="col-span-2 border-t pt-2 mt-1 flex justify-between items-center">
+                                         <span className="text-muted-foreground text-xs uppercase tracking-wider">Última Revisión</span>
+                                         <span className={cn("font-medium", needsReview ? "text-destructive flex items-center gap-1" : "text-foreground")}>
+                                            {needsReview && <AlertTriangle className="h-3 w-3" />}
+                                            {formattedDate}
+                                         </span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </InfiniteScroll>
+                
+                {filteredItems.length === 0 && (
+                    <div className="text-center py-10 text-muted-foreground">
+                        <p>No se encontraron ingredientes.</p>
+                    </div>
+                )}
             </div>
 
-            <div className="border rounded-lg">
+            {/* --- VISTA ESCRITORIO --- */}
+            <div className="hidden md:block border rounded-lg">
                 <Table>
                     <TableHeader><TableRow>
                         <TableHead>Ingrediente</TableHead>
@@ -782,6 +899,7 @@ function IngredientesPageContent() {
                                         <TableCell className="text-right">
                                             <div className="flex gap-2 justify-end">
                                                 <Button size="sm" variant="outline" onClick={() => setEditingIngredient(item)}><Pencil className="mr-2 h-4 w-4" />Editar</Button>
+                                                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleAttemptDelete(item)}><Trash2 className="h-4 w-4" /></Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -792,6 +910,18 @@ function IngredientesPageContent() {
                 </Table>
             </div>
 
+            {/* --- BOTÓN FLOTANTE SCROLL TO TOP --- */}
+            {showScrollTop && (
+                <Button
+                    onClick={scrollToTop}
+                    className="fixed bottom-6 right-6 rounded-full shadow-lg z-50 h-12 w-12 bg-primary hover:bg-primary/90 transition-all duration-300 animate-in fade-in zoom-in"
+                    size="icon"
+                >
+                    <ArrowUp className="h-6 w-6" />
+                </Button>
+            )}
+
+            {/* Modales */}
             {editingIngredient && (
                 <IngredienteFormModal
                     open={!!editingIngredient}

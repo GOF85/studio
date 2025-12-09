@@ -72,3 +72,31 @@ export function downloadCSVTemplate(headers: string[], filename: string) {
     link.click();
     document.body.removeChild(link);
 }
+
+/**
+ * Convierte una URL de imagen a una URL pública de Supabase Storage.
+ * Si la URL ya es una URL completa (http/https), la devuelve tal cual.
+ * Si es una ruta relativa, la convierte a una URL pública del bucket 'recetas'.
+ */
+export function getSupabaseImageUrl(url: string | null | undefined, bucket: string = 'recetas'): string | null {
+    if (!url) return null;
+    
+    // Si ya es una URL completa, devolverla tal cual
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+    }
+    
+    // Si es una ruta relativa, construir la URL pública de Supabase
+    // Las rutas en Supabase Storage son: bucket/path/to/file.jpg
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    if (!supabaseUrl) {
+        console.warn('NEXT_PUBLIC_SUPABASE_URL no está definida');
+        return url; // Devolver la URL original como fallback
+    }
+    
+    // Limpiar la ruta (eliminar barras iniciales duplicadas)
+    const cleanPath = url.replace(/^\/+/, '');
+    
+    // Construir la URL pública de Supabase Storage
+    return `${supabaseUrl}/storage/v1/object/public/${bucket}/${cleanPath}`;
+}

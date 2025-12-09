@@ -36,6 +36,8 @@ import { downloadCSVTemplate } from '@/lib/utils';
 
 import { useDataStore } from '@/hooks/use-data-store';
 import { supabase } from '@/lib/supabase';
+import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view';
+import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 
 const CSV_HEADERS = ["id", "erp_id", "nombre", "categoria", "es_habitual", "precio_venta", "precio_alquiler", "precio_reposicion", "unidad_venta", "stock_seguridad", "tipo", "loc", "imagen", "producido_por_partner", "partner_id", "receta_id", "subcategoria"];
 
@@ -69,6 +71,29 @@ function ArticulosPageContent() {
       return searchMatch && categoryMatch && partnerMatch;
     });
   }, [items, searchTerm, categoryFilter, isPartnerFilter]);
+
+  // Para infinite scroll en móvil: mostrar todos los items filtrados
+  const mobileItems = useMemo(() => {
+    return filteredItems;
+  }, [filteredItems]);
+
+  // Hook para infinite scroll (sin paginación tradicional, mostrar todos)
+  const sentinelRef = useInfiniteScroll({
+    fetchNextPage: () => {
+      // TODO: Conectar lógica de carga infinita aquí si se implementa paginación
+    },
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    enabled: false, // Deshabilitado ya que no hay paginación
+  });
+
+  // Definir columnas para la vista móvil
+  const mobileColumns: MobileTableColumn<ArticuloCatering>[] = [
+    { key: 'nombre', label: 'Nombre', isTitle: true },
+    { key: 'categoria', label: 'Categoría' },
+    { key: 'precioVenta', label: 'Precio Venta', format: (value) => (value as number).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) },
+    { key: 'precioAlquiler', label: 'Precio Alquiler', format: (value) => (value as number) > 0 ? (value as number).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-' },
+  ];
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
@@ -243,7 +268,41 @@ function ArticulosPageContent() {
         </div>
       </div>
 
-      <div className="border rounded-lg">
+      {/* Vista Móvil: Tarjetas Apiladas */}
+      <div className="md:hidden space-y-4">
+        <MobileTableView
+          data={mobileItems}
+          columns={mobileColumns}
+          renderActions={(item) => (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/bd/articulos/${item.id}`)}
+                className="flex-1"
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id); }}
+                className="flex-1 text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </Button>
+            </>
+          )}
+          sentinelRef={sentinelRef}
+          isLoading={false}
+          emptyMessage="No se encontraron artículos."
+        />
+      </div>
+
+      {/* Vista Escritorio: Tabla Tradicional */}
+      <div className="hidden md:block border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>

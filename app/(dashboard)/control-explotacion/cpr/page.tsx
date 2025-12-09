@@ -8,7 +8,7 @@ import { AreaChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, Ba
 import { DateRange } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachMonthOfInterval, startOfYear, endOfYear, endOfMonth, startOfQuarter, endOfQuarter, subDays, startOfMonth, getYear } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bar, XAxis, YAxis, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
+import { Bar, XAxis, YAxis, Legend, CartesianGrid, ResponsiveContainer } from "@/lib/recharts-lazy";
 import Link from "next/link";
 
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';

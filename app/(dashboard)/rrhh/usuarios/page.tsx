@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, UserPlus, CheckCircle2, Clock } from 'lucide-react';
 import type { Personal, Proveedor } from '@/types';
+import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view';
+import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 
 type UserStatus = 'PENDIENTE' | 'ACTIVO' | 'BLOQUEADO' | 'NO_SOLICITADO';
 
@@ -154,6 +156,36 @@ export default function RRHHUsuariosPage() {
         }
     };
 
+    // Hook para infinite scroll (sin paginación, mostrar todos)
+    const sentinelRefPersonal = useInfiniteScroll({
+        fetchNextPage: () => {},
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        enabled: false,
+    });
+
+    const sentinelRefProveedores = useInfiniteScroll({
+        fetchNextPage: () => {},
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        enabled: false,
+    });
+
+    // Columnas para vista móvil - Personal
+    const mobileColumnsPersonal: MobileTableColumn<ExtendedPersonal>[] = [
+        { key: 'nombreCompleto', label: 'Nombre', isTitle: true, format: (value, row) => row.nombreCompleto || row.nombre },
+        { key: 'email', label: 'Email' },
+        { key: 'departamento', label: 'Departamento' },
+        { key: 'accessStatus', label: 'Estado Acceso', format: (value, row) => <StatusBadge status={row.accessStatus} /> },
+    ];
+
+    // Columnas para vista móvil - Proveedores
+    const mobileColumnsProveedores: MobileTableColumn<ExtendedProveedor>[] = [
+        { key: 'nombreComercial', label: 'Empresa', isTitle: true },
+        { key: 'emailContacto', label: 'Email Contacto' },
+        { key: 'accessStatus', label: 'Estado Acceso', format: (value, row) => <StatusBadge status={row.accessStatus} /> },
+    ];
+
     if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
 
     return (
@@ -173,41 +205,68 @@ export default function RRHHUsuariosPage() {
                             <CardDescription>Gestiona el acceso del personal de la empresa.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nombre</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Departamento</TableHead>
-                                        <TableHead>Estado Acceso</TableHead>
-                                        <TableHead className="text-right">Acciones</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {personal.map((p) => (
-                                        <TableRow key={p.id}>
-                                            <TableCell>{p.nombreCompleto || p.nombre}</TableCell>
-                                            <TableCell>{p.email || '-'}</TableCell>
-                                            <TableCell>{p.departamento}</TableCell>
-                                            <TableCell>
-                                                <StatusBadge status={p.accessStatus} />
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {p.accessStatus === 'NO_SOLICITADO' && (
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => handleRequestAccess(p, 'PERSONAL')}
-                                                        disabled={!!processingId || !p.email}
-                                                    >
-                                                        {processingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
-                                                        Solicitar Acceso
-                                                    </Button>
-                                                )}
-                                            </TableCell>
+                            {/* Vista Móvil: Tarjetas Apiladas */}
+                            <div className="md:hidden space-y-4">
+                                <MobileTableView
+                                    data={personal}
+                                    columns={mobileColumnsPersonal}
+                                    renderActions={(p) => (
+                                        p.accessStatus === 'NO_SOLICITADO' ? (
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleRequestAccess(p, 'PERSONAL')}
+                                                disabled={!!processingId || !p.email}
+                                                className="w-full"
+                                            >
+                                                {processingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
+                                                Solicitar Acceso
+                                            </Button>
+                                        ) : null
+                                    )}
+                                    sentinelRef={sentinelRefPersonal}
+                                    isLoading={false}
+                                    emptyMessage="No hay personal registrado."
+                                />
+                            </div>
+
+                            {/* Vista Escritorio: Tabla Tradicional */}
+                            <div className="hidden md:block">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Nombre</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead>Departamento</TableHead>
+                                            <TableHead>Estado Acceso</TableHead>
+                                            <TableHead className="text-right">Acciones</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {personal.map((p) => (
+                                            <TableRow key={p.id}>
+                                                <TableCell>{p.nombreCompleto || p.nombre}</TableCell>
+                                                <TableCell>{p.email || '-'}</TableCell>
+                                                <TableCell>{p.departamento}</TableCell>
+                                                <TableCell>
+                                                    <StatusBadge status={p.accessStatus} />
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {p.accessStatus === 'NO_SOLICITADO' && (
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => handleRequestAccess(p, 'PERSONAL')}
+                                                            disabled={!!processingId || !p.email}
+                                                        >
+                                                            {processingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
+                                                            Solicitar Acceso
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -219,39 +278,66 @@ export default function RRHHUsuariosPage() {
                             <CardDescription>Gestiona el acceso de colaboradores externos.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Empresa</TableHead>
-                                        <TableHead>Email Contacto</TableHead>
-                                        <TableHead>Estado Acceso</TableHead>
-                                        <TableHead className="text-right">Acciones</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {proveedores.map((p) => (
-                                        <TableRow key={p.id}>
-                                            <TableCell>{p.nombreComercial}</TableCell>
-                                            <TableCell>{p.emailContacto || '-'}</TableCell>
-                                            <TableCell>
-                                                <StatusBadge status={p.accessStatus} />
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {p.accessStatus === 'NO_SOLICITADO' && (
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => handleRequestAccess(p, 'PROVEEDOR')}
-                                                        disabled={!!processingId || !p.emailContacto}
-                                                    >
-                                                        {processingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
-                                                        Solicitar Acceso
-                                                    </Button>
-                                                )}
-                                            </TableCell>
+                            {/* Vista Móvil: Tarjetas Apiladas */}
+                            <div className="md:hidden space-y-4">
+                                <MobileTableView
+                                    data={proveedores}
+                                    columns={mobileColumnsProveedores}
+                                    renderActions={(p) => (
+                                        p.accessStatus === 'NO_SOLICITADO' ? (
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleRequestAccess(p, 'PROVEEDOR')}
+                                                disabled={!!processingId || !p.emailContacto}
+                                                className="w-full"
+                                            >
+                                                {processingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
+                                                Solicitar Acceso
+                                            </Button>
+                                        ) : null
+                                    )}
+                                    sentinelRef={sentinelRefProveedores}
+                                    isLoading={false}
+                                    emptyMessage="No hay proveedores registrados."
+                                />
+                            </div>
+
+                            {/* Vista Escritorio: Tabla Tradicional */}
+                            <div className="hidden md:block">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Empresa</TableHead>
+                                            <TableHead>Email Contacto</TableHead>
+                                            <TableHead>Estado Acceso</TableHead>
+                                            <TableHead className="text-right">Acciones</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {proveedores.map((p) => (
+                                            <TableRow key={p.id}>
+                                                <TableCell>{p.nombreComercial}</TableCell>
+                                                <TableCell>{p.emailContacto || '-'}</TableCell>
+                                                <TableCell>
+                                                    <StatusBadge status={p.accessStatus} />
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {p.accessStatus === 'NO_SOLICITADO' && (
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => handleRequestAccess(p, 'PROVEEDOR')}
+                                                            disabled={!!processingId || !p.emailContacto}
+                                                        >
+                                                            {processingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
+                                                            Solicitar Acceso
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { pdf } from '@react-pdf/renderer';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { FileDown, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EspacioV2 } from '@/types/espacios';
-import { FichaCiegaPDF } from './pdf/FichaCiegaPDF';
+
+// Lazy load PDF renderer
+const FichaCiegaPDF = dynamic(() => import('./pdf/FichaCiegaPDF').then(mod => ({ default: mod.FichaCiegaPDF })), { ssr: false });
 
 interface GeneratePDFButtonProps {
     espacio: EspacioV2;
@@ -27,8 +29,11 @@ export function GeneratePDFButton({
     const handleGeneratePDF = async () => {
         setIsGenerating(true);
         try {
+            // Lazy load PDF renderer
+            const { pdf } = await import('@react-pdf/renderer');
+            const { FichaCiegaPDF: PDFComponent } = await import('./pdf/FichaCiegaPDF');
             // Generate PDF blob
-            const blob = await pdf(<FichaCiegaPDF espacio={espacio} />).toBlob();
+            const blob = await pdf(<PDFComponent espacio={espacio} />).toBlob();
 
             // Create download link
             const url = URL.createObjectURL(blob);
