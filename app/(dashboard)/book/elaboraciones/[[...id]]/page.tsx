@@ -8,16 +8,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 
 import { 
-  Loader2, Save, X, Info, PlusCircle, GripVertical, 
+  Loader2, Save, X, PlusCircle, GripVertical, 
   Trash2, Eye, Component, MoreHorizontal, Copy, 
-  Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw, Pencil, 
-  ChevronLeft, ChevronRight, Search, Maximize2, Image as ImageIcon
+  Download, Upload, AlertTriangle, RefreshCw, Pencil, 
+  ChevronLeft, Search, Image as ImageIcon, ChevronRight
 } from 'lucide-react';
-import type { Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, PartidaProduccion, ComponenteElaboracion } from '@/types';
+import type { Elaboracion, IngredienteInterno, Alergeno, PartidaProduccion, ComponenteElaboracion } from '@/types';
 import { PARTIDAS_PRODUCCION, UNIDADES_MEDIDA, ALERGENOS } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -25,14 +24,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -41,7 +39,6 @@ import { formatCurrency, formatUnit, cn } from '@/lib/utils';
 import Image from 'next/image';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { Label } from '@/components/ui/label';
-import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view';
 import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 import { supabase } from '@/lib/supabase';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -111,7 +108,7 @@ function ComponenteSelector({ onSelect }: { onSelect: (comp: any) => void }) {
         productoERPlinkId: i.producto_erp_link_id,
         alergenosPresentes: i.alergenos_presentes || [],
         alergenosTrazas: i.alergenos_trazas || [],
-        historialRevisiones: i.historial_revisiones || []
+        historialRevisiones: []
       })));
     };
     fetchIngredientes();
@@ -249,7 +246,7 @@ function ElaboracionesListPage() {
   
   useEffect(() => {
     const fetch = async () => {
-        const { data } = await supabase.from('elaboraciones').select('*');
+        const { data } = await supabase.from('elaboraciones').select('*').order('nombre');
         if(data) setItems(data);
     };
     fetch();
@@ -258,22 +255,71 @@ function ElaboracionesListPage() {
   const filtered = items.filter(i => i.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="space-y-4 p-4">
-         <div className="flex justify-between items-center">
-            <Input placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="max-w-sm" />
-            <Button onClick={() => router.push('/book/elaboraciones/nueva')}><PlusCircle className="mr-2 h-4 w-4"/> Nueva Elaboración</Button>
+    <div className="space-y-4 p-4 max-w-7xl mx-auto pb-24">
+         {/* TOOLBAR */}
+         <div className="flex flex-col sm:flex-row justify-between gap-4 items-end sm:items-center">
+             <div className="relative w-full sm:w-auto flex-1 max-w-md">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Buscar elaboración..." 
+                    value={searchTerm} 
+                    onChange={e => setSearchTerm(e.target.value)} 
+                    className="pl-9 h-9 text-sm bg-background"
+                />
+            </div>
+            
+            <Button onClick={() => router.push('/book/elaboraciones/nueva')} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto shadow-sm h-9">
+                <PlusCircle className="mr-2 h-4 w-4"/> 
+                {/* Texto responsivo para evitar truncamiento */}
+                <span className="hidden sm:inline">Nueva Elaboración</span>
+                <span className="sm:hidden">Nueva</span>
+            </Button>
          </div>
-         <div className="border rounded-md">
+
+         {/* VISTA MÓVIL: TARJETAS CLICABLES */}
+         <div className="grid grid-cols-1 gap-3 md:hidden">
+            {filtered.map(item => (
+                <div 
+                    key={item.id} 
+                    className="bg-card border rounded-lg p-3 shadow-sm active:scale-[0.98] transition-transform cursor-pointer group"
+                    onClick={() => router.push(`/book/elaboraciones/${item.id}`)}
+                >
+                    <div className="flex justify-between items-start mb-1">
+                        <span className="font-bold text-sm text-foreground">{item.nombre}</span>
+                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal">{item.partida}</Badge>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-muted-foreground">
+                        <span>{formatCurrency(item.coste_unitario)} / {formatUnit(item.unidad_produccion)}</span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary" />
+                    </div>
+                </div>
+            ))}
+            {filtered.length === 0 && <div className="text-center py-10 text-muted-foreground text-sm border-2 border-dashed rounded-lg bg-muted/10">No se encontraron elaboraciones.</div>}
+         </div>
+
+         {/* VISTA DESKTOP: TABLA */}
+         <div className="hidden md:block border rounded-lg overflow-hidden bg-white shadow-sm">
             <Table>
-                <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Partida</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+                <TableHeader className="bg-muted/40">
+                    <TableRow>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Partida</TableHead>
+                        <TableHead className="text-right">Coste / Ud.</TableHead>
+                        <TableHead className="text-right w-[60px]"></TableHead>
+                    </TableRow>
+                </TableHeader>
                 <TableBody>
                     {filtered.map(item => (
-                        <TableRow key={item.id} onClick={() => router.push(`/book/elaboraciones/${item.id}`)} className="cursor-pointer hover:bg-muted/50">
+                        <TableRow key={item.id} onClick={() => router.push(`/book/elaboraciones/${item.id}`)} className="cursor-pointer hover:bg-muted/50 group">
                             <TableCell className="font-medium">{item.nombre}</TableCell>
-                            <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
-                            <TableCell className="text-right"><Button variant="ghost" size="icon"><Pencil className="h-4 w-4"/></Button></TableCell>
+                            <TableCell><Badge variant="outline" className="font-normal">{item.partida}</Badge></TableCell>
+                            <TableCell className="text-right font-mono text-sm">{formatCurrency(item.coste_unitario)} / {formatUnit(item.unidad_produccion)}</TableCell>
+                            <TableCell className="text-right">
+                                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </TableCell>
                         </TableRow>
                     ))}
+                    {filtered.length === 0 && <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No se encontraron elaboraciones.</TableCell></TableRow>}
                 </TableBody>
             </Table>
          </div>
@@ -420,7 +466,7 @@ function ElaborationFormPage() {
                     produccionTotal: elabData.produccion_total || 1,
                     caducidadDias: elabData.caducidad_dias || 0,
                     instruccionesPreparacion: elabData.instrucciones || '',
-                    // FIX: Columna correcta 'fotos' en BD
+                    // FIX: Columna correcta 'fotos'
                     fotos: (elabData.fotos || []).map((url: any) => typeof url === 'string' ? { url } : url),
                     videoProduccionURL: elabData.video_produccion_url || '',
                     formatoExpedicion: elabData.formato_expedicion || '',
@@ -520,7 +566,8 @@ function ElaborationFormPage() {
 
   if (!isDataLoaded) return <LoadingSkeleton title="Cargando elaboración..." />;
 
-  const pageTitle = cloneId ? 'Clonar Elaboración' : (isNew ? 'Nueva Elaboración' : 'Editar Elaboración');
+  // FIX: Page Title eliminado para tener un header más limpio
+  const pageTitle = cloneId ? 'Clonar' : (isNew ? 'Nueva' : 'Editar');
 
   return (
     <TooltipProvider>
@@ -536,13 +583,13 @@ function ElaborationFormPage() {
                              <Button variant="ghost" size="icon" type="button" onClick={() => router.push('/book/elaboraciones')} className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground">
                                 <ChevronLeft className="h-6 w-6" />
                              </Button>
-                             {/* Tabs en la misma línea que la navegación si cabe, sino debajo */}
+                             {/* Tabs a la derecha */}
                              <div className="flex-1 overflow-x-auto no-scrollbar">
                                 <TabsList className="w-full justify-start bg-transparent p-0 h-9 gap-4">
                                     {["Info. General", "Componentes", "Info. Preparación"].map((tab, i) => {
                                         const val = ["general", "componentes", "preparacion"][i];
                                         return (
-                                            <TabsTrigger key={val} value={val} className="rounded-none border-b-2 border-transparent px-2 py-2 text-xs font-medium text-muted-foreground data-[state=active]:border-green-600 data-[state=active]:text-green-700 data-[state=active]:bg-transparent transition-all hover:text-foreground whitespace-nowrap">
+                                            <TabsTrigger key={val} value={val} className="rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium text-muted-foreground data-[state=active]:border-green-600 data-[state=active]:text-green-700 data-[state=active]:bg-transparent transition-all hover:text-foreground whitespace-nowrap">
                                                 {tab}
                                             </TabsTrigger>
                                         )
@@ -552,7 +599,7 @@ function ElaborationFormPage() {
                          </div>
 
                         {/* CONTENIDO TABS (Dentro del mismo contexto) */}
-                        <div className="p-2 sm:p-4 max-w-5xl mx-auto min-h-screen bg-muted/5 mt-0 absolute left-0 right-0 top-[100%] overflow-y-auto pb-32">
+                        <div className="p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5 mt-0 absolute left-0 right-0 top-[100%] overflow-y-auto pb-32">
                             <TabsContent value="general" className="space-y-4 mt-2">
                                 <Card className="shadow-none border border-border/60">
                                     <CardHeader className="p-3 pb-1 border-b bg-muted/10"><CardTitle className="text-sm font-bold">Datos Básicos</CardTitle></CardHeader>

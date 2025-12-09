@@ -29,7 +29,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Renderizado de Alérgenos (Compacto)
 const AllergenList = ({ alergenos }: { alergenos: Alergeno[] | null | undefined }) => {
-  // FIX: Asegurar que es un array válido
+  // FIX: Asegurar que es un array válido siempre
   const safeAlergenos = Array.isArray(alergenos) ? alergenos : [];
 
   if (safeAlergenos.length === 0) return <span className="text-[10px] text-muted-foreground italic">Sin alérgenos</span>;
@@ -92,10 +92,9 @@ export default function RecetasListPage() {
         if (recetasRes.data) {
              const mappedRecetas = recetasRes.data.map((r: any) => ({
                  ...r,
-                 // FIX: Conversión estricta a boolean y camelCase
-                 isArchived: r.is_archived === true, 
+                 // FIX ERROR 2322: Usamos '?? false' para garantizar que nunca sea undefined
+                 isArchived: r.is_archived ?? false, 
                  precioVenta: r.precio_venta || 0,
-                 // FIX: Asegurar array para alérgenos
                  alergenos: r.alergenos || []
              }));
              setItems(mappedRecetas);
@@ -197,6 +196,7 @@ export default function RecetasListPage() {
 
                     <div className="pl-2 flex items-center justify-between">
                          <div className="flex-1 min-w-0">
+                            {/* FIX: Pasamos array seguro */}
                             <AllergenList alergenos={item.alergenos} />
                          </div>
                          <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0 ml-2" />
