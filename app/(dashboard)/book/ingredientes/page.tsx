@@ -966,6 +966,7 @@ function IngredientesPageContent() {
     );
 }
 
+
 export default function IngredientesPageWrapper() {
     return (
         <Suspense fallback={<LoadingSkeleton title="Cargando Ingredientes..." />}>
