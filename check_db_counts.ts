@@ -66,7 +66,8 @@ async function searchTables() {
         try {
             const { count, error, data } = await supabase
                 .from(tabla)
-                .select('*', { count: 'exact', head: false })
+                // FIX: Añadido "as any" para evitar error de tipado en tabla dinámica
+                .select('*', { count: 'exact', head: false } as any)
                 .limit(1);
 
             if (!error && count !== null) {
@@ -87,7 +88,8 @@ async function searchTables() {
         try {
             const { count, error, data } = await supabase
                 .from(tabla)
-                .select('*', { count: 'exact', head: false })
+                // FIX: Añadido "as any"
+                .select('*', { count: 'exact', head: false } as any)
                 .limit(1);
 
             if (!error && count !== null) {
@@ -108,7 +110,8 @@ async function searchTables() {
         try {
             const { count, error, data } = await supabase
                 .from(tabla)
-                .select('*', { count: 'exact', head: false })
+                // FIX: Añadido "as any"
+                .select('*', { count: 'exact', head: false } as any)
                 .limit(1);
 
             if (!error && count !== null) {
@@ -136,7 +139,7 @@ async function analyzeArticulosERP() {
         const { data, error } = await supabase
             .from('articulos_erp')
             .select('*')
-            .limit(10);
+            .limit(1);
 
         if (!error && data) {
             console.log('Primeros 3 artículos:');
@@ -151,7 +154,7 @@ async function analyzeArticulosERP() {
             console.log('\n\n📈 Distribución por TIPO:');
             const { data: types } = await supabase
                 .from('articulos_erp')
-                .select('tipo, count(*)', { count: 'exact' })
+                .select('tipo, count(*)', { count: 'exact' } as any) // FIX: También aquí por seguridad
                 .order('tipo');
 
             types?.forEach((t: any) => {
