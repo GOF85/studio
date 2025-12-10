@@ -138,11 +138,12 @@ export default function DashboardPage() {
 
     return (
         <main className="min-h-screen bg-background pb-20">
-            {/* HEADER STICKY MINIMALISTA (SOLO BUSCADOR) */}
+        {/* HEADER STICKY MINIMALISTA (SOLO BUSCADOR) */}
             <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
                     <div className="flex items-center w-full">
-                        <div className="flex-1 max-w-xl">
+                        {/* El div contenedor debe ser flex-1 para ocupar todo el espacio */}
+                        <div className="flex-1 w-full">
                             <ServiceOrderSearch />
                         </div>
                     </div>

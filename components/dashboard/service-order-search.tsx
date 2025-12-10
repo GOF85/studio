@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Calculator, Calendar, Search, FileText } from 'lucide-react';
+import { Search, FileText, Loader2, AlertCircle } from 'lucide-react';
 import {
   CommandDialog,
   CommandEmpty,
@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
-// Tipo simple para resultados de búsqueda
 type SearchResult = {
     id: string;
     numero_expediente: string;
@@ -28,24 +27,42 @@ type SearchResult = {
 export function ServiceOrderSearch() {
   const [open, setOpen] = React.useState(false);
   const [results, setResults] = React.useState<SearchResult[]>([]);
+  const [loading, setLoading] = React.useState(false);
   const router = useRouter();
 
-  // Cargar datos al abrir el modal (o podrías usar useQuery para cachear)
+  // Función para cargar datos (iniciales o búsqueda)
+  const fetchOrders = async (query: string = '') => {
+    setLoading(true);
+    try {
+        let dbQuery = supabase
+            .from('eventos')
+            .select('id, numero_expediente, nombre_evento, fecha_inicio, estado')
+            .order('fecha_inicio', { ascending: false })
+            .limit(20);
+
+        if (query) {
+            dbQuery = dbQuery.or(`numero_expediente.ilike.%${query}%,nombre_evento.ilike.%${query}%`);
+        }
+
+        const { data, error } = await dbQuery;
+        
+        if (error) throw error;
+        if (data) setResults(data);
+    } catch (error) {
+        console.error("Error buscando servicios:", error);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  // Cargar inicial al abrir
   React.useEffect(() => {
     if (open) {
-        const fetchOrders = async () => {
-            const { data } = await supabase
-                .from('eventos')
-                .select('id, numero_expediente, nombre_evento, fecha_inicio, estado')
-                .order('fecha_inicio', { ascending: false })
-                .limit(50); // Limitar a los últimos 50 para rapidez inicial
-            
-            if (data) setResults(data);
-        };
         fetchOrders();
     }
   }, [open]);
 
+  // Atajo de teclado Cmd+K
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
@@ -67,40 +84,62 @@ export function ServiceOrderSearch() {
       <Button
         variant="outline"
         className={cn(
-          "relative w-full justify-start text-sm text-muted-foreground sm:pr-12 md:w-64 lg:w-80 h-9 bg-background border-input hover:bg-accent hover:text-accent-foreground shadow-sm"
+          "relative w-full justify-start text-sm text-muted-foreground h-10 bg-background border-input hover:bg-accent hover:text-accent-foreground shadow-sm px-4"
         )}
         onClick={() => setOpen(true)}
       >
         <Search className="mr-2 h-4 w-4" />
-        <span className="hidden lg:inline-flex">Buscar servicio (OS)...</span>
-        <span className="inline-flex lg:hidden">Buscar OS...</span>
-        <kbd className="pointer-events-none absolute right-1.5 top-[50%] -translate-y-1/2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+        <span className="hidden sm:inline-flex">Buscar servicio (OS)...</span>
+        <span className="inline-flex sm:hidden">Buscar...</span>
+        <kbd className="pointer-events-none absolute right-2 top-[50%] -translate-y-1/2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
           <span className="text-xs">⌘</span>K
         </kbd>
       </Button>
 
-      <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandDialog 
+        open={open} 
+        onOpenChange={setOpen}
+        // IMPORTANTE: shouldFilter={false} evita que cmdk oculte resultados 
+        // que no coinciden exactamente, ya que el filtrado lo hacemos en servidor.
+        shouldFilter={false} 
+      >
         <DialogTitle className="sr-only">Buscar Orden de Servicio</DialogTitle>
-        <CommandInput placeholder="Escribe Nº expediente, cliente o nombre..." />
-        <CommandList>
-          <CommandEmpty>No se encontraron servicios.</CommandEmpty>
-          <CommandGroup heading="Servicios Recientes">
-            {results.map((os) => (
-              <CommandItem
-                key={os.id}
-                value={`${os.numero_expediente} ${os.nombre_evento}`}
-                onSelect={() => runCommand(() => router.push(`/os/${os.id}`))}
-              >
-                <FileText className="mr-2 h-4 w-4 text-blue-500" />
-                <div className="flex flex-col">
-                    <span className="font-medium">{os.numero_expediente} - {os.nombre_evento}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                        {new Date(os.fecha_inicio).toLocaleDateString()} • {os.estado}
-                    </span>
-                </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
+        
+        <CommandInput 
+            placeholder="Escribe Nº expediente o nombre..." 
+            onValueChange={(val) => fetchOrders(val)}
+        />
+        
+        <CommandList className="min-h-[300px]">
+          {loading ? (
+             <div className="py-10 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-primary/50" /> 
+                <span>Buscando servicios...</span>
+             </div>
+          ) : results.length === 0 ? (
+            <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
+               No se encontraron servicios.
+            </CommandEmpty>
+          ) : (
+            <CommandGroup heading="Resultados">
+                {results.map((os) => (
+                <CommandItem
+                    key={os.id}
+                    value={`${os.numero_expediente} ${os.nombre_evento}`}
+                    onSelect={() => runCommand(() => router.push(`/os/${os.id}`))}
+                    className="cursor-pointer aria-selected:bg-accent"
+                >
+                    <FileText className="mr-3 h-4 w-4 text-blue-500 shrink-0" />
+                    <div className="flex flex-col">
+                        <span className="font-medium text-sm">{os.numero_expediente} <span className="text-muted-foreground font-normal">- {os.nombre_evento}</span></span>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
+                            {new Date(os.fecha_inicio).toLocaleDateString()} • <span className={cn(os.estado === 'CONFIRMADO' ? 'text-green-600' : 'text-amber-600')}>{os.estado}</span>
+                        </span>
+                    </div>
+                </CommandItem>
+                ))}
+            </CommandGroup>
+          )}
         </CommandList>
       </CommandDialog>
     </>

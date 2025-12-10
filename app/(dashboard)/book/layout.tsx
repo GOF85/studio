@@ -4,18 +4,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useMemo } from 'react';
-import { BookHeart, ChevronRight } from 'lucide-react'; // Eliminado import de Menu
-// Eliminados imports de Sheet, etc. porque ya no se usarán
+import { BookHeart, ChevronRight } from 'lucide-react';
 import { bookNavLinks } from '@/lib/cpr-nav';
 
 export default function BookLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    // Eliminado estado isSheetOpen ya que no hay menú lateral desplegable
 
     // Detectar la sección actual para el breadcrumb
     const currentSection = useMemo(() => {
         if (!pathname) return null;
-        // Busca el link que coincida con el inicio del path actual (ej: /book/recetas)
         return bookNavLinks.find(link => pathname.startsWith(link.path) && link.path !== '/book');
     }, [pathname]);
 
@@ -24,15 +21,16 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
             
             {/* BARRA DE NAVEGACIÓN SUPERIOR (BREADCRUMBS) */}
             <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <div className="flex h-12 items-center px-4">
+                {/* FIX: Añadido max-w-7xl mx-auto px-4 sm:px-6 para alinear con el contenido de abajo */}
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 flex h-12 items-center">
                     
-                    {/* BREADCRUMBS (Sin botón de menú hamburguesa a la izquierda) */}
+                    {/* BREADCRUMBS */}
                     <div className="flex items-center text-sm font-medium overflow-hidden whitespace-nowrap">
                         <Link 
                             href="/book" 
                             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
                         >
-                            <BookHeart className="h-5 w-5 text-primary"/> {/* Icono un pelín más grande y con color */}
+                            <BookHeart className="h-5 w-5 text-primary"/>
                             <span className="font-bold">Book</span>
                         </Link>
 
@@ -46,8 +44,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                                         pathname === currentSection.path ? "text-foreground font-semibold" : "text-muted-foreground"
                                     )}
                                 >
-                                    {/* Icono de la sección opcional, si quieres mantenerlo limpio quítalo */}
-                                    {currentSection.icon && <currentSection.icon className="h-4 w-4"/>}
+                                    {currentSection.icon && <currentSection.icon className="h-4 w-4 hidden sm:block"/>}
                                     <span>{currentSection.title}</span>
                                 </Link>
                             </>
