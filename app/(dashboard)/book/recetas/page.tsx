@@ -160,12 +160,12 @@ export default function RecetasListPage() {
     <main className="pb-24 bg-background min-h-screen">
        <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelected} />
        
-       {/* 1. HEADER STICKY (Alineación corregida) */}
+       {/* 1. HEADER STICKY CON ALINEACIÓN CORREGIDA */}
        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 
-                {/* Contenedor Tabs - Padding px-4 alinea con Breadcrumb */}
-                <div className="px-4 pt-2">
+                {/* FIX: Contenedor con las mismas clases que el layout para alinear con breadcrumb */}
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2">
                     <TabsList className="w-full justify-start bg-transparent p-0 h-10 gap-6 border-none">
                         <TabsTrigger 
                             value="active" 
@@ -188,8 +188,8 @@ export default function RecetasListPage() {
                     </TabsList>
                 </div>
 
-                {/* CONTENIDO PRINCIPAL (Normal Flow, sin absolute) */}
-                <div className="p-4 max-w-7xl mx-auto mt-4 space-y-4">
+                {/* CONTENIDO PRINCIPAL ALINEADO */}
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 space-y-4">
                     <TabsContent value={activeTab} className="space-y-4 m-0 focus-visible:ring-0">
                         
                         {/* BARRA DE HERRAMIENTAS */}

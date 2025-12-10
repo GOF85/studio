@@ -1,22 +1,14 @@
 'use client';
 
-import Link from 'next/link';
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
-import { subMonths, startOfToday, isBefore } from 'date-fns';
-import { useRecetas, useElaboraciones } from '@/hooks/use-data-queries';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { cn } from '@/lib/utils';
-import { GlobalSearch } from '@/components/dashboard/global-search';
+// ----------------------------------------------------------------------
+// 1. IMPORTS
+// ----------------------------------------------------------------------
 
-// Iconos
-import { 
-    BookHeart, ChefHat, Component, BookCheck, AlertCircle, 
-    TrendingUp, Activity, Trash2, ShieldCheck, 
-    ShieldAlert, Sprout, ThermometerSnowflake, Flame, Cookie, PackageOpen,
-    BarChart3
-} from 'lucide-react';
+// Librerías Externas
+import Link from 'next/link';
+import { useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { subDays, subMonths, startOfToday, isBefore, format } from 'date-fns';
 
 // UI Components
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
@@ -24,11 +16,35 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { GlobalSearch } from '@/components/dashboard/global-search';
 
-// --- COMPONENTES UI INTERNOS ---
+// Icons
+import { 
+    BookHeart, ChefHat, Component, BookCheck, AlertCircle, 
+    TrendingUp, Activity, Trash2, ShieldCheck, 
+    ShieldAlert, Sprout, ThermometerSnowflake, Flame, Cookie, PackageOpen,
+    BarChart3, ArrowUpRight, ArrowDownRight, Minus
+} from 'lucide-react';
+
+// Hooks & Libs
+import { useRecetas, useElaboraciones } from '@/hooks/use-data-queries';
+import { useEscandalloAnalytics } from '@/hooks/use-escandallo-analytics';
+import { supabase } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
+
+// ----------------------------------------------------------------------
+// 2. SUB-COMPONENTES LOCALES (UI Cards)
+// ----------------------------------------------------------------------
 
 /** Tarjeta 1: RECETARIO GLOBAL */
-function RecipeSummaryCard({ total, active, archived }: { total: number, active: number, archived: number }) {
+interface RecipeSummaryCardProps {
+    total: number;
+    active: number;
+    archived: number;
+}
+
+function RecipeSummaryCard({ total, active, archived }: RecipeSummaryCardProps) {
     const activePercentage = total > 0 ? (active / total) * 100 : 0;
     return (
         <Card className="h-full border-primary/20 shadow-sm relative overflow-hidden group flex flex-col bg-card hover:border-primary/40 transition-colors">
@@ -67,7 +83,12 @@ function RecipeSummaryCard({ total, active, archived }: { total: number, active:
 }
 
 /** Tarjeta 2: ÍNDICE DE ALÉRGENOS */
-function AllergenSummaryCard({ total, withAllergens }: { total: number, withAllergens: number }) {
+interface AllergenSummaryCardProps {
+    total: number;
+    withAllergens: number;
+}
+
+function AllergenSummaryCard({ total, withAllergens }: AllergenSummaryCardProps) {
     const cleanRecipes = total - withAllergens;
     const cleanPercentage = total > 0 ? (cleanRecipes / total) * 100 : 0;
 
@@ -92,7 +113,6 @@ function AllergenSummaryCard({ total, withAllergens }: { total: number, withAlle
                         <span className="text-green-700 flex items-center gap-1"><Sprout className="w-3 h-3"/> Libres ({cleanRecipes})</span>
                         <span className="text-rose-700 flex items-center gap-1">Con Alérgenos ({withAllergens}) <ShieldAlert className="w-3 h-3"/></span>
                     </div>
-                    {/* Barra con indicador verde inyectado */}
                     <Progress value={cleanPercentage} className="h-2 bg-rose-200 [&>div]:bg-green-600" />
                 </div>
             </CardContent>
@@ -108,63 +128,102 @@ function AllergenSummaryCard({ total, withAllergens }: { total: number, withAlle
     );
 }
 
-/** Tarjeta 3: ELABORACIONES */
-function ElaboracionesDetailCard({ total, stats }: { total: number, stats: any }) {
+/** Tarjeta 3: ELABORACIONES (Fix: Links Granulares) */
+interface ElaboracionesDetailCardProps {
+    total: number;
+    stats: { frio: number; caliente: number; pasteleria: number; otros: number; };
+}
+
+function ElaboracionesDetailCard({ total, stats }: ElaboracionesDetailCardProps) {
     return (
-        <Link href="/book/elaboraciones" className="block h-full">
-            <Card className="h-full border-blue-200/60 shadow-sm hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden flex flex-col bg-blue-50/10">
-                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                    <Component className="w-24 h-24 text-blue-500" />
-                </div>
-                <CardHeader className="p-5 pb-2 relative z-10">
-                    <CardTitle className="text-base font-bold text-blue-700 uppercase tracking-wide flex items-center gap-2">
+        <Card className="h-full border-blue-200/60 shadow-sm relative overflow-hidden flex flex-col bg-blue-50/10">
+            {/* Icono decorativo fondo */}
+            <div className="absolute top-0 right-0 p-3 opacity-5 pointer-events-none">
+                <Component className="w-24 h-24 text-blue-500" />
+            </div>
+
+            {/* Header con Link General */}
+            <CardHeader className="p-5 pb-2 relative z-10">
+                <Link href="/book/elaboraciones" className="w-fit group/title">
+                    <CardTitle className="text-base font-bold text-blue-700 uppercase tracking-wide flex items-center gap-2 group-hover/title:text-blue-800 transition-colors">
                         <Component className="w-5 h-5" />
                         Elaboraciones
                     </CardTitle>
-                </CardHeader>
-                <CardContent className="p-5 pt-0 flex-1 relative z-10">
-                    <div className="flex items-baseline gap-2 mb-5">
-                        <span className="text-4xl font-extrabold text-foreground">{total}</span>
+                </Link>
+            </CardHeader>
+
+            <CardContent className="p-5 pt-0 flex-1 relative z-10">
+                {/* Total Count con Link General */}
+                <Link href="/book/elaboraciones" className="block w-fit group/count mb-5">
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-extrabold text-foreground group-hover/count:text-blue-700 transition-colors">{total}</span>
                         <span className="text-xs text-muted-foreground font-bold uppercase">Fichas Activas</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="flex items-center gap-2 bg-white/60 p-2 rounded border border-blue-100 shadow-sm">
-                            <div className="p-1.5 bg-blue-100 text-blue-600 rounded"><ThermometerSnowflake className="h-3.5 w-3.5"/></div>
-                            <div className="flex flex-col">
-                                <span className="text-[10px] text-muted-foreground font-bold uppercase">Frío</span>
-                                <span className="text-sm font-bold leading-none">{stats.frio}</span>
-                            </div>
+                </Link>
+
+                {/* Grid de Categorías con Links Específicos */}
+                <div className="grid grid-cols-2 gap-3">
+                    
+                    {/* FRIO */}
+                    <Link 
+                        href="/book/elaboraciones?partida=FRIO" 
+                        className="flex items-center gap-2 bg-white/60 hover:bg-white p-2 rounded border border-blue-100 hover:border-blue-400 shadow-sm hover:shadow-md transition-all active:scale-95"
+                    >
+                        <div className="p-1.5 bg-blue-100 text-blue-600 rounded"><ThermometerSnowflake className="h-3.5 w-3.5"/></div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase">Frío</span>
+                            <span className="text-sm font-bold leading-none text-foreground">{stats.frio}</span>
                         </div>
-                        <div className="flex items-center gap-2 bg-white/60 p-2 rounded border border-orange-100 shadow-sm">
-                            <div className="p-1.5 bg-orange-100 text-orange-600 rounded"><Flame className="h-3.5 w-3.5"/></div>
-                            <div className="flex flex-col">
-                                <span className="text-[10px] text-muted-foreground font-bold uppercase">Caliente</span>
-                                <span className="text-sm font-bold leading-none">{stats.caliente}</span>
-                            </div>
+                    </Link>
+
+                    {/* CALIENTE */}
+                    <Link 
+                        href="/book/elaboraciones?partida=CALIENTE" 
+                        className="flex items-center gap-2 bg-white/60 hover:bg-white p-2 rounded border border-orange-100 hover:border-orange-400 shadow-sm hover:shadow-md transition-all active:scale-95"
+                    >
+                        <div className="p-1.5 bg-orange-100 text-orange-600 rounded"><Flame className="h-3.5 w-3.5"/></div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase">Caliente</span>
+                            <span className="text-sm font-bold leading-none text-foreground">{stats.caliente}</span>
                         </div>
-                        <div className="flex items-center gap-2 bg-white/60 p-2 rounded border border-pink-100 shadow-sm">
-                            <div className="p-1.5 bg-pink-100 text-pink-600 rounded"><Cookie className="h-3.5 w-3.5"/></div>
-                            <div className="flex flex-col">
-                                <span className="text-[10px] text-muted-foreground font-bold uppercase">Pastelería</span>
-                                <span className="text-sm font-bold leading-none">{stats.pasteleria}</span>
-                            </div>
+                    </Link>
+
+                    {/* PASTELERIA */}
+                    <Link 
+                        href="/book/elaboraciones?partida=PASTELERIA" 
+                        className="flex items-center gap-2 bg-white/60 hover:bg-white p-2 rounded border border-pink-100 hover:border-pink-400 shadow-sm hover:shadow-md transition-all active:scale-95"
+                    >
+                        <div className="p-1.5 bg-pink-100 text-pink-600 rounded"><Cookie className="h-3.5 w-3.5"/></div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase">Pastelería</span>
+                            <span className="text-sm font-bold leading-none text-foreground">{stats.pasteleria}</span>
                         </div>
-                        <div className="flex items-center gap-2 bg-white/60 p-2 rounded border border-gray-100 shadow-sm">
-                            <div className="p-1.5 bg-gray-100 text-gray-600 rounded"><PackageOpen className="h-3.5 w-3.5"/></div>
-                            <div className="flex flex-col">
-                                <span className="text-[10px] text-muted-foreground font-bold uppercase">Otros</span>
-                                <span className="text-sm font-bold leading-none">{stats.otros}</span>
-                            </div>
+                    </Link>
+
+                    {/* OTROS */}
+                    <Link 
+                        href="/book/elaboraciones?partida=OTROS" 
+                        className="flex items-center gap-2 bg-white/60 hover:bg-white p-2 rounded border border-gray-100 hover:border-gray-400 shadow-sm hover:shadow-md transition-all active:scale-95"
+                    >
+                        <div className="p-1.5 bg-gray-100 text-gray-600 rounded"><PackageOpen className="h-3.5 w-3.5"/></div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase">Otros</span>
+                            <span className="text-sm font-bold leading-none text-foreground">{stats.otros}</span>
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </Link>
+                    </Link>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
 /** Tarjeta 4: INGREDIENTES CPR */
-function IngredientesDetailCard({ total, stats }: { total: number, stats: any }) {
+interface IngredientesDetailCardProps {
+    total: number;
+    stats: Array<{ label: string; count: number }>;
+}
+
+function IngredientesDetailCard({ total, stats }: IngredientesDetailCardProps) {
     return (
         <Link href="/book/ingredientes" className="block h-full">
             <Card className="h-full border-amber-200/60 shadow-sm hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden flex flex-col bg-amber-50/10">
@@ -183,7 +242,7 @@ function IngredientesDetailCard({ total, stats }: { total: number, stats: any })
                         <span className="text-xs text-muted-foreground font-bold uppercase">Componentes</span>
                     </div>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                        {stats.slice(0, 6).map((cat: any) => (
+                        {stats.slice(0, 6).map((cat) => (
                             <div key={cat.label} className="flex justify-between items-center text-xs border-b border-dashed border-amber-200/50 pb-1">
                                 <span className="text-muted-foreground font-medium truncate max-w-[80%] capitalize" title={cat.label}>
                                     {cat.label.toLowerCase()}
@@ -199,12 +258,28 @@ function IngredientesDetailCard({ total, stats }: { total: number, stats: any })
     );
 }
 
-/** Tarjeta 5: ANÁLISIS ECONÓMICO (Rediseñada - Estilo visual) */
+/** Tarjeta 5: ANÁLISIS ECONÓMICO */
 function AnalisisEconomicoCard() {
+    const today = new Date();
+    const fromDate = format(subDays(today, 30), 'yyyy-MM-dd');
+    const toDate = format(today, 'yyyy-MM-dd');
+
+    const { data, isLoading } = useEscandalloAnalytics('recetas', fromDate, toDate);
+
+    const recetasAfectadas = data.length;
+    
+    const variacionPromedio = useMemo(() => {
+        if (!data.length) return 0;
+        const totalPercent = data.reduce((acc, curr) => acc + curr.percent, 0);
+        return totalPercent / data.length;
+    }, [data]);
+
+    const isCostUp = variacionPromedio > 0;
+    const isCostDown = variacionPromedio < 0;
+
     return (
         <Link href="/book/analitica/diferencias-escandallo" className="block h-full">
             <Card className="h-full border-emerald-200/60 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden flex flex-col bg-emerald-50/10">
-                {/* Icono Grande Fondo */}
                 <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
                     <BarChart3 className="w-24 h-24 text-emerald-500" />
                 </div>
@@ -212,38 +287,39 @@ function AnalisisEconomicoCard() {
                 <CardHeader className="p-5 pb-2 relative z-10">
                     <CardTitle className="text-base font-bold text-emerald-700 uppercase tracking-wide flex items-center gap-2">
                         <BarChart3 className="w-5 h-5" />
-                        Diferencias de Escandallo
+                        Análisis de Costes
                     </CardTitle>
                 </CardHeader>
 
-                <CardContent className="p-5 pt-0 flex-1 relative z-10">
-                    <div className="flex items-baseline gap-2 mb-5">
-                        <span className="text-4xl font-extrabold text-foreground">Audit</span>
-                        <span className="text-xs text-muted-foreground font-bold uppercase">Sistema Activo</span>
-                    </div>
+                <CardContent className="p-5 pt-0 relative z-10 flex flex-col justify-center">
+                    <div className="grid grid-cols-2 gap-4 items-center">
+                        <div className="bg-white/60 rounded-lg py-3 px-4 border border-emerald-100 shadow-sm flex flex-col items-center text-center justify-center">
+                            {isLoading ? (
+                                <div className="h-8 w-12 bg-muted/20 animate-pulse rounded mb-1" />
+                            ) : (
+                                <span className="text-3xl font-extrabold text-foreground leading-none mb-1">{recetasAfectadas}</span>
+                            )}
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wide leading-tight">Recetas Afectadas</span>
+                            <span className="text-[9px] text-emerald-600 font-medium leading-tight mt-0.5">Últimos 30 días</span>
+                        </div>
 
-                    {/* Grid Visual de Funcionalidades (Estilo Elaboraciones) */}
-                    <div className="grid grid-cols-3 gap-3">
-                        <div className="flex flex-col items-center justify-center gap-1 bg-white/60 p-3 rounded border border-emerald-100 shadow-sm text-center">
-                            <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded mb-1">
-                                <TrendingUp className="h-4 w-4" />
-                            </div>
-                            <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none">Variación</span>
-                            <span className="text-[11px] font-bold text-emerald-900 mt-1">Auto-Detect</span>
-                        </div>
-                        <div className="flex flex-col items-center justify-center gap-1 bg-white/60 p-3 rounded border border-blue-100 shadow-sm text-center">
-                            <div className="p-1.5 bg-blue-100 text-blue-600 rounded mb-1">
-                                <Activity className="h-4 w-4" />
-                            </div>
-                            <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none">Histórico</span>
-                            <span className="text-[11px] font-bold text-blue-900 mt-1">30 Días</span>
-                        </div>
-                        <div className="flex flex-col items-center justify-center gap-1 bg-white/60 p-3 rounded border border-amber-100 shadow-sm text-center">
-                            <div className="p-1.5 bg-amber-100 text-amber-600 rounded mb-1">
-                                <AlertCircle className="h-4 w-4" />
-                            </div>
-                            <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none">Alertas</span>
-                            <span className="text-[11px] font-bold text-amber-900 mt-1">Smart</span>
+                        <div className="bg-white/60 rounded-lg py-3 px-4 border border-emerald-100 shadow-sm flex flex-col items-center text-center justify-center">
+                            {isLoading ? (
+                                <div className="h-8 w-16 bg-muted/20 animate-pulse rounded mb-1" />
+                            ) : (
+                                <div className={cn("flex items-center gap-1 text-2xl font-extrabold leading-none mb-1", 
+                                    isCostUp ? "text-rose-600" : isCostDown ? "text-emerald-600" : "text-muted-foreground"
+                                )}>
+                                    {isCostUp && <ArrowUpRight className="w-5 h-5" />}
+                                    {isCostDown && <ArrowDownRight className="w-5 h-5" />}
+                                    {!isCostUp && !isCostDown && <Minus className="w-4 h-4" />}
+                                    {Math.abs(variacionPromedio).toFixed(2)}%
+                                </div>
+                            )}
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wide leading-tight">Variación Media</span>
+                            <span className={cn("text-[9px] font-medium leading-tight mt-0.5", isCostUp ? "text-rose-600" : isCostDown ? "text-emerald-600" : "text-muted-foreground")}>
+                                {isCostUp ? "Coste Alza" : isCostDown ? "Ahorro" : "Estable"}
+                            </span>
                         </div>
                     </div>
                 </CardContent>
@@ -252,28 +328,60 @@ function AnalisisEconomicoCard() {
     );
 }
 
-// ... [ActionCard] ...
-function ActionCard({ title, count, icon: Icon, description, href, variant = "default" }: { title: string, count: number, icon: any, description: string, href: string, variant?: "default" | "danger" | "warning" }) {
+/** ACTION CARD */
+interface ActionCardProps {
+    title: string;
+    count: number;
+    icon: any;
+    description: string;
+    href: string;
+    variant?: "default" | "danger" | "warning";
+}
+
+function ActionCard({ title, count, icon: Icon, description, href, variant = "default" }: ActionCardProps) {
     const isClean = count === 0;
-    const statusColor = isClean ? "bg-green-50/50 text-green-700 border-green-200 hover:border-green-300" : variant === "danger" ? "bg-red-50/50 text-red-700 border-red-200 hover:border-red-300" : "bg-amber-50/50 text-amber-700 border-amber-200 hover:border-amber-300";
-    const IconColor = isClean ? "text-green-600" : (variant === "danger" ? "text-red-600" : "text-amber-600");
+    const statusColor = isClean 
+        ? "bg-green-50/50 text-green-700 border-green-200 hover:border-green-300" 
+        : variant === "danger" 
+            ? "bg-red-50/50 text-red-700 border-red-200 hover:border-red-300" 
+            : "bg-amber-50/50 text-amber-700 border-amber-200 hover:border-amber-300";
+            
+    const IconColor = isClean 
+        ? "text-green-600" 
+        : (variant === "danger" ? "text-red-600" : "text-amber-600");
+
     return (
         <Link href={href} className="block h-full">
             <Card className={cn("transition-all h-full border shadow-sm", statusColor)}>
-                <CardHeader className="p-3 pb-1 flex flex-row items-center justify-between space-y-0"><CardTitle className="text-xs font-bold flex items-center gap-1.5"><Icon className={cn("w-3.5 h-3.5", IconColor)} />{title}</CardTitle>{count > 0 && <Badge variant="secondary" className="bg-white/60 text-[10px] h-4 px-1 text-foreground font-mono">{count}</Badge>}</CardHeader>
-                <CardContent className="p-3 pt-1"><p className="text-[10px] opacity-80 leading-snug">{isClean ? "Todo correcto." : description}</p></CardContent>
+                <CardHeader className="p-3 pb-1 flex flex-row items-center justify-between space-y-0">
+                    <CardTitle className="text-xs font-bold flex items-center gap-1.5">
+                        <Icon className={cn("w-3.5 h-3.5", IconColor)} />{title}
+                    </CardTitle>
+                    {count > 0 && <Badge variant="secondary" className="bg-white/60 text-[10px] h-4 px-1 text-foreground font-mono">{count}</Badge>}
+                </CardHeader>
+                <CardContent className="p-3 pt-1">
+                    <p className="text-[10px] opacity-80 leading-snug">{isClean ? "Todo correcto." : description}</p>
+                </CardContent>
             </Card>
         </Link>
     );
 }
 
-// --- PÁGINA PRINCIPAL ---
+// ----------------------------------------------------------------------
+// 3. MAIN PAGE
+// ----------------------------------------------------------------------
 
 export default function BookDashboardPage() {
+    
+    // UX: Scroll Reset
+    useEffect(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }, []);
+
+    // Hooks de datos
     const { data: recetas = [], isLoading: loadingRecetas } = useRecetas();
     const { data: elaboraciones = [], isLoading: loadingElaboraciones } = useElaboraciones();
     
-    // Consulta mejorada de ingredientes
     const { data: erpData = [], isLoading: loadingErp } = useQuery({ 
         queryKey: ['erpData'], 
         queryFn: async () => { 
@@ -283,10 +391,22 @@ export default function BookDashboardPage() {
         }, 
     });
 
-    const { data: ingredientesPendingCount = 0, isLoading: loadingIngredientesPending } = useQuery({ queryKey: ['ingredientesPendingCount'], queryFn: async () => { const sixMonthsAgo = subMonths(startOfToday(), 6); const { data, error } = await supabase.from('ingredientes_internos').select('id, historial_revisiones'); if (error) throw error; return (data || []).filter(item => { const latestRevision = item.historial_revisiones?.[item.historial_revisiones.length - 1]; return !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo); }).length; }, });
+    const { data: ingredientesPendingCount = 0, isLoading: loadingIngredientesPending } = useQuery({ 
+        queryKey: ['ingredientesPendingCount'], 
+        queryFn: async () => { 
+            const sixMonthsAgo = subMonths(startOfToday(), 6); 
+            const { data, error } = await supabase.from('ingredientes_internos').select('id, historial_revisiones'); 
+            if (error) throw error; 
+            return (data || []).filter(item => { 
+                const latestRevision = item.historial_revisiones?.[item.historial_revisiones.length - 1]; 
+                return !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo); 
+            }).length; 
+        }, 
+    });
 
     const isLoading = loadingRecetas || loadingElaboraciones || loadingErp || loadingIngredientesPending;
 
+    // Estadísticas Calculadas
     const stats = useMemo(() => {
         if (isLoading) return null;
 
@@ -303,7 +423,6 @@ export default function BookDashboardPage() {
         const elaboracionesHuerfanas = elaboraciones.filter(elab => !elaboracionesEnUso.has(elab.id)).length;
         const elaboracionesParaRevisarCount = elaboraciones.filter(e => e.requiereRevision).length;
         
-        // Desglose Elaboraciones
         const elabStats = {
             frio: elaboraciones.filter(e => e.partidaProduccion === 'FRIO').length,
             caliente: elaboraciones.filter(e => e.partidaProduccion === 'CALIENTE').length,
@@ -311,7 +430,7 @@ export default function BookDashboardPage() {
             otros: elaboraciones.filter(e => !['FRIO', 'CALIENTE', 'PASTELERIA'].includes(e.partidaProduccion)).length
         };
 
-        // 3. Ingredientes CPR
+        // 3. Ingredientes
         const totalIngredientes = erpData.length;
         const catCount: Record<string, number> = {};
         erpData.forEach((item: any) => {
@@ -319,7 +438,6 @@ export default function BookDashboardPage() {
             catCount[tipo] = (catCount[tipo] || 0) + 1;
         });
         
-        // Ordenar y coger top 6 para el grid de 2 columnas
         const topCategories = Object.entries(catCount)
             .sort(([,a], [,b]) => b - a)
             .slice(0, 6)
@@ -341,11 +459,13 @@ export default function BookDashboardPage() {
         <main className="min-h-screen bg-background pb-20">
             
             {/* HEADER STICKY */}
-            <div className="sticky top-12 z-30 bg-background/95 backdrop-blur border-b shadow-sm">
+            <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
                     <div className="flex items-center w-full">
                         <div className="flex-1 w-full">
-                            <GlobalSearch />
+                            <div className="relative shadow-md rounded-lg border-2 border-primary/20 focus-within:border-primary/50 transition-all bg-background">
+                                <GlobalSearch />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -353,7 +473,7 @@ export default function BookDashboardPage() {
 
             <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
                 
-                {/* SECCIÓN 1: ESTRUCTURA (GRID 2x2 SIMÉTRICO) */}
+                {/* SECCIÓN 1: ESTRUCTURA */}
                 <div>
                     <h2 className="text-lg font-bold tracking-tight mb-3 flex items-center gap-2 text-foreground/90">
                         <Activity className="w-4 h-4 text-primary" /> Estructura
@@ -395,7 +515,7 @@ export default function BookDashboardPage() {
 
                 <Separator />
 
-                {/* SECCIÓN 2: MANTENIMIENTO (ALERTAS) */}
+                {/* SECCIÓN 2: MANTENIMIENTO */}
                 <div>
                     <h2 className="text-lg font-bold tracking-tight mb-3 flex items-center gap-2 text-foreground/90">
                         <TrendingUp className="w-4 h-4 text-primary" /> Mantenimiento
@@ -415,11 +535,7 @@ export default function BookDashboardPage() {
                     <h2 className="text-lg font-bold tracking-tight mb-3 flex items-center gap-2 text-foreground/90">
                         <BarChart3 className="w-4 h-4 text-emerald-600" /> Análisis Económico
                     </h2>
-                    
-                    {/* Tarjeta Rediseñada */}
-                    <div className="h-[220px]">
-                        <AnalisisEconomicoCard />
-                    </div>
+                    <AnalisisEconomicoCard />
                 </div>
             </div>
         </main>

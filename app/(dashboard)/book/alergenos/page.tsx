@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { Sprout, ChevronLeft, Search, ShieldCheck, AlertTriangle } from 'lucide-react';
-// FIX: Añadido ElaboracionEnReceta a los imports
-import type { Receta, Alergeno, ElaboracionEnReceta } from '@/types';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Sprout, Search, AlertTriangle, X } from 'lucide-react';
+import type { Alergeno, ElaboracionEnReceta } from '@/types';
 import { ALERGENOS } from '@/types';
 import { useRecetas, useCategoriasRecetas } from '@/hooks/use-data-queries';
 
@@ -20,16 +19,30 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 export default function AlergenosPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Datos
   const { data: recetas = [], isLoading: isLoadingRecetas } = useRecetas();
   const { data: categorias = [], isLoading: isLoadingCategorias } = useCategoriasRecetas();
 
+  // --- LÓGICA DE INICIALIZACIÓN ---
+  // Detectamos si venimos del botón "Intolerantes" (?filter=clean)
+  const isCleanFilterActive = searchParams.get('filter') === 'clean';
+
+  // Estados
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [excludedAllergens, setExcludedAllergens] = useState<string[]>([]);
+  const [showOnlyClean, setShowOnlyClean] = useState(isCleanFilterActive);
 
-  const router = useRouter();
+  // Sincronizar URL si cambia externamente
+  useEffect(() => {
+    setShowOnlyClean(searchParams.get('filter') === 'clean');
+  }, [searchParams]);
 
   // Filtrado optimizado
   const filteredRecetas = useMemo(() => {
@@ -37,19 +50,35 @@ export default function AlergenosPage() {
       const matchesCategory = selectedCategory === 'all' || receta.categoria === selectedCategory;
       const matchesSearch = receta.nombre.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // Lógica de exclusión: Si selecciono "Gluten", quiero ver recetas QUE NO TENGAN Gluten.
+      // Lógica 1: Si "Solo Limpias" está activo, descarta cualquiera que tenga alérgenos
+      if (showOnlyClean && (receta.alergenos && receta.alergenos.length > 0)) {
+        return false;
+      }
+
+      // Lógica 2: Exclusión específica (Select de alérgenos)
       const hasExcludedAllergen = excludedAllergens.some(excluded => 
         (receta.alergenos || []).includes(excluded as Alergeno)
       );
       
       return matchesCategory && matchesSearch && !hasExcludedAllergen;
     });
-  }, [recetas, searchTerm, selectedCategory, excludedAllergens]);
+  }, [recetas, searchTerm, selectedCategory, excludedAllergens, showOnlyClean]);
 
   const allergenOptions = ALERGENOS.map(a => ({ 
     value: a, 
     label: a.charAt(0) + a.slice(1).toLowerCase().replace('_', ' ') 
   }));
+
+  // Handlers
+  const toggleCleanFilter = () => {
+    if (showOnlyClean) {
+      router.replace('/book/alergenos');
+      setShowOnlyClean(false);
+    } else {
+      router.replace('/book/alergenos?filter=clean');
+      setShowOnlyClean(true);
+    }
+  };
 
   if (isLoadingRecetas || isLoadingCategorias) {
     return <LoadingSkeleton title="Cargando índice de alérgenos..." />;
@@ -59,32 +88,18 @@ export default function AlergenosPage() {
     <TooltipProvider>
       <main className="pb-24 bg-background min-h-screen">
         
-        {/* --- HEADER STICKY CON FILTROS --- */}
+        {/* --- HEADER STICKY (SOLO FILTROS) --- */}
         <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
-          <div className="flex flex-col gap-4 px-4 py-3 max-w-7xl mx-auto">
+          {/* Contenedor alineado con el Breadcrumb (max-w-7xl) */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             
-            {/* Fila 1: Título y Navegación */}
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => router.push('/book')} className="-ml-2 text-muted-foreground hover:text-foreground">
-                <ChevronLeft className="h-6 w-6" />
-              </Button>
-              <h1 className="text-lg font-bold flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-green-600" />
-                Índice de Alérgenos
-              </h1>
-              <div className="ml-auto text-xs text-muted-foreground font-mono">
-                {filteredRecetas.length} recetas
-              </div>
-            </div>
-
-            {/* Fila 2: Filtros (Grid Responsive) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
               {/* Buscador */}
-              <div className="lg:col-span-4 relative">
+              <div className="lg:col-span-3 relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar receta..."
-                  className="pl-9 h-9 text-sm bg-muted/30"
+                  className="pl-9 h-9 text-sm bg-muted/30 focus-visible:bg-background transition-colors"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -93,7 +108,7 @@ export default function AlergenosPage() {
               {/* Categoría */}
               <div className="lg:col-span-3">
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="h-9 text-sm bg-muted/30">
+                  <SelectTrigger className="h-9 text-sm bg-muted/30 focus:bg-background transition-colors">
                     <SelectValue placeholder="Categoría" />
                   </SelectTrigger>
                   <SelectContent>
@@ -105,24 +120,55 @@ export default function AlergenosPage() {
                 </Select>
               </div>
 
-              {/* MultiSelect Exclusión (El más importante aquí) */}
-              <div className="lg:col-span-5">
+              {/* MultiSelect Exclusión */}
+              <div className="lg:col-span-4">
                 <MultiSelect
                   options={allergenOptions}
                   selected={excludedAllergens}
-                  onChange={setExcludedAllergens}
-                  placeholder="Excluir alérgenos (Filtro de seguridad)..."
+                  onChange={(val) => {
+                    setExcludedAllergens(val);
+                    if (val.length > 0 && showOnlyClean) setShowOnlyClean(false);
+                  }}
+                  placeholder="Excluir alérgenos..."
                   searchPlaceholder="Buscar alérgeno..."
                   emptyPlaceholder="No se encontraron alérgenos."
                   className="h-9 text-sm"
+                  disabled={showOnlyClean}
                 />
+              </div>
+
+              {/* Toggle Botón "Solo Limpias" */}
+              <div className="lg:col-span-2">
+                <Button 
+                  variant="outline" 
+                  onClick={toggleCleanFilter}
+                  className={cn(
+                    "w-full h-9 text-xs font-medium border transition-all",
+                    showOnlyClean 
+                      ? "bg-green-100 text-green-700 border-green-300 hover:bg-green-200 hover:border-green-400 shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/50"
+                  )}
+                >
+                  {showOnlyClean ? (
+                    <>
+                      <Sprout className="w-3.5 h-3.5 mr-2" />
+                      Solo Limpias
+                      <X className="w-3 h-3 ml-auto opacity-50" />
+                    </>
+                  ) : (
+                    <>
+                      <Sprout className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                      Solo Limpias
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </div>
         </div>
 
         {/* --- CONTENIDO PRINCIPAL --- */}
-        <div className="p-4 max-w-7xl mx-auto space-y-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
           
           {/* MÓVIL: VISTA DE TARJETAS */}
           <div className="md:hidden space-y-3">
@@ -169,13 +215,13 @@ export default function AlergenosPage() {
           </div>
 
           {/* DESKTOP: VISTA DE TABLA */}
-          <div className="hidden md:block border rounded-lg overflow-hidden">
+          <div className="hidden md:block border rounded-lg overflow-hidden bg-white shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="w-[40%]">Nombre Receta</TableHead>
-                  <TableHead className="w-[20%]">Categoría</TableHead>
-                  <TableHead>Alérgenos</TableHead>
+                  <TableHead className="w-[40%] text-xs font-semibold uppercase text-muted-foreground">Nombre Receta</TableHead>
+                  <TableHead className="w-[20%] text-xs font-semibold uppercase text-muted-foreground">Categoría</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-muted-foreground">Alérgenos</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -183,24 +229,25 @@ export default function AlergenosPage() {
                   filteredRecetas.map(receta => (
                     <TableRow 
                       key={receta.id} 
-                      className="cursor-pointer hover:bg-muted/50 transition-colors" 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors group" 
                       onClick={() => router.push(`/book/recetas/${receta.id}`)}
                     >
-                      <TableCell className="font-medium">
+                      <TableCell className="py-3">
                         <div className="flex flex-col">
-                          <span className="text-sm font-semibold">{receta.nombre}</span>
+                          <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {receta.nombre}
+                          </span>
                            {/* Tooltip con desglose opcional */}
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="text-xs text-muted-foreground w-fit hover:underline cursor-help">
+                              <span className="text-[10px] text-muted-foreground/60 w-fit hover:text-muted-foreground hover:underline cursor-help mt-0.5">
                                 Ver desglose
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent side="right" className="p-3">
+                            <TooltipContent side="right" className="p-3 bg-white border shadow-lg">
                               <h4 className="font-bold text-xs mb-2">Alérgenos por Elaboración:</h4>
                               {receta.elaboraciones && receta.elaboraciones.length > 0 ? (
                                 <ul className="space-y-1">
-                                  {/* FIX: Tipado explícito de 'elab' para evitar error 7006 */}
                                   {receta.elaboraciones.map((elab: ElaboracionEnReceta) => (
                                     <li key={elab.id} className="text-xs flex justify-between gap-4">
                                       <span>{elab.nombre}:</span>
@@ -216,7 +263,7 @@ export default function AlergenosPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="font-normal text-xs">
+                        <Badge variant="secondary" className="font-normal text-[10px] bg-muted/50 text-muted-foreground border-transparent">
                           {receta.categoria}
                         </Badge>
                       </TableCell>
@@ -227,7 +274,7 @@ export default function AlergenosPage() {
                               <AllergenBadge key={alergeno} allergen={alergeno} />
                             ))
                           ) : (
-                            <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-100 flex items-center gap-1 w-fit">
+                            <span className="text-xs text-green-700 bg-green-50 px-2 py-1 rounded-full border border-green-200 flex items-center gap-1 w-fit font-medium">
                                <Sprout className="h-3 w-3" /> Libre de alérgenos
                             </span>
                           )}
@@ -237,10 +284,20 @@ export default function AlergenosPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} className="h-32 text-center text-muted-foreground">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <AlertTriangle className="h-8 w-8 text-amber-400 opacity-50" />
-                        <p>No se encontraron recetas con los filtros seleccionados.</p>
+                    <TableCell colSpan={3} className="h-48 text-center text-muted-foreground">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <div className="p-4 bg-muted/30 rounded-full">
+                            <AlertTriangle className="h-8 w-8 text-amber-500/50" />
+                        </div>
+                        <div>
+                            <p className="font-medium">No se encontraron recetas</p>
+                            <p className="text-xs text-muted-foreground mt-1">Prueba a cambiar los filtros seleccionados.</p>
+                        </div>
+                        {showOnlyClean && (
+                            <Button variant="link" onClick={toggleCleanFilter} className="text-green-600 h-auto p-0 text-xs">
+                                Desactivar filtro "Solo Limpias"
+                            </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

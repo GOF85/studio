@@ -319,14 +319,6 @@ export default function DiferenciasEscandalloPage() {
                                 filterVariation={filterVariation}
                                 minPercent={minPercent}
                             />
-
-                            {/* Render Provider Information */}
-                            {data.length > 0 && (
-                                <div className="col-span-1 sm:col-span-2 lg:col-span-4">
-                                    <h2 className="text-lg font-bold">Proveedor: {data[0].proveedor}</h2>
-                                    <p>Referencia de Proveedor: {data[0].referenciaProveedor}</p>
-                                </div>
-                            )}
                         </TabsContent>
                     ))}
                 </Tabs>

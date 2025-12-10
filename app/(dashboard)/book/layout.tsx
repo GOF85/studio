@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { BookHeart, ChevronRight } from 'lucide-react';
 import { bookNavLinks } from '@/lib/cpr-nav';
 
 export default function BookLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
 
-    // Detectar la sección actual para el breadcrumb
+    // Detectar la sección actual para el breadcrumb dinámico
     const currentSection = useMemo(() => {
         if (!pathname) return null;
         return bookNavLinks.find(link => pathname.startsWith(link.path) && link.path !== '/book');
@@ -21,8 +21,8 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
             
             {/* BARRA DE NAVEGACIÓN SUPERIOR (BREADCRUMBS) */}
             <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                {/* FIX: Añadido max-w-7xl mx-auto px-4 sm:px-6 para alinear con el contenido de abajo */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 flex h-12 items-center">
+                {/* Alineación corregida: max-w-7xl igual que el contenido de las páginas */}
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex h-12 items-center">
                     
                     {/* BREADCRUMBS */}
                     <div className="flex items-center text-sm font-medium overflow-hidden whitespace-nowrap">
@@ -31,7 +31,8 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <BookHeart className="h-5 w-5 text-primary"/>
-                            <span className="font-bold">Book</span>
+                            {/* CAMBIO AQUI: Texto actualizado */}
+                            <span className="font-bold">Book Gastronómico</span>
                         </Link>
 
                         {currentSection && (

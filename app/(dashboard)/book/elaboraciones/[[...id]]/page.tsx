@@ -1,59 +1,66 @@
 'use client';
 
+// ----------------------------------------------------------------------
+// 1. IMPORTS
+// ----------------------------------------------------------------------
+
+// Librerías Externas
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
-import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
+import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-import { 
-  Loader2, Save, X, PlusCircle, GripVertical, 
-  Trash2, Component, Copy, Download, Upload, Menu, 
-  AlertTriangle, Pencil, ChevronLeft, ChevronRight, Search, 
-  Image as ImageIcon
-} from 'lucide-react';
-import type { Elaboracion, IngredienteInterno, Alergeno, PartidaProduccion, ComponenteElaboracion } from '@/types';
-import { PARTIDAS_PRODUCCION, UNIDADES_MEDIDA, ALERGENOS } from '@/types';
-import { supabase } from '@/lib/supabase';
-
+// UI Components (Shadcn/Radix)
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { formatCurrency, formatUnit, cn } from '@/lib/utils';
-import Image from 'next/image';
-import { AllergenBadge } from '@/components/icons/allergen-badge';
-import { Label } from '@/components/ui/label';
-import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ImageManager } from '@/components/book/images/ImageManager';
-import type { ImagenReceta } from '@/types/index';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from '@/components/ui/label';
+
+// Icons (Lucide)
+import { 
+  Loader2, Save, X, PlusCircle, GripVertical, 
+  Trash2, Download, Upload, Menu, 
+  AlertTriangle, ChevronLeft, ChevronRight, Search, 
+  Image as ImageIcon, Filter
+} from 'lucide-react';
+
+// Custom Components & Hooks
+import { useToast } from '@/hooks/use-toast';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { ImageManager } from '@/components/book/images/ImageManager';
+import { AllergenBadge } from '@/components/icons/allergen-badge';
+
+// Types & Libs
+import type { Elaboracion, IngredienteInterno, Alergeno, ComponenteElaboracion, ImagenReceta } from '@/types';
+import { PARTIDAS_PRODUCCION, UNIDADES_MEDIDA } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { formatCurrency, formatUnit } from '@/lib/utils';
+import Image from 'next/image';
+
+// ----------------------------------------------------------------------
+// 2. HELPERS PUROS & CONSTANTES
+// ----------------------------------------------------------------------
 
 const CSV_HEADERS_ELABORACIONES = ["id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotos", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion"];
 const CSV_HEADERS_COMPONENTES = ["id_elaboracion_padre", "tipo_componente", "id_componente", "cantidad", "merma"];
 
-type ElaboracionConAlergenos = Elaboracion & { alergenosCalculados?: Alergeno[] };
-
-// --- HELPERS ---
 const calculateElabAlergenos = (componentes: ComponenteElaboracion[], ingredientesMap: Map<string, IngredienteInterno>): Alergeno[] => {
   const elabAlergenos = new Set<Alergeno>();
   componentes.forEach(comp => {
@@ -68,39 +75,100 @@ const calculateElabAlergenos = (componentes: ComponenteElaboracion[], ingredient
   return Array.from(elabAlergenos);
 };
 
-const ITEMS_PER_PAGE = 20;
+// Schemas Zod
+const componenteElaboracionSchema = z.object({
+  id: z.string(),
+  tipo: z.enum(['ingrediente', 'elaboracion']),
+  componenteId: z.string(),
+  nombre: z.string(), 
+  cantidad: z.coerce.number().min(0),
+  merma: z.coerce.number().default(0),
+  costePorUnidad: z.coerce.number().optional().default(0), 
+});
 
-// --- COMPONENTES UI AUXILIARES ---
+const elaboracionFormSchema = z.object({
+  id: z.string(),
+  nombre: z.string().min(1, 'El nombre es obligatorio'),
+  partidaProduccion: z.enum(PARTIDAS_PRODUCCION),
+  unidadProduccion: z.enum(UNIDADES_MEDIDA),
+  produccionTotal: z.coerce.number().min(0.001, 'La producción debe ser mayor a 0'),
+  caducidadDias: z.coerce.number().optional().default(0),
+  instruccionesPreparacion: z.string().optional().default(''),
+  fotos: z.array(z.custom<ImagenReceta>()).default([]),
+  videoProduccionURL: z.string().optional().default(''),
+  formatoExpedicion: z.string().optional().default(''),
+  ratioExpedicion: z.coerce.number().optional().default(0),
+  tipoExpedicion: z.enum(['REFRIGERADO', 'CONGELADO', 'AMBIENTE', 'CALIENTE']).default('REFRIGERADO'),
+  componentes: z.array(componenteElaboracionSchema).default([]),
+  requiereRevision: z.boolean().optional().default(false),
+  comentarioRevision: z.string().optional().default(''),
+  fechaRevision: z.string().optional().nullable(),
+});
 
-function SortableComponentRow({ field, index, remove, form }: { field: any, index: number, remove: (index: number) => void, form: any }) {
+type ElaborationFormValues = z.infer<typeof elaboracionFormSchema>;
+
+// ----------------------------------------------------------------------
+// 3. SUB-COMPONENTES LOCALES
+// ----------------------------------------------------------------------
+
+interface SortableRowProps {
+    field: any;
+    index: number;
+    remove: (index: number) => void;
+    form: any;
+}
+
+function SortableComponentRow({ field, index, remove, form }: SortableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+  
+  const style = { 
+    transform: CSS.Transform.toString(transform), 
+    transition,
+    zIndex: transform ? 999 : 'auto' 
+  };
   
   const costeConMerma = (field.costePorUnidad || 0) * (1 + (field.merma || 0) / 100);
   const quantity = form.watch(`componentes.${index}.cantidad`) || 0;
   const costeTotal = costeConMerma * quantity;
 
   return (
-      <TableRow ref={setNodeRef} style={style} {...attributes}>
-          <TableCell className="w-8 p-1"><div {...listeners} className="cursor-grab text-muted-foreground p-1"><GripVertical className="h-4 w-4" /></div></TableCell>
+      <TableRow ref={setNodeRef} style={style} {...attributes} className="bg-card hover:bg-muted/30">
+          <TableCell className="w-8 p-1">
+              <div {...listeners} className="cursor-grab text-muted-foreground p-1 hover:text-foreground transition-colors">
+                  <GripVertical className="h-4 w-4" />
+              </div>
+          </TableCell>
           <TableCell className="font-semibold py-1 px-2 text-xs sm:text-sm min-w-[120px]">{field.nombre}</TableCell>
           <TableCell className="text-right font-mono py-1 px-2 hidden sm:table-cell text-xs">{formatCurrency(field.costePorUnidad)}</TableCell>
           <TableCell className="py-1 px-2 w-32">
               <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
-                  <FormItem><FormControl><Input type="number" step="any" {...qField} value={qField.value ?? ''} className="h-7 text-xs px-2 text-center" /></FormControl></FormItem>
+                  <FormItem><FormControl><Input type="number" step="any" {...qField} value={qField.value ?? ''} className="h-8 text-xs px-2 text-center" /></FormControl></FormItem>
               )} />
           </TableCell>
-          <TableCell className="py-1 px-2 w-20 hidden sm:table-cell"><FormField control={form.control} name={`componentes.${index}.merma`} render={({ field: mField }) => (<FormItem><FormControl><Input type="number" {...mField} value={mField.value ?? ''} className="h-7 text-xs px-2 text-center" /></FormControl></FormItem>)} /></TableCell>
+          <TableCell className="py-1 px-2 w-20 hidden sm:table-cell">
+              <FormField control={form.control} name={`componentes.${index}.merma`} render={({ field: mField }) => (
+                  <FormItem><FormControl><Input type="number" {...mField} value={mField.value ?? ''} className="h-8 text-xs px-2 text-center" /></FormControl></FormItem>
+              )} />
+          </TableCell>
           <TableCell className="text-right font-mono py-1 px-2 text-xs">{formatCurrency(costeTotal)}</TableCell>
-          <TableCell className="py-1 px-1 w-8"><Button type="button" variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => remove(index)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+          <TableCell className="py-1 px-1 w-8">
+              <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-7 w-7 transition-colors" onClick={() => remove(index)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+          </TableCell>
       </TableRow>
   );
 }
 
-function ComponenteSelector({ onSelect }: { onSelect: (comp: any) => void }) {
+interface ComponenteSelectorProps {
+    onSelect: (comp: any) => void;
+}
+
+function ComponenteSelector({ onSelect }: ComponenteSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [ingredientes, setIngredientes] = useState<IngredienteInterno[]>([]);
   
+  // Nota: En un refactor mayor, esto iría a un useIngredientes() hook
   useEffect(() => {
     const fetchIngredientes = async () => {
       const { data } = await supabase.from('ingredientes_internos').select('*');
@@ -125,12 +193,12 @@ function ComponenteSelector({ onSelect }: { onSelect: (comp: any) => void }) {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Buscar ingrediente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
         </div>
-        <div className="flex-1 overflow-y-auto border rounded-md">
+        <div className="flex-1 overflow-y-auto border rounded-md mt-2">
             <Table>
                 <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead className="text-right">Acción</TableHead></TableRow></TableHeader>
                 <TableBody>
                     {filtered.map(ing => (
-                        <TableRow key={ing.id}>
+                        <TableRow key={ing.id} className="hover:bg-muted/50">
                             <TableCell className="font-medium">{ing.nombreIngrediente}</TableCell>
                             <TableCell className="text-right">
                                 <DialogClose asChild>
@@ -148,8 +216,14 @@ function ComponenteSelector({ onSelect }: { onSelect: (comp: any) => void }) {
   );
 }
 
-// --- COMPONENTE GALERÍA MODAL ---
-function ImageGalleryModal({ images, initialIndex, isOpen, onClose }: { images: ImagenReceta[], initialIndex: number, isOpen: boolean, onClose: () => void }) {
+interface ImageGalleryModalProps {
+    images: ImagenReceta[];
+    initialIndex: number;
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+function ImageGalleryModal({ images, initialIndex, isOpen, onClose }: ImageGalleryModalProps) {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
     useEffect(() => { if (isOpen) setCurrentIndex(initialIndex); }, [isOpen, initialIndex]);
     if (!isOpen) return null;
@@ -171,8 +245,17 @@ function ImageGalleryModal({ images, initialIndex, isOpen, onClose }: { images: 
     );
 }
 
-// --- SECCIÓN DE IMÁGENES MEJORADA ---
-function ElaborationImageSection({ form, name, folder, title, description, canUseCamera, instructionFieldName }: any) {
+interface ElaborationImageSectionProps {
+    form: any;
+    name: string;
+    folder: string;
+    title: string;
+    description?: string;
+    canUseCamera: boolean;
+    instructionFieldName?: string;
+}
+
+function ElaborationImageSection({ form, name, folder, title, description, canUseCamera, instructionFieldName }: ElaborationImageSectionProps) {
     const images = form.watch(name) || [];
     const [galleryOpen, setGalleryOpen] = useState(false);
     const [initialIndex, setInitialIndex] = useState(0);
@@ -240,17 +323,30 @@ function ElaborationImageSection({ form, name, folder, title, description, canUs
     );
 }
 
-// --- PÁGINA LISTADO ---
+// ----------------------------------------------------------------------
+// 4. MAIN PAGE COMPONENT - LIST VIEW
+// ----------------------------------------------------------------------
+
 function ElaboracionesListPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+  
+  // State
   const [items, setItems] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const router = useRouter();
-  const { toast } = useToast();
-  // RESTORED: Estado para importación
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [importType, setImportType] = useState<'elaboraciones' | 'componentes' | null>(null);
+
+  // Filtro activo desde URL
+  const activePartida = searchParams.get('partida') || 'ALL';
   
+  // Refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Effects (Fetch)
   const loadData = useCallback(async () => {
+    // Scroll reset for UX
+    window.scrollTo({ top: 0, behavior: 'instant' });
     const { data } = await supabase.from('elaboraciones').select('*').order('nombre');
     if(data) setItems(data);
   }, []);
@@ -259,22 +355,33 @@ function ElaboracionesListPage() {
     loadData();
   }, [loadData]);
 
-  // RESTORED: Funciones de Exportación/Importación
+  // Handlers URL Params
+  const handlePartidaChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if(value && value !== 'ALL') {
+        params.set('partida', value);
+    } else {
+        params.delete('partida');
+    }
+    router.replace(`?${params.toString()}`);
+  };
+
+  // Handlers CSV
   const handleExportElaboracionesCSV = () => {
-    const dataToExport = items.map(item => {
-      // Simplified export for brevity, matches DB columns
-      return {
+    const dataToExport = items.map(item => ({
         id: item.id,
         nombre: item.nombre,
         partidaProduccion: item.partida,
         produccionTotal: item.produccion_total,
         unidadProduccion: item.unidad_produccion,
         instruccionesPreparacion: item.instrucciones,
-        fotos: JSON.stringify(item.fotos || []), // Using correct column mapping logic
-        costePorUnidad: item.coste_unitario,
-        // ... add other fields as needed
-      };
-    });
+        fotos: JSON.stringify(item.fotos || []),
+        videoProduccionURL: item.video_produccion_url,
+        formatoExpedicion: item.formato_expedicion,
+        ratioExpedicion: item.ratio_expedicion,
+        tipoExpedicion: item.tipo_expedicion,
+        costePorUnidad: item.coste_unitario
+    }));
     const csv = Papa.unparse(dataToExport);
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -282,13 +389,11 @@ function ElaboracionesListPage() {
     link.setAttribute('download', 'elaboraciones.csv');
     link.click();
     toast({ title: 'Exportación de Elaboraciones Completada' });
-  }
+  };
 
   const handleExportComponentesCSV = async () => {
-    // Need to fetch components first as they are not loaded in list view for performance
     const { data: allComponents } = await supabase.from('elaboracion_componentes').select('*');
     if (!allComponents) return;
-
     const csv = Papa.unparse(allComponents);
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -296,7 +401,7 @@ function ElaboracionesListPage() {
     link.setAttribute('download', 'componentes.csv');
     link.click();
     toast({ title: 'Exportación de Componentes Completada' });
-  }
+  };
 
   const handleImportClick = (type: 'elaboraciones' | 'componentes') => {
     setImportType(type);
@@ -312,20 +417,36 @@ function ElaboracionesListPage() {
       skipEmptyLines: true,
       complete: async (results) => {
         if (importType === 'elaboraciones') {
-          // Basic mapping - ensure CSV headers match what you expect or map them here
-          const importedData = results.data.map((item: any) => ({
-            id: item.id || crypto.randomUUID(), 
-            nombre: item.nombre,
-            partida: item.partidaProduccion || item.partida,
-            unidad_produccion: item.unidadProduccion,
-            produccion_total: parseFloat(item.produccionTotal) || 1,
-            // ... map other fields
-          }));
+          const importedData = results.data.map((item: any) => {
+            let parsedFotos = [];
+            try { parsedFotos = item.fotos ? JSON.parse(item.fotos) : []; } catch (e) { console.warn('Error fotos CSV', e); }
+            return {
+                id: item.id || crypto.randomUUID(), 
+                nombre: item.nombre,
+                partida: item.partidaProduccion || item.partida,
+                unidad_produccion: item.unidadProduccion,
+                produccion_total: parseFloat(item.produccionTotal) || 1,
+                instrucciones: item.instruccionesPreparacion,
+                fotos: parsedFotos,
+                video_produccion_url: item.videoProduccionURL,
+                formato_expedicion: item.formatoExpedicion,
+                ratio_expedicion: parseFloat(item.ratioExpedicion) || 0,
+                tipo_expedicion: item.tipoExpedicion || 'REFRIGERADO',
+                coste_unitario: parseFloat(item.costePorUnidad) || 0,
+            };
+          });
           const { error } = await supabase.from('elaboraciones').upsert(importedData);
           if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });
           else { loadData(); toast({ title: 'Importación completada' }); }
         } else if (importType === 'componentes') {
-             const { error } = await supabase.from('elaboracion_componentes').insert(results.data);
+             const mappedComponents = results.data.map((item: any) => ({
+                 elaboracion_padre_id: item.id_elaboracion_padre || item.elaboracion_padre_id,
+                 tipo_componente: item.tipo_componente,
+                 componente_id: item.id_componente || item.componente_id,
+                 cantidad_neta: parseFloat(item.cantidad) || 0,
+                 merma_aplicada: parseFloat(item.merma) || 0
+             }));
+             const { error } = await supabase.from('elaboracion_componentes').upsert(mappedComponents);
              if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });
              else toast({ title: 'Importación completada' });
         }
@@ -335,62 +456,88 @@ function ElaboracionesListPage() {
     setImportType(null);
   };
 
-  const filtered = items.filter(i => i.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Lógica de filtrado combinada (Búsqueda + Partida URL)
+  const filtered = items.filter(i => {
+      const matchSearch = i.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchPartida = activePartida !== 'ALL' ? i.partida === activePartida : true;
+      return matchSearch && matchPartida;
+  });
 
   return (
     <div className="space-y-4 p-4 max-w-7xl mx-auto pb-24">
-         {/* Hidden Input for Import */}
          <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelected} />
 
          {/* TOOLBAR */}
-         <div className="flex flex-col sm:flex-row justify-between gap-4 items-end sm:items-center">
-             <div className="relative w-full sm:w-auto flex-1 max-w-md">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    placeholder="Buscar elaboración..." 
-                    value={searchTerm} 
-                    onChange={e => setSearchTerm(e.target.value)} 
-                    className="pl-9 h-9 text-sm bg-background"
-                />
-            </div>
+         <div className="flex flex-col gap-4 sticky top-0 z-10 bg-background/95 backdrop-blur py-2">
             
-            <div className="flex gap-2 w-full sm:w-auto">
-                {/* RESTORED: Dropdown Menu for CSV Actions */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon" className="h-9 w-9">
-                            <Menu className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Acciones CSV</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleExportElaboracionesCSV}><Download className="mr-2 h-4 w-4"/> Exportar Elaboraciones</DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleExportComponentesCSV}><Download className="mr-2 h-4 w-4"/> Exportar Componentes</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleImportClick('elaboraciones')}><Upload className="mr-2 h-4 w-4"/> Importar Elaboraciones</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleImportClick('componentes')}><Upload className="mr-2 h-4 w-4"/> Importar Componentes</DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+            <div className="flex flex-col sm:flex-row gap-3 items-end sm:items-center justify-between">
+                {/* Search & Filter Group */}
+                <div className="flex flex-1 gap-2 w-full max-w-2xl">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Buscar elaboración..." 
+                            value={searchTerm} 
+                            onChange={e => setSearchTerm(e.target.value)} 
+                            className="pl-9 h-9 text-sm bg-background"
+                        />
+                    </div>
+                    <div className="w-[180px]">
+                        <Select value={activePartida} onValueChange={handlePartidaChange}>
+                            <SelectTrigger className="h-9">
+                                <div className="flex items-center gap-2 truncate">
+                                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <SelectValue placeholder="Partida" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Todas las partidas</SelectItem>
+                                {PARTIDAS_PRODUCCION.map(p => (
+                                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
 
-                <Button onClick={() => router.push('/book/elaboraciones/nueva')} className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none shadow-sm h-9">
-                    <PlusCircle className="mr-2 h-4 w-4"/> 
-                    <span className="hidden sm:inline">Nueva Elaboración</span>
-                    <span className="sm:hidden">Nueva</span>
-                </Button>
+                {/* Actions Group */}
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon" className="h-9 w-9">
+                                <Menu className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Acciones CSV</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleExportElaboracionesCSV}><Download className="mr-2 h-4 w-4"/> Exportar Elaboraciones</DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleExportComponentesCSV}><Download className="mr-2 h-4 w-4"/> Exportar Componentes</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleImportClick('elaboraciones')}><Upload className="mr-2 h-4 w-4"/> Importar Elaboraciones</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleImportClick('componentes')}><Upload className="mr-2 h-4 w-4"/> Importar Componentes</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <Button onClick={() => router.push('/book/elaboraciones/nueva')} className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none shadow-sm h-9">
+                        <PlusCircle className="mr-2 h-4 w-4"/> 
+                        <span className="hidden sm:inline">Nueva Elaboración</span>
+                        <span className="sm:hidden">Nueva</span>
+                    </Button>
+                </div>
             </div>
          </div>
 
-         {/* VISTA MÓVIL: TARJETAS CLICABLES */}
+         {/* VISTA MÓVIL */}
          <div className="grid grid-cols-1 gap-3 md:hidden">
             {filtered.map(item => (
                 <div 
                     key={item.id} 
-                    className="bg-card border rounded-lg p-3 shadow-sm active:scale-[0.98] transition-transform cursor-pointer group"
+                    className="bg-card border-l-4 border-l-primary/20 border-r border-t border-b rounded-lg p-3 shadow-sm active:scale-[0.98] transition-all cursor-pointer group"
                     onClick={() => router.push(`/book/elaboraciones/${item.id}`)}
                 >
                     <div className="flex justify-between items-start mb-1">
-                        <span className="font-bold text-sm text-foreground">{item.nombre}</span>
+                        <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{item.nombre}</span>
                         <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal">{item.partida}</Badge>
                     </div>
                     <div className="flex justify-between items-center text-xs text-muted-foreground">
@@ -402,7 +549,7 @@ function ElaboracionesListPage() {
             {filtered.length === 0 && <div className="text-center py-10 text-muted-foreground text-sm border-2 border-dashed rounded-lg bg-muted/10">No se encontraron elaboraciones.</div>}
          </div>
 
-         {/* VISTA DESKTOP: TABLA */}
+         {/* VISTA DESKTOP */}
          <div className="hidden md:block border rounded-lg overflow-hidden bg-white shadow-sm">
             <Table>
                 <TableHeader className="bg-muted/40">
@@ -432,38 +579,9 @@ function ElaboracionesListPage() {
   )
 }
 
-// --- FORMULARIO DE ELABORACIÓN ---
-
-const componenteElaboracionSchema = z.object({
-  id: z.string(),
-  tipo: z.enum(['ingrediente', 'elaboracion']),
-  componenteId: z.string(),
-  nombre: z.string(), 
-  cantidad: z.coerce.number().min(0),
-  merma: z.coerce.number().default(0),
-  costePorUnidad: z.coerce.number().optional().default(0), 
-});
-
-const elaboracionFormSchema = z.object({
-  id: z.string(),
-  nombre: z.string().min(1, 'El nombre es obligatorio'),
-  partidaProduccion: z.enum(PARTIDAS_PRODUCCION),
-  unidadProduccion: z.enum(UNIDADES_MEDIDA),
-  produccionTotal: z.coerce.number().min(0.001, 'La producción debe ser mayor a 0'),
-  caducidadDias: z.coerce.number().optional().default(0),
-  instruccionesPreparacion: z.string().optional().default(''),
-  fotos: z.array(z.custom<ImagenReceta>()).default([]),
-  videoProduccionURL: z.string().optional().default(''),
-  formatoExpedicion: z.string().optional().default(''),
-  ratioExpedicion: z.coerce.number().optional().default(0),
-  tipoExpedicion: z.enum(['REFRIGERADO', 'CONGELADO', 'AMBIENTE', 'CALIENTE']).default('REFRIGERADO'),
-  componentes: z.array(componenteElaboracionSchema).default([]),
-  requiereRevision: z.boolean().optional().default(false),
-  comentarioRevision: z.string().optional().default(''),
-  fechaRevision: z.string().optional().nullable(),
-});
-
-type ElaborationFormValues = z.infer<typeof elaboracionFormSchema>;
+// ----------------------------------------------------------------------
+// 5. MAIN PAGE COMPONENT - FORM VIEW
+// ----------------------------------------------------------------------
 
 function ElaborationFormPage() {
   const router = useRouter();
@@ -471,12 +589,21 @@ function ElaborationFormPage() {
   const params = useParams();
   const searchParams = useSearchParams();
 
-  const idParam = Array.isArray(params.id) ? params.id[0] : params.id;
-  const isNew = idParam === 'nueva';
+  // Params Handling
+  const idParam = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : null;
+  const isNew = idParam === 'nueva' || !idParam;
   const isEditing = !isNew && idParam;
   const cloneId = searchParams.get('cloneId');
 
-  const [initialData, setInitialData] = useState<Partial<ElaborationFormValues> | null>(null);
+  // URL Driven Tabs Logic
+  const currentTab = searchParams.get('tab') || 'general';
+  const handleTabChange = (val: string) => {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('tab', val);
+      router.replace(`?${newParams.toString()}`, { scroll: false });
+  };
+
+  // Local State
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -484,14 +611,10 @@ function ElaborationFormPage() {
   const [ingredientesMap, setIngredientesMap] = useState<Map<string, IngredienteInterno>>(new Map());
   const [canUseCamera, setCanUseCamera] = useState(false);
 
-  // FIX: Hooks al nivel superior
+  // DnD Sensors
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
-  useEffect(() => {
-    const hasMediaDevices = typeof navigator !== 'undefined' && !!navigator.mediaDevices && !!navigator.mediaDevices.enumerateDevices;
-    setCanUseCamera(hasMediaDevices);
-  }, []);
-
+  // Form Setup
   const form = useForm<ElaborationFormValues>({
     resolver: zodResolver(elaboracionFormSchema),
     defaultValues: {
@@ -504,16 +627,14 @@ function ElaborationFormPage() {
   const watchedComponentes = form.watch('componentes');
   const watchedProduccionTotal = form.watch('produccionTotal');
 
-  function handleDragEnd(event: DragEndEvent) {
-      const { active, over } = event;
-      if (over && active.id !== over.id) {
-          const oldIndex = compFields.findIndex(item => item.id === active.id);
-          const newIndex = compFields.findIndex(item => item.id === over.id);
-          moveComp(oldIndex, newIndex);
-      }
-  }
-
+  // Load Data
   useEffect(() => {
+    // Scroll Reset
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    
+    // Check Media
+    setCanUseCamera(typeof navigator !== 'undefined' && !!navigator.mediaDevices);
+
     const loadElaboration = async () => {
       try {
         setIsDataLoaded(false);
@@ -525,10 +646,8 @@ function ElaborationFormPage() {
         const erpMap = new Map<string, number>();
         (erpRes.data || []).forEach((a: any) => {
              const price = (a.precio_compra || 0) / (a.unidad_conversion || 1);
-             const id = a.id;
-             const ref = a.erp_id || a.id_referencia_erp;
-             if(id) erpMap.set(id, price);
-             if(ref) erpMap.set(ref, price);
+             if(a.id) erpMap.set(a.id, price);
+             if(a.erp_id) erpMap.set(a.erp_id, price);
         });
 
         const ingMap = new Map<string, IngredienteInterno>();
@@ -542,10 +661,10 @@ function ElaborationFormPage() {
         });
         setIngredientesMap(ingMap);
 
-        let elabToLoad = null;
+        let elabToLoad: Partial<ElaborationFormValues> | null = null;
         const targetId = isEditing ? idParam : cloneId;
 
-        if (targetId) {
+        if (targetId && targetId !== 'nueva') {
             const { data: elabData } = await supabase.from('elaboraciones').select('*').eq('id', targetId).single();
             if (elabData) {
                 const { data: compsData } = await supabase.from('elaboracion_componentes').select('*').eq('elaboracion_padre_id', targetId);
@@ -563,7 +682,6 @@ function ElaborationFormPage() {
                    };
                 });
 
-                // FIX: CASTING EXPLÍCITO para evitar error de tipado en 'componentes' y valores literales
                 elabToLoad = {
                     id: isEditing ? elabData.id : crypto.randomUUID(),
                     nombre: cloneId ? `${elabData.nombre} (Copia)` : elabData.nombre,
@@ -572,7 +690,6 @@ function ElaborationFormPage() {
                     produccionTotal: elabData.produccion_total || 1,
                     caducidadDias: elabData.caducidad_dias || 0,
                     instruccionesPreparacion: elabData.instrucciones || '',
-                    // FIX: Asegurar nombre correcto de la columna fotos en DB (solo 'fotos')
                     fotos: (elabData.fotos || []).map((url: any) => typeof url === 'string' ? { url } : url),
                     videoProduccionURL: elabData.video_produccion_url || '',
                     formatoExpedicion: elabData.formato_expedicion || '',
@@ -582,7 +699,6 @@ function ElaborationFormPage() {
                 };
             }
         } else {
-             // FIX: Asegurar que los valores por defecto coinciden con los literales del esquema Zod
              elabToLoad = { 
                  id: crypto.randomUUID(), 
                  nombre: '', 
@@ -602,6 +718,7 @@ function ElaborationFormPage() {
     loadElaboration();
   }, [idParam, isNew, isEditing, cloneId, toast, form]);
 
+  // Derived Calculations
   const { costeTotal, costeUnitario, alergenos } = useMemo(() => {
      let coste = 0;
      const prod = watchedProduccionTotal || 1;
@@ -616,6 +733,15 @@ function ElaborationFormPage() {
      };
   }, [watchedComponentes, watchedProduccionTotal, ingredientesMap]);
 
+  // Handlers
+  function handleDragEnd(event: DragEndEvent) {
+      const { active, over } = event;
+      if (over && active.id !== over.id) {
+          const oldIndex = compFields.findIndex(item => item.id === active.id);
+          const newIndex = compFields.findIndex(item => item.id === over.id);
+          moveComp(oldIndex, newIndex);
+      }
+  }
 
   const onSubmit = async (data: ElaborationFormValues) => {
     setIsLoading(true);
@@ -629,7 +755,6 @@ function ElaborationFormPage() {
         produccion_total: data.produccionTotal,
         coste_unitario: costeUnitario,
         caducidad_dias: data.caducidadDias,
-        // FIX: Columna correcta 'fotos'
         fotos: data.fotos, 
         video_produccion_url: data.videoProduccionURL,
         formato_expedicion: data.formatoExpedicion,
@@ -656,7 +781,7 @@ function ElaborationFormPage() {
         await supabase.from('elaboracion_componentes').insert(comps);
       }
 
-      toast({ description: 'Elaboración guardada.' });
+      toast({ description: 'Elaboración guardada correctamente.' });
       router.push('/book/elaboraciones');
     } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); }
     finally { setIsLoading(false); }
@@ -673,29 +798,30 @@ function ElaborationFormPage() {
 
   if (!isDataLoaded) return <LoadingSkeleton title="Cargando elaboración..." />;
 
-  const pageTitle = cloneId ? 'Clonar Elaboración' : (isNew ? 'Nueva Elaboración' : 'Editar Elaboración');
-
   return (
     <TooltipProvider>
       <main className="pb-24 bg-background min-h-screen">
         <FormProvider {...form}>
             <form id="elaboration-form" onSubmit={form.handleSubmit(onSubmit)}>
                 
-                {/* HEADER STICKY (SOLO TABS Y NAVEGACION) */}
+                {/* STICKY HEADER & TABS */}
                 <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
-                     <Tabs defaultValue="general" className="w-full">
-                        {/* FILA 1: Navegación simple */}
+                     <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
                          <div className="flex items-center px-3 pb-2 gap-2">
                              <Button variant="ghost" size="icon" type="button" onClick={() => router.push('/book/elaboraciones')} className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground">
                                 <ChevronLeft className="h-6 w-6" />
                              </Button>
-                             {/* Tabs a la derecha */}
+                             {/* Scrollable Tabs */}
                              <div className="flex-1 overflow-x-auto no-scrollbar">
                                 <TabsList className="w-full justify-start bg-transparent p-0 h-9 gap-4">
                                     {["Info. General", "Componentes", "Info. Preparación"].map((tab, i) => {
                                         const val = ["general", "componentes", "preparacion"][i];
                                         return (
-                                            <TabsTrigger key={val} value={val} className="rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium text-muted-foreground data-[state=active]:border-green-600 data-[state=active]:text-green-700 data-[state=active]:bg-transparent transition-all hover:text-foreground whitespace-nowrap">
+                                            <TabsTrigger 
+                                                key={val} 
+                                                value={val} 
+                                                className="rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent transition-all hover:text-foreground whitespace-nowrap"
+                                            >
                                                 {tab}
                                             </TabsTrigger>
                                         )
@@ -704,8 +830,10 @@ function ElaborationFormPage() {
                              </div>
                          </div>
 
-                        {/* CONTENIDO TABS (Dentro del mismo contexto) */}
+                        {/* CONTENT AREA */}
                         <div className="p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5 mt-0 absolute left-0 right-0 top-[100%] overflow-y-auto pb-32">
+                            
+                            {/* TAB: GENERAL */}
                             <TabsContent value="general" className="space-y-4 mt-2">
                                 <Card className="shadow-none border border-border/60">
                                     <CardHeader className="p-3 pb-1 border-b bg-muted/10"><CardTitle className="text-sm font-bold">Datos Básicos</CardTitle></CardHeader>
@@ -721,7 +849,6 @@ function ElaborationFormPage() {
                                     </CardContent>
                                 </Card>
 
-                                {/* ZONA DE PELIGRO */}
                                 {isEditing && (
                                     <div className="mt-8 pt-4 border-t border-dashed">
                                         <Card className="border-destructive/30 bg-destructive/5 shadow-none">
@@ -734,9 +861,8 @@ function ElaborationFormPage() {
                                 )}
                             </TabsContent>
 
+                            {/* TAB: COMPONENTES */}
                             <TabsContent value="componentes" className="space-y-4 mt-2">
-                                 
-                                 {/* 1. TARJETA DE RENDIMIENTO (MOVIDA AQUI) */}
                                  <Card className="shadow-none border border-border/60">
                                     <CardHeader className="p-3 pb-1 border-b bg-muted/10"><CardTitle className="text-sm font-bold">Rendimiento</CardTitle></CardHeader>
                                     <CardContent className="p-3">
@@ -749,7 +875,6 @@ function ElaborationFormPage() {
                                     </CardContent>
                                  </Card>
 
-                                 {/* 2. LISTA DE COMPONENTES */}
                                 <Card className="shadow-none border border-border/60">
                                     <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between bg-muted/10 border-b">
                                         <CardTitle className="text-sm font-bold">Componentes</CardTitle>
@@ -759,7 +884,6 @@ function ElaborationFormPage() {
                                         </Dialog>
                                     </CardHeader>
                                     <CardContent className="p-0 sm:p-2">
-                                         {/* Desktop Table */}
                                         <div className="hidden md:block overflow-x-auto">
                                             <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
                                                 <Table>
@@ -773,7 +897,7 @@ function ElaborationFormPage() {
                                             </DndContext>
                                         </div>
 
-                                        {/* Mobile Cards */}
+                                        {/* Mobile List */}
                                         <div className="md:hidden space-y-1 p-1">
                                             {compFields.map((field, index) => {
                                                 const costeTotal = ((field as any).costePorUnidad || 0) * (1 + (field as any).merma / 100) * (form.watch(`componentes.${index}.cantidad`) || 0);
@@ -796,7 +920,6 @@ function ElaborationFormPage() {
                                     </CardContent>
                                 </Card>
 
-                                {/* COSTES */}
                                 <Card className="border-l-4 border-l-blue-600 shadow-sm rounded-r-lg rounded-l-none">
                                     <CardContent className="p-3 flex justify-between items-center bg-card">
                                         <div className="flex flex-col">
@@ -810,7 +933,6 @@ function ElaborationFormPage() {
                                     </CardContent>
                                 </Card>
 
-                                {/* ALÉRGENOS */}
                                 {alergenos.length > 0 && (
                                     <Card className="shadow-sm border border-red-200 bg-red-50/50 dark:bg-red-950/10">
                                         <CardHeader className="p-2 pb-1"><CardTitle className="text-sm font-bold flex items-center gap-2 text-red-700"><AlertTriangle className="h-3.5 w-3.5" /> Alérgenos Totales</CardTitle></CardHeader>
@@ -819,6 +941,7 @@ function ElaborationFormPage() {
                                 )}
                             </TabsContent>
 
+                            {/* TAB: PREPARACIÓN */}
                             <TabsContent value="preparacion" className="space-y-4 mt-2">
                                  <div className="bg-card border rounded-lg p-3 shadow-sm">
                                     <ElaborationImageSection 
@@ -835,7 +958,7 @@ function ElaborationFormPage() {
                     </Tabs>
                 </div>
 
-                {/* BOTONES FLOTANTES */}
+                {/* FAB ACTIONS */}
                 <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
                     <Button 
                         type="button" 
@@ -869,13 +992,19 @@ function ElaborationFormPage() {
   );
 }
 
+// ----------------------------------------------------------------------
+// 6. DEFAULT EXPORT & ROUTING LOGIC
+// ----------------------------------------------------------------------
+
 export default function ElaboracionesPage() {
   const params = useParams();
-  const isListPage = !params.id || params.id.length === 0;
+  
+  // Determinamos si es vista de lista o detalle basándonos en la existencia de ID
+  const hasId = params?.id && (Array.isArray(params.id) ? params.id.length > 0 : !!params.id);
 
   return (
-    <Suspense fallback={<LoadingSkeleton title="Cargando elaboraciones..." />}>
-      {isListPage ? <ElaboracionesListPage /> : <ElaborationFormPage />}
+    <Suspense fallback={<LoadingSkeleton title="Cargando sistema..." />}>
+      {!hasId ? <ElaboracionesListPage /> : <ElaborationFormPage />}
     </Suspense>
   );
 }
