@@ -4,21 +4,18 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Papa from 'papaparse';
 import { 
-  PlusCircle, Search, Pencil, Copy, MoreHorizontal, 
-  Trash2, Eye, Archive, BookHeart, Filter, ChevronRight,
-  Download, Upload, ChevronLeft, Menu
+  PlusCircle, Search, Trash2, Eye, Archive, 
+  ChevronRight, Download, Upload, Menu
 } from 'lucide-react';
 
 import { supabase } from '@/lib/supabase';
 import type { Receta, CategoriaReceta, Alergeno } from '@/types';
-import { ALERGENOS } from '@/types';
 
 // UI Components
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -30,7 +27,6 @@ import { useToast } from '@/hooks/use-toast';
 // --- COMPONENTES AUXILIARES ---
 
 const AllergenList = ({ alergenos }: { alergenos: Alergeno[] | null | undefined }) => {
-  // Asegurar que siempre es un array para evitar errores de map
   const safeAlergenos = Array.isArray(alergenos) ? alergenos : [];
   
   if (safeAlergenos.length === 0) return <span className="text-[10px] text-muted-foreground italic">Sin alérgenos</span>;
@@ -61,6 +57,11 @@ export default function RecetasListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
+  // --- FIX SCROLL: Inicio de página ---
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
+
   // Sincronizar Tab con URL
   useEffect(() => {
     if (filterParam) setActiveTab(filterParam);
@@ -78,8 +79,6 @@ export default function RecetasListPage() {
         if (recetasRes.data) {
              const mappedRecetas = recetasRes.data.map((r: any) => ({
                  ...r,
-                 // FIX CRÍTICO: Mapeo explícito de snake_case (BD) a camelCase (App)
-                 // Forzamos a boolean para evitar tipos 'undefined' o 'null'
                  isArchived: r.is_archived === true, 
                  precioVenta: r.precio_venta || 0,
                  alergenos: r.alergenos || []
@@ -141,14 +140,13 @@ export default function RecetasListPage() {
     if (event.target) event.target.value = '';
   };
 
-  // 4. Filtrado Lógico (Con FIX para isArchived)
+  // 4. Filtrado Lógico
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === 'all' || item.categoria === categoryFilter;
       
       let matchesStatus = true;
-      // FIX: Comparación explícita con true/false para evitar problemas de tipos 'undefined'
       if (activeTab === 'active') matchesStatus = item.isArchived !== true; 
       if (activeTab === 'archived') matchesStatus = item.isArchived === true; 
 
@@ -162,28 +160,39 @@ export default function RecetasListPage() {
     <main className="pb-24 bg-background min-h-screen">
        <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelected} />
        
-       {/* 1. HEADER STICKY */}
-       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
+       {/* 1. HEADER STICKY (Alineación corregida) */}
+       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                {/* Fila 1: Navegación */}
-                <div className="flex items-center px-3 pb-2 gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/book')} className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground">
-                        <ChevronLeft className="h-6 w-6" />
-                    </Button>
-                    <div className="flex-1 overflow-x-auto no-scrollbar">
-                        <TabsList className="w-full justify-start bg-transparent p-0 h-9 gap-4">
-                            <TabsTrigger value="active" className="rounded-none border-b-2 border-transparent px-2 py-2 text-xs font-medium text-muted-foreground data-[state=active]:border-green-600 data-[state=active]:text-green-700 data-[state=active]:bg-transparent transition-all whitespace-nowrap">Activas</TabsTrigger>
-                            <TabsTrigger value="archived" className="rounded-none border-b-2 border-transparent px-2 py-2 text-xs font-medium text-muted-foreground data-[state=active]:border-green-600 data-[state=active]:text-green-700 data-[state=active]:bg-transparent transition-all whitespace-nowrap">Archivadas</TabsTrigger>
-                            <TabsTrigger value="all" className="rounded-none border-b-2 border-transparent px-2 py-2 text-xs font-medium text-muted-foreground data-[state=active]:border-green-600 data-[state=active]:text-green-700 data-[state=active]:bg-transparent transition-all whitespace-nowrap">Todas</TabsTrigger>
-                        </TabsList>
-                    </div>
+                
+                {/* Contenedor Tabs - Padding px-4 alinea con Breadcrumb */}
+                <div className="px-4 pt-2">
+                    <TabsList className="w-full justify-start bg-transparent p-0 h-10 gap-6 border-none">
+                        <TabsTrigger 
+                            value="active" 
+                            className="rounded-none border-b-2 border-transparent px-1 py-2 text-sm font-medium text-muted-foreground data-[state=active]:border-green-600 data-[state=active]:text-green-700 data-[state=active]:bg-transparent transition-all"
+                        >
+                            Activas
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="archived" 
+                            className="rounded-none border-b-2 border-transparent px-1 py-2 text-sm font-medium text-muted-foreground data-[state=active]:border-green-600 data-[state=active]:text-green-700 data-[state=active]:bg-transparent transition-all"
+                        >
+                            Archivadas
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="all" 
+                            className="rounded-none border-b-2 border-transparent px-1 py-2 text-sm font-medium text-muted-foreground data-[state=active]:border-green-600 data-[state=active]:text-green-700 data-[state=active]:bg-transparent transition-all"
+                        >
+                            Todas
+                        </TabsTrigger>
+                    </TabsList>
                 </div>
 
-                {/* CONTENIDO PRINCIPAL */}
-                <div className="p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5 mt-0 absolute left-0 right-0 top-[100%] overflow-y-auto pb-32">
-                    <TabsContent value={activeTab} className="space-y-4 mt-2">
+                {/* CONTENIDO PRINCIPAL (Normal Flow, sin absolute) */}
+                <div className="p-4 max-w-7xl mx-auto mt-4 space-y-4">
+                    <TabsContent value={activeTab} className="space-y-4 m-0 focus-visible:ring-0">
                         
-                        {/* BARRA DE HERRAMIENTAS DE CONTENIDO */}
+                        {/* BARRA DE HERRAMIENTAS */}
                         <div className="flex flex-col sm:flex-row justify-between gap-4 items-end sm:items-center">
                              <div className="flex gap-2 w-full sm:w-auto flex-1">
                                 <div className="relative flex-1 max-w-md">
@@ -200,7 +209,6 @@ export default function RecetasListPage() {
                              </div>
 
                              <div className="flex gap-2 w-full sm:w-auto">
-                                {/* MENÚ CSV RESTAURADO */}
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="outline" size="icon" className="h-9 w-9 bg-background">

@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AlertTriangle, CheckSquare, Calendar, ChevronRight, CheckCircle2, FileText, Component } from 'lucide-react';
+import { AlertTriangle, Calendar, ChevronRight, CheckCircle2, FileText, Component } from 'lucide-react';
 import { useRecetas, useElaboraciones } from '@/hooks/use-data-queries';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent } from '@/components/ui/card';
@@ -95,6 +96,16 @@ export default function RevisionPage() {
 
     const isLoading = loadingRecetas || loadingElaboraciones;
 
+    // --- FIX SCROLL ---
+    useEffect(() => {
+        // Fuerza el scroll al inicio de la página inmediatamente al montar
+        window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: 'instant'
+        });
+    }, []);
+
     if (isLoading) {
         return <LoadingSkeleton title="Cargando Tareas de Revisión..." />;
     }
@@ -106,12 +117,9 @@ export default function RevisionPage() {
                 {/* FIX: Usar defaultTab dinámico */}
                 <Tabs defaultValue={defaultTab} className="w-full">
                     
-                    <div className="flex items-center px-4 pb-2 gap-3">
-                        <CheckSquare className="h-6 w-6 text-primary" />
-                        <h1 className="text-lg font-bold">Revisión Gastronómica</h1>
-                    </div>
-
-                    <div className="px-4">
+                    {/* Título eliminado para evitar redundancia con Breadcrumb */}
+                    
+                    <div className="px-4 pt-2">
                         <TabsList className="w-full justify-start bg-transparent p-0 h-10 gap-6 border-none">
                             <TabsTrigger 
                                 value="recetas" 

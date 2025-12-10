@@ -14,7 +14,8 @@ import { GlobalSearch } from '@/components/dashboard/global-search';
 import { 
     BookHeart, ChefHat, Component, BookCheck, AlertCircle, 
     TrendingUp, Activity, Trash2, ShieldCheck, 
-    ShieldAlert, Sprout, ThermometerSnowflake, Flame, Cookie, PackageOpen
+    ShieldAlert, Sprout, ThermometerSnowflake, Flame, Cookie, PackageOpen,
+    BarChart3
 } from 'lucide-react';
 
 // UI Components
@@ -107,30 +108,25 @@ function AllergenSummaryCard({ total, withAllergens }: { total: number, withAlle
     );
 }
 
-/** Tarjeta 3: ELABORACIONES (Rediseñada) */
+/** Tarjeta 3: ELABORACIONES */
 function ElaboracionesDetailCard({ total, stats }: { total: number, stats: any }) {
     return (
         <Link href="/book/elaboraciones" className="block h-full">
             <Card className="h-full border-blue-200/60 shadow-sm hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden flex flex-col bg-blue-50/10">
-                {/* Icono Grande Fondo */}
                 <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
                     <Component className="w-24 h-24 text-blue-500" />
                 </div>
-                
                 <CardHeader className="p-5 pb-2 relative z-10">
                     <CardTitle className="text-base font-bold text-blue-700 uppercase tracking-wide flex items-center gap-2">
                         <Component className="w-5 h-5" />
                         Elaboraciones
                     </CardTitle>
                 </CardHeader>
-                
                 <CardContent className="p-5 pt-0 flex-1 relative z-10">
                     <div className="flex items-baseline gap-2 mb-5">
                         <span className="text-4xl font-extrabold text-foreground">{total}</span>
                         <span className="text-xs text-muted-foreground font-bold uppercase">Fichas Activas</span>
                     </div>
-                    
-                    {/* Grid de Partidas */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex items-center gap-2 bg-white/60 p-2 rounded border border-blue-100 shadow-sm">
                             <div className="p-1.5 bg-blue-100 text-blue-600 rounded"><ThermometerSnowflake className="h-3.5 w-3.5"/></div>
@@ -167,30 +163,25 @@ function ElaboracionesDetailCard({ total, stats }: { total: number, stats: any }
     );
 }
 
-/** Tarjeta 4: INGREDIENTES CPR (Rediseñada y Compacta) */
+/** Tarjeta 4: INGREDIENTES CPR */
 function IngredientesDetailCard({ total, stats }: { total: number, stats: any }) {
     return (
         <Link href="/book/ingredientes" className="block h-full">
             <Card className="h-full border-amber-200/60 shadow-sm hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden flex flex-col bg-amber-50/10">
-                {/* Icono Grande Fondo */}
                 <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
                     <ChefHat className="w-24 h-24 text-amber-500" />
                 </div>
-
                 <CardHeader className="p-5 pb-2 relative z-10">
                     <CardTitle className="text-base font-bold text-amber-700 uppercase tracking-wide flex items-center gap-2">
                         <ChefHat className="w-5 h-5" />
                         Ingredientes CPR
                     </CardTitle>
                 </CardHeader>
-                
                 <CardContent className="p-5 pt-0 flex-1 relative z-10">
                     <div className="flex items-baseline gap-2 mb-5">
                         <span className="text-4xl font-extrabold text-foreground">{total}</span>
                         <span className="text-xs text-muted-foreground font-bold uppercase">Componentes</span>
                     </div>
-                    
-                    {/* Lista densa en 2 columnas */}
                     <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                         {stats.slice(0, 6).map((cat: any) => (
                             <div key={cat.label} className="flex justify-between items-center text-xs border-b border-dashed border-amber-200/50 pb-1">
@@ -208,7 +199,60 @@ function IngredientesDetailCard({ total, stats }: { total: number, stats: any })
     );
 }
 
-// ... [ActionCard se mantiene igual, no necesita cambios] ...
+/** Tarjeta 5: ANÁLISIS ECONÓMICO (Rediseñada - Estilo visual) */
+function AnalisisEconomicoCard() {
+    return (
+        <Link href="/book/analitica/diferencias-escandallo" className="block h-full">
+            <Card className="h-full border-emerald-200/60 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden flex flex-col bg-emerald-50/10">
+                {/* Icono Grande Fondo */}
+                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <BarChart3 className="w-24 h-24 text-emerald-500" />
+                </div>
+
+                <CardHeader className="p-5 pb-2 relative z-10">
+                    <CardTitle className="text-base font-bold text-emerald-700 uppercase tracking-wide flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5" />
+                        Diferencias de Escandallo
+                    </CardTitle>
+                </CardHeader>
+
+                <CardContent className="p-5 pt-0 flex-1 relative z-10">
+                    <div className="flex items-baseline gap-2 mb-5">
+                        <span className="text-4xl font-extrabold text-foreground">Audit</span>
+                        <span className="text-xs text-muted-foreground font-bold uppercase">Sistema Activo</span>
+                    </div>
+
+                    {/* Grid Visual de Funcionalidades (Estilo Elaboraciones) */}
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="flex flex-col items-center justify-center gap-1 bg-white/60 p-3 rounded border border-emerald-100 shadow-sm text-center">
+                            <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded mb-1">
+                                <TrendingUp className="h-4 w-4" />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none">Variación</span>
+                            <span className="text-[11px] font-bold text-emerald-900 mt-1">Auto-Detect</span>
+                        </div>
+                        <div className="flex flex-col items-center justify-center gap-1 bg-white/60 p-3 rounded border border-blue-100 shadow-sm text-center">
+                            <div className="p-1.5 bg-blue-100 text-blue-600 rounded mb-1">
+                                <Activity className="h-4 w-4" />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none">Histórico</span>
+                            <span className="text-[11px] font-bold text-blue-900 mt-1">30 Días</span>
+                        </div>
+                        <div className="flex flex-col items-center justify-center gap-1 bg-white/60 p-3 rounded border border-amber-100 shadow-sm text-center">
+                            <div className="p-1.5 bg-amber-100 text-amber-600 rounded mb-1">
+                                <AlertCircle className="h-4 w-4" />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none">Alertas</span>
+                            <span className="text-[11px] font-bold text-amber-900 mt-1">Smart</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </Link>
+    );
+}
+
+// ... [ActionCard] ...
 function ActionCard({ title, count, icon: Icon, description, href, variant = "default" }: { title: string, count: number, icon: any, description: string, href: string, variant?: "default" | "danger" | "warning" }) {
     const isClean = count === 0;
     const statusColor = isClean ? "bg-green-50/50 text-green-700 border-green-200 hover:border-green-300" : variant === "danger" ? "bg-red-50/50 text-red-700 border-red-200 hover:border-red-300" : "bg-amber-50/50 text-amber-700 border-amber-200 hover:border-amber-300";
@@ -316,8 +360,6 @@ export default function BookDashboardPage() {
                     </h2>
                     
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        
-                        {/* COLUMNA IZQUIERDA: RECETAS + ELABORACIONES */}
                         <div className="space-y-4 flex flex-col h-full">
                             <div className="flex-1 min-h-[220px]">
                                 <RecipeSummaryCard 
@@ -334,7 +376,6 @@ export default function BookDashboardPage() {
                             </div>
                         </div>
 
-                        {/* COLUMNA DERECHA: ALÉRGENOS + INGREDIENTES */}
                         <div className="space-y-4 flex flex-col h-full">
                             <div className="flex-1 min-h-[220px]">
                                 <AllergenSummaryCard 
@@ -349,7 +390,6 @@ export default function BookDashboardPage() {
                                 />
                             </div>
                         </div>
-
                     </div>
                 </div>
 
@@ -365,6 +405,20 @@ export default function BookDashboardPage() {
                         <ActionCard title="Elaboraciones a Revisar" count={stats.elaboracionesParaRevisarCount} icon={Component} description="Requieren atención técnica." href="/book/revision-ingredientes?tab=elaboraciones" variant="warning" />
                         <ActionCard title="Ingredientes Antiguos" count={stats.ingredientesPendingCount} icon={AlertCircle} description="Precios > 6 meses sin actualizar." href="/book/ingredientes?pending=true" variant="danger" />
                         <ActionCard title="Huérfanas" count={stats.elaboracionesHuerfanas} icon={Trash2} description="Elaboraciones sin uso. Limpiar." href="/book/elaboraciones?huérfanas=true" variant="danger" />
+                    </div>
+                </div>
+
+                <Separator />
+
+                {/* SECCIÓN 3: ANÁLISIS ECONÓMICO */}
+                <div>
+                    <h2 className="text-lg font-bold tracking-tight mb-3 flex items-center gap-2 text-foreground/90">
+                        <BarChart3 className="w-4 h-4 text-emerald-600" /> Análisis Económico
+                    </h2>
+                    
+                    {/* Tarjeta Rediseñada */}
+                    <div className="h-[220px]">
+                        <AnalisisEconomicoCard />
                     </div>
                 </div>
             </div>
