@@ -120,7 +120,7 @@ export default function AlmacenPage() {
     
     const router = useRouter();
     const params = useParams();
-    const osId = params.id as string;
+    const osId = params.numero_expediente as string;
 
    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     if (typeof window === 'undefined') {

@@ -52,7 +52,7 @@ export default function AtipicosPage() {
   
   const router = useRouter();
   const params = useParams();
-  const osId = params.id as string;
+  const osId = params.numero_expediente as string;
   const { toast } = useToast();
 
   useEffect(() => {

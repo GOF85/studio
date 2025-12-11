@@ -242,7 +242,7 @@ const ResponsablesTitle = () => {
 export default function InfoPage() {
   const router = useRouter();
   const params = useParams();
-  const osId = params.id as string;
+  const osId = params.numero_expediente as string;
   const isEditing = osId !== 'nuevo';
 
   const [isMounted, setIsMounted] = useState(false);
