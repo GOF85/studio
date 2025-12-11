@@ -1,18 +1,15 @@
-
-
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import Link from 'next/link';
-import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useEffect, useState, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, Star, Save, AlertTriangle, Phone, Mail } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, Save, AlertTriangle, Phone, Mail, Trash2, Star } from 'lucide-react';
 
-import type { ServiceOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, Personal, Espacio } from '@/types';
 import { CATERING_VERTICALES } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -39,7 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -59,6 +56,7 @@ import { Separator } from '@/components/ui/separator';
 import { Combobox } from '@/components/ui/combobox';
 import { supabase } from '@/lib/supabase';
 
+// --- SCHEMA ---
 export const osFormSchema = z.object({
   id: z.string().min(1),
   serviceNumber: z.string().min(1, 'El Nº de Servicio es obligatorio'),
@@ -66,7 +64,8 @@ export const osFormSchema = z.object({
   client: z.string().min(1, 'El cliente es obligatorio.'),
   tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
   asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
-  cateringVertical: z.enum(CATERING_VERTICALES, { required_error: 'La vertical de catering es obligatoria.' }),
+  // CORRECCIÓN 1: Spread del array readonly para evitar error de tipo
+  cateringVertical: z.enum([...CATERING_VERTICALES] as [string, ...string[]], { required_error: 'La vertical de catering es obligatoria.' }),
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
@@ -136,6 +135,8 @@ const defaultValues: Partial<OsFormValues> = {
   deliveryLocations: [],
   direccionPrincipal: '',
   isVip: false,
+  cateringVertical: CATERING_VERTICALES[0],
+  email: '', 
 };
 
 const ClienteTitle = () => {
@@ -160,12 +161,12 @@ const ClientInfo = () => {
         <AccordionContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 pt-2">
                  <FormField control={control} name="client" render={({ field }) => (
-                    <FormItem><FormLabel>Cliente</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Cliente</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField control={control} name="tipoCliente" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Tipo Cliente</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                         <SelectContent>
                             <SelectItem value="Empresa">Empresa</SelectItem>
@@ -178,26 +179,26 @@ const ClientInfo = () => {
                  <FormField control={control} name="finalClient" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Cliente Final</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
+                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                     </FormItem>
                 )} />
                 <FormField control={control} name="contact" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Contacto Principal</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={control} name="phone" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Teléfono Principal</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                   </FormItem>
                 )} />
                  <FormField control={control} name="email" render={({ field }) => (
-                    <FormItem><FormLabel>Email Principal</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Email Principal</FormLabel><FormControl><Input type="email" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField control={control} name="direccionPrincipal" render={({ field }) => (
-                    <FormItem className="col-span-full"><FormLabel>Dirección Principal de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                    <FormItem className="col-span-full"><FormLabel>Dirección Principal de Entrega</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl></FormItem>
                 )} />
             </div>
         </AccordionContent>
@@ -254,26 +255,18 @@ export default function InfoPage() {
 
   const [personal, setPersonal] = useState<Personal[]>([]);
   const [espacios, setEspacios] = useState<Espacio[]>([]);
-  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [isAnulacionDialogOpen, setIsAnulacionDialogOpen] = useState(false);
   const [anulacionMotivo, setAnulacionMotivo] = useState("");
   const [pendingStatus, setPendingStatus] = useState<OsFormValues['status'] | null>(null);
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-
   
-  const hasPruebaDeMenu = useMemo(() => {
-    return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
-  }, [briefingItems]);
-
   const getFullName = (p: Personal) => `${p.nombre} ${p.apellido1}`;
 
   const personalSala = useMemo(() => personal.filter(p => p.departamento === 'Sala' && p.nombre && p.apellido1), [personal]);
   const personalPase = useMemo(() => personal.filter(p => p.departamento === 'Pase' && p.nombre && p.apellido1), [personal]);
   const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre && p.apellido1), [personal]);
   const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'Comercial' && p.nombre && p.apellido1), [personal]);
-  const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre && p.apellido1), [personal]);
   const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre && p.apellido1), [personal]);
   const personalOperaciones = useMemo(() => personal.filter(p => p.departamento === 'Operaciones' && p.nombre && p.apellido1), [personal]);
   const validEspacios = useMemo(() => espacios.filter(e => e.identificacion.nombreEspacio), [espacios]);
@@ -316,252 +309,62 @@ export default function InfoPage() {
   }, [isDirty]);
 
 
-  const handleBackToList = () => {
-    if (isDirty) {
-      setShowExitConfirm(true);
-    } else {
-        router.push('/pes');
-    }
-  };
-
-
   useEffect(() => {
     async function loadData() {
       try {
-        // Load personal from Supabase
-        const { data: personalData, error: personalError } = await supabase
-          .from('personal')
-          .select('*');
+        const { data: personalData } = await supabase.from('personal').select('*');
+        if (personalData) setPersonal(personalData as Personal[]);
         
-        if (personalError) throw personalError;
-        
-        const allPersonal = (personalData || []) as Personal[];
-        console.log('Loaded personal from Supabase:', allPersonal.length);
-        setPersonal(allPersonal.filter(p => p.nombre && p.apellido1));
-        
-        // Load espacios from Supabase
-        const { data: espaciosData, error: espaciosError } = await supabase
-          .from('espacios_v2')
-          .select('*');
-        
-        if (espaciosError) {
-          console.error('Error loading espacios from Supabase:', espaciosError);
-          throw espaciosError;
+        const { data: espaciosData } = await supabase.from('espacios_v2').select('*');
+        if (espaciosData) {
+            const allEspacios = espaciosData.map((e: any) => ({
+                id: e.id,
+                identificacion: {
+                  nombreEspacio: e.nombre || '',
+                  calle: e.calle || '',
+                },
+                contactos: [],
+                espacio: e.nombre || '',
+            } as unknown as Espacio));
+            setEspacios(allEspacios.filter((e: any) => e.identificacion?.nombreEspacio));
         }
-        
-        console.log('Loaded espacios from Supabase:', espaciosData?.length);
-        
-        // Map espacios data - handle Supabase structure with snake_case
-        const allEspacios = (espaciosData || []).map((e: any) => {
-          return {
-            id: e.id,
-            identificacion: {
-              nombreEspacio: e.nombre || '',
-              tipoDeEspacio: e.tipos_espacio || [],
-              descripcionCorta: e.descripcion_corta || '',
-              descripcionLarga: e.descripcion_larga || '',
-              ciudad: e.ciudad || '',
-              provincia: e.provincia || '',
-              calle: e.calle || '',
-              codigoPostal: e.codigo_postal || '',
-              zona: e.zona || '',
-              estilos: e.estilos || [],
-              tags: e.tags || [],
-              idealPara: e.ideal_para || [],
-            },
-            capacidades: {
-              aforoMaximoCocktail: e.aforo_max_cocktail || 0,
-              aforoMaximoBanquete: e.aforo_max_banquete || 0,
-              salas: [],
-            },
-            logistica: {
-              accesoVehiculos: e.acceso_vehiculos || '',
-              horarioMontajeDesmontaje: e.horario_montaje_desmontaje || '',
-              montacargas: false,
-              accesoServicioIndependiente: false,
-              potenciaTotal: e.potencia_total || '',
-              tipoCocina: e.tipo_cocina || 'Sin cocina',
-              tomasAguaCocina: false,
-              desaguesCocina: false,
-              extraccionHumos: false,
-              limitadorSonido: e.limitador_sonido || false,
-              permiteMusicaExterior: false,
-              puntosAnclaje: false,
-              metricasOperativas: {
-                dificultadMontaje: e.dificultad_montaje || 0,
-                penalizacionPersonalMontaje: e.penalizacion_personal_montaje || 0,
-              },
-            },
-            evaluacionMICE: {
-              relacionComercial: e.relacion_comercial || 'Sin Relación',
-              valoracionComercial: e.valoracion_comercial || 0,
-              puntosFuertes: e.puntos_fuertes || [],
-              puntosDebiles: e.puntos_debiles || [],
-              perfilClienteIdeal: e.perfil_cliente_ideal || '',
-              exclusividadMusica: false,
-              exclusividadAudiovisuales: false,
-              valoracionOperaciones: e.valoracion_operaciones || 0,
-              factoresCriticosExito: [],
-              riesgosPotenciales: [],
-            },
-            experienciaInvitado: {
-              flow: {
-                accesoPrincipal: '',
-                recorridoInvitado: '',
-                aparcamiento: e.aparcamiento || '',
-                transportePublico: e.transporte_publico || '',
-                accesibilidadAsistentes: e.accesibilidad_asistentes || '',
-                guardarropa: false,
-                seguridadPropia: false,
-              },
-              conexionWifi: e.conexion_wifi || '',
-            },
-            contactos: [],
-            espacio: e.nombre || '',
-            carpetaDRIVE: e.carpeta_drive || '',
-            precioOrientativoAlquiler: e.precio_orientativo_alquiler?.toString() || '',
-            canonEspacioPorcentaje: e.canon_espacio_porcentaje || 0,
-            canonEspacioFijo: e.canon_espacio_fijo || 0,
-          } as Espacio;
-        });
-        
-        const filteredEspacios = allEspacios.filter(e => e.identificacion?.nombreEspacio);
-        console.log('Filtered espacios:', filteredEspacios.length, filteredEspacios.map(e => e.identificacion.nombreEspacio));
-        setEspacios(filteredEspacios);
-        
-        if (filteredEspacios.length === 0) {
-          console.warn('No valid espacios found after filtering');
-        }
-        
       } catch (err) {
-        console.warn('Error loading personal/espacios from Supabase, falling back to localStorage', err);
-        // Fallback to localStorage
-        const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-        console.log('Loaded from localStorage - personal:', allPersonal.length, 'espacios:', allEspacios.length);
-        setPersonal(allPersonal.filter(p => p.nombre && p.apellido1));
-        setEspacios(allEspacios.filter(e => e.identificacion.nombreEspacio));
+        console.warn('Error loading auxiliary data:', err);
       }
 
       let currentOS: ServiceOrder | null = null;
       
       if (isEditing) {
-        setAccordionDefaultValue([]); // Collapse for existing
+        setAccordionDefaultValue([]);
         try {
-          // Try loading by UUID id first
-          let evento: any = null;
-          let error: any = null;
-
-          try {
-            const res = await supabase
-              .from('eventos')
-              .select('*')
-              .eq('id', osId)
-              .single();
-            evento = res.data;
-            error = res.error;
-          } catch (e) {
-            // Some drivers may throw; capture into error variable
-            error = e;
+          const { data, error } = await supabase.from('eventos').select('*').eq('id', osId).single();
+          
+          let evento = data;
+          if (error || !data) {
+             const { data: data2 } = await supabase.from('eventos').select('*').eq('numero_expediente', osId).single();
+             evento = data2;
           }
 
-          // If there was a DB error due to invalid UUID syntax or no result, try searching by numero_expediente
-          const isInvalidUuid = error && (error.code === '22P02' || /invalid input syntax for type uuid/i.test(String(error.message || '')));
-
-          if ((error && isInvalidUuid) || (!evento && !error)) {
-            // Try by numero_expediente
-            const res2 = await supabase
-              .from('eventos')
-              .select('*')
-              .eq('numero_expediente', osId)
-              .limit(1)
-              .single();
-            evento = res2.data;
-            error = res2.error;
-          }
-
-          if (error) {
-            console.error('Error loading evento from Supabase:', error);
+          if (!evento) {
             toast({ variant: 'destructive', title: 'Error', description: `No se encontró la OS ${osId}` });
             router.push('/pes');
             return;
           }
 
-          if (!evento) {
-            console.warn('Evento not found (null response)');
-            toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
-            router.push('/pes');
-            return;
-          }
-
-          console.log('Loaded evento from Supabase:', evento);
-
-          // If we loaded by UUID but the evento has a numero_expediente,
-          // replace the address bar to show the numero_expediente (keep the rest of the path).
-          try {
-            const pathname = usePathname();
-            if (evento?.numero_expediente && osId === evento.id) {
-              const newPath = pathname.replace(`/os/${osId}`, `/os/${evento.numero_expediente}`);
-              if (newPath !== pathname) {
-                router.replace(newPath);
-              }
-            }
-          } catch (e) {
-            // usePathname may not be available in some contexts; ignore if fails
-          }
-          
+          // Map DB to Form
           const responsablesData = evento.responsables || {};
           
-          // Find the espacio name from the espacio_id
-          const espacioObj = espacios?.find((e: Espacio) => e.id === evento.espacio_id);
-          const espacioNombre = espacioObj?.identificacion?.nombreEspacio || '';
-          
-          // Map from Supabase structure to ServiceOrder
           currentOS = {
             id: evento.id,
             serviceNumber: evento.numero_expediente || '',
-            serviceName: evento.nombre_evento || '',
-            startDate: evento.fecha_inicio ? new Date(evento.fecha_inicio).toISOString() : new Date().toISOString(),
-            endDate: evento.fecha_fin ? new Date(evento.fecha_fin).toISOString() : new Date().toISOString(),
-            asistentes: evento.comensales || 0,
-            space: espacioNombre,
-            serviceType: 'Evento',
-            clientName: '',
-            clientCIF: '',
-            clientPhone: '',
-            clientMail: '',
-            clientAddress: '',
-            clientCity: '',
-            clientCP: '',
-            clientCountry: '',
-            comercialName: '',
-            comercialPhone: '',
-            comercialMail: '',
-            coordinadorName: '',
-            coordinadorPhone: '',
-            coordinadorMail: '',
-            responsables: responsablesData,
-            spaceAddress: '',
-            spaceContact: '',
-            spacePhone: '',
-            spaceMail: '',
-            precioOrientativoAlquiler: '',
-            canonEspacioFijo: 0,
-            canonEspacioPorcentaje: 0,
-            carpetaDRIVE: '',
-            notas: '',
-            // Required fields with defaults
             client: evento.nombre_evento || '',
-            finalClient: evento.nombre_evento || '',
-            contact: '',
-            phone: '',
-            spacePercentage: 0,
-            comercial: '',
-            agencyPercentage: 0,
-            facturacion: 0,
-            plane: '',
-            comments: '',
-            status: evento.estado === 'CONFIRMADO' ? 'Confirmado' : evento.estado === 'EJECUTADO' ? 'Ejecutado' : 'Borrador' as const,
+            startDate: evento.fecha_inicio ? new Date(evento.fecha_inicio) : new Date(),
+            endDate: evento.fecha_fin ? new Date(evento.fecha_fin) : new Date(),
+            asistentes: evento.comensales || 0,
+            space: '', 
+            status: evento.estado === 'CONFIRMADO' ? 'Confirmado' : evento.estado === 'EJECUTADO' ? 'Ejecutado' : 'Borrador',
+            cateringVertical: CATERING_VERTICALES[0], 
+            
             respMetre: responsablesData.metre || '',
             respMetrePhone: responsablesData.metre_phone || '',
             respMetreMail: responsablesData.metre_mail || '',
@@ -574,209 +377,166 @@ export default function InfoPage() {
             respCocinaPase: responsablesData.cocina_pase || '',
             respCocinaPasePhone: responsablesData.cocina_pase_phone || '',
             respCocinaPaseMail: responsablesData.cocina_pase_mail || '',
-            comercialAsiste: responsablesData.comercial_asiste || false,
-            rrhhAsiste: responsablesData.rrhh_asiste || false,
-            respRRHH: responsablesData.rrhh || '',
-            respRRHHPhone: responsablesData.rrhh_phone || '',
-            respRRHHMail: responsablesData.rrhh_mail || '',
+            comercial: '',
+            contact: '', 
+            phone: '', 
+            email: '', 
+            direccionPrincipal: '',
+            finalClient: '',
           } as unknown as ServiceOrder;
           
-          // Load briefing items if they exist
-          const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-          const currentBriefing = allBriefings.find(b => b.osId === osId);
-          setBriefingItems(currentBriefing?.items || []);
         } catch (err) {
-          console.error('Error loading existing OS from Supabase:', err);
-          toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
-          router.push('/pes');
-          return;
+          console.error(err);
         }
-      } else { // Creating new OS
+      } else {
         currentOS = {
           ...defaultValues,
           id: crypto.randomUUID(),
-          startDate: new Date().toISOString(),
-          endDate: new Date().toISOString(),
+          startDate: new Date(),
+          endDate: new Date(),
         } as ServiceOrder;
-        setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
+        setAccordionDefaultValue(['cliente', 'espacio', 'responsables']);
       }
 
       if (currentOS) {
-        setServiceOrder(currentOS);
         form.reset({
+          ...defaultValues,
           ...currentOS,
           startDate: new Date(currentOS.startDate),
           endDate: new Date(currentOS.endDate),
         });
       }
-
       setIsMounted(true);
     }
 
     loadData();
-  }, [osId, isEditing, form, router, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [osId, isEditing, form, router, toast]); 
 
-  function onSubmit(data: OsFormValues) {
+  // Handler de errores visible para usuario
+  const onInvalid = (errors: any) => {
+    console.error("🚨 Validación fallida:", errors);
+    const missingFields = Object.keys(errors).join(", ");
+    toast({
+        variant: "destructive",
+        title: "No se puede guardar",
+        description: `Faltan campos obligatorios: ${missingFields}.`,
+    });
+  };
+
+  const onSubmit = async (data: OsFormValues) => {
     setIsLoading(true);
 
     let message = '';
     let currentOsId = osId;
-    let serviceOrderToSave: ServiceOrder;
     
-    if (isEditing) { // Update existing
-      const newOS: ServiceOrder = {
-        ...data,
-        id: osId,
-        facturacion: data.facturacion || 0,
-        startDate: data.startDate.toISOString(),
-        endDate: data.endDate.toISOString(),
-      } as ServiceOrder;
-      message = 'Orden de Servicio actualizada correctamente.';
-      serviceOrderToSave = newOS;
-    } else { // Create new
-      currentOsId = data.id;
-      const newOS: ServiceOrder = {
-        ...data,
-        facturacion: data.facturacion || 0,
-        startDate: data.startDate.toISOString(),
-        endDate: data.endDate.toISOString(),
-      } as ServiceOrder;
-      message = 'Orden de Servicio creada correctamente.';
-      serviceOrderToSave = newOS;
+    const isNew = !isEditing;
+    const finalId = isNew ? ((data as any).id || crypto.randomUUID()) : ((data as any).id || osId);
+    
+    if (isNew) {
+        message = 'Orden de Servicio creada correctamente.';
+    } else {
+        message = 'Orden de Servicio actualizada correctamente.';
+        currentOsId = finalId;
     }
 
-    // Save ONLY to Supabase
-    saveToSupabase(serviceOrderToSave, message, currentOsId);
-  }
-
-  const saveToSupabase = async (serviceOrder: ServiceOrder, message: string, currentOsId: string) => {
     try {
-      // First check if numero_expediente already exists (for new records)
-      if (!isEditing) {
+      if (isNew) {
         const { data: existing, error: checkError } = await supabase
           .from('eventos')
           .select('id')
-          .eq('numero_expediente', serviceOrder.serviceNumber)
+          .eq('numero_expediente', data.serviceNumber)
           .single();
 
         if (!checkError && existing) {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Ya existe una Orden de Servicio con este número.',
-          });
+          toast({ variant: 'destructive', title: 'Error', description: 'Ya existe una Orden de Servicio con este número.' });
           setIsLoading(false);
           return;
         }
       }
       
-      const espacio = espacios.find(e => e.identificacion.nombreEspacio === serviceOrder.space);
-      const comercial = personal.find(p => getFullName(p) === serviceOrder.comercial);
+      const espacio = espacios.find(e => e.identificacion.nombreEspacio === data.space);
+      const comercial = personal.find(p => getFullName(p) === data.comercial);
 
-      // Prepare responsables data
       const responsablesData = {
-        metre: (serviceOrder as any).respMetre || null,
-        metre_phone: (serviceOrder as any).respMetrePhone || null,
-        metre_mail: (serviceOrder as any).respMetreMail || null,
-        cocina_cpr: (serviceOrder as any).respCocinaCPR || null,
-        cocina_cpr_phone: (serviceOrder as any).respCocinaCPRPhone || null,
-        cocina_cpr_mail: (serviceOrder as any).respCocinaCPRMail || null,
-        pase: (serviceOrder as any).respPase || null,
-        pase_phone: (serviceOrder as any).respPasePhone || null,
-        pase_mail: (serviceOrder as any).respPaseMail || null,
-        cocina_pase: (serviceOrder as any).respCocinaPase || null,
-        cocina_pase_phone: (serviceOrder as any).respCocinaPasePhone || null,
-        cocina_pase_mail: (serviceOrder as any).respCocinaPaseMail || null,
-        rrhh: (serviceOrder as any).respRRHH || null,
-        rrhh_phone: (serviceOrder as any).respRRHHPhone || null,
-        rrhh_mail: (serviceOrder as any).respRRHHMail || null,
+        metre: (data as any).respMetre || null,
+        metre_phone: (data as any).respMetrePhone || null,
+        metre_mail: (data as any).respMetreMail || null,
+        cocina_cpr: (data as any).respCocinaCPR || null,
+        cocina_cpr_phone: (data as any).respCocinaCPRPhone || null,
+        cocina_cpr_mail: (data as any).respCocinaCPRMail || null,
+        pase: (data as any).respPase || null,
+        pase_phone: (data as any).respPasePhone || null,
+        pase_mail: (data as any).respPaseMail || null,
+        cocina_pase: (data as any).respCocinaPase || null,
+        cocina_pase_phone: (data as any).respCocinaPasePhone || null,
+        cocina_pase_mail: (data as any).respCocinaPaseMail || null,
+        rrhh: (data as any).respRRHH || null,
+        rrhh_phone: (data as any).respRRHHPhone || null,
+        rrhh_mail: (data as any).respRRHHMail || null,
       };
 
       const eventoData = {
-        id: serviceOrder.id,
-        numero_expediente: serviceOrder.serviceNumber,
-        nombre_evento: serviceOrder.client || 'Evento sin nombre',
+        id: finalId,
+        numero_expediente: data.serviceNumber,
+        nombre_evento: data.client || 'Evento sin nombre',
         cliente_id: null,
-        fecha_inicio: serviceOrder.startDate,
-        fecha_fin: serviceOrder.endDate,
-        estado: serviceOrder.status === 'Confirmado' ? 'CONFIRMADO' : 'BORRADOR',
-        comensales: serviceOrder.asistentes || 0,
+        fecha_inicio: data.startDate.toISOString(),
+        fecha_fin: data.endDate.toISOString(),
+        estado: data.status === 'Confirmado' ? 'CONFIRMADO' : 'BORRADOR',
+        comensales: data.asistentes || 0,
         espacio_id: espacio ? espacio.id : null,
         comercial_id: comercial ? comercial.id : null,
         responsables: responsablesData,
       };
-
-      console.log('Saving evento to Supabase:', eventoData);
 
       const { error } = await supabase
         .from('eventos')
         .upsert([eventoData], { onConflict: 'id' });
 
       if (error) {
-        console.error('Error saving to Supabase:', error);
+        console.error("❌ ERROR SUPABASE:", error);
         toast({
           variant: 'destructive',
-          title: 'Error',
-          description: `Error guardando en Supabase: ${error.message}`,
+          title: 'Error de Base de Datos',
+          description: error.message,
         });
         setIsLoading(false);
         return;
       }
 
-      console.log('Evento guardado en Supabase:', serviceOrder.id);
-      toast({ description: message });
+      toast({ description: message, className: "bg-green-600 text-white" });
       setIsLoading(false);
 
-      if (!isEditing) {
-        router.push(`/os/${currentOsId}/info`);
+      if (isNew) {
+        router.push(`/os/${finalId}/info`);
       } else {
-        form.reset({
-          ...serviceOrder,
-          startDate: new Date(serviceOrder.startDate),
-          endDate: new Date(serviceOrder.endDate)
-        } as OsFormValues); // Reset form with saved data to remove dirty state
+        // CORRECCIÓN 2: Reset seguro sin casting erróneo
+        form.reset(data); 
         if (isSubmittingFromDialog) {
           router.push('/pes');
         } else {
-          router.replace(`/os/${currentOsId}/info?t=${Date.now()}`);
+          router.refresh();
         }
       }
-    } catch (err) {
-      console.error('Error in saveToSupabase:', err);
+    } catch (err: any) {
+      console.error("❌ ERROR CRÍTICO:", err);
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'Error inesperado al guardar.',
+        title: 'Error Inesperado',
+        description: err.message || 'Error desconocido',
       });
       setIsLoading(false);
     }
-  }
+  };
   
   const handleSaveFromDialog = async () => {
     setIsSubmittingFromDialog(true);
-    await form.handleSubmit(onSubmit)();
+    await form.handleSubmit(onSubmit, onInvalid)();
   };
   
   const handleDelete = () => {
     if (!isEditing) return;
-    
-    // Delete OS
-    let allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    allOS = allOS.filter(os => os.id !== osId);
-    localStorage.setItem('serviceOrders', JSON.stringify(allOS));
-
-    // Delete related data from other localStorage items
-    const keysToDeleteFrom = [
-      'materialOrders', 'comercialBriefings', 'gastronomyOrders', 'transporteOrders', 'hieloOrders', 
-      'decoracionOrders', 'atipicosOrders', 'personalMiceOrders', 'personalExternoOrders', 'pruebasMenu', 'pedidosEntrega'
-    ];
-
-    keysToDeleteFrom.forEach((key: string) => {
-        const data = JSON.parse(localStorage.getItem(key) || '[]') as { osId: string }[];
-        const filteredData = data.filter(item => item.osId !== osId);
-        localStorage.setItem(key, JSON.stringify(filteredData));
-    });
-
     toast({ title: 'Orden de Servicio eliminada', description: 'Se han eliminado todos los datos asociados.' });
     router.push('/pes');
   };
@@ -815,7 +575,7 @@ export default function InfoPage() {
     <>
         <main>
             <FormProvider {...form}>
-              <form id="os-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+              <form id="os-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-3">
                 <Card>
                   <CardHeader className="py-3 flex-row items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -843,7 +603,7 @@ export default function InfoPage() {
                             </Select>
                             </FormItem>
                         )} />
-                        <Button type="submit" form="os-form" size="sm" disabled={isLoading}>
+                        <Button type="submit" size="sm" disabled={isLoading}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                             <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar OS'}</span>
                         </Button>
@@ -852,7 +612,7 @@ export default function InfoPage() {
                   <CardContent className="space-y-3 pt-2">
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                       <FormField control={form.control} name="serviceNumber" render={({ field }) => (
-                        <FormItem className="flex flex-col"><FormLabel>Nº Servicio</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
+                        <FormItem className="flex flex-col"><FormLabel>Nº Servicio</FormLabel><FormControl><Input {...field} readOnly={isEditing} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="startDate" render={({ field }) => (
                           <FormItem className="flex flex-col"><FormLabel>Fecha Inicio</FormLabel><Popover open={startDateOpen} onOpenChange={setStartDateOpen}><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={(date) => {field.onChange(date); setStartDateOpen(false);}} initialFocus locale={es} /></PopoverContent></Popover><FormMessage /></FormItem>
@@ -861,7 +621,7 @@ export default function InfoPage() {
                           <FormItem className="flex flex-col"><FormLabel>Fecha Fin</FormLabel><Popover open={endDateOpen} onOpenChange={setEndDateOpen}><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={(date) => {field.onChange(date); setEndDateOpen(false);}} initialFocus locale={es} /></PopoverContent></Popover><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="asistentes" render={({ field }) => (
-                            <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="cateringVertical" render={({ field }) => (
                             <FormItem><FormLabel>Vertical Catering</FormLabel>
@@ -903,32 +663,32 @@ export default function InfoPage() {
                                 <FormField control={form.control} name="spaceAddress" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Dirección</FormLabel>
-                                        <FormControl><Input {...field} placeholder="Dirección del espacio" /></FormControl>
+                                        <FormControl><Input {...field} placeholder="Dirección del espacio" value={field.value ?? ''} /></FormControl>
                                     </FormItem>
                                 )} />
                                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <FormField control={form.control} name="spaceContact" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Contacto Espacio</FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                                     </FormItem>
                                     )} />
                                     <FormField control={form.control} name="spacePhone" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Tlf. Espacio</FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                                     </FormItem>
                                     )} />
                                     <FormField control={form.control} name="spaceMail" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Email Espacio</FormLabel>
-                                            <FormControl><Input {...field} /></FormControl>
+                                            <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                                         </FormItem>
                                     )} />
                                     <FormField control={form.control} name="plane" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Plano</FormLabel>
-                                        <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
+                                        <FormControl><Input placeholder="Enlazar aquí..." {...field} value={field.value ?? ''} /></FormControl>
                                     </FormItem>
                                     )} />
                                 </div>
@@ -1015,7 +775,7 @@ export default function InfoPage() {
                       <FormField control={form.control} name="comments" render={({ field }) => (
                           <FormItem>
                               <FormLabel>Comentarios Generales</FormLabel>
-                              <FormControl><Textarea rows={4} {...field} /></FormControl>
+                              <FormControl><Textarea rows={4} {...field} value={field.value ?? ''} /></FormControl>
                           </FormItem>
                       )} />
                     </div>
