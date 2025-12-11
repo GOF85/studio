@@ -187,7 +187,7 @@ function OsHeaderContent({ osId }: { osId: string }) {
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
     const params = useParams();
     const pathname = usePathname();
-    const osId = params.id as string;
+    const osId = params.numero_expediente as string;
     const [serviceNumber, setServiceNumber] = useState<string | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const router = useRouter();

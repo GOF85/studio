@@ -333,6 +333,7 @@ export type ArticuloCatering = {
     partnerId?: string;
     recetaId?: string;
     subcategoria?: string;
+    tipoArticulo: 'micecatering' | 'entregas';
 }
 
 // Backwards-compatible alias: some files still import `AlquilerDBItem`

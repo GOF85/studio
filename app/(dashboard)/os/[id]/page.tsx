@@ -9,7 +9,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 export default function OsPage() {
     const router = useRouter();
     const params = useParams();
-    const osId = params.id as string;
+    const osId = params.numero_expediente as string;
 
     useEffect(() => {
         if (osId) {

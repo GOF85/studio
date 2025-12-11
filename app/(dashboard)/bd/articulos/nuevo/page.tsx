@@ -24,6 +24,7 @@ export const articuloSchema = z.object({
     id: z.string(),
     nombre: z.string().min(1, 'El nombre es requerido'),
     categoria: z.string().min(1, 'La categoría es requerida'),
+    tipoArticulo: z.enum(['micecatering', 'entregas'], { required_error: 'El tipo de artículo es obligatorio' }),
     precioVenta: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
     precioAlquiler: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
     precioReposicion: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
@@ -52,6 +53,7 @@ export default function NuevoArticuloPage() {
             id: crypto.randomUUID(),
             nombre: '',
             categoria: '',
+            tipoArticulo: 'micecatering',
             precioVenta: 0,
             precioAlquiler: 0,
             precioReposicion: 0,
@@ -123,6 +125,7 @@ export default function NuevoArticuloPage() {
                 id: data.id,
                 nombre: data.nombre,
                 categoria: data.categoria,
+                tipo_articulo: data.tipoArticulo,
                 precio_venta: data.precioVenta,
                 precio_alquiler: data.precioAlquiler,
                 precio_reposicion: data.precioReposicion,
@@ -168,7 +171,24 @@ export default function NuevoArticuloPage() {
                         <Card>
                             <CardHeader><CardTitle className="text-lg">Información del Artículo</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4">
+                                    <FormField control={form.control} name="tipoArticulo" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-lg font-bold text-primary">Tipo de Artículo <span className="text-destructive">*</span></FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className="h-14 text-lg border-2 border-primary bg-primary/10 font-bold">
+                                                        <SelectValue placeholder="Selecciona un tipo" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="micecatering">Micecatering</SelectItem>
+                                                    <SelectItem value="entregas">Entregas</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
                                     <FormField control={form.control} name="nombre" render={({ field }) => (
                                         <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
@@ -247,18 +267,6 @@ export default function NuevoArticuloPage() {
                                             <div className="space-y-1 leading-none">
                                                 <FormLabel>Producido por Partner</FormLabel>
                                                 <FormDescription>Marcar si este artículo es suministrado por un tercero.</FormDescription>
-                                            </div>
-                                        </FormItem>
-                                    )} />
-
-                                    <FormField control={form.control} name="esHabitual" render={({ field }) => (
-                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                                            <FormControl>
-                                                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                            </FormControl>
-                                            <div className="space-y-1 leading-none">
-                                                <FormLabel>Es Habitual</FormLabel>
-                                                <FormDescription>Marcar si es un artículo de uso frecuente.</FormDescription>
                                             </div>
                                         </FormItem>
                                     )} />

@@ -48,6 +48,7 @@ function ArticulosPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isPartnerFilter, setIsPartnerFilter] = useState(false);
+  const [tipoArticuloFilter, setTipoArticuloFilter] = useState<'all' | 'micecatering' | 'entregas'>('all');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const router = useRouter();
@@ -68,9 +69,10 @@ function ArticulosPageContent() {
         (item.id || '').toLowerCase().includes(term);
       const categoryMatch = categoryFilter === 'all' || item.categoria === categoryFilter;
       const partnerMatch = !isPartnerFilter || item.producidoPorPartner;
-      return searchMatch && categoryMatch && partnerMatch;
+      const tipoArticuloMatch = tipoArticuloFilter === 'all' || item.tipoArticulo === tipoArticuloFilter;
+      return searchMatch && categoryMatch && partnerMatch && tipoArticuloMatch;
     });
-  }, [items, searchTerm, categoryFilter, isPartnerFilter]);
+  }, [items, searchTerm, categoryFilter, isPartnerFilter, tipoArticuloFilter]);
 
   // Para infinite scroll en móvil: mostrar todos los items filtrados
   const mobileItems = useMemo(() => {
@@ -91,6 +93,7 @@ function ArticulosPageContent() {
   const mobileColumns: MobileTableColumn<ArticuloCatering>[] = [
     { key: 'nombre', label: 'Nombre', isTitle: true },
     { key: 'categoria', label: 'Categoría' },
+    { key: 'tipoArticulo', label: 'Tipo' },
     { key: 'precioVenta', label: 'Precio Venta', format: (value) => (value as number).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) },
     { key: 'precioAlquiler', label: 'Precio Alquiler', format: (value) => (value as number) > 0 ? (value as number).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-' },
   ];
@@ -240,6 +243,16 @@ function ArticulosPageContent() {
             {ARTICULO_CATERING_CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={tipoArticuloFilter} onValueChange={setTipoArticuloFilter}>
+          <SelectTrigger className="w-full md:w-[180px]">
+            <SelectValue placeholder="Filtrar por tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los Tipos</SelectItem>
+            <SelectItem value="micecatering">Micecatering</SelectItem>
+            <SelectItem value="entregas">Entregas</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="flex items-center space-x-2">
           <Checkbox id="partner-filter" checked={isPartnerFilter} onCheckedChange={(checked) => setIsPartnerFilter(Boolean(checked))} />
           <label htmlFor="partner-filter" className="text-sm font-medium">Producido por Partner</label>
@@ -307,8 +320,8 @@ function ArticulosPageContent() {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
-              {/* <TableHead>ID</TableHead> */}
               <TableHead>Categoría</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead>Precio Venta</TableHead>
               <TableHead>Precio Alquiler</TableHead>
               <TableHead className="text-right w-24">Acciones</TableHead>
@@ -319,8 +332,8 @@ function ArticulosPageContent() {
               filteredItems.map(item => (
                 <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/articulos/${item.id}`)}>
                   <TableCell className="font-medium">{item.nombre}</TableCell>
-                  {/* <TableCell>{item.id}</TableCell> */}
                   <TableCell>{item.categoria}</TableCell>
+                  <TableCell>{item.tipoArticulo === 'micecatering' ? 'Micecatering' : 'Entregas'}</TableCell>
                   <TableCell>{item.precioVenta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                   <TableCell>{item.precioAlquiler > 0 ? item.precioAlquiler.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-'}</TableCell>
                   <TableCell className="text-right">
@@ -345,7 +358,7 @@ function ArticulosPageContent() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   No se encontraron artículos.
                 </TableCell>
               </TableRow>

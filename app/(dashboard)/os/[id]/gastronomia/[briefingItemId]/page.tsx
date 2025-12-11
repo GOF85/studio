@@ -67,7 +67,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 function PedidoGastronomiaForm() {
     const params = useParams();
-    const osId = params.id as string;
+    const osId = params.numero_expediente as string;
     const briefingItemId = params.briefingItemId as string;
 
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
