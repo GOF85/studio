@@ -330,7 +330,12 @@ function ArticulosPageContent() {
           <TableBody>
             {filteredItems.length > 0 ? (
               filteredItems.map(item => (
-                <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/articulos/${item.id}`)}>
+                <TableRow
+                  key={item.id}
+                  className={`cursor-pointer ${item.tipoArticulo === 'entregas' ? 'bg-orange-50' : ''}`}
+                  style={item.tipoArticulo === 'entregas' ? { backgroundColor: '#FFF7ED' } : {}}
+                  onClick={() => router.push(`/bd/articulos/${item.id}`)}
+                >
                   <TableCell className="font-medium">{item.nombre}</TableCell>
                   <TableCell>{item.categoria}</TableCell>
                   <TableCell>{item.tipoArticulo === 'micecatering' ? 'Micecatering' : 'Entregas'}</TableCell>
