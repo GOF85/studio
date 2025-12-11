@@ -329,38 +329,41 @@ function ArticulosPageContent() {
           </TableHeader>
           <TableBody>
             {filteredItems.length > 0 ? (
-              filteredItems.map(item => (
-                <TableRow
-                  key={item.id}
-                  className={`cursor-pointer ${item.tipoArticulo === 'entregas' ? 'bg-orange-50' : ''}`}
-                  style={item.tipoArticulo === 'entregas' ? { backgroundColor: '#FFF7ED' } : {}}
-                  onClick={() => router.push(`/bd/articulos/${item.id}`)}
-                >
-                  <TableCell className="font-medium">{item.nombre}</TableCell>
-                  <TableCell>{item.categoria}</TableCell>
-                  <TableCell>{item.tipoArticulo === 'micecatering' ? 'Micecatering' : 'Entregas'}</TableCell>
-                  <TableCell>{item.precioVenta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                  <TableCell>{item.precioAlquiler > 0 ? item.precioAlquiler.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-'}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                          <span className="sr-only">Abrir menú</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/bd/articulos/${item.id}`)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
+              filteredItems.map(item => {
+                console.log('DEBUG ARTICULO:', item);
+                return (
+                  <TableRow
+                    key={item.id}
+                    className={`cursor-pointer ${item.tipo_articulo === 'entregas' ? 'bg-orange-50' : ''}`}
+                    style={item.tipo_articulo === 'entregas' ? { backgroundColor: '#FFF7ED' } : {}}
+                    onClick={() => router.push(`/bd/articulos/${item.id}`)}
+                  >
+                    <TableCell className="font-medium">{item.nombre}</TableCell>
+                    <TableCell>{item.categoria}</TableCell>
+                    <TableCell>{item.tipo_articulo === 'entregas' ? 'Entregas' : item.tipo_articulo === 'micecatering' ? 'Micecatering' : ''}</TableCell>
+                    <TableCell>{item.precioVenta?.toLocaleString ? item.precioVenta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : (parseFloat(item.precio_venta || '0')).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>{item.precioAlquiler?.toLocaleString ? (item.precioAlquiler > 0 ? item.precioAlquiler.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-') : (parseFloat(item.precio_alquiler || '0') > 0 ? parseFloat(item.precio_alquiler || '0').toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-')}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                            <span className="sr-only">Abrir menú</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => router.push(`/bd/articulos/${item.id}`)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">

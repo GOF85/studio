@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Package, Link as LinkIcon, CircleX } from 'lucide-react';
+import { ImageManager } from '@/components/book/images/ImageManager';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -41,12 +42,13 @@ export type ArticuloFormValues = z.infer<typeof articuloSchema>;
 export default function NuevoArticuloPage() {
     const router = useRouter();
     const { isLoading, setIsLoading } = useLoadingStore();
-    const { toast } = useToast();
+        const { toast } = useToast();
     const { loadAllData } = useDataStore();
     const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]);
     const [erpSearchTerm, setErpSearchTerm] = useState('');
     const [isErpSelectorOpen, setIsErpSelectorOpen] = useState(false);
 
+    const [imagenes, setImagenes] = useState<ImagenReceta[]>([]);
     const form = useForm<ArticuloFormValues>({
         resolver: zodResolver(articuloSchema),
         defaultValues: {
@@ -63,6 +65,7 @@ export default function NuevoArticuloPage() {
             stockSeguridad: 0,
             unidadVenta: 1,
             loc: '',
+            imagenes: [],
         },
     });
 
@@ -142,6 +145,7 @@ export default function NuevoArticuloPage() {
             setIsLoading(false);
             return;
         }
+                    imagenes: imagenes,
 
         toast({ description: 'Nuevo artículo añadido correctamente.' });
         await loadAllData();

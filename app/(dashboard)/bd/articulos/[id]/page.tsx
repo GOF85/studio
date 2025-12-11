@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Save, X, Package, Trash2, Link as LinkIcon, CircleX } from 'lucide-react';
+import { ImageManager } from '@/components/book/images/ImageManager';
+import type { ImagenReceta } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -33,6 +35,7 @@ export default function EditarArticuloPage() {
     const [erpSearchTerm, setErpSearchTerm] = useState(''); // New state
     const [isErpSelectorOpen, setIsErpSelectorOpen] = useState(false); // New state
 
+    const [imagenes, setImagenes] = useState<ImagenReceta[]>([]);
     const form = useForm<ArticuloFormValues>({
         resolver: zodResolver(articuloSchema),
         defaultValues: {
@@ -49,6 +52,7 @@ export default function EditarArticuloPage() {
             stockSeguridad: 0,
             unidadVenta: 1,
             loc: '',
+            imagenes: [],
         },
     });
 
@@ -81,7 +85,9 @@ export default function EditarArticuloPage() {
                 stockSeguridad: data.stock_seguridad || 0,
                 unidadVenta: data.unidad_venta || 1,
                 loc: data.loc || '',
+                imagenes: data.imagenes || [],
             });
+            setImagenes(data.imagenes || []);
         }
         loadArticulo();
     }, [id, form, router, toast]);
@@ -155,6 +161,7 @@ export default function EditarArticuloPage() {
                 stock_seguridad: data.stockSeguridad || 0,
                 unidad_venta: data.unidadVenta || 1,
                 loc: data.loc || null,
+                imagenes: imagenes,
             })
             .eq('id', id);
 
@@ -210,6 +217,36 @@ export default function EditarArticuloPage() {
                             <CardHeader><CardTitle className="text-lg">Información del Artículo</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-1 gap-4">
+                                                                {/* Gestión de imágenes */}
+                                                                <div className="pt-6">
+                                                                    <h2 className="text-lg font-bold mb-2">Imágenes del artículo (máx. 5)</h2>
+                                                                    <ImageManager
+                                                                        images={imagenes}
+                                                                        onUpload={(url, filename) => {
+                                                                            if (imagenes.length >= 5) {
+                                                                                toast({ variant: 'destructive', title: 'Máximo 5 imágenes', description: 'No puedes subir más de 5 imágenes.' });
+                                                                                return;
+                                                                            }
+                                                                            setImagenes(prev => {
+                                                                                const newImgs = [...prev, { id: `img-${Date.now()}`, url, descripcion: filename, esPrincipal: prev.length === 0, orden: prev.length }];
+                                                                                return newImgs;
+                                                                            });
+                                                                        }}
+                                                                        onReorder={newOrder => setImagenes(newOrder.map((img, idx) => ({ ...img, orden: idx })))}
+                                                                        onDelete={id => setImagenes(prev => {
+                                                                            const filtered = prev.filter(img => img.id !== id);
+                                                                            // Si se borra la principal, marcar la primera como principal
+                                                                            if (filtered.length > 0 && !filtered.some(img => img.esPrincipal)) filtered[0].esPrincipal = true;
+                                                                            return filtered;
+                                                                        })}
+                                                                        onSetPrincipal={id => setImagenes(prev => prev.map(img => ({ ...img, esPrincipal: img.id === id })))}
+                                                                        folder={form.getValues('id')}
+                                                                        bucket="articulosMice"
+                                                                        enableCamera={true}
+                                                                        label="imagen"
+                                                                    />
+                                                                    <p className="text-xs text-muted-foreground mt-2">Se permiten PNG, JPEG y HEIC. Si la conversión de HEIC falla, usa PNG/JPEG.</p>
+                                                                </div>
                                     <FormField control={form.control} name="tipoArticulo" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel className="text-lg font-bold text-primary">Tipo de Artículo <span className="text-destructive">*</span></FormLabel>

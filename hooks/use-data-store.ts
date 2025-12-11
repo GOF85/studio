@@ -799,7 +799,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
                     producidoPorPartner: a.producido_por_partner,
                     partnerId: a.partner_id,
                     recetaId: a.receta_id,
-                    subcategoria: a.subcategoria
+                    subcategoria: a.subcategoria,
+                    tipo_articulo: a.tipo_articulo
                 })),
                 tipoServicio: (tiposServicioBriefingDB || []).map((t: any) => ({
                     id: t.id,

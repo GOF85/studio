@@ -14,7 +14,7 @@ import { es } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio, ComercialAjuste } from '@/types';
-import { osFormSchema, type OsFormValues } from '@/app/(dashboard)/os/[id]/info/page';
+import { osFormSchema, type OsFormValues } from '@/app/(dashboard)/os/[numero_expediente]/info/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -159,7 +159,7 @@ export default function ComercialPage() {
     const spaceCommission = (facturacionFinal * (data.spacePercentage || 0) / 100) + (data.spaceCommissionValue || 0);
 
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const index = allServiceOrders.findIndex(os => os.id === osId);
+    const index = allServiceOrders.findIndex(os => os.serviceNumber === osId);
     if (index !== -1) {
       allServiceOrders[index] = {
         ...allServiceOrders[index],
@@ -197,7 +197,7 @@ export default function ComercialPage() {
 
     if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
+      const currentOS = allServiceOrders.find(os => os.serviceNumber === osId);
       if (currentOS) {
         setServiceOrder(currentOS);
         financialForm.reset({
@@ -207,7 +207,9 @@ export default function ComercialPage() {
           spaceCommissionValue: currentOS.spaceCommissionValue || 0,
         });
       } else {
-        router.push('/pes');
+        toast({ title: 'Orden de servicio no encontrada', description: 'No existe la OS con ese número de expediente', variant: 'destructive' });
+        // Puedes redirigir a otra página si lo deseas, por ejemplo al dashboard:
+        // router.push('/dashboard');
       }
 
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
