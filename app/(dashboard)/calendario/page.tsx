@@ -147,11 +147,10 @@ export default function CalendarioServiciosPage() {
               <CalendarIcon className="h-8 w-8" />
               Calendario Operativo
             </h1>
-            {/* Texto eliminado por solicitud de usuario */}
           </div>
-          
+          {/* Selector de vistas siempre visible */}
           <div className="flex items-center gap-3 bg-muted/20 p-1 rounded-lg">
-            <div className="md:hidden flex border bg-background rounded-md overflow-hidden shadow-sm">
+            <div className="flex border bg-background rounded-md overflow-hidden shadow-sm">
               <Button variant={viewMode === 'agenda' ? 'secondary' : 'ghost'} size="sm" className="rounded-none px-3" onClick={() => setViewMode('agenda')}>
                 <List className="h-4 w-4" />
               </Button>
@@ -159,14 +158,12 @@ export default function CalendarioServiciosPage() {
                 <Grid className="h-4 w-4" />
               </Button>
             </div>
-            
             {/* Botón PES */}
             <Link href="/pes">
               <Button variant="secondary" size="sm" className="font-bold text-primary shadow-sm hover:bg-white">
                 PES
               </Button>
             </Link>
-
             <div className="flex items-center bg-background rounded-md shadow-sm border">
                 <Button variant="ghost" size="icon" onClick={prevMonth} className="hover:bg-muted">
                 <ChevronLeft className="h-4 w-4" />
@@ -209,7 +206,7 @@ export default function CalendarioServiciosPage() {
                         const isDraft = firstEvent.status === 'BORRADOR';
 
                         return (
-                            <Link key={osId} href={`/os?id=${osId}`} className="block">
+                            <Link key={osId} href={`/os/${firstEvent.serviceNumber}`} className="block">
                                 <Card className={cn(
                                     "transition-all hover:shadow-md",
                                     isDraft && "border-dashed opacity-80 bg-muted/20" 
@@ -309,7 +306,7 @@ export default function CalendarioServiciosPage() {
                       return (
                         <Tooltip key={osId}>
                           <TooltipTrigger asChild>
-                            <Link href={`/os?id=${osId}`} className="block">
+                            <Link href={`/os/${firstEvent.serviceNumber}`} className="block">
                               <div className={cn(
                                 "text-[10px] px-1.5 py-1 rounded border truncate flex items-center gap-1.5 transition-all hover:scale-[1.02]",
                                 isDraft 
@@ -381,7 +378,7 @@ export default function CalendarioServiciosPage() {
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto space-y-2 mt-2 pr-1">
             {dayDetails && Object.values(dayDetails.osEvents).flat().map((event, index) => (
-              <Link key={`${event.osId}-${index}`} href={`/os?id=${event.osId}`} className="block">
+              <Link key={`${event.osId}-${index}`} href={`/os/${event.serviceNumber}`} className="block">
                  <div className={cn(
                     "p-3 rounded-lg border transition-colors hover:bg-muted flex gap-3",
                     event.status === 'BORRADOR' ? "border-dashed opacity-80" : "border-l-4 border-l-primary"

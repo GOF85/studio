@@ -19,7 +19,7 @@ export function useEventos() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('eventos')
-                .select('*')
+                .select(`*, espacios_v2(nombre)`) // join con espacios_v2 para traer nombre
                 .order('fecha_inicio', { ascending: false });
 
             if (error) throw error;
@@ -30,14 +30,14 @@ export function useEventos() {
                 serviceNumber: e.numero_expediente,
                 client: e.nombre_evento || 'Evento Sin Nombre',
                 tipoCliente: 'Empresa',
-                finalClient: 'Cliente ID ' + e.cliente_id,
+                finalClient: e.nombre_evento || 'Evento Sin Nombre', // nombre_evento como cliente final
                 startDate: e.fecha_inicio,
                 endDate: e.fecha_fin,
-                status: (e.estado === 'CONFIRMADO' ? 'Confirmado' : 'Borrador') as any,
+                status: e.estado,
                 asistentes: e.comensales || 0,
                 vertical: 'Catering',
                 comercial: 'Comercial ID ' + e.comercial_id,
-                space: 'Espacio ID ' + e.espacio_id,
+                space: e.espacios_v2?.nombre || 'Espacio por definir', // nombre real del espacio
                 facturacion: 0,
                 comisionesAgencia: 0,
                 comisionesCanon: 0,
