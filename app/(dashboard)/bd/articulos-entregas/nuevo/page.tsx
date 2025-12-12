@@ -29,10 +29,12 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Link, X, Loader2 } from 'lucide-react';
+import { Link, X, Loader2 } from 'lucide-react';
 import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
 import { PackSelector, type PackItem } from '../components/PackSelector';
 import type { ArticuloERP } from '@/types';
+import { ImageManager } from '@/components/book/images/ImageManager';
+import { type ImagenArticulo } from '@/lib/articulos-schemas';
 
 const DPT_ENTREGAS_OPTIONS = ['ALMACEN', 'CPR', 'PARTNER', 'RRHH'] as const;
 
@@ -46,6 +48,7 @@ export default function NuevoArticuloEntregasPage() {
   const [erpSearchTerm, setErpSearchTerm] = useState('');
   const [isPackSelectorOpen, setIsPackSelectorOpen] = useState(false);
   const [selectedPacks, setSelectedPacks] = useState<PackItem[]>([]);
+  const [imagenes, setImagenes] = useState<ImagenArticulo[]>([]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -119,6 +122,37 @@ export default function NuevoArticuloEntregasPage() {
     }
   };
 
+  const handleImageUpload = (url: string, filename: string) => {
+    if (imagenes.length >= 5) {
+      toast({ variant: 'destructive', title: 'Límite alcanzado', description: 'Máximo 5 imágenes' });
+      return;
+    }
+    const newImage: ImagenArticulo = { 
+      id: `img-${Date.now()}`, 
+      url, 
+      esPrincipal: imagenes.length === 0, 
+      orden: imagenes.length, 
+      descripcion: filename 
+    };
+    setImagenes([...imagenes, newImage]);
+  };
+
+  const handleImageReorder = (newOrder: any[]) => {
+    setImagenes(newOrder.map((img, index) => ({ ...img, orden: index })));
+  };
+
+  const handleImageDelete = (id: string) => {
+    const newImages = imagenes.filter((img) => img.id !== id);
+    if (imagenes.find((img) => img.id === id)?.esPrincipal && newImages.length > 0) {
+      newImages[0].esPrincipal = true;
+    }
+    setImagenes(newImages);
+  };
+
+  const handleSetPrincipal = (id: string) => {
+    setImagenes(imagenes.map((img) => ({ ...img, esPrincipal: img.id === id })));
+  };
+
   async function onSubmit(data: ArticuloEntregasFormValues) {
     setIsSubmitting(true);
     try {
@@ -135,7 +169,7 @@ export default function NuevoArticuloEntregasPage() {
         precio_alquiler_ifema: data.precioAlquilerIfema,
         iva: data.iva,
         doc_drive_url: data.docDriveUrl,
-        imagenes: data.imagenes,
+        imagenes: imagenes,
         producido_por_partner: data.producidoPorPartner,
         tipo_articulo: 'entregas',
       };
@@ -457,6 +491,34 @@ export default function NuevoArticuloEntregasPage() {
                   </FormItem>
                 )}
               />
+            </CardContent>
+          </Card>
+
+          {/* Imágenes (máximo 5) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Imágenes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-bold text-foreground">Imágenes <span className="text-xs text-muted-foreground">({imagenes.length}/5)</span></label>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-tight">Máximo 5 imágenes. Formatos: JPEG, PNG, HEIC. Selecciona una como imagen principal.</p>
+              </div>
+              
+              <div className="bg-muted/30 rounded-lg p-3 border">
+                <ImageManager 
+                  images={imagenes} 
+                  onUpload={handleImageUpload}
+                  onReorder={handleImageReorder}
+                  onDelete={handleImageDelete}
+                  onSetPrincipal={handleSetPrincipal}
+                  folder="articulosEntregas" 
+                  enableCamera={true} 
+                  label="Añadir imagen" 
+                />
+              </div>
             </CardContent>
           </Card>
         </form>

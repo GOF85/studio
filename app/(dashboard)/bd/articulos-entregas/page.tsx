@@ -46,7 +46,7 @@ import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-
 import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 import { TableLoadingSplash } from '@/components/layout/table-loading-splash';
 
-const CSV_HEADERS = ["id", "erp_id", "nombre", "categoria", "referencia_articulo_entregas", "dpt_entregas", "precio_venta_entregas", "precio_venta_entregas_ifema", "precio_coste", "precio_coste_alquiler", "precio_alquiler_ifema", "unidad_venta", "loc", "imagen", "producido_por_partner", "partner_id", "subcategoria", "iva", "doc_drive_url"];
+const CSV_HEADERS = ["id", "erp_id", "nombre", "categoria", "referencia_articulo_entregas", "dpt_entregas", "precio_coste", "precio_coste_alquiler", "precio_alquiler_entregas", "precio_venta_entregas", "precio_venta_entregas_ifema", "precio_alquiler_ifema", "iva", "doc_drive_url", "imagenes", "producido_por_partner", "partner_id", "subcategoria", "unidad_venta", "loc", "imagen"];
 
 function ArticulosEntregasPageContent() {
   const { data, loadAllData } = useDataStore();
@@ -199,28 +199,42 @@ function ArticulosEntregasPageContent() {
           return;
         }
 
-        const importedData = results.data.map((item: any) => ({
-          id: item.id || crypto.randomUUID(),
-          erp_id: item.erp_id || null,
-          nombre: item.nombre,
-          categoria: item.categoria,
-          referencia_articulo_entregas: item.referencia_articulo_entregas,
-          dpt_entregas: item.dpt_entregas || null,
-          precio_venta_entregas: parseFloat(item.precio_venta_entregas) || 0,
-          precio_venta_entregas_ifema: parseFloat(item.precio_venta_entregas_ifema) || 0,
-          precio_coste: parseFloat(item.precio_coste) || 0,
-          precio_coste_alquiler: parseFloat(item.precio_coste_alquiler) || null,
-          precio_alquiler_ifema: parseFloat(item.precio_alquiler_ifema) || 0,
-          unidad_venta: parseFloat(item.unidad_venta) || null,
-          loc: item.loc || null,
-          imagen: item.imagen || null,
-          producido_por_partner: item.producido_por_partner === 'true' || item.producido_por_partner === true,
-          partner_id: item.partner_id || null,
-          subcategoria: item.subcategoria || null,
-          iva: parseFloat(item.iva) || 10,
-          doc_drive_url: item.doc_drive_url || null,
-          tipo_articulo: 'entregas'
-        }));
+        const importedData = results.data.map((item: any) => {
+          let imagenes = [];
+          if (item.imagenes && typeof item.imagenes === 'string') {
+            try {
+              imagenes = JSON.parse(item.imagenes);
+            } catch (e) {
+              imagenes = [];
+            }
+          } else if (Array.isArray(item.imagenes)) {
+            imagenes = item.imagenes;
+          }
+          return {
+            id: item.id || crypto.randomUUID(),
+            erp_id: item.erp_id || null,
+            nombre: item.nombre,
+            categoria: item.categoria,
+            referencia_articulo_entregas: item.referencia_articulo_entregas,
+            dpt_entregas: item.dpt_entregas || null,
+            precio_coste: parseFloat(item.precio_coste) || 0,
+            precio_coste_alquiler: parseFloat(item.precio_coste_alquiler) || null,
+            precio_alquiler_entregas: parseFloat(item.precio_alquiler_entregas) || 0,
+            precio_venta_entregas: parseFloat(item.precio_venta_entregas) || 0,
+            precio_venta_entregas_ifema: parseFloat(item.precio_venta_entregas_ifema) || 0,
+            precio_alquiler_ifema: parseFloat(item.precio_alquiler_ifema) || 0,
+            iva: parseFloat(item.iva) || 10,
+            doc_drive_url: item.doc_drive_url || null,
+            imagenes: imagenes,
+            producido_por_partner: item.producido_por_partner === 'true' || item.producido_por_partner === true,
+            partner_id: item.partner_id || null,
+            subcategoria: item.subcategoria || null,
+            unidad_venta: parseFloat(item.unidad_venta) || null,
+            loc: item.loc || null,
+            imagen: item.imagen || null,
+            tipo_articulo: 'entregas'
+          };
+        });
 
         const { error } = await supabase
           .from('articulos')
@@ -260,19 +274,21 @@ function ArticulosEntregasPageContent() {
       categoria: item.categoria,
       referencia_articulo_entregas: item.referenciaArticuloEntregas,
       dpt_entregas: item.dptEntregas,
-      precio_venta_entregas: item.precioVentaEntregas,
-      precio_venta_entregas_ifema: item.precioVentaEntregasIfema,
       precio_coste: item.precioCoste,
       precio_coste_alquiler: item.precioCosteAlquiler,
+      precio_alquiler_entregas: item.precioAlquilerEntregas,
+      precio_venta_entregas: item.precioVentaEntregas,
+      precio_venta_entregas_ifema: item.precioVentaEntregasIfema,
       precio_alquiler_ifema: item.precioAlquilerIfema,
-      unidad_venta: item.unidadVenta,
-      loc: item.loc,
-      imagen: item.imagen,
+      iva: item.iva,
+      doc_drive_url: item.docDriveUrl,
+      imagenes: item.imagenes ? JSON.stringify(item.imagenes) : '[]',
       producido_por_partner: item.producidoPorPartner ? 'true' : 'false',
       partner_id: item.partnerId,
       subcategoria: item.subcategoria,
-      iva: item.iva,
-      doc_drive_url: item.docDriveUrl,
+      unidad_venta: item.unidadVenta,
+      loc: item.loc,
+      imagen: item.imagen,
     }));
 
     const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });

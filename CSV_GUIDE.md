@@ -52,12 +52,13 @@ producido_por_partner, partner_id, receta_id, subcategoria, iva, doc_drive_url
 3. Selecciona "Exportar CSV"
 4. Se descarga: `articulos-entregas.csv`
 
-**Columnas del CSV (19):**
+**Columnas del CSV (21):**
 ```
 id, erp_id, nombre, categoria, referencia_articulo_entregas, dpt_entregas, 
-precio_venta_entregas, precio_venta_entregas_ifema, precio_coste, 
-precio_coste_alquiler, precio_alquiler_ifema, unidad_venta, loc, imagen, 
-producido_por_partner, partner_id, subcategoria, iva, doc_drive_url
+precio_coste, precio_coste_alquiler, precio_alquiler_entregas, 
+precio_venta_entregas, precio_venta_entregas_ifema, precio_alquiler_ifema, 
+iva, doc_drive_url, imagenes, producido_por_partner, partner_id, 
+subcategoria, unidad_venta, loc, imagen
 ```
 
 ### Importar CSV
@@ -70,16 +71,23 @@ producido_por_partner, partner_id, subcategoria, iva, doc_drive_url
 7. Se importarán los registros
 
 **Requisitos:**
-- Archivo debe tener todas las 19 columnas
+- Archivo debe tener todas las 21 columnas
 - Headers deben coincidir exactamente
 - `referencia_articulo_entregas` debe ser ÚNICO
 - `dpt_entregas` debe ser uno de: `ALMACEN`, `CPR`, `PARTNER`, `RRHH`
+- `imagenes` debe ser JSON válido (ej: `[]` o `[{"id":"img-1","url":"https://...","esPrincipal":true,"orden":0,"descripcion":"foto"}]`)
 - IVA tiene default a 10 si no está especificado
 
 **Ejemplo de fila válida:**
 ```csv
-223e4567-e89b-12d3-a456-426614174002,,Pack de prueba,Almacen,ENT-TEST-001,ALMACEN,23,34,16.35,,,,false,,,10,
+223e4567-e89b-12d3-a456-426614174002,,Pack de prueba,Almacen,ENT-TEST-001,ALMACEN,16.35,0,23,34,45,56,10,https://drive.google.com/...,[],"false",,Subcategoria,1,A001,
 ```
+
+**Notas sobre `imagenes`:**
+- Se importa/exporta como JSON string
+- Estructura esperada: `[{ id, url, esPrincipal, orden, descripcion }]`
+- Si está vacío, se importa como `[]`
+- El parsing es tolerante a errores JSON (falla gracefully)
 
 ---
 
@@ -139,6 +147,17 @@ producido_por_partner, partner_id, subcategoria, iva, doc_drive_url
    - Cada tabla tiene su propia plantilla con headers correctos
    - Se recomienda usar la plantilla como base
 
+6. **Campo Imágenes (ENTREGAS)**:
+   - Formato: JSON string (ej: `[]` para sin imágenes)
+   - Estructura: `[{ "id": "...", "url": "...", "esPrincipal": true, "orden": 0, "descripcion": "..." }]`
+   - Si hay error al parsear JSON, se importa como array vacío `[]`
+   - Al exportar se convierte automáticamente a JSON string
+
+7. **Nuevo Campo: precio_alquiler_entregas (ENTREGAS)**:
+   - Precio de alquiler específico para el módulo de entregas
+   - Valores numéricos con hasta 2 decimales
+   - Default: 0 si no se especifica
+
 ---
 
 ## 🧪 Testing
@@ -155,7 +174,7 @@ Puedes usarlos para probar la funcionalidad de importación.
 
 | Aspecto | Micecatering | Entregas |
 |---------|-------------|----------|
-| Columnas CSV | 19 | 19 |
+| Columnas CSV | 19 | 21 |
 | Campos Nuevos | 2 (iva, doc_drive_url) | 3 (iva, doc_drive_url, precio_coste_alquiler) |
 | Validación Headers | ✅ Estricta | ✅ Estricta |
 | Filtro Permanente | tipoArticulo === 'micecatering' | tipoArticulo === 'entregas' |

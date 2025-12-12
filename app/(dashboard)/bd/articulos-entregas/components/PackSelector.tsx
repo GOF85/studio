@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogClose,
@@ -128,6 +129,9 @@ export function PackSelector({
             <DialogContent className="max-w-4xl">
                 <DialogHeader>
                     <DialogTitle>Seleccionar Artículos ERP para Pack</DialogTitle>
+                    <DialogDescription>
+                        Selecciona uno o más artículos ERP para crear o editar el pack
+                    </DialogDescription>
                 </DialogHeader>
 
                 {selectedPacks.length > 0 && (
