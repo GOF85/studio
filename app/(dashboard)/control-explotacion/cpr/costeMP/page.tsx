@@ -33,7 +33,7 @@ export default function CosteMPPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [detalleCostes, setDetalleCostes] = useState<CosteMPDetalle[]>([]);
     const router = useRouter();
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
 
     const from = searchParams.get('from');
     const to = searchParams.get('to');

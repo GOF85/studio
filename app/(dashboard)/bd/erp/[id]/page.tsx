@@ -25,8 +25,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 export default function ArticuloERPHistoricoPage() {
-    const params = useParams();
-    const articuloId = params.id as string;
+    const params = useParams() ?? {};
+    const articuloId = (params.id as string) || '';
     const { data: history, isLoading } = usePrecioHistory(articuloId);
     const { toast } = useToast();
     const deleteMutation = useDeletePrecioHistory();

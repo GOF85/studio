@@ -30,7 +30,7 @@ export default function CesionGastoPage() {
     const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
     const [searchTerm, setSearchTerm] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState('all');
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
 
     const from = searchParams.get('from');
     const to = searchParams.get('to');

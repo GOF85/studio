@@ -39,9 +39,6 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Roboto:wght@400;500&display=swap"
           rel="stylesheet"
         />
-        
-        {/* Preload critical resources */}
-        <link rel="preload" as="script" href="/_next/static/chunks/main.js" />
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
         <QueryProvider>

@@ -41,7 +41,7 @@ const techDocsNav = [
 
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname();
+    const pathname = usePathname() ?? '';
     const isCateringManual = pathname.includes('/user-manual');
     const isEntregasManual = pathname.includes('/entregas-manual');
     const isTechDocs = pathname.includes('/tech-docs');

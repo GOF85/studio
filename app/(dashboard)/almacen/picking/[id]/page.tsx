@@ -30,8 +30,8 @@ export default function PickingSheetPage() {
     const [itemStates, setItemStates] = useState<Map<string, PickingItemState>>(new Map());
     const [isMounted, setIsMounted] = useState(false);
     const router = useRouter();
-    const params = useParams();
-    const sheetId = params.id as string;
+    const params = useParams() ?? {};
+    const sheetId = (params.id ?? '') as string;
     const { toast } = useToast();
     const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
 

@@ -31,7 +31,7 @@ export default function AlergenosPage() {
 
   // --- LÓGICA DE INICIALIZACIÓN ---
   // Detectamos si venimos del botón "Intolerantes" (?filter=clean)
-  const isCleanFilterActive = searchParams.get('filter') === 'clean';
+  const isCleanFilterActive = (searchParams?.get('filter')) === 'clean';
 
   // Estados
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,7 +41,7 @@ export default function AlergenosPage() {
 
   // Sincronizar URL si cambia externamente
   useEffect(() => {
-    setShowOnlyClean(searchParams.get('filter') === 'clean');
+    setShowOnlyClean((searchParams?.get('filter')) === 'clean');
   }, [searchParams]);
 
   // Filtrado optimizado

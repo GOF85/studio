@@ -17,8 +17,8 @@ const breadcrumbNameMap: Record<string, { name: string; icon: React.ElementType 
 }
 
 function Breadcrumbs() {
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
+    const pathname = usePathname() ?? '';
+    const searchParams = useSearchParams() ?? new URLSearchParams();
 
     const pathSegments = pathname.split('/').filter(Boolean);
     const cprIndex = pathSegments.indexOf('cpr');

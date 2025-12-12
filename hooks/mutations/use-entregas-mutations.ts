@@ -12,13 +12,13 @@ export function useCreateEntrega() {
             const { data, error } = await supabase
                 .from('entregas')
                 .insert({
-                    evento_id: entrega.osId,
-                    nombre: entrega.nombre,
-                    fecha: entrega.fecha,
-                    hora: entrega.hora,
-                    direccion: entrega.direccion,
-                    observaciones: entrega.observaciones,
-                    estado: entrega.status || 'Pendiente',
+                    evento_id: entrega.id,
+                    nombre: entrega.client,
+                    fecha: entrega.startDate,
+                    hora: entrega.deliveryTime,
+                    direccion: entrega.spaceAddress,
+                    observaciones: entrega.comments,
+                    vertical: 'Entregas',
                 })
                 .select()
                 .single();
@@ -40,12 +40,11 @@ export function useUpdateEntrega() {
             const { data, error } = await supabase
                 .from('entregas')
                 .update({
-                    nombre: updates.nombre,
-                    fecha: updates.fecha,
-                    hora: updates.hora,
-                    direccion: updates.direccion,
-                    observaciones: updates.observaciones,
-                    estado: updates.status,
+                    nombre: updates.client,
+                    fecha: updates.startDate,
+                    hora: updates.deliveryTime,
+                    direccion: updates.spaceAddress,
+                    observaciones: updates.comments,
                 })
                 .eq('id', id)
                 .select()

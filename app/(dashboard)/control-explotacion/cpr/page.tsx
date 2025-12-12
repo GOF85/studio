@@ -12,6 +12,7 @@ import { Bar, XAxis, YAxis, Legend, CartesianGrid, ResponsiveContainer } from "@
 import Link from "next/link";
 
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { useToast } from '@/hooks/use-toast';
 import type { ServiceOrder, GastronomyOrder, Receta, PersonalMiceOrder, PersonalExterno, PersonalExternoAjuste, CosteFijoCPR, ObjetivoMensualCPR, SolicitudPersonalCPR, CategoriaPersonal, CesionStorage, Personal } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,7 +75,8 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => i);
 export default function CprControlExplotacionPage() {
     const [isMounted, setIsMounted] = useState(false);
     const router = useRouter();
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
+    const { toast } = useToast();
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
         const from = searchParams.get('from');

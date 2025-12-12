@@ -60,8 +60,8 @@ export default function RetornoSheetPage() {
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     
     const router = useRouter();
-    const params = useParams();
-    const osId = params.id as string;
+    const params = useParams() ?? {};
+    const osId = (params.id as string) || '';
     const { toast } = useToast();
 
     const loadData = useCallback(() => {

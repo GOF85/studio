@@ -1,18 +1,18 @@
 'use client';
 
+import { useCallback } from 'react';
+
 /**
  * Hook para logging verbose del sistema de carga
- * Siempre activo en desarrollo, puede desactivarse en producción con localStorage
+ * Deshabilitado por defecto. Habilitar en localStorage:
+ * localStorage.setItem('loading-debug-enabled', 'true')
  */
 export function useLoadingDebug() {
-  const isDev = process.env.NODE_ENV === 'development';
-  
-  // Verificar si el usuario ha habilitado debugging en producción
+  // Solo habilitado si el usuario lo activa explícitamente en localStorage
   const isDebugEnabled = 
-    isDev || 
-    (typeof window !== 'undefined' && localStorage.getItem('loading-debug-enabled') === 'true');
+    typeof window !== 'undefined' && localStorage.getItem('loading-debug-enabled') === 'true';
 
-  const log = (component: string, message: string, data?: any) => {
+  const log = useCallback((component: string, message: string, data?: any) => {
     if (!isDebugEnabled) return;
 
     const timestamp = new Date().toLocaleTimeString('es-ES', {
@@ -30,9 +30,9 @@ export function useLoadingDebug() {
     } else {
       console.log(`${prefix}: ${message}`);
     }
-  };
+  }, [isDebugEnabled]);
 
-  const logError = (component: string, message: string, error?: any) => {
+  const logError = useCallback((component: string, message: string, error?: any) => {
     if (!isDebugEnabled) return;
 
     const timestamp = new Date().toLocaleTimeString('es-ES', {
@@ -50,9 +50,9 @@ export function useLoadingDebug() {
     } else {
       console.error(`${prefix}: ${message}`);
     }
-  };
+  }, [isDebugEnabled]);
 
-  const logPhase = (component: string, phase: string, progress: number) => {
+  const logPhase = useCallback((component: string, phase: string, progress: number) => {
     if (!isDebugEnabled) return;
 
     const timestamp = new Date().toLocaleTimeString('es-ES', {
@@ -67,7 +67,7 @@ export function useLoadingDebug() {
     console.log(
       `[${timestamp}] ⏳ ${component}: ${phase} |${progressBar}| ${progress}%`
     );
-  };
+  }, [isDebugEnabled]);
 
   return {
     log,

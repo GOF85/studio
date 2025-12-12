@@ -20,8 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export default function EditarTipoPersonalPage() {
   const router = useRouter();
-  const params = useParams();
-  const id = params.id as string;
+  const params = useParams() ?? {};
+  const id = (params.id as string) || '';
 
   const { isLoading, setIsLoading } = useLoadingStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

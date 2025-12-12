@@ -314,7 +314,7 @@ function IngredientesPageContent() {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
     const [showOnlyPending, setShowOnlyPending] = useState(() => searchParams.get('pending') !== 'false');
     const [editingItem, setEditingItem] = useState<IngredienteConERP | null>(null);
     const { toast } = useToast();

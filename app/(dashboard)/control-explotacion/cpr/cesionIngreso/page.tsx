@@ -28,7 +28,7 @@ export default function CesionIngresoPage() {
     const [detalles, setDetalles] = useState<DetalleIngreso[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState('all');
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
 
     const from = searchParams.get('from');
     const to = searchParams.get('to');

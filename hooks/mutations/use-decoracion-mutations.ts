@@ -13,12 +13,10 @@ export function useCreateDecoracionOrder() {
                 .from('pedidos_decoracion')
                 .insert({
                     evento_id: order.osId,
-                    articulo_id: order.articuloId,
-                    cantidad: order.cantidad,
-                    precio_unitario: order.precioUnitario,
-                    total: order.total,
+                    concepto: order.concepto,
+                    precio: order.precio,
+                    fecha: order.fecha,
                     observaciones: order.observaciones,
-                    estado: order.status || 'Pendiente',
                     data: {
                         // Store any extra fields
                     }
@@ -43,12 +41,10 @@ export function useUpdateDecoracionOrder() {
             const { data, error } = await supabase
                 .from('pedidos_decoracion')
                 .update({
-                    articulo_id: updates.articuloId,
-                    cantidad: updates.cantidad,
-                    precio_unitario: updates.precioUnitario,
-                    total: updates.total,
+                    concepto: updates.concepto,
+                    precio: updates.precio,
+                    fecha: updates.fecha,
                     observaciones: updates.observaciones,
-                    estado: updates.status,
                 })
                 .eq('id', id)
                 .select()

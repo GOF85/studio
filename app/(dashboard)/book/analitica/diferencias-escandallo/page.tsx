@@ -83,7 +83,7 @@ function StatCard({ title, value, subtext, trend = 'neutral', icon: Icon, isLoad
 
 export default function DiferenciasEscandalloPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
 
   // 1. Estado URL-Driven
   const activeTab = (searchParams.get('tab') || 'recetas') as 'recetas' | 'elaboraciones' | 'ingredientes';

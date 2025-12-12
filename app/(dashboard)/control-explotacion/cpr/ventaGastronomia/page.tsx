@@ -74,11 +74,11 @@ export default function VentaGastronomiaPage() {
                 (order.items || []).forEach(item => {
                     if (item.type === 'item') {
                         const receta = recetasMap.get(item.id);
-                        if (receta) {
+                        if (receta && os) {
                             const pvpTotalItem = (receta.precioVenta || 0) * (item.quantity || 0);
                             const costeMPTotalItem = (receta.costeMateriaPrima || 0) * (item.quantity || 0);
                             ventasDetalladas.push({
-                                fecha: order.fecha,
+                                fecha: os.startDate || new Date().toISOString(),
                                 osId: os?.id || 'N/A',
                                 osNumber: os?.serviceNumber || 'N/A',
                                 referencia: receta.nombre,

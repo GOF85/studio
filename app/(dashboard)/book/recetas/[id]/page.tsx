@@ -346,9 +346,9 @@ const defaultValues: Partial<RecetaFormValues> = {
 
 function RecetaFormPage() {
     const router = useRouter();
-    const params = useParams();
-    const searchParams = useSearchParams();
-    const id = params.id as string;
+    const params = useParams() ?? {};
+    const searchParams = useSearchParams() ?? new URLSearchParams();
+    const id = (params.id as string) || '';
     const cloneId = searchParams.get('cloneId');
     const isNew = id === 'nueva';
     const isEditing = !isNew && id;
@@ -608,7 +608,7 @@ function RecetaFormPage() {
         <TooltipProvider>
             <main className="pb-24 bg-background min-h-screen">
                 <FormProvider {...form}>
-                    <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, (e) => console.log(e))}>
+                    <form id="receta-form" onSubmit={form.handleSubmit(onSubmit)}>
                         
                         {/* HEADER STICKY (SOLO TABS) */}
                         <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
@@ -927,8 +927,8 @@ function RecetaFormPage() {
 }
 
 export default function RecetaPage() {
-    const params = useParams();
-    const isNew = params.id === 'nueva' || params.id?.[0] === 'nueva';
+    const params = useParams() ?? {};
+    const isNew = (params.id === 'nueva') || ((params.id as any)?.[0] === 'nueva');
     // PADDING INFERIOR EXTRA PARA LOS BOTONES FLOTANTES
     if (isNew) return <main className="p-0 bg-background"><RecetaFormPage /></main>;
     return <main className="p-0 bg-background"><RecetaFormPage /></main>;

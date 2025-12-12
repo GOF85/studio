@@ -12,7 +12,7 @@ import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/co
 import { Button } from '@/components/ui/button';
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
-    const pathname = usePathname();
+    const pathname = usePathname() ?? '';
     return (
         <div className="w-full">
             <SheetHeader className="p-4 border-b">
@@ -46,7 +46,7 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
 
 
 export default function BdLayout({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname();
+    const pathname = usePathname() ?? '';
     const [isMounted, setIsMounted] = useState(false);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 

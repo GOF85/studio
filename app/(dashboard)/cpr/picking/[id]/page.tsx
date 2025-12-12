@@ -350,8 +350,8 @@ function PickingPageContent() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const router = useRouter();
-    const params = useParams();
-    const osId = params.id as string;
+    const params = useParams() ?? {};
+    const id = (params.id as string) || '';
     const { toast } = useToast();
 
     const getRecetaForElaboracion = useCallback((elaboracionId: string, osId: string): string => {

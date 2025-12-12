@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
-    const pathname = usePathname();
+    const pathname = usePathname() ?? '';
     return (
         <div className="w-full">
             <SheetHeader className="p-4 border-b">

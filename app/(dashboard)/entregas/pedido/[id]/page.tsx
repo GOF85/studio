@@ -394,8 +394,8 @@ function TransporteDialog({ onSave, osId, hitos, existingTransportOrders }: { on
 
 export default function EntregaFormPage() {
     const router = useRouter();
-    const params = useParams();
-    const id = params.id as string;
+    const params = useParams() ?? {};
+    const id = (params.id as string) || '';
     const isEditing = id !== 'nuevo';
 
     const [isMounted, setIsMounted] = useState(false);

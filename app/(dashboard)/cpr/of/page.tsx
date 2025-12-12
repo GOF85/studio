@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
+import { parseISO } from 'date-fns';
 import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers, Utensils, ClipboardList, FileText, Users, ChefHat, Printer } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState, LoteAsignado, ArticuloERP, IngredienteInterno, Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -212,11 +213,13 @@ export default function OfPage() {
     const gastroOrdersInRange = useMemo(() => {
         return gastronomyOrders.filter(order => {
             try {
-                const hitoDate = startOfDay(new Date(order.fecha));
+                const os = serviceOrders.find(o => o.id === order.osId);
+                if (!os || !os.startDate) return false;
+                const hitoDate = startOfDay(new Date(os.startDate));
                 return isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd });
             } catch (e) { return false; }
         });
-    }, [gastronomyOrders, rangeStart, rangeEnd]);
+    }, [gastronomyOrders, rangeStart, rangeEnd, serviceOrders]);
 
     const necesidadesAgregadas = useMemo(() => {
         const elabMap = new Map(elaboraciones.map(e => [e.id, e]));
@@ -225,10 +228,11 @@ export default function OfPage() {
 
         gastroOrdersInRange.forEach(gastroOrder => {
             try {
-                const fechaKey = format(new Date(gastroOrder.fecha), 'yyyy-MM-dd');
                 const os = osMap.get(gastroOrder.osId);
+                if (!os || !os.startDate) return;
+                const fechaKey = format(new Date(os.startDate), 'yyyy-MM-dd');
                 const briefing = comercialBriefings.find(b => b.osId === gastroOrder.osId);
-                if (!os || !briefing) return;
+                if (!briefing) return;
 
                 (gastroOrder.items || []).forEach(item => {
                     if (item.type !== 'item') return;

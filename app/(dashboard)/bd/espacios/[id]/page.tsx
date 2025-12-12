@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { GeneratePDFButton } from '../components/GeneratePDFButton';
 
 export default function VerEspacioPage() {
-  const params = useParams();
+  const params = useParams() ?? {};
   const router = useRouter();
   const { toast } = useToast();
   const [espacio, setEspacio] = useState<EspacioV2 | null>(null);
@@ -19,7 +19,7 @@ export default function VerEspacioPage() {
   useEffect(() => {
     async function loadEspacio() {
       try {
-        const id = params.id as string;
+        const id = (params.id as string) || '';
         const data = await getEspacioById(id);
         setEspacio(data);
       } catch (error: any) {
@@ -35,7 +35,7 @@ export default function VerEspacioPage() {
     }
 
     loadEspacio();
-  }, [params.id, router, toast]);
+  }, [params?.id, router, toast]);
 
   if (isLoading) {
     return (

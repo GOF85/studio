@@ -132,7 +132,7 @@ export default function CalidadPage() {
     setOfForIncident(of);
     setIncidentData({
         cantidadReal: of.cantidadReal ?? of.cantidadTotal,
-        observaciones: of.observacionesIncidencia || ''
+        observaciones: of.incidenciaObservaciones || ''
     });
   };
 
@@ -148,7 +148,7 @@ export default function CalidadPage() {
             estado: 'Incidencia',
             incidencia: true,
             cantidadReal: incidentData.cantidadReal,
-            observacionesIncidencia: incidentData.observaciones,
+            incidenciaObservaciones: incidentData.observaciones,
         };
         localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
         setOrdenes(allOFs);

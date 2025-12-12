@@ -64,7 +64,7 @@ export default function DetallePersonalApoyoCprPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('all');
 
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 

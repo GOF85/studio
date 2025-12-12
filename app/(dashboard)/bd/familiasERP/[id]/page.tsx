@@ -23,8 +23,8 @@ import { useDataStore } from '@/hooks/use-data-store';
 
 export default function EditarFamiliaERPPage() {
   const router = useRouter();
-  const params = useParams();
-  const id = params.id as string;
+  const params = useParams() ?? {};
+  const id = (params.id as string) || '';
 
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

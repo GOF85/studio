@@ -106,7 +106,7 @@ function ExcedenteDetailPageContent() {
             if (index > -1) {
                 allOFs[index].estado = 'Incidencia';
                 allOFs[index].incidencia = true;
-                allOFs[index].observacionesIncidencia = `MERMA DE EXCEDENTE: ${mermaAllMotivo}`;
+                allOFs[index].incidenciaObservaciones = `MERMA DE EXCEDENTE: ${mermaAllMotivo}`;
             }
         });
         localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));

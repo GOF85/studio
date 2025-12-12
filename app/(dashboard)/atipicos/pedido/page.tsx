@@ -39,7 +39,7 @@ type AtipicoOrderFormValues = z.infer<typeof atipicoOrderSchema>;
 
 export default function PedidoAtipicoPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
   const osId = searchParams.get('osId');
   const orderId = searchParams.get('orderId');
   const isEditing = !!orderId;

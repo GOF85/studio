@@ -34,9 +34,22 @@ export default function LoginPage() {
             router.push('/');
             router.refresh();
         } catch (error: any) {
+            console.error('Login error:', error);
+            
+            let errorMessage = 'Credenciales incorrectas';
+            
+            // Manejar diferentes tipos de errores
+            if (error?.message) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            } else if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+            
             toast({
                 title: 'Error al iniciar sesión',
-                description: error.message || 'Credenciales incorrectas',
+                description: errorMessage,
                 variant: 'destructive',
             });
         } finally {
@@ -68,6 +81,7 @@ export default function LoginPage() {
                                 placeholder="nombre@empresa.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
+                                autoComplete="email"
                                 required
                                 disabled={isLoading}
                             />
@@ -77,8 +91,10 @@ export default function LoginPage() {
                             <Input
                                 id="password"
                                 type="password"
+                                placeholder="Tu contraseña"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                autoComplete="current-password"
                                 required
                                 disabled={isLoading}
                             />

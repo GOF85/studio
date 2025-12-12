@@ -19,7 +19,7 @@ export const almacenNav = [
 ];
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
-    const pathname = usePathname();
+    const pathname = usePathname() ?? '';
     return (
         <div className="w-full">
              <SheetHeader className="p-4 border-b">
@@ -51,7 +51,7 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
 }
 
 export default function AlmacenLayout({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname();
+    const pathname = usePathname() ?? '';
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
     const currentPage = useMemo(() => {

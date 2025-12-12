@@ -329,7 +329,7 @@ function ElaborationImageSection({ form, name, folder, title, description, canUs
 
 function ElaboracionesListPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
   const { toast } = useToast();
   
   // State
@@ -597,7 +597,7 @@ function ElaborationFormPage() {
   const router = useRouter();
   const { toast } = useToast();
   const params = useParams();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
 
   // Params Handling
   const idParam = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : null;

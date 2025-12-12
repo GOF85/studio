@@ -21,8 +21,8 @@ import { supabase } from '@/lib/supabase';
 
 export default function EditarCategoriaRecetaPage() {
   const router = useRouter();
-  const params = useParams();
-  const id = params.id as string;
+  const params = useParams() ?? {};
+  const id = (params.id as string) || '';
 
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

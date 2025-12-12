@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ChefHat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLoadingDebug } from '@/hooks/use-loading-debug';
@@ -22,26 +22,32 @@ export default function SplashScreen() {
   const [opacity, setOpacity] = useState(100);
   const [loadingState, setLoadingState] = useState<LoadingState>('initializing');
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
   const { log, logPhase } = useLoadingDebug();
+  const sequenceStartedRef = useRef(false);
+  const fadeStartedRef = useRef(false);
 
-  const hasSplashShown = typeof window !== 'undefined' 
-    ? sessionStorage.getItem('splash-shown') 
-    : null;
-
+  // Verificar si el splash ya se mostró (una sola vez al montar)
   useEffect(() => {
-    // Protección contra SSR
-    if (!hasSplashShown) {
-      log(COMPONENT_NAME, 'Splash screen iniciado - primera carga');
-      logPhase(COMPONENT_NAME, LOADING_STATES.initializing, 10);
-    } else {
+    const hasSplashShown = typeof window !== 'undefined' 
+      ? sessionStorage.getItem('splash-shown')
+      : null;
+
+    if (hasSplashShown) {
       log(COMPONENT_NAME, 'Splash screen ya fue mostrado - ocultando');
       setSplashPhase('hidden');
+    } else {
+      log(COMPONENT_NAME, 'Splash screen iniciado - primera carga');
+      logPhase(COMPONENT_NAME, LOADING_STATES.initializing, 10);
     }
-  }, [hasSplashShown, log, logPhase]);
+    setIsInitialized(true);
+  }, []);
 
-  // Secuencia de estados de carga
+  // Secuencia de estados de carga (ejecuta solo una vez)
   useEffect(() => {
-    if (hasSplashShown) return;
+    if (!isInitialized || splashPhase === 'hidden' || sequenceStartedRef.current) return;
+
+    sequenceStartedRef.current = true;
 
     const stateSequence: { state: LoadingState; delay: number; progressPercent: number }[] = [
       { state: 'initializing', delay: 500, progressPercent: 15 },
@@ -62,12 +68,18 @@ export default function SplashScreen() {
     return () => {
       timeouts.forEach(timeout => clearTimeout(timeout));
     };
-  }, [hasSplashShown, log, logPhase]);
+  }, [isInitialized, splashPhase]);
 
-  // Fade out y ocultar splash screen
+  // Fade out y ocultar splash screen cuando esté listo (ejecuta solo una vez)
   useEffect(() => {
-    if (hasSplashShown) return;
+    if (!isInitialized || splashPhase === 'hidden' || fadeStartedRef.current) return;
+    
+    // Solo iniciar fade cuando el estado sea 'ready'
+    if (loadingState !== 'ready') return;
 
+    fadeStartedRef.current = true;
+
+    // Dar un pequeño delay después de 'ready' para que se vea el checkmark
     const fadeTimer = setTimeout(() => {
       log(COMPONENT_NAME, 'Iniciando fade out');
       setSplashPhase('fading');
@@ -85,10 +97,10 @@ export default function SplashScreen() {
       }, 500);
 
       return () => clearTimeout(hideTimer);
-    }, 2000);
+    }, 500);
 
     return () => clearTimeout(fadeTimer);
-  }, [hasSplashShown, log]);
+  }, [isInitialized, splashPhase, loadingState]);
 
   if (splashPhase === 'hidden') {
     return null;

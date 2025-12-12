@@ -8,7 +8,7 @@ import type { EspacioV2 } from '@/types/espacios';
 import { useToast } from '@/hooks/use-toast';
 
 export default function EditarEspacioPage() {
-    const params = useParams();
+    const params = useParams() ?? {};
     const router = useRouter();
     const { toast } = useToast();
     const [espacio, setEspacio] = useState<EspacioV2 | null>(null);
@@ -17,7 +17,7 @@ export default function EditarEspacioPage() {
     useEffect(() => {
         async function loadEspacio() {
             try {
-                const id = params.id as string;
+                const id = (params.id as string) || '';
                 const data = await getEspacioById(id);
                 setEspacio(data);
             } catch (error: any) {
@@ -33,7 +33,7 @@ export default function EditarEspacioPage() {
         }
 
         loadEspacio();
-    }, [params.id, router, toast]);
+    }, [params?.id, router, toast]);
 
     if (isLoading) {
         return (
