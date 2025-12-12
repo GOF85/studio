@@ -13,7 +13,15 @@ import { es } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio, ComercialAjuste } from '@/types';
-import { osFormSchema, type OsFormValues } from '@/app/(dashboard)/os/[id]/info/page';
+// Import eliminado: '@/app/(dashboard)/os/[id]/info/page' no existe
+// Definición mínima local para osFormSchema y OsFormValues
+const osFormSchema = z.object({
+  agencyPercentage: z.number().min(0).max(100).default(0),
+  spacePercentage: z.number().min(0).max(100).default(0),
+  agencyCommissionValue: z.number().min(0).default(0),
+  spaceCommissionValue: z.number().min(0).default(0),
+});
+type OsFormValues = z.infer<typeof osFormSchema>;
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {

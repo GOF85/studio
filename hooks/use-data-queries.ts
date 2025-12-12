@@ -1,6 +1,24 @@
-'use client';
+"use client";
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+// ============================================
+// CATEGORÍAS DE PERSONAL
+// ============================================
+
+export function useCategoriasPersonal() {
+    return useQuery({
+        queryKey: ['categoriasPersonal'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('categorias_personal')
+                .select('*')
+                .order('nombre');
+            if (error) throw error;
+            return data || [];
+        },
+    });
+}
 import { supabase } from '@/lib/supabase';
 import type { ServiceOrder, ComercialBriefing, CategoriaPersonal, PersonalExternoTurno, SolicitudPersonalCPR } from '@/types';
 import { useState, useEffect, useCallback } from 'react';
