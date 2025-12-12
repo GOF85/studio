@@ -330,7 +330,7 @@ function ArticulosPageContent() {
           <TableBody>
             {filteredItems.length > 0 ? (
               filteredItems.map(item => {
-                console.log('DEBUG ARTICULO:', item);
+                
                 return (
                   <TableRow
                     key={item.id}
