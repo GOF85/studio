@@ -8,7 +8,11 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  compress: true, // Gzip compression habilitado
+  productionBrowserSourceMaps: false, // Deshabiitar mapas de fuente en producción
+  
   images: {
+    formats: ['image/avif', 'image/webp'], // Formatos modernos para mejor compresión
     remotePatterns: [
       {
         protocol: 'https',
