@@ -11,6 +11,7 @@ import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indic
 import { QueryProvider } from '@/providers/query-provider';
 import { MigrationBanner } from '@/components/migration-banner';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics } from '@vercel/analytics/react';
 
 // Force dynamic rendering to prevent static generation issues with useSearchParams
 export const dynamic = 'force-dynamic';
@@ -28,12 +29,19 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        {/* Preconnect to external resources */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://zyrqdqpbrsevuygjrhvk.supabase.co" />
+        
+        {/* Optimize font loading */}
         <link
           href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Roboto:wght@400;500&display=swap"
           rel="stylesheet"
         />
+        
+        {/* Preload critical resources */}
+        <link rel="preload" as="script" href="/_next/static/chunks/main.js" />
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
         <QueryProvider>
@@ -48,6 +56,7 @@ export default function RootLayout({
           <MigrationBanner />
           <Toaster />
           <SpeedInsights />
+          <Analytics />
         </QueryProvider>
       </body>
     </html >

@@ -132,6 +132,16 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Add caching headers for static assets
+  if (request.nextUrl.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf)$/i)) {
+    response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+  
+  // Add caching headers for API responses
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=3600');
+  }
+
   return response;
 }
 
