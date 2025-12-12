@@ -46,8 +46,7 @@ export default function NuevoTipoPersonalPage() {
   });
 
   useEffect(() => {
-    const allProveedores = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[])
-      .filter(p => p.tipos.includes('Personal'));
+    const allProveedores = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]);
     setProveedores(allProveedores);
   }, []);
 

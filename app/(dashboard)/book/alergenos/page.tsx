@@ -133,7 +133,7 @@ export default function AlergenosPage() {
                   searchPlaceholder="Buscar alérgeno..."
                   emptyPlaceholder="No se encontraron alérgenos."
                   className="h-9 text-sm"
-                  disabled={showOnlyClean}
+
                 />
               </div>
 

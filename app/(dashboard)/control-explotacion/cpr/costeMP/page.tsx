@@ -74,7 +74,7 @@ export default function CosteMPPage() {
                     if (receta) {
                         const costeTotalItem = (receta.costeMateriaPrima || 0) * (item.quantity || 0);
                         costesMPDetallados.push({
-                            fecha: order.fecha,
+                            fecha: os?.startDate || new Date().toISOString(),
                             osId: os?.id || 'N/A',
                             osNumber: os?.serviceNumber || 'N/A',
                             referencia: receta.nombre,

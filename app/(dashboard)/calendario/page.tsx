@@ -239,7 +239,7 @@ const AgendaView = memo(function AgendaView({
 
   return (
     <div className="space-y-3 pb-20">
-      {daysWithEventsInMonth.map((day) => {
+      {daysWithEventsInMonth.map((day: Date) => {
         const dayKey = format(day, 'yyyy-MM-dd');
         const dayData = eventsByDay?.[dayKey] || {};
         const hasEvents = Object.keys(dayData).length > 0;
