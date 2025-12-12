@@ -45,7 +45,7 @@ interface RecipeSummaryCardProps {
 }
 
 function RecipeSummaryCard({ total, active, archived }: RecipeSummaryCardProps) {
-    const activePercentage = total > 0 ? (active / total) * 100 : 0;
+    const activePercentage = total > 0 ? Math.round((active / total) * 100) : 0;
     return (
         <Card className="h-full border-primary/20 shadow-sm relative overflow-hidden group flex flex-col bg-card hover:border-primary/40 transition-colors">
             <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -90,7 +90,7 @@ interface AllergenSummaryCardProps {
 
 function AllergenSummaryCard({ total, withAllergens }: AllergenSummaryCardProps) {
     const cleanRecipes = total - withAllergens;
-    const cleanPercentage = total > 0 ? (cleanRecipes / total) * 100 : 0;
+    const cleanPercentage = total > 0 ? Math.round((cleanRecipes / total) * 100) : 0;
 
     return (
         <Card className="h-full border-rose-200 shadow-sm relative overflow-hidden group flex flex-col bg-rose-50/20 hover:border-rose-300 transition-colors">
