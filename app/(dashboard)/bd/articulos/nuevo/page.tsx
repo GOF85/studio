@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Loader2, Save, X, Link as LinkIcon, CircleX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
@@ -14,63 +13,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ARTICULO_CATERING_CATEGORIAS, ALERGENOS } from '@/types';
+import { ARTICULO_CATERING_CATEGORIAS, ALERGENOS, FamiliaERP } from '@/types';
 import type { ArticuloERP } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useDataStore } from '@/hooks/use-data-store';
 import { ErpArticleSelector } from '../components/ErpArticleSelector';
 import { ImageManager } from '@/components/book/images/ImageManager';
-
-export interface ImagenArticulo {
-    id: string;
-    url: string;
-    esPrincipal: boolean;
-    orden: number;
-    descripcion?: string;
-}
-
-export const articuloSchema = z.object({
-    id: z.string(),
-    nombre: z.string().min(1, 'El nombre es requerido'),
-    categoria: z.string().min(1, 'La categoría es requerida'),
-    tipoArticulo: z.enum(['micecatering', 'entregas'], { required_error: 'El tipo de artículo es obligatorio' }),
-    precioVenta: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
-    precioAlquiler: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
-    precioReposicion: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
-    erpId: z.string().optional(),
-    producidoPorPartner: z.boolean(),
-    esHabitual: z.boolean(),
-    stockSeguridad: z.coerce.number().min(0, 'El stock debe ser mayor o igual a 0'),
-    unidadVenta: z.coerce.number().min(1, 'La unidad de venta debe ser al menos 1'),
-    loc: z.string().optional(),
-    pack: z.array(z.object({
-        erpId: z.string(),
-        cantidad: z.coerce.number().min(1)
-    })).default([]),
-    audit: z.array(z.object({
-        usuario: z.string(),
-        fecha: z.string(),
-        cambio: z.string()
-    })).default([]),
-    alergenos: z.array(z.object({
-        nombre: z.string(),
-        tipo: z.enum(['presente', 'trazas'])
-    })).default([]),
-    docDriveUrl: z.string().url('URL debe ser válida').or(z.literal('')).optional(),
-    iva: z.coerce.number().min(0).default(10),
-    dptEntregas: z.enum(['ALMACEN', 'CPR', 'PARTNER', 'RRHH']).optional(),
-    precioVentaEntregas: z.coerce.number().min(0).optional(),
-    precioVentaEntregasIfema: z.coerce.number().min(0).optional(),
-    imagenes: z.array(z.object({
-        id: z.string(),
-        url: z.string(),
-        esPrincipal: z.boolean(),
-        orden: z.number(),
-        descripcion: z.string().optional()
-    })).default([]),
-});
-
-export type ArticuloFormValues = z.infer<typeof articuloSchema>;
+import { articuloMicecateringSchema, type ArticuloMicecateringFormValues, type ImagenArticulo } from '@/lib/articulos-schemas';
 
 export default function NuevoArticuloPage() {
     const router = useRouter();
@@ -80,47 +29,32 @@ export default function NuevoArticuloPage() {
     const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]);
     const [erpSearchTerm, setErpSearchTerm] = useState('');
     const [isErpSelectorOpen, setIsErpSelectorOpen] = useState(false);
-    const [isPackSelectorOpen, setIsPackSelectorOpen] = useState(false);
     const [imagenes, setImagenes] = useState<ImagenArticulo[]>([]);
-    const [pack, setPack] = useState<{erpId: string, cantidad: number, nombre?: string, precio?: number, valido?: boolean}[]>([]);
     const [alergenos, setAlergenos] = useState<{nombre: string, tipo: 'presente'|'trazas'}[]>([]);
-    const [docDriveUrl, setDocDriveUrl] = useState('');
-    const [audit, setAudit] = useState<{usuario: string, fecha: string, cambio: string}[]>([]);
-    const [iva, setIva] = useState(10);
-    const [dptEntregas, setDptEntregas] = useState<'ALMACEN'|'CPR'|'PARTNER'|'RRHH'|undefined>(undefined);
-    const [precioVentaEntregas, setPrecioVentaEntregas] = useState<number|undefined>(undefined);
-    const [precioVentaEntregasIfema, setPrecioVentaEntregasIfema] = useState<number|undefined>(undefined);
-    const [precioCosteAlquiler, setPrecioCosteAlquiler] = useState<number|undefined>(undefined);
-    const [precioAlquilerIfema, setPrecioAlquilerIfema] = useState<number|undefined>(undefined);
-    const [precioVentaIfema, setPrecioVentaIfema] = useState<number|undefined>(undefined);
+    const [familias, setFamilias] = useState<FamiliaERP[]>([]);
 
-    const form = useForm<ArticuloFormValues>({
-        resolver: zodResolver(articuloSchema),
+    const form = useForm<ArticuloMicecateringFormValues>({
+        resolver: zodResolver(articuloMicecateringSchema),
         defaultValues: {
             id: crypto.randomUUID(),
             nombre: '',
             categoria: '',
-            tipoArticulo: 'micecatering',
             precioVenta: 0,
             precioAlquiler: 0,
             precioReposicion: 0,
             erpId: '',
             producidoPorPartner: false,
-            esHabitual: false,
             stockSeguridad: 0,
             unidadVenta: 1,
             loc: '',
-            pack: [],
-            audit: [],
             alergenos: [],
             docDriveUrl: '',
             iva: 10,
-            dptEntregas: undefined,
-            precioVentaEntregas: undefined,
-            precioVentaEntregasIfema: undefined,
             imagenes: [],
         },
     });
+
+    const categoria = form.watch('categoria');
 
     useEffect(() => {
         async function loadArticulosERP() {
@@ -128,7 +62,6 @@ export default function NuevoArticuloPage() {
                 .from('articulos_erp')
                 .select('id, erp_id, proveedor_id, nombre_proveedor, nombre, referencia_proveedor, familia_categoria, precio_compra, descuento, unidad_conversion, precio, precio_alquiler, unidad_medida, tipo, categoria_mice, alquiler, observaciones')
                 .limit(5000);
-
             if (error) {
                 setArticulosERP([]);
             } else {
@@ -154,7 +87,21 @@ export default function NuevoArticuloPage() {
                 setArticulosERP(mappedArticulos);
             }
         }
+        async function loadFamilias() {
+            const { data, error } = await supabase
+                .from('familias')
+                .select('id, codigo, nombre, categoria_padre');
+            if (!error && data) {
+                setFamilias(data.map((f: any) => ({
+                    id: f.id,
+                    familiaCategoria: f.codigo,
+                    Familia: f.nombre,
+                    Categoria: f.categoria_padre || ''
+                })));
+            }
+        }
         loadArticulosERP();
+        loadFamilias();
     }, []);
 
     const selectedErpId = form.watch('erpId');
@@ -162,35 +109,14 @@ export default function NuevoArticuloPage() {
         return articulosERP.find(p => p.idreferenciaerp === selectedErpId);
     }, [articulosERP, selectedErpId]);
 
-    const handleErpSelect = useCallback((erpId: string) => {
-        form.setValue('erpId', erpId, { shouldDirty: true });
-        
-        // Auto-populate price from ERP product
-        const selectedProduct = articulosERP.find(p => p.idreferenciaerp === erpId);
-        if (selectedProduct) {
-            const basePrice = selectedProduct.precioCompra / (selectedProduct.unidadConversion || 1);
-            const discount = selectedProduct.descuento || 0;
-            const calculatedPrice = basePrice * (1 - discount / 100);
-            form.setValue('precioVenta', calculatedPrice, { shouldDirty: true });
+    // Familia automática si ERP
+    const familiaAuto = useMemo(() => {
+        if (selectedErpProduct && selectedErpProduct.familiaCategoria) {
+            const found = familias.find(f => f.familiaCategoria === selectedErpProduct.familiaCategoria);
+            return found ? found.Familia : '';
         }
-        
-        setIsErpSelectorOpen(false);
-    }, [articulosERP, form]);
-
-    const handlePackSelect = useCallback((erpId: string) => {
-        const selectedProduct = articulosERP.find(p => p.idreferenciaerp === erpId);
-        if (selectedProduct) {
-            const newPackItem = {
-                erpId: selectedProduct.idreferenciaerp || '',
-                cantidad: 1,
-                nombre: selectedProduct.nombreProductoERP,
-                precio: selectedProduct.precio || 0,
-                valido: true
-            };
-            setPack(prev => [...prev, newPackItem] as typeof pack);
-        }
-        setIsPackSelectorOpen(false);
-    }, [articulosERP]);
+        return '';
+    }, [selectedErpProduct, familias]);
 
     const calculatePrice = useMemo(() => (p: ArticuloERP) => {
         if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
@@ -199,7 +125,10 @@ export default function NuevoArticuloPage() {
         return basePrice * (1 - discount / 100);
     }, []);
 
-    const packTotalPrice = useMemo(() => pack.reduce((acc, item) => acc + ((item.precio || 0) * (item.cantidad || 1)), 0), [pack]);
+    const handleErpSelect = useCallback((erpId: string) => {
+        form.setValue('erpId', erpId, { shouldDirty: true });
+        setIsErpSelectorOpen(false);
+    }, [form]);
 
     const handleImageUpload = useCallback((url: string, filename: string) => {
         if (imagenes.length >= 5) {
@@ -232,44 +161,34 @@ export default function NuevoArticuloPage() {
         setImagenes(imagenes.map((img) => ({ ...img, esPrincipal: img.id === id })));
     }, [imagenes]);
 
-    async function onSubmit(data: ArticuloFormValues) {
+    async function onSubmit(data: ArticuloMicecateringFormValues) {
         setIsLoading(true);
-
-        let precioCoste = null;
-        if (data.tipoArticulo === 'entregas') {
-            precioCoste = pack.reduce((acc, item) => acc + ((item.precio || 0) * (item.cantidad || 1)), 0);
+        let familiaFinal = data.familia;
+        if (selectedErpProduct && familiaAuto) {
+            familiaFinal = familiaAuto;
         }
-
         const insertData = {
             id: data.id,
             nombre: data.nombre,
             categoria: data.categoria,
-            tipo_articulo: data.tipoArticulo,
+            familia: familiaFinal || null,
+            tipo_articulo: 'micecatering',
             precio_venta: Number(data.precioVenta) || 0,
             precio_alquiler: Number(data.precioAlquiler) || 0,
             precio_reposicion: Number(data.precioReposicion) || 0,
             erp_id: data.erpId || null,
             producido_por_partner: Boolean(data.producidoPorPartner),
-            es_habitual: Boolean(data.esHabitual),
             stock_seguridad: Number(data.stockSeguridad) || 0,
             unidad_venta: Number(data.unidadVenta) || 1,
             loc: data.loc || null,
-            pack: data.tipoArticulo === 'entregas' ? pack.map(({erpId, cantidad, nombre, precio}) => ({erpId, cantidad: Number(cantidad), nombre, precio: Number(precio)})) : [],
-            alergenos: data.categoria === 'gastronomía' ? alergenos : [],
-            doc_drive_url: docDriveUrl || null,
-            iva: Number(iva) || 10,
-            dpt_entregas: dptEntregas || null,
-            precio_venta_entregas: precioVentaEntregas ? Number(precioVentaEntregas) : null,
-            precio_venta_entregas_ifema: precioVentaEntregasIfema ? Number(precioVentaEntregasIfema) : null,
-            precio_coste: precioCoste,
-            precio_coste_alquiler: precioCosteAlquiler ? Number(precioCosteAlquiler) : null,
-            precio_alquiler_ifema: precioAlquilerIfema ? Number(precioAlquilerIfema) : null,
-            precio_venta_ifema: precioVentaIfema ? Number(precioVentaIfema) : null,
+            alergenos: categoria === 'gastronomía' ? alergenos : [],
+            doc_drive_url: data.docDriveUrl || null,
+            iva: Number(data.iva) || 10,
             imagenes: imagenes,
         };
 
         try {
-            const { data: result, error } = await supabase
+            const { error } = await supabase
                 .from('articulos')
                 .insert([insertData])
                 .select();
@@ -304,14 +223,65 @@ export default function NuevoArticuloPage() {
             <main className="container mx-auto px-4 py-8">
                 <Form {...form}>
                     <form
-                        onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                        onSubmit={form.handleSubmit(async (data) => {
+                            setIsLoading(true);
+                            let familiaFinal = data.familia;
+                            if (selectedErpProduct && familiaAuto) {
+                                familiaFinal = familiaAuto;
+                            }
+                            const insertData = {
+                                id: data.id,
+                                nombre: data.nombre,
+                                categoria: data.categoria,
+                                familia: familiaFinal || null,
+                                tipo_articulo: 'micecatering',
+                                precio_venta: Number(data.precioVenta) || 0,
+                                precio_alquiler: Number(data.precioAlquiler) || 0,
+                                precio_reposicion: Number(data.precioReposicion) || 0,
+                                erp_id: data.erpId || null,
+                                producido_por_partner: Boolean(data.producidoPorPartner),
+                                stock_seguridad: Number(data.stockSeguridad) || 0,
+                                unidad_venta: Number(data.unidadVenta) || 1,
+                                loc: data.loc || null,
+                                alergenos: categoria === 'gastronomía' ? alergenos : [],
+                                doc_drive_url: data.docDriveUrl || null,
+                                iva: Number(data.iva) || 10,
+                                imagenes: imagenes,
+                            };
+                            try {
+                                const { error } = await supabase
+                                    .from('articulos')
+                                    .insert([insertData])
+                                    .select();
+                                if (error) {
+                                    toast({ 
+                                        variant: 'destructive', 
+                                        title: 'Error al guardar', 
+                                        description: `${error.message}${error.details ? ' - ' + error.details : ''}` 
+                                    });
+                                    setIsLoading(false);
+                                    return;
+                                }
+                                toast({ description: 'Nuevo artículo añadido correctamente.' });
+                                await loadAllData();
+                                router.push('/bd/articulos');
+                                setIsLoading(false);
+                            } catch (err) {
+                                toast({ 
+                                    variant: 'destructive', 
+                                    title: 'Error inesperado', 
+                                    description: err instanceof Error ? err.message : 'Error desconocido' 
+                                });
+                                setIsLoading(false);
+                            }
+                        }, (errors) => {
                             toast({ variant: 'destructive', title: 'Error de validación', description: 'Revisa los campos obligatorios.' });
                         })}
                         className="space-y-4"
                     >
                         <div className="flex items-center justify-end mb-4 gap-2">
                             <Button variant="outline" type="button" onClick={() => router.push('/bd/articulos')}><X className="mr-2" />Cancelar</Button>
-                            <Button type="submit" disabled={isLoading || pack.some(p => p.valido === false)}>
+                            <Button type="submit" disabled={isLoading}>
                                 {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                                 <span className="ml-2">Guardar</span>
                             </Button>
@@ -319,49 +289,28 @@ export default function NuevoArticuloPage() {
 
                         <Card>
                             <CardContent className="space-y-4 pt-6">
-                                {/* Fila 1: Tipo de Artículo y Vínculo ERP (reducido) */}
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                                    <div className="md:col-span-1">
-                                        <FormField control={form.control} name="tipoArticulo" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-lg font-bold text-primary">Tipo de Artículo <span className="text-destructive">*</span></FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value}>
-                                                    <FormControl>
-                                                        <SelectTrigger className="h-14 text-lg border-2 border-primary bg-primary/10 font-bold">
-                                                            <SelectValue placeholder="Selecciona un tipo" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="micecatering">Micecatering</SelectItem>
-                                                        <SelectItem value="entregas">Entregas</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                    </div>
-                                    <div className="md:col-span-3">
-                                        <FormLabel className="text-sm">Vínculo con Artículo ERP</FormLabel>
-                                        {selectedErpProduct ? (
-                                            <div className="border rounded-md p-2 space-y-1">
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
-                                                        <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
-                                                    </div>
-                                                    <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" type="button" onClick={() => form.setValue('erpId', '', { shouldDirty: true })}><CircleX className="mr-1 h-3 w-3" />Desvincular</Button>
+                                {/* Vínculo ERP */}
+                                <div className="w-full">
+                                    <FormLabel className="text-sm">Vínculo con Artículo ERP</FormLabel>
+                                    {selectedErpProduct ? (
+                                        <div className="border rounded-md p-2 space-y-1">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
+                                                    <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
                                                 </div>
-                                                <p className="font-bold text-primary text-sm">{calculatePrice(selectedErpProduct).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {selectedErpProduct.unidad}</p>
+                                                <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" type="button" onClick={() => form.setValue('erpId', '', { shouldDirty: true })}><CircleX className="mr-1 h-3 w-3" />Desvincular</Button>
                                             </div>
-                                        ) : (
-                                            <Button variant="secondary" type="button" className="w-full h-16 border-dashed border-2" onClick={() => setIsErpSelectorOpen(true)}>
-                                                <LinkIcon className="mr-2" />Vincular Artículo ERP
-                                            </Button>
-                                        )}
-                                    </div>
+                                            <p className="font-bold text-primary text-sm">{calculatePrice(selectedErpProduct).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {selectedErpProduct.unidad}</p>
+                                        </div>
+                                    ) : (
+                                        <Button variant="secondary" type="button" className="w-full h-16 border-dashed border-2" onClick={() => setIsErpSelectorOpen(true)}>
+                                            <LinkIcon className="mr-2" />Vincular Artículo ERP
+                                        </Button>
+                                    )}
                                 </div>
 
-                                {/* Fila 2: Nombre GRANDE */}
+                                {/* Nombre GRANDE */}
                                 <div className="w-full">
                                     <FormField control={form.control} name="nombre" render={({ field }) => (
                                         <FormItem>
@@ -396,7 +345,36 @@ export default function NuevoArticuloPage() {
                                     )} />
                                 </div>
 
-                                {/* Fila de precios, stock y unidad venta */}
+                                {/* Familia */}
+                                <div className="mt-4">
+                                    {selectedErpProduct && familiaAuto ? (
+                                        <FormItem>
+                                            <FormLabel>Familia</FormLabel>
+                                            <Input value={familiaAuto} disabled readOnly />
+                                        </FormItem>
+                                    ) : (
+                                        <FormField control={form.control} name="familia" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Familia</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Selecciona una familia" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {familias.map(f => (
+                                                            <SelectItem key={f.Familia} value={f.Familia}>{f.Familia}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                    )}
+                                </div>
+
+                                {/* Precios, stock y unidad venta */}
                                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
                                     <FormField control={form.control} name="precioVenta" render={({ field }) => (
                                         <FormItem>
@@ -428,38 +406,8 @@ export default function NuevoArticuloPage() {
                                     )} />
                                 </div>
 
-                                {/* Packs de referencias ERP (solo para Entregas) */}
-                                {form.watch('tipoArticulo') === 'entregas' && (
-                                    <div className="mt-4">
-                                        <h2 className="text-base font-bold mb-2">Pack de referencias ERP</h2>
-                                        {pack.map((item, idx) => (
-                                            <div key={idx} className="flex items-center gap-2 mb-2 border rounded-md p-2">
-                                                <div className="flex-1">
-                                                    <p className="font-semibold text-sm">{item.nombre || item.erpId}</p>
-                                                    <p className="text-xs text-muted-foreground">Ref: {item.erpId}</p>
-                                                </div>
-                                                <Input
-                                                    type="number"
-                                                    min={1}
-                                                    value={item.cantidad}
-                                                    onChange={e => {
-                                                        const cantidad = Number(e.target.value);
-                                                        setPack(prev => prev.map((p, i) => i === idx ? { ...p, cantidad } : p));
-                                                    }}
-                                                    placeholder="Cantidad"
-                                                    className="w-24"
-                                                />
-                                                <span className="font-mono text-sm">{item.precio ? `${item.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}` : ''}</span>
-                                                <Button type="button" size="icon" variant="ghost" onClick={() => setPack(prev => prev.filter((_, i) => i !== idx))}>🗑️</Button>
-                                            </div>
-                                        ))}
-                                        <Button type="button" size="sm" variant="secondary" onClick={() => setIsPackSelectorOpen(true)}>+ Añadir producto ERP</Button>
-                                        <div className="mt-2 font-bold">Precio total pack: {packTotalPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
-                                    </div>
-                                )}
-
                                 {/* Alérgenos (solo si categoría es gastronomía) */}
-                                {form.watch('categoria') === 'gastronomía' && (
+                                {categoria === 'gastronomía' && (
                                     <div className="mt-4">
                                         <h2 className="text-base font-bold mb-2">Alérgenos</h2>
                                         <div className="flex flex-wrap gap-4">
@@ -486,48 +434,6 @@ export default function NuevoArticuloPage() {
                                     </div>
                                 )}
 
-                                {/* Campos de Entregas */}
-                                {form.watch('tipoArticulo') === 'entregas' && (
-                                    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div>
-                                            <FormLabel>Responsable Entregas</FormLabel>
-                                            <Select value={dptEntregas} onValueChange={v => setDptEntregas(v as any)}>
-                                                <SelectTrigger><SelectValue placeholder="Selecciona responsable" /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="ALMACEN">ALMACEN</SelectItem>
-                                                    <SelectItem value="CPR">CPR</SelectItem>
-                                                    <SelectItem value="PARTNER">PARTNER</SelectItem>
-                                                    <SelectItem value="RRHH">RRHH</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div>
-                                            <FormLabel>% IVA</FormLabel>
-                                            <Input type="number" value={iva} onChange={e => setIva(Number(e.target.value))} min={0} max={21} />
-                                        </div>
-                                        <div>
-                                            <FormLabel>Precio venta Entregas</FormLabel>
-                                            <Input type="number" value={precioVentaEntregas ?? ''} onChange={e => setPrecioVentaEntregas(Number(e.target.value))} min={0} />
-                                        </div>
-                                        <div>
-                                            <FormLabel>Precio venta Entregas IFEMA</FormLabel>
-                                            <Input type="number" value={precioVentaEntregasIfema ?? ''} onChange={e => setPrecioVentaEntregasIfema(Number(e.target.value))} min={0} />
-                                        </div>
-                                        <div>
-                                            <FormLabel>Precio coste alquiler</FormLabel>
-                                            <Input type="number" value={precioCosteAlquiler ?? ''} onChange={e => setPrecioCosteAlquiler(Number(e.target.value))} min={0} />
-                                        </div>
-                                        <div>
-                                            <FormLabel>Precio alquiler IFEMA</FormLabel>
-                                            <Input type="number" value={precioAlquilerIfema ?? ''} onChange={e => setPrecioAlquilerIfema(Number(e.target.value))} min={0} />
-                                        </div>
-                                        <div>
-                                            <FormLabel>Precio venta IFEMA</FormLabel>
-                                            <Input type="number" value={precioVentaIfema ?? ''} onChange={e => setPrecioVentaIfema(Number(e.target.value))} min={0} />
-                                        </div>
-                                    </div>
-                                )}
-
                                 {/* Checkbox Producido por Partner */}
                                 <div className="mt-4">
                                     <FormField control={form.control} name="producidoPorPartner" render={({ field }) => (
@@ -543,10 +449,30 @@ export default function NuevoArticuloPage() {
                                     )} />
                                 </div>
 
+                                {/* IVA */}
+                                <div className="mt-4">
+                                    <FormField control={form.control} name="iva" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>% IVA</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" {...field} min={0} max={21} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                </div>
+
                                 {/* Documentación Drive */}
                                 <div className="mt-4 pt-4 border-t">
-                                    <FormLabel>URL documentación Drive</FormLabel>
-                                    <Input value={docDriveUrl} onChange={e => setDocDriveUrl(e.target.value)} placeholder="https://drive.google.com/..." />
+                                    <FormField control={form.control} name="docDriveUrl" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>URL documentación Drive</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} placeholder="https://drive.google.com/..." />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
                                 </div>
 
                                 {/* Imágenes (máximo 5) */}
@@ -554,16 +480,6 @@ export default function NuevoArticuloPage() {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
                                             <label className="text-sm font-bold text-foreground">Imágenes <span className="text-xs text-muted-foreground">({imagenes.length}/5)</span></label>
-                                            {imagenes.length > 0 && (
-                                                <div className="flex gap-1">
-                                                    {imagenes.map((img, i) => (
-                                                        <div key={img.id} className="flex items-center gap-1">
-                                                            <img src={img.url} alt="preview" className="h-10 w-10 rounded border object-cover cursor-pointer" onClick={() => { /* open gallery */ }} />
-                                                            {img.esPrincipal && <span className="text-[10px] bg-primary text-white px-1.5 py-0.5 rounded">Principal</span>}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
                                         </div>
                                         <p className="text-[11px] text-muted-foreground leading-tight">Máximo 5 imágenes. Formatos: JPEG, PNG, HEIC. Selecciona una como imagen principal.</p>
                                     </div>
@@ -590,14 +506,6 @@ export default function NuevoArticuloPage() {
                 open={isErpSelectorOpen}
                 onOpenChange={setIsErpSelectorOpen}
                 onSelect={handleErpSelect}
-                articulosERP={articulosERP}
-                searchTerm={erpSearchTerm}
-                setSearchTerm={setErpSearchTerm}
-            />
-            <ErpArticleSelector
-                open={isPackSelectorOpen}
-                onOpenChange={setIsPackSelectorOpen}
-                onSelect={handlePackSelect}
                 articulosERP={articulosERP}
                 searchTerm={erpSearchTerm}
                 setSearchTerm={setErpSearchTerm}

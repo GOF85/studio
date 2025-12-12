@@ -317,23 +317,41 @@ export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[numb
 
 export type ArticuloCatering = {
     id: string;
-    erpId?: string;
+    erpId?: string | null;
     nombre: string;
     categoria: ArticuloCateringCategoria;
+    familia?: string | null; // Nombre de la familia
     esHabitual?: boolean;
-    precioVenta: number;
-    precioAlquiler: number;
-    precioReposicion: number;
-    unidadVenta?: number;
-    stockSeguridad?: number;
-    tipo?: string;
-    loc?: string;
-    imagen?: string;
+    precioVenta?: number | null;
+    precioAlquiler?: number | null;
+    precioReposicion?: number | null;
+    unidadVenta?: number | null;
+    stockSeguridad?: number | null;
+    tipo?: string | null;
+    loc?: string | null;
+    imagen?: string | null;
     producidoPorPartner?: boolean;
-    partnerId?: string;
-    recetaId?: string;
-    subcategoria?: string;
+    partnerId?: string | null;
+    recetaId?: string | null;
+    subcategoria?: string | null;
     tipoArticulo: 'micecatering' | 'entregas';
+    // Campos nuevos para Entregas
+    referenciaArticuloEntregas?: string | null;
+    dptEntregas?: string | null;
+    precioCoste?: number | null;
+    precioCosteAlquiler?: number | null;
+    precioVentaEntregas?: number | null;
+    precioVentaEntregasIfema?: number | null;
+    precioAlquilerIfema?: number | null;
+    precioVentaIfema?: number | null;
+    // Campos compartidos
+    iva?: number | null;
+    docDriveUrl?: string | null;
+    alergenos?: any[];
+    imagenes?: Array<{ id: string; url: string; esPrincipal: boolean; orden: number; descripcion?: string }> | null;
+    pack?: any[];
+    audit?: any[];
+    createdAt?: string;
 }
 
 // Backwards-compatible alias: some files still import `AlquilerDBItem`

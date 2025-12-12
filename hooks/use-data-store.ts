@@ -782,26 +782,55 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 objetivosCPR: loadFromLocalStorage<ObjetivoMensualCPR[]>('objetivosCPR', []),
                 personal: loadFromLocalStorage<Personal[]>('personal', []),
                 espacios: mappedEspacios,
-                articulos: (articulosData || []).map((a: any) => ({
-                    id: a.id,
-                    erpId: a.erp_id,
-                    nombre: a.nombre,
-                    categoria: a.categoria,
-                    esHabitual: a.es_habitual,
-                    precioVenta: a.precio_venta,
-                    precioAlquiler: a.precio_alquiler,
-                    precioReposicion: a.precio_reposicion,
-                    unidadVenta: a.unidad_venta,
-                    stockSeguridad: a.stock_seguridad,
-                    tipo: a.tipo,
-                    loc: a.loc,
-                    imagen: a.imagen,
-                    producidoPorPartner: a.producido_por_partner,
-                    partnerId: a.partner_id,
-                    recetaId: a.receta_id,
-                    subcategoria: a.subcategoria,
-                    tipo_articulo: a.tipo_articulo
-                })),
+                articulos: (articulosData || []).map((a: any) => {
+                    const parseJSON = (val: any) => {
+                        if (typeof val === 'string' && val.startsWith('[')) {
+                            try { return JSON.parse(val); } catch (e) { return []; }
+                        }
+                        return val || [];
+                    };
+                    const parseNumber = (val: any) => {
+                        const num = parseFloat(val);
+                        return isNaN(num) ? null : num;
+                    };
+                    return {
+                        id: a.id,
+                        erpId: a.erp_id || null,
+                        nombre: a.nombre,
+                        categoria: a.categoria,
+                        esHabitual: a.es_habitual || false,
+                        precioVenta: parseNumber(a.precio_venta),
+                        precioAlquiler: parseNumber(a.precio_alquiler),
+                        precioReposicion: parseNumber(a.precio_reposicion),
+                        unidadVenta: parseNumber(a.unidad_venta),
+                        stockSeguridad: parseNumber(a.stock_seguridad),
+                        tipo: a.tipo || null,
+                        loc: a.loc || null,
+                        imagen: a.imagen || null,
+                        producidoPorPartner: a.producido_por_partner || false,
+                        partnerId: a.partner_id || null,
+                        recetaId: a.receta_id || null,
+                        subcategoria: a.subcategoria || null,
+                        tipoArticulo: a.tipo_articulo,
+                        // Campos para Entregas
+                        referenciaArticuloEntregas: a.referencia_articulo_entregas || null,
+                        dptEntregas: a.dpt_entregas || null,
+                        precioCoste: parseNumber(a.precio_coste),
+                        precioCosteAlquiler: parseNumber(a.precio_coste_alquiler),
+                        precioVentaEntregas: parseNumber(a.precio_venta_entregas),
+                        precioVentaEntregasIfema: parseNumber(a.precio_venta_entregas_ifema),
+                        precioAlquilerIfema: parseNumber(a.precio_alquiler_ifema),
+                        precioVentaIfema: parseNumber(a.precio_venta_ifema),
+                        // Campos compartidos
+                        iva: parseNumber(a.iva),
+                        docDriveUrl: a.doc_drive_url || null,
+                        alergenos: parseJSON(a.alergenos),
+                        imagenes: parseJSON(a.imagenes),
+                        pack: parseJSON(a.pack),
+                        audit: parseJSON(a.audit),
+                        createdAt: a.created_at,
+                    };
+                }),
                 tipoServicio: (tiposServicioBriefingDB || []).map((t: any) => ({
                     id: t.id,
                     nombre: t.nombre,

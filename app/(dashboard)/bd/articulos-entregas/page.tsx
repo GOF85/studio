@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
@@ -41,16 +40,15 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown } from 'lucide-react';
 import { downloadCSVTemplate } from '@/lib/utils';
-
 import { useDataStore } from '@/hooks/use-data-store';
 import { supabase } from '@/lib/supabase';
 import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view';
 import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 import { TableLoadingSplash } from '@/components/layout/table-loading-splash';
 
-const CSV_HEADERS = ["id", "erp_id", "nombre", "categoria", "es_habitual", "precio_venta", "precio_alquiler", "precio_reposicion", "unidad_venta", "stock_seguridad", "tipo", "loc", "imagen", "producido_por_partner", "partner_id", "receta_id", "subcategoria", "iva", "doc_drive_url"];
+const CSV_HEADERS = ["id", "erp_id", "nombre", "categoria", "referencia_articulo_entregas", "dpt_entregas", "precio_venta_entregas", "precio_venta_entregas_ifema", "precio_coste", "precio_coste_alquiler", "precio_alquiler_ifema", "unidad_venta", "loc", "imagen", "producido_por_partner", "partner_id", "subcategoria", "iva", "doc_drive_url"];
 
-function ArticulosPageContent() {
+function ArticulosEntregasPageContent() {
   const { data, loadAllData } = useDataStore();
   const items = data.articulos || [];
   const [isMounted, setIsMounted] = useState(false);
@@ -79,41 +77,38 @@ function ArticulosPageContent() {
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const term = searchTerm.toLowerCase();
+      const itemAsAny = item as any;
       const searchMatch =
         (item.nombre || '').toLowerCase().includes(term) ||
-        (item.id || '').toLowerCase().includes(term);
+        (item.id || '').toLowerCase().includes(term) ||
+        (itemAsAny.referenciaArticuloEntregas || '').toLowerCase().includes(term);
       const categoryMatch = categoryFilter === 'all' || item.categoria === categoryFilter;
       const partnerMatch = !isPartnerFilter || item.producidoPorPartner;
-      const tipoMatch = item.tipoArticulo === 'micecatering';
+      const tipoMatch = item.tipoArticulo === 'entregas';
       return searchMatch && categoryMatch && partnerMatch && tipoMatch;
     });
   }, [items, searchTerm, categoryFilter, isPartnerFilter]);
 
-  // Para infinite scroll en móvil: mostrar todos los items filtrados
   const mobileItems = useMemo(() => {
     return filteredItems;
   }, [filteredItems]);
 
-  // Hook para infinite scroll (sin paginación tradicional, mostrar todos)
   const sentinelRef = useInfiniteScroll({
     fetchNextPage: () => {
       // TODO: Conectar lógica de carga infinita aquí si se implementa paginación
     },
     hasNextPage: false,
     isFetchingNextPage: false,
-    enabled: false, // Deshabilitado ya que no hay paginación
+    enabled: false,
   });
 
-  // Definir columnas para la vista móvil
   const mobileColumns: MobileTableColumn<ArticuloCatering>[] = [
     { key: 'nombre', label: 'Nombre', isTitle: true },
     { key: 'categoria', label: 'Categoría' },
-    { key: 'precioVenta', label: 'Precio Venta', format: (value) => (value as number).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) },
-    { key: 'precioAlquiler', label: 'Precio Alquiler', format: (value) => (value as number) > 0 ? (value as number).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-' },
-    { key: 'precioReposicion', label: 'Precio Reposición', format: (value) => (value as number) > 0 ? (value as number).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-' },
+    { key: 'tipoArticulo', label: 'Tipo' },
+    { key: 'precioVenta', label: 'Precio Venta', format: (value) => (value as number)?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) || '-' },
   ];
 
-  // Handlers de selección
   const handleToggleAll = (checked: boolean | 'indeterminate') => {
     if (checked === 'indeterminate') return;
     if (checked) {
@@ -146,28 +141,6 @@ function ArticulosPageContent() {
 
   const handleBulkDelete = async () => {
     const idsToDelete = Array.from(selectedIds);
-    
-    // Validar dependencias
-    const { data: dependencies, error: checkError } = await supabase
-      .from('receta_detalles')
-      .select('articulo_id')
-      .in('articulo_id', idsToDelete);
-
-    if (checkError) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo validar dependencias.' });
-      return;
-    }
-
-    if (dependencies && dependencies.length > 0) {
-      const articlesWithDeps = new Set(dependencies.map(d => d.articulo_id));
-      toast({ 
-        variant: 'destructive', 
-        title: 'Artículos con dependencias', 
-        description: `${articlesWithDeps.size} artículo(s) están referenciados en recetas y no pueden eliminarse.`,
-        duration: 8000
-      });
-      return;
-    }
 
     const { error } = await supabase
       .from('articulos')
@@ -231,22 +204,22 @@ function ArticulosPageContent() {
           erp_id: item.erp_id || null,
           nombre: item.nombre,
           categoria: item.categoria,
-          es_habitual: item.es_habitual === 'true' || item.es_habitual === true,
-          precio_venta: parseFloat(item.precio_venta) || 0,
-          precio_alquiler: parseFloat(item.precio_alquiler) || 0,
-          precio_reposicion: parseFloat(item.precio_reposicion) || 0,
+          referencia_articulo_entregas: item.referencia_articulo_entregas,
+          dpt_entregas: item.dpt_entregas || null,
+          precio_venta_entregas: parseFloat(item.precio_venta_entregas) || 0,
+          precio_venta_entregas_ifema: parseFloat(item.precio_venta_entregas_ifema) || 0,
+          precio_coste: parseFloat(item.precio_coste) || 0,
+          precio_coste_alquiler: parseFloat(item.precio_coste_alquiler) || null,
+          precio_alquiler_ifema: parseFloat(item.precio_alquiler_ifema) || 0,
           unidad_venta: parseFloat(item.unidad_venta) || null,
-          stock_seguridad: parseFloat(item.stock_seguridad) || null,
-          tipo: item.tipo || null,
           loc: item.loc || null,
           imagen: item.imagen || null,
           producido_por_partner: item.producido_por_partner === 'true' || item.producido_por_partner === true,
           partner_id: item.partner_id || null,
-          receta_id: item.receta_id || null,
           subcategoria: item.subcategoria || null,
           iva: parseFloat(item.iva) || 10,
           doc_drive_url: item.doc_drive_url || null,
-          tipo_articulo: 'micecatering'
+          tipo_articulo: 'entregas'
         }));
 
         const { error } = await supabase
@@ -274,29 +247,29 @@ function ArticulosPageContent() {
   };
 
   const handleExportCSV = () => {
-    const micecateringItems = filteredItems.filter(item => item.tipoArticulo === 'micecatering');
-    if (micecateringItems.length === 0) {
+    const entregasItems = filteredItems.filter(item => item.tipoArticulo === 'entregas');
+    if (entregasItems.length === 0) {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
       return;
     }
 
-    const dataToExport = micecateringItems.map((item: any) => ({
+    const dataToExport = entregasItems.map((item: any) => ({
       id: item.id,
       erp_id: item.erpId,
       nombre: item.nombre,
       categoria: item.categoria,
-      es_habitual: item.esHabitual ? 'true' : 'false',
-      precio_venta: item.precioVenta,
-      precio_alquiler: item.precioAlquiler,
-      precio_reposicion: item.precioReposicion,
+      referencia_articulo_entregas: item.referenciaArticuloEntregas,
+      dpt_entregas: item.dptEntregas,
+      precio_venta_entregas: item.precioVentaEntregas,
+      precio_venta_entregas_ifema: item.precioVentaEntregasIfema,
+      precio_coste: item.precioCoste,
+      precio_coste_alquiler: item.precioCosteAlquiler,
+      precio_alquiler_ifema: item.precioAlquilerIfema,
       unidad_venta: item.unidadVenta,
-      stock_seguridad: item.stockSeguridad,
-      tipo: item.tipo,
       loc: item.loc,
       imagen: item.imagen,
       producido_por_partner: item.producidoPorPartner ? 'true' : 'false',
       partner_id: item.partnerId,
-      receta_id: item.recetaId,
       subcategoria: item.subcategoria,
       iva: item.iva,
       doc_drive_url: item.docDriveUrl,
@@ -307,7 +280,7 @@ function ArticulosPageContent() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `articulos-micecatering.csv`);
+    link.setAttribute('download', `articulos-entregas.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -316,58 +289,79 @@ function ArticulosPageContent() {
   };
 
   if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Artículos..." />;
+    return <LoadingSkeleton title="Cargando Artículos Entregas..." />;
   }
 
   return (
-    <>
-      <TableLoadingSplash isLoading={isLoading} type="articulos" />
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <Input
-          placeholder="Buscar por nombre o ID..."
-          className="flex-grow max-w-lg"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-full md:w-[240px]">
-            <SelectValue placeholder="Filtrar por categoría" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las Categorías</SelectItem>
-            {ARTICULO_CATERING_CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <div className="flex items-center space-x-2">
-          <Checkbox id="partner-filter" checked={isPartnerFilter} onCheckedChange={(checked) => setIsPartnerFilter(Boolean(checked))} />
-          <label htmlFor="partner-filter" className="text-sm font-medium">Producido por Partner</label>
+    <div className="space-y-4">
+      <TableLoadingSplash isLoading={isLoading} type="entregas" />
+      {/* Barra de controles */}
+      <div className="flex flex-col gap-3 md:gap-4">
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+          <Input
+            placeholder="Buscar por nombre o referencia..."
+            className="flex-1"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="md:w-[200px]">
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              {ARTICULO_CATERING_CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
-        <div className="flex-grow flex justify-end gap-2">
-          <Button onClick={() => router.push('/bd/articulos/nuevo')}>
-            <PlusCircle className="mr-2" />
-            Nuevo
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon"><Menu /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
-                <FileUp size={16} className="mr-2" />Importar CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_articulos.csv')}>
-                <FileDown size={16} className="mr-2" />Descargar Plantilla
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportCSV}>
-                <FileDown size={16} className="mr-2" />Exportar CSV
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+        <div className="flex flex-col md:flex-row gap-3 md:justify-between md:items-center">
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="partner-filter" 
+              checked={isPartnerFilter} 
+              onCheckedChange={(checked) => setIsPartnerFilter(Boolean(checked))} 
+            />
+            <label htmlFor="partner-filter" className="text-sm font-medium cursor-pointer">
+              Solo Partner
+            </label>
+          </div>
+
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => router.push('/bd/articulos-entregas/nuevo')}
+              size="sm"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nuevo
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
+                  <FileUp size={16} className="mr-2" />
+                  Importar CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_articulos_entregas.csv')}>
+                  <FileDown size={16} className="mr-2" />
+                  Descargar Plantilla
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileDown size={16} className="mr-2" />
+                  Exportar CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
-      {/* Vista Móvil: Tarjetas Apiladas */}
-      <div className="md:hidden space-y-4">
+      {/* Vista Móvil */}
+      <div className="md:hidden">
         <MobileTableView
           data={mobileItems}
           columns={mobileColumns}
@@ -381,7 +375,7 @@ function ArticulosPageContent() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push(`/bd/articulos/${item.id}`)}
+                onClick={() => router.push(`/bd/articulos-entregas/${item.id}`)}
                 className="flex-1"
               >
                 <Pencil className="mr-2 h-4 w-4" />
@@ -391,26 +385,27 @@ function ArticulosPageContent() {
           )}
           sentinelRef={sentinelRef}
           isLoading={false}
-          emptyMessage="No se encontraron artículos."
+          emptyMessage="No se encontraron artículos de entregas."
         />
       </div>
 
-      {/* Vista Escritorio: Tabla Tradicional */}
-      <div className="hidden md:block border rounded-lg">
+      {/* Vista Escritorio */}
+      <div className="hidden md:block border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="w-12 p-3">
                 <Checkbox
                   checked={selectedIds.size === filteredItems.length && filteredItems.length > 0 ? true : selectedIds.size > 0 ? 'indeterminate' : false}
                   onCheckedChange={handleToggleAll}
                 />
               </TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Categoría</TableHead>
-              <TableHead>Precio Venta</TableHead>
-              <TableHead>Precio Alquiler</TableHead>
-              <TableHead>Precio Reposición</TableHead>
+              <TableHead className="p-3">Nombre</TableHead>
+              <TableHead className="p-3">Categoría</TableHead>
+              <TableHead className="p-3">Referencia</TableHead>
+              <TableHead className="p-3">Dpto</TableHead>
+              <TableHead className="p-3 text-right">Precio Venta</TableHead>
+              <TableHead className="p-3 text-right">Precio Coste</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -420,33 +415,34 @@ function ArticulosPageContent() {
                 return (
                   <TableRow
                     key={item.id}
-                    className={`cursor-pointer ${
-                      isSelected 
-                        ? 'bg-muted border-l-4 border-l-primary' 
-                        : item.tipo_articulo === 'entregas' 
-                        ? 'bg-orange-50' 
-                        : ''
+                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                      isSelected ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                     }`}
-                    onClick={() => router.push(`/bd/articulos/${item.id}`)}
+                    onClick={() => router.push(`/bd/articulos-entregas/${item.id}`)}
                   >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="p-3" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => handleToggleItem(item.id)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{item.nombre}</TableCell>
-                    <TableCell>{item.categoria}</TableCell>
-                    <TableCell>{item.precioVenta?.toLocaleString ? item.precioVenta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : (parseFloat(item.precio_venta || '0')).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell>{item.precioAlquiler?.toLocaleString ? (item.precioAlquiler > 0 ? item.precioAlquiler.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-') : (parseFloat(item.precio_alquiler || '0') > 0 ? parseFloat(item.precio_alquiler || '0').toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-')}</TableCell>
-                    <TableCell>{item.precioReposicion?.toLocaleString ? (item.precioReposicion > 0 ? item.precioReposicion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-') : (parseFloat(item.precio_reposicion || '0') > 0 ? parseFloat(item.precio_reposicion || '0').toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-')}</TableCell>
+                    <TableCell className="p-3 font-medium">{item.nombre}</TableCell>
+                    <TableCell className="p-3 text-sm">{item.categoria}</TableCell>
+                    <TableCell className="p-3 font-mono text-xs">{(item as any).referenciaArticuloEntregas || '-'}</TableCell>
+                    <TableCell className="p-3 text-sm">{(item as any).dptEntregas || '-'}</TableCell>
+                    <TableCell className="p-3 text-right">
+                      {((item as any).precioVentaEntregas || item.precioVenta)?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) || '-'}
+                    </TableCell>
+                    <TableCell className="p-3 text-right">
+                      {(item as any).precioCoste?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) || '-'}
+                    </TableCell>
                   </TableRow>
                 );
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No se encontraron artículos.
+                <TableCell colSpan={7} className="p-8 text-center">
+                  <p className="text-muted-foreground">No se encontraron artículos de entregas.</p>
                 </TableCell>
               </TableRow>
             )}
@@ -456,8 +452,8 @@ function ArticulosPageContent() {
 
       {/* Botón flotante de eliminación masiva */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-background border rounded-lg shadow-lg p-4">
-          <span className="text-sm font-medium">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-background border border-amber-400 rounded-lg shadow-lg p-4 animate-in slide-in-from-bottom-5">
+          <span className="text-sm font-medium text-amber-900 dark:text-amber-100">
             {selectedIds.size} seleccionado{selectedIds.size > 1 ? 's' : ''}
           </span>
           <Button
@@ -480,28 +476,28 @@ function ArticulosPageContent() {
 
       {/* Dialog de revisión de items seleccionados */}
       <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Revisar artículos a eliminar</DialogTitle>
             <DialogDescription>
-              Se eliminarán {selectedIds.size} artículo{selectedIds.size > 1 ? 's' : ''}. Revisa la lista antes de confirmar.
+              Se eliminarán {selectedIds.size} artículo{selectedIds.size > 1 ? 's' : ''}
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto flex-1">
+          <div className="max-h-[300px] overflow-y-auto border rounded-lg">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Precio Venta</TableHead>
+                <TableRow className="bg-muted/50 sticky top-0">
+                  <TableHead className="p-3">Nombre</TableHead>
+                  <TableHead className="p-3">Categoría</TableHead>
+                  <TableHead className="p-3">Referencia</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredItems.filter(item => selectedIds.has(item.id)).map(item => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.nombre}</TableCell>
-                    <TableCell>{item.categoria}</TableCell>
-                    <TableCell>{item.precioVenta?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="p-3 font-medium">{item.nombre}</TableCell>
+                    <TableCell className="p-3">{item.categoria}</TableCell>
+                    <TableCell className="p-3 font-mono text-xs">{(item as any).referenciaArticuloEntregas || '-'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -566,29 +562,34 @@ function ArticulosPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* AlertDialog de importación */}
       <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
             <AlertDialogDescription>
-              Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+              Selecciona el delimitador que utiliza tu archivo CSV.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="!justify-center gap-4">
             <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
-            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>
+              Comas (,)
+            </Button>
+            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>
+              Punto y Coma (;)
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }
 
-export default function ArticulosPage() {
+export default function ArticulosEntregasPage() {
   return (
-    <Suspense fallback={<LoadingSkeleton title="Cargando Artículos..." />}>
-      <ArticulosPageContent />
+    <Suspense fallback={<LoadingSkeleton title="Cargando Artículos Entregas..." />}>
+      <ArticulosEntregasPageContent />
     </Suspense>
   )
 }

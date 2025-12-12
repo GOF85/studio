@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-    Calendar, Users, CheckCircle2, Clock, 
-    ArrowRight, Activity, Truck, 
-    LayoutDashboard, FileBarChart, Settings
+    Calendar, Clock, 
+    Activity, Truck, 
+    LayoutDashboard, FileBarChart, Settings,
+    CalendarDays, ClipboardList, ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
-import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
 import { commercialItems, planningItems, coreOpsItems, reportingItems, adminItems, type MenuItem } from '@/lib/nav-config';
@@ -18,10 +18,11 @@ import { ServiceOrderSearch } from '@/components/dashboard/service-order-search'
 
 // --- COMPONENTES UI INTERNOS ---
 
+// Tarjeta para métricas puras (No clickeables, informativas)
 function KPICard({ title, value, subtext, icon: Icon, colorClass }: { title: string, value: string | number, subtext: string, icon: any, colorClass: string }) {
     return (
-        <Card className="shadow-sm border border-border/60 overflow-hidden relative group hover:shadow-md transition-all">
-            <div className={cn("absolute top-0 right-0 p-3 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity", colorClass)}>
+        <Card className="shadow-sm border border-border/60 overflow-hidden relative">
+            <div className={cn("absolute top-0 right-0 p-3 opacity-[0.08]", colorClass)}>
                 <Icon className="w-16 h-16" />
             </div>
             <CardHeader className="p-4 pb-2">
@@ -35,6 +36,35 @@ function KPICard({ title, value, subtext, icon: Icon, colorClass }: { title: str
                 <p className="text-xs text-muted-foreground mt-1 font-medium">{subtext}</p>
             </CardContent>
         </Card>
+    );
+}
+
+// Tarjeta de Acción Principal (PES y Calendario)
+function ActionCard({ title, value, subtext, icon: Icon, href, colorClass }: { title: string, value: string, subtext: string, icon: any, href: string, colorClass: string }) {
+    return (
+        <Link href={href} className="block h-full">
+            <Card className="h-full shadow-sm border border-border/60 overflow-hidden relative group hover:shadow-md hover:border-primary/50 transition-all cursor-pointer">
+                <div className={cn("absolute top-0 right-0 p-3 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity", colorClass)}>
+                    <Icon className="w-16 h-16" />
+                </div>
+                
+                {/* Indicador visual de acción */}
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground">
+                    <ChevronRight className="w-4 h-4" />
+                </div>
+
+                <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 group-hover:text-primary transition-colors">
+                        <Icon className={cn("w-4 h-4", colorClass)} />
+                        {title}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                    <div className="text-xl font-bold text-foreground group-hover:text-primary/90 transition-colors">{value}</div>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium">{subtext}</p>
+                </CardContent>
+            </Card>
+        </Link>
     );
 }
 
@@ -94,12 +124,9 @@ interface DashboardMetrics {
     paxHoy: number;
     serviciosSemana: number;
     paxSemana: number;
-    hitosConGastronomia: number;
-    totalAsistentes: number;
 }
 
 export default function DashboardPage() {
-    const { toast } = useToast();
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -113,14 +140,13 @@ export default function DashboardPage() {
     useEffect(() => {
         const calculateMetrics = () => {
             try {
-                // Mock data simulation - Reemplazar con datos reales
+                // TODO: Conectar con Supabase real cuando existan datos
+                // Por ahora simulamos la carga para evitar layout shifts
                 setMetrics({
                     serviciosHoy: 3,
                     paxHoy: 120,
                     serviciosSemana: 15,
                     paxSemana: 450,
-                    hitosConGastronomia: 85,
-                    totalAsistentes: 12500,
                 });
             } catch (error) {
                 console.error("Error calculating metrics", error);
@@ -142,7 +168,6 @@ export default function DashboardPage() {
             <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
                     <div className="flex items-center w-full">
-                        {/* El div contenedor debe ser flex-1 para ocupar todo el espacio */}
                         <div className="flex-1 w-full">
                             <ServiceOrderSearch />
                         </div>
@@ -152,42 +177,54 @@ export default function DashboardPage() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-10">
                 
-                {/* 1. SECCIÓN MÉTRICAS (KPIs) */}
+                {/* 1. SECCIÓN PRINCIPAL: KPI + ACCESOS DIRECTOS (PES & CALENDARIO) */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                    {/* Métricas de Pulso (Izquierda) */}
                     <KPICard 
                         title="Hoy" 
                         value={metrics.serviciosHoy} 
                         subtext={`${metrics.paxHoy} pax`}
-                        icon={Calendar}
+                        icon={Clock}
                         colorClass="text-blue-600"
                     />
                     <KPICard 
-                        title="Semana" 
+                        title="Esta Semana" 
                         value={metrics.serviciosSemana} 
-                        subtext={`${metrics.paxSemana} pax`}
-                        icon={Clock}
+                        subtext={`${metrics.paxSemana} pax previstos`}
+                        icon={Activity}
+                        colorClass="text-indigo-600"
+                    />
+
+                    {/* Herramientas Principales (Derecha - Destacadas) */}
+                    <ActionCard 
+                        title="PES" 
+                        value="Plan Semanal" 
+                        subtext="Gestión Táctica"
+                        icon={ClipboardList}
+                        href="/pes"
                         colorClass="text-amber-600"
                     />
-                    <KPICard 
-                        title="Total Servicios" 
-                        value={metrics.hitosConGastronomia} 
-                        subtext="Año en curso"
-                        icon={CheckCircle2}
-                        colorClass="text-green-600"
-                    />
-                     <KPICard 
-                        title="Histórico Pax" 
-                        value={new Intl.NumberFormat('es-ES', { notation: "compact" }).format(metrics.totalAsistentes)} 
-                        subtext="Clientes"
-                        icon={Users}
-                        colorClass="text-purple-600"
+                    <ActionCard 
+                        title="Calendario" 
+                        value="Vista Global" 
+                        subtext="Planificación Mensual"                    
+                        icon={CalendarDays}
+                        href="/calendario"
+                        colorClass="text-emerald-600"
                     />
                 </div>
 
                 {/* 2. SECCIONES DE NAVEGACIÓN */}
                 <div className="space-y-10">
                     <NavSection title="Comercial y Ventas" items={commercialItems} icon={Activity} />
-                    <NavSection title="Planificación Operativa" items={planningItems} icon={LayoutDashboard} />
+                    
+                    {/* Filtramos para mostrar SOLO Entregas MICE, eliminando la redundancia de PES y Calendario */}
+                    <NavSection 
+                        title="Planificación Operativa" 
+                        items={planningItems.filter(item => item.title === 'Entregas MICE')} 
+                        icon={LayoutDashboard} 
+                    />
+                    
                     <NavSection title="Operaciones Centrales" items={coreOpsItems} icon={Truck} />
                     <NavSection title="Análisis y Reportes" items={reportingItems} icon={FileBarChart} />
                     <NavSection title="Administración" items={adminItems} icon={Settings} />

@@ -41,9 +41,14 @@ const generalDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
   { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', path: '/bd/plantillas-pedidos', icon: FilePlus2 },
 ];
 
+const entregasDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
+  { id: '3a', name: 'Artículos Entregas', description: 'Gestión de artículos para entregas y servicios.', path: '/bd/articulos-entregas', icon: Truck },
+];
+
 const bookGastronomicoList: Omit<DatabaseEntry, 'itemCount'>[] = [
   { id: '15', name: 'Categorías de Recetas', description: 'Gestiona las categorías para clasificar las recetas.', path: '/bd/categorias-recetas', icon: BookHeart },
   { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', path: '/bd/formatos-expedicion', icon: Package },
+  { id: '20', name: 'Ingredientes Internos', description: 'Base de datos de ingredientes internos.', path: '/book/ingredientes', icon: Soup },
 ];
 
 const providerDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
@@ -64,6 +69,7 @@ export default function BdPage() {
   const { data, loadAllData } = useDataStore();
   const [generalDatabases, setGeneralDatabases] = useState<DatabaseEntry[]>([]);
   const [bookGastronomicoDBs, setBookGastronomicoDBs] = useState<DatabaseEntry[]>([]);
+  const [entregasDatabases, setEntregasDatabases] = useState<DatabaseEntry[]>([]);
   const [providerDatabases, setProviderDatabases] = useState<DatabaseEntry[]>([]);
   const [cprDatabases, setCprDatabases] = useState<DatabaseEntry[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -85,6 +91,7 @@ export default function BdPage() {
         if (db.path === '/bd/tipo-servicio') count = data.tipoServicio?.length || 0;
         if (db.path === '/bd/atipicos-db') count = data.atipicosDB?.length || 0;
         if (db.path === '/bd/decoracion-db') count = data.decoracionDB?.length || 0;
+        if (db.path === '/bd/articulos-entregas') count = data.articulos?.filter((a: any) => a.tipoArticulo === 'entregas').length || 0;
         if (db.path === '/bd/erp') count = data.ingredientesERP?.length || 0;
         if (db.path === '/bd/familiasERP') count = data.familiasERP?.length || 0;
         if (db.path === '/bd/plantillas-pedidos') count = data.pedidoPlantillas?.length || 0;
@@ -102,6 +109,7 @@ export default function BdPage() {
     }
 
     setGeneralDatabases(updateCounts(generalDatabasesList));
+    setEntregasDatabases(updateCounts(entregasDatabasesList));
     setBookGastronomicoDBs(updateCounts(bookGastronomicoList));
     setProviderDatabases(updateCounts(providerDatabasesList));
     setCprDatabases(updateCounts(cprDatabasesList));
@@ -110,69 +118,54 @@ export default function BdPage() {
   if (!isMounted) return null;
 
   const renderTable = (dbs: DatabaseEntry[], title: string, icon: React.ReactNode, description?: string) => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-3">{icon} {title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
+    <Card className="h-full flex flex-col justify-between">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-3 text-base">{icon} {title}</CardTitle>
+        {description && <CardDescription className="text-xs mt-1">{description}</CardDescription>}
       </CardHeader>
-      <CardContent>
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="p-2">Nombre</TableHead>
-                <TableHead className="p-2">Nº Registros</TableHead>
-                <TableHead className="text-right p-2">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {dbs.length > 0 ? (
-                dbs.map(db => (
-                  <TableRow key={db.id}>
-                    <TableCell className="font-medium p-2 flex items-center gap-2"><db.icon size={16} />{db.name}</TableCell>
-                    <TableCell className="p-2">{db.itemCount}</TableCell>
-                    <TableCell className="text-right p-2">
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href={db.path}>
-                          Gestionar <ArrowRight className="ml-2" />
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center">
-                    Aún no hay bases de datos en esta categoría.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+      <CardContent className="flex-1 flex flex-col justify-center">
+        <div className="divide-y">
+          {dbs.length > 0 ? (
+            dbs.map(db => (
+              <button
+                key={db.id}
+                onClick={() => window.location.href = db.path}
+                className="w-full flex items-center justify-between gap-3 py-2 px-0 hover:bg-muted/50 transition-colors rounded-md first:pt-0 last:pb-0"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <db.icon size={22} className="text-muted-foreground flex-shrink-0" />
+                  <div className="text-left min-w-0">
+                    <p className="font-medium text-sm truncate">{db.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{db.itemCount} registro{db.itemCount !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                <ArrowRight size={18} className="text-muted-foreground flex-shrink-0" />
+              </button>
+            ))
+          ) : (
+            <div className="py-8 text-center">
+              <p className="text-sm text-muted-foreground">Aún no hay bases de datos en esta categoría.</p>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
   )
 
   return (
-    <>
-      <div className="py-4">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <Database className="h-8 w-8" />
-            <h1 className="text-3xl font-headline font-bold">Gestión de Bases de Datos</h1>
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-8">
-          {renderTable(generalDatabases, 'Bases de Datos Generales y de Catering', <Database />)}
-          <div className="space-y-8">
-            {renderTable(bookGastronomicoDBs, 'Bases de datos Book Gastronómico', <BookHeart />, 'Gestión de categorías y formatos para el sistema de recetas.')}
-            {renderTable(providerDatabases, 'Bases de Datos de Proveedores', <Users />, 'Gestión centralizada de todos los proveedores y sus catálogos de servicios.')}
-            {renderTable(cprDatabases, 'Configuración del CPR', <Factory />, 'Parámetros para la cuenta de explotación del Centro de Producción.')}
-          </div>
-        </div>
+    <div className="px-2 py-4">
+      <div
+        className="grid gap-4"
+        style={{
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        }}
+      >
+        {renderTable(generalDatabases, 'Bases de Datos Generales y de Catering', <Database />)}
+        {renderTable(bookGastronomicoDBs, 'Book Gastronómico', <BookHeart />, 'Categorías y formatos de recetas')}
+        {renderTable(entregasDatabases, 'Entregas', <Truck />, 'Gestión de entregas y artículos asociados')}
+        {renderTable(providerDatabases, 'Proveedores', <Users />, 'Gestión centralizada de proveedores')}
+        {renderTable(cprDatabases, 'Centro de Producción', <Factory />, 'Parámetros y costes del CPR')}
       </div>
-    </>
+    </div>
   );
 }
