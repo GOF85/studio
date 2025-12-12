@@ -203,13 +203,13 @@ export default function RetornoSheetPage() {
             if (!acc[group]) acc[group] = [];
             acc[group].push(item);
             return acc;
-        }, {} as Record<string, ReturnType<typeof consumptionList>>);
+        }, {} as Record<string, typeof consumptionList>);
 
         const calculatedStats: Record<string, { itemCount: number, totalValue: number, checkedCount: number, progress: number }> = {};
         Object.entries(grouped).forEach(([type, items]) => {
             const itemCount = items.length;
-            const totalValue = items.reduce((sum, item) => sum + (item.price * item.sentQuantity), 0);
-            const checkedCount = items.filter(i => i.isReviewed).length;
+            const totalValue = items.reduce((sum: number, item: any) => sum + (item.price * item.sentQuantity), 0);
+            const checkedCount = items.filter((i: any) => i.isReviewed).length;
             const progress = itemCount > 0 ? (checkedCount / itemCount) * 100 : 0;
             calculatedStats[type] = { itemCount, totalValue, checkedCount, progress };
         });
@@ -274,9 +274,10 @@ export default function RetornoSheetPage() {
                                             isMismatch && !item.hasIncident && "bg-amber-50/80",
                                             item.isReviewed && "bg-slate-100/60 opacity-60 hover:opacity-100"
                                         );
-
+                                        // Tipar item explícitamente
+                                        const typedItem = item as any;
                                         return (
-                                        <TableRow key={item.itemKey} className={rowCn}>
+                                        <TableRow key={typedItem.itemKey} className={rowCn}>
                                              <TableCell className="p-1">
                                                 {item.isReviewed && <Check className="h-5 w-5 text-green-600" />}
                                             </TableCell>

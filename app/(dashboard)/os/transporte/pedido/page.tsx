@@ -33,7 +33,7 @@ const transporteOrderSchema = z.object({
   lugarEntrega: z.string().min(1, 'El lugar de entrega es obligatorio'),
   horaEntrega: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   observaciones: z.string().optional(),
-  status: z.enum(statusOptions).default('Pendiente'),
+  status: z.enum(['Pendiente', 'Confirmado', 'En Ruta', 'Entregado'] as const).default('Pendiente'),
 });
 
 type TransporteOrderFormValues = z.infer<typeof transporteOrderSchema>;

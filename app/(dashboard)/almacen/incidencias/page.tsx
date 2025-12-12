@@ -80,7 +80,7 @@ export default function IncidenciasPickingPage() {
             value: a.id,
             label: a.nombre,
             category: a.categoria,
-            price: a.precioAlquiler > 0 ? a.precioAlquiler : a.precioVenta
+            price: typeof a.precioAlquiler === 'number' && a.precioAlquiler > 0 ? a.precioAlquiler : (typeof a.precioVenta === 'number' ? a.precioVenta : 0)
         }));
 
         setCatalog(allArticulos);

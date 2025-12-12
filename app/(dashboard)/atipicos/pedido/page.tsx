@@ -32,7 +32,7 @@ const atipicoOrderSchema = z.object({
   concepto: z.string().min(1, 'El concepto es obligatorio'),
   observaciones: z.string().optional(),
   precio: z.coerce.number().min(0.01, 'El precio debe ser mayor que cero'),
-  status: z.enum(statusOptions).default('Pendiente'),
+  status: z.enum(['Pendiente', 'Aprobado', 'Rechazado'] as const).default('Pendiente'),
 });
 
 type AtipicoOrderFormValues = z.infer<typeof atipicoOrderSchema>;

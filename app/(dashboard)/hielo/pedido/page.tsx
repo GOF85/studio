@@ -40,7 +40,7 @@ const hieloOrderSchema = z.object({
   fecha: z.date({ required_error: 'La fecha es obligatoria.' }),
   proveedorId: z.string().min(1, 'Debes seleccionar un proveedor'),
   observaciones: z.string().optional(),
-  status: z.enum(statusOptions).default('Pendiente'),
+  status: z.enum(['Pendiente', 'Confirmado', 'En reparto', 'Entregado'] as const).default('Pendiente'),
   items: z.array(z.object({
       id: z.string(), // Corresponds to ArticuloCatering.id
       producto: z.string(),
@@ -57,12 +57,12 @@ function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (pr
   
   useEffect(() => {
     const allArticulos = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
-    const productosDeHielo = allArticulos.filter(p => p.categoria === 'Hielo' && p.partnerId === providerId);
+    const productosDeHielo = allArticulos.filter((p: ArticuloCatering) => p.categoria === 'Hielo' && p.partnerId === providerId);
     setHieloProducts(productosDeHielo);
   }, [providerId]);
   
   const filteredItems = useMemo(() => {
-    return hieloProducts.filter(item => 
+    return hieloProducts.filter((item: ArticuloCatering) => 
       item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [hieloProducts, searchTerm]);
@@ -85,7 +85,7 @@ function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (pr
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredItems.map(product => (
+            {filteredItems.map((product: ArticuloCatering) => (
               <TableRow key={product.id}>
                 <TableCell className="font-medium">{product.nombre}</TableCell>
                 <TableCell>{formatCurrency(product.precioVenta)}</TableCell>
@@ -126,15 +126,15 @@ export default function PedidoHieloPage() {
 
   useEffect(() => {
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
+    const currentOS = allServiceOrders.find((os: ServiceOrder) => os.id === osId);
     setServiceOrder(currentOS || null);
 
     const storedProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-    setAllProveedores(storedProveedores.filter(p => p.tipos.includes('Hielo')));
+    setAllProveedores(storedProveedores.filter((p: any) => p.tipos.includes('Hielo')));
 
     if (isEditing) {
       const allOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
-      const order = allOrders.find(o => o.id === orderId);
+      const order = allOrders.find((o: HieloOrder) => o.id === orderId);
       if (order) {
         form.reset({
           ...order,
@@ -174,7 +174,7 @@ export default function PedidoHieloPage() {
   };
   
   const totalPedido = useMemo(() => {
-    return fields.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+    return fields.reduce((acc: number, item: any) => acc + (item.precio * item.cantidad), 0);
   }, [fields, form.watch('items')]); 
 
   const onSubmit = (data: HieloOrderFormValues) => {
@@ -182,7 +182,7 @@ export default function PedidoHieloPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para crear el pedido.' });
       return;
     }
-    const provider = allProveedores.find(p => p.id === selectedProviderId);
+    const provider = allProveedores.find((p: any) => p.id === selectedProviderId);
 
     const allOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
     
@@ -327,7 +327,7 @@ export default function PedidoHieloPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {fields.length > 0 ? (
-                                            fields.map((field, index) => (
+                                            fields.map((field: any, index: number) => (
                                                 <TableRow key={field.key}>
                                                     <TableCell className="font-medium">{field.producto}</TableCell>
                                                     <TableCell>{formatCurrency(field.precio)}</TableCell>

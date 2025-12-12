@@ -49,7 +49,7 @@ const transporteOrderSchema = z.object({
   horaRecogida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   lugarEntrega: z.string().min(1, "El lugar de entrega es obligatorio."),
   horaEntrega: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
-  status: z.enum(statusOptions),
+    status: z.enum(['Pendiente', 'Confirmado', 'En Ruta', 'Entregado'] as const),
 });
 
 const formSchema = z.object({

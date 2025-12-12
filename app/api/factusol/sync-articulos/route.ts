@@ -63,7 +63,7 @@ export async function POST() {
         }
 
         const familiaMap = new Map(familias?.map(f => [f.codigo, { id: f.id, tipo: f.nombre, categoria: f.categoria_padre }]));
-        const proveedorMap = new Map(proveedores?.map(p => [p.id_erp, { id: p.id, nombre: p.nombre_comercial }]));
+        const proveedorMap = new Map(proveedores?.map((p: any) => [p.id_erp, { id: p.id, nombre: p.nombre_comercial }]));
 
         // 4. Transform Data
         debugLog.push("Transformando datos...");
@@ -162,7 +162,7 @@ export async function POST() {
             .select('erp_id, precio');
 
         const existingPricesMap = new Map(
-            (existingArticulos || []).map(a => [a.erp_id, a.precio])
+            (existingArticulos || []).map((a: any) => [a.erp_id, a.precio])
         );
 
         // Debug specific article if requested (hardcoded for now or via header if we could)

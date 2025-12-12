@@ -99,9 +99,6 @@ export function ServiceOrderSearch() {
       <CommandDialog 
         open={open} 
         onOpenChange={setOpen}
-        // IMPORTANTE: shouldFilter={false} evita que cmdk oculte resultados 
-        // que no coinciden exactamente, ya que el filtrado lo hacemos en servidor.
-        shouldFilter={false} 
       >
         <DialogTitle className="sr-only">Buscar Orden de Servicio</DialogTitle>
         

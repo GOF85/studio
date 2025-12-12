@@ -182,8 +182,9 @@ export default function AnaliticaEntregasPage() {
             
             const personalOs = allPersonalData.find(p => p.osId === os.id);
             if (personalOs) {
-                const costePersonalOs = personalOs.turnos.reduce((sum, turno) => {
-                    const horas = calculateHours(turno.horaEntradaReal || turno.horaEntrada, turno.horaSalidaReal || turno.horaSalida);
+                const costePersonalOs = personalOs.turnos.reduce((sum: number, turno: any) => {
+                    // horaEntradaReal y horaSalidaReal no existen, usar horaEntrada y horaSalida
+                    const horas = calculateHours(turno.horaEntrada, turno.horaSalida);
                     return sum + horas * (turno.precioHora || 0);
                 }, 0);
                 const ajustes = (allAjustesData[os.id] || []).reduce((sum, aj) => sum + aj.importe, 0);
