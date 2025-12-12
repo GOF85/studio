@@ -73,10 +73,14 @@ export default function BdPage() {
   const [providerDatabases, setProviderDatabases] = useState<DatabaseEntry[]>([]);
   const [cprDatabases, setCprDatabases] = useState<DatabaseEntry[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   useEffect(() => {
     setIsMounted(true);
-    loadAllData();
+    (async () => {
+      await loadAllData();
+      setIsInitialLoading(false);
+    })();
   }, [loadAllData]);
 
   useEffect(() => {
@@ -115,7 +119,9 @@ export default function BdPage() {
     setCprDatabases(updateCounts(cprDatabasesList));
   }, [isMounted, data]);
 
-  if (!isMounted) return null;
+  if (!isMounted || isInitialLoading) {
+    return <LoadingSkeleton title="Cargando Bases de Datos..." />;
+  }
 
   const renderTable = (dbs: DatabaseEntry[], title: string, icon: React.ReactNode, description?: string) => (
     <Card className="h-full flex flex-col justify-between">

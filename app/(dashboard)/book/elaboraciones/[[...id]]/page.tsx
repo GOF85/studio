@@ -336,6 +336,8 @@ function ElaboracionesListPage() {
   const [items, setItems] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [importType, setImportType] = useState<'elaboraciones' | 'componentes' | null>(null);
+  // Splash screen: muestra solo en carga inicial
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Filtro activo desde URL
   const activePartida = searchParams.get('partida') || 'ALL';
@@ -347,8 +349,12 @@ function ElaboracionesListPage() {
   const loadData = useCallback(async () => {
     // Scroll reset for UX
     window.scrollTo({ top: 0, behavior: 'instant' });
-    const { data } = await supabase.from('elaboraciones').select('*').order('nombre');
-    if(data) setItems(data);
+    try {
+      const { data } = await supabase.from('elaboraciones').select('*').order('nombre');
+      if(data) setItems(data);
+    } finally {
+      setIsInitialLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -462,6 +468,10 @@ function ElaboracionesListPage() {
       const matchPartida = activePartida !== 'ALL' ? i.partida === activePartida : true;
       return matchSearch && matchPartida;
   });
+
+  if (isInitialLoading) {
+    return <LoadingSkeleton title="Cargando Elaboraciones..." />;
+  }
 
   return (
     <div className="space-y-4 p-4 max-w-7xl mx-auto pb-24">

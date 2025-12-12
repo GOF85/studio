@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Pencil, Trash2, Eye, MapPin, Download, Upload, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -277,13 +278,12 @@ export default function EspaciosPage() {
         </div>
       </div>
 
+      {isLoading ? (
+        <LoadingSkeleton title="Cargando Espacios..." />
+      ) : (
       <Card>
         <CardContent className="p-0">
-          {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">
-              Cargando espacios...
-            </div>
-          ) : filteredEspacios.length === 0 ? (
+          {filteredEspacios.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">
                 {espacios.length === 0
@@ -405,6 +405,7 @@ export default function EspaciosPage() {
           )}
         </CardContent>
       </Card>
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
