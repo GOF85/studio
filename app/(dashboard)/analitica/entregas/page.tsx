@@ -187,7 +187,7 @@ export default function AnaliticaEntregasPage() {
                     const horas = calculateHours(turno.horaEntrada, turno.horaSalida);
                     return sum + horas * (turno.precioHora || 0);
                 }, 0);
-                const ajustes = (allAjustesData[os.id] || []).reduce((sum, aj) => sum + aj.importe, 0);
+                const ajustes = (allAjustesData[os.id] || []).reduce((sum: number, aj: any) => sum + aj.importe, 0);
                 costesPorCategoria['Personal'] = (costesPorCategoria['Personal'] || 0) + costePersonalOs + ajustes;
                 costeTotal += costePersonalOs + ajustes;
             }
@@ -638,8 +638,8 @@ export default function AnaliticaEntregasPage() {
                                     <AreaChart data={monthlyData}>
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `€${value / 1000}k`}/>
-                                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                        <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value: any) => `€${(value as number) / 1000}k`}/>
+                                        <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
                                         <Legend />
                                         <Area type="monotone" dataKey="Facturación" stackId="1" stroke="#8884d8" fill="#8884d8" />
                                         <Area type="monotone" dataKey="Rentabilidad" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
@@ -721,7 +721,7 @@ export default function AnaliticaEntregasPage() {
                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                 ))}
                                             </Pie>
-                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                            <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </CardContent>
@@ -778,8 +778,8 @@ export default function AnaliticaEntregasPage() {
                                         <BarChart data={transporteAnalysis.monthlyChartData}>
                                             <CartesianGrid strokeDasharray="3 3" />
                                             <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value)} />
-                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                            <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value: any) => formatCurrency(Number(value))} />
+                                            <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
                                             <Bar dataKey="Coste" fill="#8884d8" />
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -868,7 +868,7 @@ export default function AnaliticaEntregasPage() {
                                                     <TableCell><Link href={`/entregas/pedido/${a.os.id}`} className="text-primary hover:underline">{a.os.serviceNumber}</Link></TableCell>
                                                     <TableCell>{format(new Date(a.os.startDate), 'dd/MM/yy')}</TableCell>
                                                     <TableCell>{a.concepto}</TableCell>
-                                                    <TableCell className="text-right font-medium">{formatCurrency(a.ajuste)}</TableCell>
+                                                    <TableCell className="text-right font-medium">{formatCurrency(a.importe || 0)}</TableCell>
                                                 </TableRow>
                                             ))}
                                             <TableRow className="font-bold border-t-2"><TableCell colSpan={3}>Total Ajustes</TableCell><TableCell className="text-right">{formatCurrency(personalAnalysis.totalAjustes)}</TableCell></TableRow>

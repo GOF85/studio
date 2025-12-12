@@ -423,7 +423,7 @@ function ArticulosPageContent() {
                     className={`cursor-pointer ${
                       isSelected 
                         ? 'bg-muted border-l-4 border-l-primary' 
-                        : item.tipo_articulo === 'entregas' 
+                        : item.tipoArticulo === 'entregas' 
                         ? 'bg-orange-50' 
                         : ''
                     }`}
@@ -437,7 +437,7 @@ function ArticulosPageContent() {
                     </TableCell>
                     <TableCell className="font-medium">{item.nombre}</TableCell>
                     <TableCell>{item.categoria}</TableCell>
-                    <TableCell>{item.precioVenta?.toLocaleString ? item.precioVenta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : (parseFloat(item.precio_venta || '0')).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>{item.precioVenta?.toLocaleString ? item.precioVenta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : (parseFloat(String(item.precioVenta || 0))).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                     <TableCell>{item.precioAlquiler?.toLocaleString ? (item.precioAlquiler > 0 ? item.precioAlquiler.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-') : (parseFloat(item.precio_alquiler || '0') > 0 ? parseFloat(item.precio_alquiler || '0').toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-')}</TableCell>
                     <TableCell>{item.precioReposicion?.toLocaleString ? (item.precioReposicion > 0 ? item.precioReposicion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-') : (parseFloat(item.precio_reposicion || '0') > 0 ? parseFloat(item.precio_reposicion || '0').toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-')}</TableCell>
                   </TableRow>

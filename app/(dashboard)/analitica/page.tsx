@@ -104,7 +104,7 @@ export default function AnaliticaDashboardPage() {
         const toDate = dateRange?.to || fromDate;
         if (!fromDate) return { cateringData: null, entregasData: null, totals: {}, cateringVerticalsData: {} };
 
-        const dateFilter = (dateStr: string) => isWithinInterval(new Date(dateStr), { start: startOfDay(fromDate), end: endOfDay(toDate) });
+        const dateFilter = (dateStr: string) => isWithinInterval(new Date(dateStr), { start: startOfDay(fromDate), end: endOfDay(toDate || fromDate) });
 
         // --- CATERING CALCULATION ---
         const cateringOrders = allServiceOrders.filter(os => os.vertical !== 'Entregas' && os.status === 'Confirmado' && dateFilter(os.startDate));
@@ -117,7 +117,7 @@ export default function AnaliticaDashboardPage() {
             'Gran Cuenta': { facturacion: 0, coste: 0 },
         };
 
-        cateringOrders.forEach(os => {
+        cateringOrders.forEach((os: any) => {
             const comisiones = (os.comisionesAgencia || 0) + (os.comisionesCanon || 0);
             const facturacionOS = (os.facturacion || 0) - comisiones;
             cateringFacturacion += facturacionOS;
