@@ -59,7 +59,7 @@ function PersonalExternoPageContent() {
     setItems(storedData ? JSON.parse(storedData) : []);
 
     let storedProveedores = localStorage.getItem('proveedores');
-    setProveedores(storedProveedores ? JSON.parse(storedProveedores).filter((p: Proveedor) => p.tipos.includes('Personal')) : []);
+    setProveedores(storedProveedores ? JSON.parse(storedProveedores).filter((p: Proveedor) => p.categoriaProveedor?.includes('Personal')) : []);
 
     setIsMounted(true);
   }, []);

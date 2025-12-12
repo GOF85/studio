@@ -146,9 +146,9 @@ export default function AnaliticaDashboardPage() {
             }
             cateringCoste += costeOS;
 
-            if (os.cateringVertical && verticalsData[os.cateringVertical]) {
-                verticalsData[os.cateringVertical].facturacion += facturacionOS;
-                verticalsData[os.cateringVertical].coste += costeOS;
+            if (os.cateringVertical && verticalsData[os.cateringVertical as string]) {
+                verticalsData[os.cateringVertical as string].facturacion += facturacionOS;
+                verticalsData[os.cateringVertical as string].coste += costeOS;
             }
         });
 

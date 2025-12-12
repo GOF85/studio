@@ -121,7 +121,7 @@ export function EconomicoTab() {
                 </CardContent>
             </Card>
 
-            {espacioId && <PrecioHistoryTable espacioId={espacioId} />}
+            {espacioId && typeof espacioId === 'string' && <PrecioHistoryTable espacioId={espacioId} />}
         </div>
     );
 }

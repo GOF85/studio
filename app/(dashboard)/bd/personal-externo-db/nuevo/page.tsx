@@ -37,7 +37,7 @@ export default function NuevoPersonalExternoPage() {
   useEffect(() => {
     const storedProveedores = localStorage.getItem('proveedores');
     if (storedProveedores) {
-        setProveedores(JSON.parse(storedProveedores).filter((p: Proveedor) => p.tipos.includes('Personal')));
+        setProveedores(JSON.parse(storedProveedores).filter((p: Proveedor) => p.categoriaProveedor?.includes('Personal')));
     }
   }, []);
 
@@ -70,7 +70,13 @@ export default function NuevoPersonalExternoPage() {
     const nombreCompacto = `${data.nombre} ${data.apellido1}`;
     
     const finalData: PersonalExternoDB = {
-        ...data,
+        id: data.id,
+        nombre: data.nombre,
+        apellido1: data.apellido1,
+        apellido2: data.apellido2,
+        proveedorId: data.proveedorId,
+        email: data.email,
+        telefono: data.telefono,
         nombreCompleto,
         nombreCompacto
     }
