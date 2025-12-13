@@ -120,8 +120,8 @@ export default function BioPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   
   const router = useRouter();
-  const params = useParams();
-  const osId = params.numero_expediente as string;
+  const params = useParams() ?? {};
+  const osId = (params.numero_expediente as string) || '';
   const { toast } = useToast();
 
    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
@@ -199,7 +199,7 @@ export default function BioPage() {
                 ...item, 
                 quantity: cantidadAjustada,
                 orderId: order.id, 
-                contractNumber: order.contractNumber, 
+                orderContract: order.contractNumber, 
                 solicita: order.solicita, 
                 tipo: item.tipo, 
                 deliveryDate: order.deliveryDate,

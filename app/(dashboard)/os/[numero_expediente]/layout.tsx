@@ -77,7 +77,7 @@ function OsHeaderContent({ osId }: { osId: string }) {
     }, [osId, updateKey]);
     
     const {currentModule, isSubPage} = useMemo(() => {
-        const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['os', '123', 'gastronomia', '456']
+        const pathSegments = (pathname ?? '').split('/').filter(Boolean); // e.g., ['os', '123', 'gastronomia', '456']
         const osIndex = pathSegments.indexOf('os');
         const moduleSegment = pathSegments[osIndex + 2];
         const subPageSegment = pathSegments[osIndex + 3];
@@ -185,9 +185,9 @@ function OsHeaderContent({ osId }: { osId: string }) {
 }
 
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
-    const params = useParams();
-    const pathname = usePathname();
-    const osId = params.numero_expediente as string;
+    const params = useParams() ?? {};
+    const pathname = usePathname() ?? '';
+    const osId = (params.numero_expediente as string) || '';
     const [serviceNumber, setServiceNumber] = useState<string | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const router = useRouter();
@@ -208,9 +208,10 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
 
         // If we already have serviceNumber from localStorage, replace pathname now
         if (serviceNumber) {
-            if (pathname.includes(`/os/${osId}`)) {
-                const newPath = pathname.replace(`/os/${osId}`, `/os/${serviceNumber}`);
-                if (newPath !== pathname) router.replace(newPath);
+            const safePath = pathname ?? '';
+            if (safePath.includes(`/os/${osId}`)) {
+                const newPath = safePath.replace(`/os/${osId}`, `/os/${serviceNumber}`);
+                if (newPath !== safePath) router.replace(newPath);
             }
             return;
         }
@@ -225,9 +226,10 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                     .single();
                 if (!error && data?.numero_expediente) {
                     setServiceNumber(data.numero_expediente);
-                    if (pathname.includes(`/os/${osId}`)) {
-                        const newPath = pathname.replace(`/os/${osId}`, `/os/${data.numero_expediente}`);
-                        if (newPath !== pathname) router.replace(newPath);
+                    const safePath = pathname ?? '';
+                    if (safePath.includes(`/os/${osId}`)) {
+                        const newPath = safePath.replace(`/os/${osId}`, `/os/${data.numero_expediente}`);
+                        if (newPath !== safePath) router.replace(newPath);
                     }
                 }
             } catch (e) {
@@ -263,9 +265,10 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                                     </Link>
                                     {navLinks.map((item, index) => {
                                         const href = `/os/${serviceNumber || osId}/${item.path}`;
+                                        const safePath = pathname ?? '';
                                         return (
                                             <Link key={index} href={href} onClick={() => setIsSheetOpen(false)}>
-                                                <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname.startsWith(href) ? "bg-accent" : "transparent")}>
+                                                <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", safePath.startsWith(href) ? "bg-accent" : "transparent")}>
                                                     <item.icon className="mr-2 h-4 w-4" />
                                                     <span>{item.title}</span>
                                                 </span>

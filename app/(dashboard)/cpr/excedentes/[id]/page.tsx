@@ -36,9 +36,9 @@ function ExcedenteDetailPageContent() {
     const [mermaAllMotivo, setMermaAllMotivo] = useState('');
     
     const router = useRouter();
-    const params = useParams();
+    const params = useParams() ?? {};
     const { toast } = useToast();
-    const elabId = params.id as string;
+    const elabId = (params.id as string) || '';
     
     const form = useForm<FormData>();
     const { register, handleSubmit, setValue, getValues, control } = form;

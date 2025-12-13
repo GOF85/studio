@@ -90,9 +90,9 @@ export default function PrevisionEntregasPage() {
   
   const statusVariant: { [key in Entrega['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
     Borrador: 'secondary',
+    Pendiente: 'outline',
     Confirmado: 'default',
-    Enviado: 'outline',
-    Entregado: 'outline'
+    Anulado: 'destructive'
   };
 
   if (!isMounted) {

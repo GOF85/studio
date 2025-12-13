@@ -70,7 +70,6 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
         const person = personalDB.find(p => p.nombreCompleto === name);
         if (person) {
             form.setValue('nombre', person.nombreCompleto, { shouldDirty: true });
-            form.setValue('dni', person.dni || '', { shouldDirty: true });
             form.setValue('precioHora', person.precioHora || 0, { shouldDirty: true });
         }
     };

@@ -51,7 +51,7 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
     const [clientPath, setClientPath] = useState('');
 
     useEffect(() => {
-        setClientPath(pathname);
+        setClientPath(pathname || '');
     }, [pathname]);
 
     const { currentPage, isDetailPage, detailId, isSubPage } = useMemo(() => {

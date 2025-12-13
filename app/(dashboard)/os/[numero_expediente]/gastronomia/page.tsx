@@ -42,8 +42,8 @@ export default function GastronomiaPage() {
   const [isMounted, setIsMounted] = useState(false);
   
   const router = useRouter();
-  const params = useParams();
-  const osId = params.numero_expediente as string;
+  const params = useParams() ?? {};
+  const osId = (params.numero_expediente as string) || '';
   const { toast } = useToast();
 
   const loadAndSyncData = useCallback(() => {
@@ -67,8 +67,8 @@ export default function GastronomiaPage() {
                         id: item.id,
                         osId: osId,
                         status: 'Pendiente',
-                        items: item.gastro_items || [], // Migrate from old model if exists
-                        total: item.gastro_total || 0,
+                        items: [], // Default to empty items array
+                        total: 0,
                     };
                     needsBriefingSave = true;
                     allGastroOrders.push(existingOrder);

@@ -11,7 +11,7 @@ export function useCreateTransporteOrder() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (order: Partial<TransporteOrder>) => {
+        mutationFn: async (order: Partial<TransporteOrder> & { contactoRecogida?: string; contactoEntrega?: string }) => {
             const { data, error } = await supabase
                 .from('pedidos_transporte')
                 .insert({
@@ -52,7 +52,7 @@ export function useUpdateTransporteOrder() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ id, updates }: { id: string; updates: Partial<TransporteOrder> }) => {
+        mutationFn: async ({ id, updates }: { id: string; updates: Partial<TransporteOrder> & { contactoRecogida?: string; contactoEntrega?: string } }) => {
             const { data, error } = await supabase
                 .from('pedidos_transporte')
                 .update({

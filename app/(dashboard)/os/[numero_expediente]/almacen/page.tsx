@@ -119,8 +119,8 @@ export default function AlmacenPage() {
     const [updateTrigger, setUpdateTrigger] = useState(0);
     
     const router = useRouter();
-    const params = useParams();
-    const osId = params.numero_expediente as string;
+    const params = useParams() ?? {};
+    const osId = (params.numero_expediente as string) || '';
 
    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -191,7 +191,7 @@ export default function AlmacenPage() {
                 ...item, 
                 quantity: item.quantity,
                 orderId: order.id, 
-                contractNumber: order.contractNumber, 
+                orderContract: order.contractNumber, 
                 solicita: order.solicita, 
                 tipo: item.tipo, 
                 deliveryDate: order.deliveryDate,

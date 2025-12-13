@@ -458,8 +458,8 @@ export default function OfPage() {
 
     const getPickingInfo = (ofId: string): { osId: string; containerId: string } | null => {
         for (const osId in pickingStates) {
-            const state = pickingStates[osId];
-            const found = state.itemStates.find(item => item.ofId === ofId);
+            const state = (pickingStates as Record<string, any>)[osId];
+            const found = state.itemStates.find((item: any) => item.ofId === ofId);
             if (found) {
                 return { osId, containerId: found.containerId };
             }
@@ -775,7 +775,7 @@ export default function OfPage() {
                                         <div>
                                             <h4 className="font-bold text-lg">{proveedor.nombreComercial}</h4>
                                             <div className="text-xs text-muted-foreground flex gap-4">
-                                                <span>{proveedor.nombreEmpresa} ({proveedor.cif})</span>
+                                                <span>{proveedor.nombreFiscal || proveedor.nombreComercial} ({proveedor.cif})</span>
                                                 <span>{proveedor.telefonoContacto}</span>
                                                 <span>{proveedor.emailContacto}</span>
                                             </div>
@@ -835,7 +835,7 @@ export default function OfPage() {
                         <CardHeader className="flex-row items-center justify-between">
                             <CardTitle className="text-lg flex items-center gap-2"><ChefHat />Necesidades de Producción Agregadas</CardTitle>
                             <div className="flex items-center gap-2">
-                                <Button onClick={loadData} variant="outline" size="sm">
+                                <Button onClick={loadAllData} variant="outline" size="sm">
                                     <RefreshCw className="mr-2 h-4 w-4" />
                                     Recalcular Necesidades
                                 </Button>

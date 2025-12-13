@@ -46,8 +46,8 @@ export default function DecoracionPage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   const router = useRouter();
-  const params = useParams();
-  const osId = params.numero_expediente as string;
+  const params = useParams() ?? {};
+  const osId = (params.numero_expediente as string) || '';
   const { toast } = useToast();
   const deleteDecoracion = useDeleteDecoracionOrder();
 

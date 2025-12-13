@@ -27,7 +27,7 @@ import { Menu } from 'lucide-react';
 import { allNavSections } from '@/lib/nav-config';
 
 export function Header() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const { user, profile, signOut, isLoading } = useAuth();
 
   const isEntregasModule = pathname.startsWith('/entregas');

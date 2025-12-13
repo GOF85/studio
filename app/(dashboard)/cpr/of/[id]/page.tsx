@@ -81,9 +81,9 @@ export default function OfDetailPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const router = useRouter();
-    const params = useParams();
+    const params = useParams() ?? {};
     const { toast } = useToast();
-    const id = params.id as string;
+    const id = (params.id as string) || '';
     const isEditing = id !== 'nuevo';
     
     const form = useForm<FormData>({
@@ -246,7 +246,7 @@ export default function OfDetailPage() {
              updatedOF = {
                 ...orden,
                 responsable: formData.responsable,
-                cantidadReal: formData.cantidadReal,
+                cantidadReal: formData.cantidadReal ?? undefined,
                 incidenciaObservaciones: formData.incidenciaObservaciones,
              };
         }

@@ -41,7 +41,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function PruebaMenuPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
   const osId = searchParams.get('osId');
   const { toast } = useToast();
 

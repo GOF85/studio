@@ -22,7 +22,7 @@ export default function PedidosPage() {
   const [existingOrderData, setExistingOrderData] = useState<ExistingOrderData | null>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
   
   const osId = searchParams.get('osId');
   const orderType = searchParams.get('type') as 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | null;
@@ -45,7 +45,7 @@ export default function PedidosPage() {
             .map(p => ({ ...p, itemCode: p.id, description: p.nombre, price: p.precioAlquiler, stock: 999, imageUrl: p.imagen || '', imageHint: p.nombre, category: p.categoria }));
         
         const allProveedores = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]);
-        setRentalProviders(allProveedores.filter(p => p.tipos.includes('Alquiler')));
+        setRentalProviders(allProveedores.filter(p => p.nombreComercial && p.nombreComercial.length > 0));
     } else if (orderType) {
         const typeMap = { 'Almacen': 'Almacen', 'Bodega': 'Bodega', 'Bio': 'Bio' };
         const filterType = typeMap[orderType];

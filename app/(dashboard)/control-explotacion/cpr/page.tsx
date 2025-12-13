@@ -394,7 +394,7 @@ export default function CprControlExplotacionPage() {
                 'Otros Gastos (Fijos)': 'presupuestoOtrosGastos',
             };
             const objKey = keyMap[g.label];
-            const objetivo_pct = (objKey && objetivo?.[objKey] / 100) || 0;
+            const objetivo_pct = (objKey && objetivo && objetivo[objKey as keyof typeof objetivo] / 100) || 0;
             const realValue = realCostInputs[g.label] ?? g.cierre;
             return {
                 ...g,

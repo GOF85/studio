@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Truck, Phone, Building } from 'lucide-react';
+import { format } from 'date-fns';
 import type { TransporteOrder, ServiceOrder, Espacio } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +23,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { formatCurrency } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,8 +54,8 @@ export default function TransportePage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   const router = useRouter();
-  const params = useParams();
-  const osId = params.numero_expediente as string;
+  const params = useParams() ?? {};
+  const osId = (params.numero_expediente as string) || '';
   const { toast } = useToast();
 
   const deleteTransporte = useDeleteTransporteOrder();
@@ -72,7 +77,7 @@ export default function TransportePage() {
     if (currentOS?.space) {
       const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
       const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-      setSpaceAddress(currentSpace?.calle || '');
+      setSpaceAddress(currentSpace?.identificacion?.calle || '');
     }
 
     const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];

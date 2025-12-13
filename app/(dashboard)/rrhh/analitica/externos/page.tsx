@@ -111,7 +111,7 @@ export default function AnaliticaExternosPage() {
     const uniqueProveedores = useMemo(() => {
         const ettIds = new Set(allPersonalExterno.flatMap(p => p.turnos.map(t => t.proveedorId)));
         tiposPersonal.forEach(tp => ettIds.add(tp.proveedorId));
-        return proveedores.filter(p => ettIds.has(p.id) && p.tipos.includes('Personal'));
+        return proveedores.filter(p => ettIds.has(p.id) && p.nombreComercial && p.nombreComercial.length > 0);
     }, [allPersonalExterno, proveedores, tiposPersonal]);
     
     const calculateHours = (start?: string, end?: string): number => {

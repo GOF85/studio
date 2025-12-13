@@ -86,8 +86,8 @@ export default function PersonalMicePage() {
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
 
   const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
+  const params = useParams() ?? {};
+  const osId = (params.id as string) || '';
   const { toast } = useToast();
 
   const form = useForm<PersonalMiceFormValues>({
@@ -107,7 +107,6 @@ export default function PersonalMicePage() {
     const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
     if (person) {
       setValue(`personal.${index}.nombre`, person.nombre, { shouldDirty: true });
-      setValue(`personal.${index}.dni`, person.dni || '', { shouldDirty: true });
       setValue(`personal.${index}.precioHora`, person.precioHora || 0, { shouldDirty: true });
     } else {
        setValue(`personal.${index}.nombre`, name, { shouldDirty: true });

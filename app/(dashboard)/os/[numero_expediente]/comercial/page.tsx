@@ -115,8 +115,8 @@ export default function ComercialPage() {
   const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
-  const params = useParams();
-  const osId = params.numero_expediente as string;
+  const params = useParams() ?? {};
+  const osId = (params.numero_expediente as string) || '';
   const { toast } = useToast();
 
   const totalBriefing = useMemo(() => {

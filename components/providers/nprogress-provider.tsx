@@ -59,7 +59,7 @@ function NProgressComponent() {
     
     log(COMPONENT_NAME, 'Ruta cambió - completando carga', {
       newPathname: pathname,
-      newSearchParams: searchParams.toString(),
+      newSearchParams: (searchParams ?? new URLSearchParams()).toString(),
       navigationDurationMs: navigationDuration > 0 ? navigationDuration : 'N/A'
     });
     

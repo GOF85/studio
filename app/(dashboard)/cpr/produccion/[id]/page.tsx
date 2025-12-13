@@ -43,8 +43,8 @@ export default function ProduccionDetallePage() {
 
 
     const router = useRouter();
-    const params = useParams();
-    const id = params.id as string;
+    const params = useParams() ?? {};
+    const id = (params.id as string) || '';
     const { toast } = useToast();
 
     useEffect(() => {

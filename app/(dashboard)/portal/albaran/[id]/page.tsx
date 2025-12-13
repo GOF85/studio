@@ -32,8 +32,8 @@ export default function AlbaranPage() {
     const sigCanvas = useRef<any>(null);
     const { toast } = useToast();
     const router = useRouter();
-    const params = useParams();
-    const id = params.id as string;
+    const params = useParams() ?? {};
+    const id = (params.id as string) || '';
     const [isPrinting, setIsPrinting] = useState(false);
     const [SignatureCanvasComponent, setSignatureCanvasComponent] = useState<typeof SignatureCanvas | null>(null);
 

@@ -21,11 +21,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { calculateHours, formatNumber } from '@/lib/utils';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
-  'Pendiente': 'secondary',
+  'Solicitado': 'secondary',
   'Aprobada': 'outline',
   'Rechazada': 'destructive',
   'Asignada': 'default',
-  'Solicitada Cancelacion': 'destructive'
+  'Confirmado': 'secondary',
+  'Solicitada Cancelacion': 'destructive',
+  'Cerrado': 'outline'
 };
 
 export default function SolicitudPersonalCprPage() {
@@ -149,7 +151,7 @@ export default function SolicitudPersonalCprPage() {
                 <TableBody>
                     {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => {
                         const canCancel = s.estado === 'Asignada' && !isBefore(new Date(s.fechaServicio), startOfToday());
-                        const canDelete = s.estado === 'Pendiente' || s.estado === 'Aprobada';
+                        const canDelete = s.estado === 'Solicitado' || s.estado === 'Aprobada';
                         
                         return (
                         <TableRow key={s.id}>

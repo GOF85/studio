@@ -7,7 +7,7 @@ import type { EspacioFormValues } from '@/lib/validations/espacios';
 
 export function EconomicoTab() {
     const form = useFormContext<EspacioFormValues>();
-    const espacioId = form.watch('id') as string | undefined;
+    const espacioId = (form.watch('id') as unknown) as string | undefined;
 
     return (
         <div className="space-y-6">

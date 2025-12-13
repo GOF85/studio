@@ -119,8 +119,8 @@ export default function BodegaPage() {
   const [updateTrigger, setUpdateTrigger] = useState(0);
   
   const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
+  const params = useParams() ?? {};
+  const osId = (params.id as string) || '';
   const { toast } = useToast();
 
  const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
@@ -193,7 +193,6 @@ export default function BodegaPage() {
                 quantity: item.quantity,
                 orderId: order.id, 
                 orderContract: order.contractNumber,
-                contractNumber: order.contractNumber, 
                 solicita: order.solicita, 
                 tipo: item.tipo, 
                 deliveryDate: order.deliveryDate,

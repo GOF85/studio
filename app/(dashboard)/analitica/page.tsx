@@ -141,15 +141,18 @@ export default function AnaliticaDashboardPage() {
                         return sA + calculateHours(a.horaEntradaReal || turno.horaEntrada, a.horaSalidaReal || turno.horaSalida) * (turno.precioHora || 0);
                     }, 0);
                 }, 0);
-                const costeAjustes = (allAjustesPersonal[os.id] || []).reduce((s: number, a: any) => s + (a.importe || 0), 0);
+                const costeAjustes = ((allAjustesPersonal as Record<string, any[]>)[os.id] || []).reduce((s: number, a: any) => s + (a.importe || 0), 0);
                 costeOS += costeTurnos + costeAjustes;
             }
             cateringCoste += costeOS;
 
-            if (os.cateringVertical && verticalsData[os.cateringVertical as keyof typeof verticalsData]) {
-                const verticalKey = os.cateringVertical as keyof typeof verticalsData;
-                verticalsData[verticalKey].facturacion += facturacionOS;
-                verticalsData[verticalKey].coste += costeOS;
+            if (os.cateringVertical) {
+                const verticalKey = os.cateringVertical as string;
+                const verticalEntry = verticalsData[verticalKey];
+                if (verticalEntry) {
+                    verticalEntry.facturacion += facturacionOS;
+                    verticalEntry.coste += costeOS;
+                }
             }
         });
 

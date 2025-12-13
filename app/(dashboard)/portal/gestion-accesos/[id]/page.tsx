@@ -39,8 +39,8 @@ const defaultValues: Partial<PortalUserFormValues> = {
 
 export default function PortalUserFormPage() {
   const router = useRouter();
-  const params = useParams();
-  const id = params.id as string;
+  const params = useParams() ?? {};
+  const id = (params.id as string) || '';
   const isEditing = id !== 'nuevo';
 
   const { isLoading, setIsLoading } = useLoadingStore();

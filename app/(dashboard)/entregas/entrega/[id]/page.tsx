@@ -22,9 +22,9 @@ export default function ConfeccionarEntregaPage() {
     const [expedicionNumero, setExpedicionNumero] = useState('');
     
     const router = useRouter();
-    const params = useParams();
-    const hitoId = params.id as string;
-    const searchParams = useSearchParams();
+    const params = useParams() ?? {};
+    const hitoId = (params.id as string) || '';
+    const searchParams = useSearchParams() ?? new URLSearchParams();
     const osId = searchParams.get('osId');
     const { toast } = useToast();
 

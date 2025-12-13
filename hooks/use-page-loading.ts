@@ -40,7 +40,7 @@ export function usePageLoading() {
     useEffect(() => {
         // Registrar inicio de carga
         loadingStartTimeRef.current = Date.now();
-        log(COMPONENT_NAME, 'Carga iniciada', { pathname, searchParams: searchParams.toString() });
+        log(COMPONENT_NAME, 'Carga iniciada', { pathname, searchParams: (searchParams ?? new URLSearchParams()).toString() });
         
         setIsLoading(true);
         setProgress(0);

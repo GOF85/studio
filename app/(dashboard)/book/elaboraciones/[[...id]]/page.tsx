@@ -46,9 +46,11 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { ImageManager } from '@/components/book/images/ImageManager';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
+import { ProduccionesTab } from '@/components/elaboraciones/producciones-tab';
+import { AñadirProduccionDialog } from '@/components/elaboraciones/anadir-produccion-dialog';
 
 // Types & Libs
-import type { Elaboracion, IngredienteInterno, Alergeno, ComponenteElaboracion, ImagenReceta } from '@/types';
+import type { Elaboracion, IngredienteInterno, Alergeno, ComponenteElaboracion, ImagenReceta, MediaProducciones } from '@/types';
 import { PARTIDAS_PRODUCCION, UNIDADES_MEDIDA } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency, formatUnit } from '@/lib/utils';
@@ -618,8 +620,11 @@ function ElaborationFormPage() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [isProduccionDialogOpen, setIsProduccionDialogOpen] = useState(false);
   const [ingredientesMap, setIngredientesMap] = useState<Map<string, IngredienteInterno>>(new Map());
   const [canUseCamera, setCanUseCamera] = useState(false);
+  const [mediaProducciones, setMediaProducciones] = useState<MediaProducciones | null>(null);
+  const [reloadProduccionesTrigger, setReloadProduccionesTrigger] = useState(0);
 
   // DnD Sensors
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
@@ -814,37 +819,44 @@ function ElaborationFormPage() {
         <FormProvider {...form}>
             <form id="elaboration-form" onSubmit={form.handleSubmit(onSubmit)}>
                 
-                {/* STICKY HEADER & TABS */}
-                <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
+                {/* BREADCRUMB & TABS HEADER */}
+                <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
+                     {/* Breadcrumb */}
+                     <div className="flex items-center px-4 py-3 gap-2 border-b">
+                         <Button variant="ghost" size="icon" type="button" onClick={() => router.push('/book/elaboraciones')} className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground">
+                            <ChevronLeft className="h-6 w-6" />
+                         </Button>
+                         <nav className="flex items-center gap-2 text-sm">
+                             <a href="/book" className="text-muted-foreground hover:text-foreground font-medium">Book Gastronómico</a>
+                             <span className="text-muted-foreground">/</span>
+                             <span className="font-medium text-foreground">Elaboraciones</span>
+                         </nav>
+                     </div>
+                     
+                     {/* Tabs */}
                      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-                         <div className="flex items-center px-3 pb-2 gap-2">
-                             <Button variant="ghost" size="icon" type="button" onClick={() => router.push('/book/elaboraciones')} className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground">
-                                <ChevronLeft className="h-6 w-6" />
-                             </Button>
-                             {/* Scrollable Tabs */}
-                             <div className="flex-1 overflow-x-auto no-scrollbar">
-                                <TabsList className="w-full justify-start bg-transparent p-0 h-9 gap-4">
-                                    {["Info. General", "Componentes", "Info. Preparación"].map((tab, i) => {
-                                        const val = ["general", "componentes", "preparacion"][i];
+                         <div className="px-0">
+                             <TabsList className="w-full justify-start bg-transparent p-0 h-12 gap-0 rounded-none">
+                                    {["Info. General", "Componentes", "Info. Preparación", "Producciones"].map((tab, i) => {
+                                        const val = ["general", "componentes", "preparacion", "producciones"][i];
                                         return (
                                             <TabsTrigger 
                                                 key={val} 
                                                 value={val} 
-                                                className="rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent transition-all hover:text-foreground whitespace-nowrap"
+                                                className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent transition-all hover:text-foreground whitespace-nowrap"
                                             >
                                                 {tab}
                                             </TabsTrigger>
                                         )
                                     })}
                                 </TabsList>
-                             </div>
                          </div>
 
                         {/* CONTENT AREA */}
-                        <div className="p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5 mt-0 absolute left-0 right-0 top-[100%] overflow-y-auto pb-32">
+                        <div className="max-w-7xl mx-auto bg-background pb-32 p-4">
                             
                             {/* TAB: GENERAL */}
-                            <TabsContent value="general" className="space-y-4 mt-2">
+                            <TabsContent value="general" className="space-y-4 mt-0">
                                 <Card className="shadow-none border border-border/60">
                                     <CardHeader className="p-3 pb-1 border-b bg-muted/10"><CardTitle className="text-sm font-bold">Datos Básicos</CardTitle></CardHeader>
                                     <CardContent className="p-3 space-y-3">
@@ -872,7 +884,7 @@ function ElaborationFormPage() {
                             </TabsContent>
 
                             {/* TAB: COMPONENTES */}
-                            <TabsContent value="componentes" className="space-y-4 mt-2">
+                            <TabsContent value="componentes" className="space-y-4 mt-0">
                                  <Card className="shadow-none border border-border/60">
                                     <CardHeader className="p-3 pb-1 border-b bg-muted/10"><CardTitle className="text-sm font-bold">Rendimiento</CardTitle></CardHeader>
                                     <CardContent className="p-3">
@@ -952,7 +964,7 @@ function ElaborationFormPage() {
                             </TabsContent>
 
                             {/* TAB: PREPARACIÓN */}
-                            <TabsContent value="preparacion" className="space-y-4 mt-2">
+                            <TabsContent value="preparacion" className="space-y-4 mt-0">
                                  <div className="bg-card border rounded-lg p-3 shadow-sm">
                                     <ElaborationImageSection 
                                         name="fotos" 
@@ -964,6 +976,22 @@ function ElaborationFormPage() {
                                     />
                                  </div>
                             </TabsContent>
+
+                            {/* TAB: PRODUCCIONES */}
+                            {isEditing && (
+                              <TabsContent value="producciones" className="space-y-4 mt-0">
+                                <div className="bg-card border rounded-t-none border-t-0 rounded-lg p-4 shadow-sm">
+                                  <ProduccionesTab
+                                    key={reloadProduccionesTrigger}
+                                    elaboracionId={idParam as string}
+                                    componentesBase={watchedComponentes || []}
+                                    cantidadPlanificada={watchedProduccionTotal || 1}
+                                    onProduccionesLoaded={setMediaProducciones}
+                                    onAñadirClick={() => setIsProduccionDialogOpen(true)}
+                                  />
+                                </div>
+                              </TabsContent>
+                            )}
                         </div>
                     </Tabs>
                 </div>
@@ -997,6 +1025,22 @@ function ElaborationFormPage() {
                 <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive">Eliminar</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
+        {isEditing && (
+          <AñadirProduccionDialog
+            isOpen={isProduccionDialogOpen}
+            onClose={() => setIsProduccionDialogOpen(false)}
+            elaboracionId={idParam as string}
+            componentesBase={watchedComponentes || []}
+            cantidadPlanificada={watchedProduccionTotal || 1}
+            onSuccess={() => {
+              // Recargar producciones
+              setIsProduccionDialogOpen(false);
+              // Trigger reload de ProduccionesTab
+              setReloadProduccionesTrigger(prev => prev + 1);
+            }}
+          />
+        )}
       </main>
     </TooltipProvider>
   );

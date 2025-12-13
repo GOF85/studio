@@ -10,7 +10,7 @@ import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle } from 'lucide-react';
 
-import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, PedidoEntrega, EntregaHito } from '@/types';
+import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, PedidoEntrega, EntregaHito, PersonalExternoAjuste } from '@/types';
 import { ESTADO_PERSONAL_ENTREGA } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -229,8 +229,8 @@ export default function GestionPersonalEntregaPage() {
   const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
   
   const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
+  const params = useParams() ?? {};
+  const osId = (params.id as string) || '';
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -325,7 +325,7 @@ export default function GestionPersonalEntregaPage() {
         }, 0);
     }, 0) || 0;
     
-    const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
+    const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
 
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
   }, [watchedFields, ajustes]);
@@ -425,14 +425,14 @@ export default function GestionPersonalEntregaPage() {
   }
 
   const addAjusteRow = () => {
-      const newAjustes = [...ajustes, { id: Date.now().toString(), concepto: '', ajuste: 0 }];
+      const newAjustes = [...ajustes, { id: Date.now().toString(), concepto: '', importe: 0, proveedorId: '' }];
       setAjustes(newAjustes);
       saveAjustes(newAjustes);
   };
 
-  const updateAjuste = (index: number, field: 'concepto' | 'ajuste', value: string | number) => {
+  const updateAjuste = (index: number, field: 'concepto' | 'importe', value: string | number) => {
       const newAjustes = [...ajustes];
-      if (field === 'ajuste') {
+      if (field === 'importe') {
           newAjustes[index][field] = parseFloat(value as string) || 0;
       } else {
           newAjustes[index][field] = value as string;
@@ -784,14 +784,14 @@ const turnosAprobados = useMemo(() => {
                                             type="number"
                                             step="0.01"
                                             placeholder="Importe"
-                                            value={ajuste.ajuste}
-                                            onChange={(e) => updateAjuste(index, 'ajuste', e.target.value)}
+                                            value={ajuste.importe}
+                                            onChange={(e) => updateAjuste(index, 'importe', e.target.value)}
                                             className="w-24 h-7 text-xs"
                                         />
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 ))}
-                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
+                                <Button size="sm" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
                                  <Separator className="my-2" />
                                   <div className="flex justify-between font-bold">
                                       <span>Total Ajustes:</span>

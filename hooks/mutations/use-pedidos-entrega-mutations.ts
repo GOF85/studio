@@ -8,7 +8,7 @@ export function useCreatePedidoEntrega() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (pedido: Partial<PedidoEntrega>) => {
+        mutationFn: async (pedido: Partial<PedidoEntrega> & { entregaId?: string; tipo?: string; cantidad?: number; observaciones?: string; status?: string }) => {
             const { data, error } = await supabase
                 .from('pedidos_entrega')
                 .insert({
@@ -35,7 +35,7 @@ export function useUpdatePedidoEntrega() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ id, updates }: { id: string; updates: Partial<PedidoEntrega> }) => {
+        mutationFn: async ({ id, updates }: { id: string; updates: Partial<PedidoEntrega> & { tipo?: string; cantidad?: number; observaciones?: string; status?: string } }) => {
             const { data, error } = await supabase
                 .from('pedidos_entrega')
                 .update({

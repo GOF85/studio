@@ -149,7 +149,7 @@ export default function InformePickingPage() {
                 body: tableBody,
                 theme: 'grid',
                 headStyles: { fillColor: [230, 230, 230], textColor: 20 },
-                styles: { fontSize: 8, cellPadding: 2, overflow: 'truncate' },
+                styles: { fontSize: 8, cellPadding: 2, overflow: 'ellipsize' },
                 columnStyles: { 
                     0: { cellWidth: 'auto' }, 
                     1: { cellWidth: 'auto' },

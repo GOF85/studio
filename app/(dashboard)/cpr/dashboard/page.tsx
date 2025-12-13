@@ -102,11 +102,11 @@ export default function CprDashboardPage() {
     return (
         <main>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">
-                <KpiCard title="OFs Pendientes" value={kpiData.pendientes} icon={List} href="/cpr/of?status=Pendiente" />
-                <KpiCard title="OFs en Proceso" value={kpiData.enProceso} icon={Clock} href="/cpr/of?status=En+Proceso" />
-                <KpiCard title="Finalizadas Hoy" value={kpiData.finalizadasHoy} icon={CheckCircle} href="/cpr/of" />
-                <KpiCard title="Incidencias Activas" value={kpiData.incidencias} icon={AlertTriangle} href="/cpr/incidencias" className={kpiData.incidencias > 0 ? "border-destructive bg-destructive/10" : ""} />
-                <KpiCard title="Turnos por Validar" value={kpiData.turnosPorValidar} icon={UserCheck} href="/cpr/validacion-horas" className={kpiData.turnosPorValidar > 0 ? "border-amber-500 bg-amber-50" : ""} />
+                <KpiCard title="OFs Pendientes" value={kpiData.pendientes} icon={List} />
+                <KpiCard title="OFs en Proceso" value={kpiData.enProceso} icon={Clock} />
+                <KpiCard title="Finalizadas Hoy" value={kpiData.finalizadasHoy} icon={CheckCircle} />
+                <KpiCard title="Incidencias Activas" value={kpiData.incidencias} icon={AlertTriangle} className={kpiData.incidencias > 0 ? "border-destructive bg-destructive/10" : ""} />
+                <KpiCard title="Turnos por Validar" value={kpiData.turnosPorValidar} icon={UserCheck} className={kpiData.turnosPorValidar > 0 ? "border-amber-500 bg-amber-50" : ""} />
             </div>
 
             <div className="space-y-6">

@@ -134,7 +134,7 @@ export default function PickingEntregasPage() {
     const totalItems = allItemsToPick.size;
     if (totalItems === 0) return { checked: 0, total: 0, percentage: 0 };
 
-    const checkedItems = state?.checkedItems?.length || 0; // Use length as it's now an array from JSON
+    const checkedItems = state?.checkedItems?.size || 0; // Use size for Set
     
     return {
       checked: checkedItems,

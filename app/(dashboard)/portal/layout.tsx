@@ -47,7 +47,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     }, [profile]);
 
     const pathSegments = useMemo(() => {
-        const segments = pathname.split('/').filter(Boolean);
+        const safePath = pathname ?? '';
+        const segments = safePath.split('/').filter(Boolean);
         const portalIndex = segments.indexOf('portal');
         return segments.slice(portalIndex);
     }, [pathname]);

@@ -50,7 +50,7 @@ export default function ProductividadPage() {
 
         const ofsEnRango = allOFs.filter(of => {
             const fechaFin = of.fechaFinalizacion ? parseISO(of.fechaFinalizacion) : null;
-            return fechaFin && fechaFin >= dateRange.from! && fechaFin <= (dateRange.to || dateRange.from);
+            return fechaFin && fechaFin >= dateRange.from && fechaFin <= (dateRange.to ?? dateRange.from);
         });
 
         const ofsFiltradasPorResponsable = responsableFilter === 'all'

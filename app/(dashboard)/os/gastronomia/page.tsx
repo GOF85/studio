@@ -34,8 +34,8 @@ export default function GastronomiaPage() {
   const [isMounted, setIsMounted] = useState(false);
   
   const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
+  const params = useParams() ?? {};
+  const osId = (params.id as string) || '';
   const { toast } = useToast();
 
   const loadAndSyncOrders = useCallback(() => {
@@ -95,11 +95,8 @@ export default function GastronomiaPage() {
 
   const sortedGastronomyOrders = useMemo(() => {
     return [...gastronomyOrders].sort((a, b) => {
-      const dateA = new Date(a.fecha);
-      const dateB = new Date(b.fecha);
-      const dateComparison = dateA.getTime() - dateB.getTime();
-      if (dateComparison !== 0) return dateComparison;
-      return a.horaInicio.localeCompare(b.horaInicio);
+      // Sort by ID (briefing item ID) as we don't have fecha in GastronomyOrder
+      return a.id.localeCompare(b.id);
     });
   }, [gastronomyOrders]);
   
@@ -132,14 +129,14 @@ export default function GastronomiaPage() {
                                 onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&briefingItemId=${order.id}`)} 
                                 className={cn(
                                     "cursor-pointer", 
-                                    order.descripcion.toLowerCase() === 'prueba de menu' && "bg-muted hover:bg-muted/80"
+                                    order.id && "hover:bg-muted/50"
                                 )}
                             >
-                                <TableCell>{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
-                                <TableCell>{order.horaInicio}</TableCell>
-                                <TableCell className="min-w-[200px] font-medium">{order.descripcion}</TableCell>
-                                <TableCell>{order.asistentes}</TableCell>
-                                <TableCell className="min-w-[200px]">{order.comentarios}</TableCell>
+                                <TableCell>{order.id.substring(0, 8)}</TableCell>
+                                <TableCell>-</TableCell>
+                                <TableCell className="min-w-[200px] font-medium">Gastronómico</TableCell>
+                                <TableCell>{order.items?.length || 0}</TableCell>
+                                <TableCell className="min-w-[200px]">-</TableCell>
                                 <TableCell>
                                     <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
                                 </TableCell>

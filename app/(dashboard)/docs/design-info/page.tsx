@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Palette, Layers, Type, Spacing, Tablet, LayoutDashboard, ClipboardList, Briefcase, Factory, Warehouse, Truck, Users, Package, BarChart3, Settings } from 'lucide-react';
+import { Palette, Layers, Type, Layout, Tablet, LayoutDashboard, ClipboardList, Briefcase, Factory, Warehouse, Truck, Users, Package, BarChart3, Settings } from 'lucide-react';
 
 export default function DesignInfoPage() {
     return (

@@ -51,8 +51,8 @@ export default function AtipicosPage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   
   const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
+  const params = useParams() ?? {};
+  const osId = (params.id as string) || '';
   const { toast } = useToast();
 
   useEffect(() => {

@@ -8,8 +8,8 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 // This page just redirects to the first sub-page of the OS module.
 export default function OsPage() {
     const router = useRouter();
-    const params = useParams();
-    const osId = params.numero_expediente as string;
+    const params = useParams() ?? {};
+    const osId = (params.numero_expediente as string) || '';
 
     useEffect(() => {
         if (osId) {

@@ -66,9 +66,9 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 function PedidoGastronomiaForm() {
-    const params = useParams();
-    const osId = params.numero_expediente as string;
-    const briefingItemId = params.briefingItemId as string;
+    const params = useParams() ?? {};
+    const osId = (params.numero_expediente as string) || '';
+    const briefingItemId = (params.briefingItemId as string) || '';
 
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [briefingItem, setBriefingItem] = useState<ComercialBriefingItem | null>(null);
@@ -143,7 +143,7 @@ function PedidoGastronomiaForm() {
                 if (comp.tipo === 'ingrediente') {
                     const ingrediente = ingredientesMap.get(comp.componenteId);
                     const erpItem = ingrediente ? articulosErpMap.get(ingrediente.productoERPlinkId) : undefined;
-                    if (erpItem) {
+                    if (erpItem && erpItem.idreferenciaerp) {
                         const price = getHistoricalPrice(erpItem.idreferenciaerp);
                         componentCost = price * comp.cantidad;
                     }

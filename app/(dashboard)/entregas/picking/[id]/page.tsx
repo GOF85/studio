@@ -136,10 +136,12 @@ function PickingPageContent() {
         const entregaFound = entregas.find(e => e.id === osId);
         if (entregaFound) {
             setEntrega(entregaFound);
-            const hitoFound = entregaFound.hitos?.find(h => h.id === hitoId);
+            // Find the pedido that contains this hito
+            const pedidoFound = pedidosEntrega.find(p => p.osId === osId && p.hitos?.some(h => h.id === hitoId));
+            const hitoFound = pedidoFound?.hitos?.find(h => h.id === hitoId);
             if (hitoFound) {
                 setHito(hitoFound);
-                const hitoIndex = entregaFound.hitos.findIndex(h => h.id === hitoId);
+                const hitoIndex = pedidoFound?.hitos?.findIndex(h => h.id === hitoId) ?? 0;
                 setExpedicionNumero(`${entregaFound.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
             } else {
                 router.push('/entregas/picking'); // Hito not found

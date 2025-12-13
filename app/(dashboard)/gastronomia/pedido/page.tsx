@@ -7,7 +7,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 export default function PedidoGastronomiaRedirectPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
     const osId = searchParams.get('osId');
     const briefingItemId = searchParams.get('briefingItemId');
 

@@ -133,7 +133,7 @@ function PESMobileCard({ os }: { os: ServiceOrder }) {
 
 export default function PESPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
     
     const query = searchParams.get('q') || '';
     const timeFilter = (searchParams.get('time') as TimeFilter) || 'all';

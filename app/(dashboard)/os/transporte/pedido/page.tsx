@@ -40,7 +40,7 @@ type TransporteOrderFormValues = z.infer<typeof transporteOrderSchema>;
 
 export default function PedidoTransportePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
   const osId = searchParams.get('osId');
   const orderId = searchParams.get('orderId');
   const isEditing = !!orderId;

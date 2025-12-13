@@ -144,8 +144,8 @@ export default function PersonalExternoPage() {
     const [showClearConfirm, setShowClearConfirm] = useState(false);
 
     const router = useRouter();
-    const params = useParams();
-    const osId = params.id as string;
+    const params = useParams() ?? {};
+    const osId = (params.id as string) || '';
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -391,7 +391,7 @@ export default function PersonalExternoPage() {
     }
 
     const providerOptions = useMemo(() =>
-        allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
+        allProveedores.filter(p => p.nombreComercial && p.nombreComercial.length > 0).map(p => ({
             value: p.id,
             label: p.nombreComercial
         })), [allProveedores]);
@@ -743,7 +743,7 @@ export default function PersonalExternoPage() {
                                                     <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4" /></Button>
                                                 </div>
                                             ))}
-                                            <Button size="xs" variant="outline" className="w-full" type="button" onClick={() => appendAjuste({ id: Date.now().toString(), proveedorId: '', concepto: '', importe: 0 })}>Añadir Ajuste</Button>
+                                            <Button size="sm" variant="outline" className="w-full" type="button" onClick={() => appendAjuste({ id: Date.now().toString(), proveedorId: '', concepto: '', importe: 0 })}>Añadir Ajuste</Button>
                                             <Separator className="my-2" />
                                             <div className="flex justify-end font-bold">
                                                 <span>Total Ajustes: {formatCurrency(totalAjustes)}</span>

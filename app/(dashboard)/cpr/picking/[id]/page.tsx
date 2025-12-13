@@ -51,10 +51,13 @@ const expeditionTypeMap = {
     SECO: { title: "Seco", icon: Package, className: "bg-yellow-100 border-yellow-200" },
 };
 
-export const statusOptions: PickingStatus[] = ['Pendiente', 'Preparado'];
+export const statusOptions: PickingStatus[] = ['Pendiente', 'Preparado', 'Enviado', 'Entregado', 'Retornado'];
 export const statusVariant: { [key in PickingStatus]: 'success' | 'secondary' } = {
   Pendiente: 'secondary',
   Preparado: 'success',
+  Enviado: 'secondary',
+  Entregado: 'success',
+  Retornado: 'secondary',
 };
 
 function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lote: LoteNecesario, containers: ContenedorDinamico[], onAllocate: (allocations: { ofId: string, quantity: number }[], containerId: string) => void, onAddContainer: () => string }) {
@@ -352,6 +355,7 @@ function PickingPageContent() {
     const router = useRouter();
     const params = useParams() ?? {};
     const id = (params.id as string) || '';
+    const osId = id; // Use the dynamic [id] as osId
     const { toast } = useToast();
 
     const getRecetaForElaboracion = useCallback((elaboracionId: string, osId: string): string => {
@@ -613,7 +617,7 @@ function PickingPageContent() {
                                 <CardContent>
                                     <div className="space-y-6">
                                         {(Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>).map(tipo => {
-                                            const lotesDePartida = lotesPendientesHito.filter(l => l.tipoExpedicion === tipo);
+                                            const lotesDePartida = lotesPendientesHito.filter((l: any) => l.tipoExpedicion === tipo);
                                             const contenedoresDePartida = pickingState.assignedContainers.filter(c => c.hitoId === hito.id && c.tipo === tipo);
                                             
                                             const allocationsForPartida = pickingState.itemStates.filter(alloc => {
@@ -639,7 +643,7 @@ function PickingPageContent() {
                                                                 <h3 className="font-semibold mb-2">Lotes pendientes de asignar para esta entrega</h3>
                                                                 <Table className="bg-white"><TableHeader><TableRow><TableHead className="font-bold">Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
                                                                     <TableBody>
-                                                                        {lotesDePartida.map(lote => (
+                                                                        {lotesDePartida.map((lote: any) => (
                                                                             <TableRow key={lote.elaboracionId}>
                                                                                 <TableCell className="font-bold">{lote.elaboracionNombre}</TableCell>
                                                                                 <TableCell className="text-right font-mono">{formatNumber(lote.cantidadNecesaria - lote.cantidadAsignada, 2)} {formatUnit(lote.unidad)}</TableCell>

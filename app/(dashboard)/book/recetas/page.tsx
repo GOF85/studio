@@ -44,12 +44,12 @@ const AllergenList = ({ alergenos }: { alergenos: Alergeno[] | null | undefined 
 
 export default function RecetasListPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
   const { toast } = useToast();
   
   // 1. Estados
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const filterParam = searchParams.get('filter') as 'active' | 'archived' | 'all' || 'active';
+  const filterParam = (searchParams.get('filter') as 'active' | 'archived' | 'all') || 'active';
   const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'all'>(filterParam);
   const [items, setItems] = useState<Receta[]>([]);
   const [categorias, setCategorias] = useState<CategoriaReceta[]>([]);

@@ -83,10 +83,10 @@ function EmptyState({ message }: { message: string }) {
 
 export default function RevisionPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
     
     // FIX: Leer parámetro de la URL
-    const defaultTab = searchParams.get('tab') === 'elaboraciones' ? 'elaboraciones' : 'recetas';
+    const defaultTab = (searchParams.get('tab') === 'elaboraciones') ? 'elaboraciones' : 'recetas';
 
     const { data: recetas = [], isLoading: loadingRecetas } = useRecetas();
     const { data: elaboraciones = [], isLoading: loadingElaboraciones } = useElaboraciones();

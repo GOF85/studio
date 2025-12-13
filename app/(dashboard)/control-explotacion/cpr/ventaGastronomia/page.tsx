@@ -35,7 +35,7 @@ export default function VentaGastronomiaPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [detalleVentas, setDetalleVentas] = useState<VentaDetalle[]>([]);
     const router = useRouter();
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
 
     const from = searchParams.get('from');
     const to = searchParams.get('to');

@@ -456,11 +456,10 @@ export default function EntregaFormPage() {
             setTransporteOrders(allTransporte.filter(t => t.osId === id));
 
             if (currentEntrega) {
+                const { startDate, endDate, ...restEntrega } = currentEntrega;
                 reset({
                     ...defaultValues, // Ensure all keys are present
-                    ...currentEntrega,
-                    startDate: new Date(currentEntrega.startDate),
-                    endDate: new Date(currentEntrega.endDate)
+                    ...restEntrega,
                 });
                 setHitos(currentPedido?.hitos || []);
             } else {
@@ -468,11 +467,7 @@ export default function EntregaFormPage() {
                 router.push('/entregas/pes');
             }
         } else {
-            reset({
-                ...defaultValues,
-                startDate: new Date(),
-                endDate: new Date(),
-            });
+            reset(defaultValues);
         }
 
         setIsMounted(true);
@@ -541,10 +536,10 @@ export default function EntregaFormPage() {
         const comisionCanonTotal = spaceDiscount + (data.spaceCommissionValue || 0);
 
         const entregaData: Entrega = {
-            ...data,
+            ...data as unknown as Entrega,
             id: currentId,
-            startDate: data.startDate.toISOString(),
-            endDate: data.endDate.toISOString(),
+            startDate: new Date().toISOString(),
+            endDate: new Date().toISOString(),
             vertical: 'Entregas',
             deliveryTime: hitos?.[0]?.hora || '',
             space: '',
@@ -629,8 +624,8 @@ export default function EntregaFormPage() {
     }
 
     const handlePrintProposal = async (lang: 'es' | 'en') => {
-        const os = form.getValues();
-        if (!os) return;
+        const osData = form.getValues() as Partial<Entrega>;
+        if (!osData) return;
 
         setIsPrinting(true);
         try {
@@ -646,7 +641,7 @@ export default function EntregaFormPage() {
             // --- TEXTOS ---
             const texts = {
                 es: { proposalTitle: 'Propuesta Comercial', orderNumber: 'Nº Pedido:', issueDate: 'Fecha Emisión:', client: 'Cliente:', finalClient: 'Cliente Final:', contact: 'Contacto:', eventDate: 'Fecha Principal:', deliveryFor: 'Entrega para:', logistics: 'Logística:', item: 'Producto', qty: 'Cant.', unitPrice: 'P. Unitario', subtotal: 'Subtotal', deliveryTotal: 'Total Entrega', summaryTitle: 'Resumen Económico', productsSubtotal: 'Subtotal Productos', logisticsSubtotal: 'Subtotal Logística', taxableBase: 'Base Imponible', vat: 'IVA', total: 'TOTAL Propuesta', observations: 'Observaciones', footer: 'MICE Catering - Propuesta generada digitalmente.', portes: 'portes', porte: 'porte' },
-                en: { proposalTitle: 'Commercial Proposal', orderNumber: 'Order No.:', issueDate: 'Issue Date:', client: 'Client:', finalClient: 'End Client:', contact: 'Contact:', eventDate: 'Main Date:', deliveryFor: 'Delivery for:', logistics: 'Logistics:', item: 'Product', qty: 'Qty.', unitPrice: 'Unit Price', subtotal: 'Subtotal', deliveryTotal: 'Financial Summary', productsSubtotal: 'Products Subtotal', logisticsSubtotal: 'Logistics Subtotal', taxableBase: 'Taxable Base', vat: 'VAT', total: 'TOTAL Proposal', observations: 'Observations', footer: 'MICE Catering - Digitally generated proposal.', portes: 'deliveries', porte: 'delivery' }
+                en: { proposalTitle: 'Commercial Proposal', orderNumber: 'Order No.:', issueDate: 'Issue Date:', client: 'Client:', finalClient: 'End Client:', contact: 'Contact:', eventDate: 'Main Date:', deliveryFor: 'Delivery for:', logistics: 'Logistics:', item: 'Product', qty: 'Qty.', unitPrice: 'Unit Price', subtotal: 'Subtotal', deliveryTotal: 'Total Delivery', summaryTitle: 'Financial Summary', productsSubtotal: 'Products Subtotal', logisticsSubtotal: 'Logistics Subtotal', taxableBase: 'Taxable Base', vat: 'VAT', total: 'TOTAL Proposal', observations: 'Observations', footer: 'MICE Catering - Digitally generated proposal.', portes: 'deliveries', porte: 'delivery' }
             };
             const T = texts[lang];
 
@@ -659,16 +654,16 @@ export default function EntregaFormPage() {
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor('#374151');
-            doc.text(`${T.orderNumber} ${os.serviceNumber}`, pageWidth - margin, finalY - 5, { align: 'right' });
+            doc.text(`${T.orderNumber} ${osData.serviceNumber}`, pageWidth - margin, finalY - 5, { align: 'right' });
             doc.text(`${T.issueDate} ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - margin, finalY, { align: 'right' });
             finalY += 15;
 
             // --- INFO CLIENTE ---
             const clientInfo = [
-                [T.client, os.client],
-                [T.finalClient, os.finalClient || '-'],
-                [T.contact, `${os.contact || ''} ${os.phone ? `(${os.phone})` : ''}`],
-                [T.eventDate, format(os.startDate, 'dd/MM/yyyy')]
+                [T.client, osData.client],
+                [T.finalClient, osData.finalClient || '-'],
+                [T.contact, `${osData.contact || ''} ${osData.phone ? `(${osData.phone})` : ''}`],
+                [T.eventDate, (osData as any).startDate ? format((osData as any).startDate as Date, 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')]
             ];
             autoTable(doc, {
                 body: clientInfo,
@@ -684,7 +679,7 @@ export default function EntregaFormPage() {
 
             for (const hito of hitos) {
                 const hitoTotal = calculateHitoTotal(hito);
-                const costePorte = os.tarifa === 'IFEMA' ? 95 : 30;
+                const costePorte = osData.tarifa === 'IFEMA' ? 95 : 30;
                 const portesHito = (hito.portes || 0) * costePorte;
                 totalLogisticsCost += portesHito;
 
@@ -778,7 +773,7 @@ export default function EntregaFormPage() {
             }
 
 
-            doc.save(`Propuesta_${os.serviceNumber}.pdf`);
+            doc.save(`Propuesta_${osData.serviceNumber}.pdf`);
 
         } catch (error) {
             console.error("Error al generar el PDF:", error);

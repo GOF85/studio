@@ -102,7 +102,7 @@ function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (pr
 
 export default function PedidoHieloPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
   const osId = searchParams.get('osId');
   const orderId = searchParams.get('orderId');
   const isEditing = !!orderId;
@@ -166,7 +166,7 @@ export default function PedidoHieloPage() {
       append({
         id: product.id,
         producto: product.nombre,
-        precio: product.precioVenta,
+        precio: product.precioVenta ?? 0,
         cantidad: 1,
       });
     }

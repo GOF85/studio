@@ -54,7 +54,7 @@ const calculatePersonalExternoTotal = (personalExterno: PersonalExterno | null, 
         }
         // Planned cost
         const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-        const quantity = (turno.asignaciones || []).length > 0 ? turno.asignaciones.length : 1;
+        const quantity = (turno.asignaciones?.length || 0) > 0 ? (turno.asignaciones?.length || 0) : 1;
         return sum + (plannedHours * (turno.precioHora || 0) * quantity);
     }, 0);
 
@@ -66,8 +66,8 @@ const calculatePersonalExternoTotal = (personalExterno: PersonalExterno | null, 
 
 export default function CtaExplotacionPage() {
   const router = useRouter();
-  const params = useParams();
-  const osId = params.numero_expediente as string;
+  const params = useParams() ?? {};
+  const osId = (params.numero_expediente as string) || '';
   const { toast } = useToast();
   const [updateKey, setUpdateKey] = useState(Date.now());
 
@@ -287,7 +287,7 @@ export default function CtaExplotacionPage() {
             [GASTO_LABELS.costePruebaMenu]: 'costePruebaMenu'
         }
         const objKey = keyMap[coste.label];
-        const objetivo_pct = (objKey && ctaData.objetivos?.[objKey] / 100) || 0;
+        const objetivo_pct = (objKey && ctaData && ctaData.objetivos?.[objKey] ? ctaData.objetivos[objKey] / 100 : 0);
         const realValue = realCostInputs[coste.label] ?? coste.cierre;
         return {
             ...coste,

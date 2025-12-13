@@ -727,6 +727,43 @@ export type ElaboracionEnReceta = {
     merma: number;
 }
 
+export type ComponenteProducido = {
+    componenteId: string;
+    nombre: string;
+    cantidad_planificada: number;
+    cantidad_real: number;
+    merma_real: number;
+    merma_porcentaje: number;
+}
+
+export type ElaboracionProduccion = {
+    id: string;
+    elaboracion_id: string;
+    fecha_produccion: string; // ISO date
+    responsable: string; // User from auth session
+    cantidad_real_producida: number;
+    componentes_utilizados: ComponenteProducido[];
+    observaciones?: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export type AjusteComponente = {
+    componenteId: string;
+    nombre: string;
+    ajuste_porcentaje: number; // Positive for increase, negative for decrease
+    ajuste_cantidad: number;
+    cantidad_actual: number;
+    cantidad_sugerida: number;
+}
+
+export type MediaProducciones = {
+    totalProducciones: number;
+    rendimiento_promedio: number; // cantidad_real_producida / cantidad_planificada
+    ajustes_sugeridos: AjusteComponente[];
+    variabilidad: number; // Standard deviation of results
+}
+
 export const SABORES_PRINCIPALES = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
 export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
 

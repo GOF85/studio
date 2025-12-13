@@ -54,8 +54,8 @@ export default function TransportePage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
+  const params = useParams() ?? {};
+  const osId = (params.id as string) || '';
   const { toast } = useToast();
   const deleteTransporte = useDeleteTransporteOrder();
 
@@ -76,7 +76,7 @@ export default function TransportePage() {
     if (currentOS?.space) {
       const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
       const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-      setSpaceAddress(currentSpace?.calle || '');
+      setSpaceAddress(currentSpace?.identificacion?.calle || '');
     }
 
     const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
