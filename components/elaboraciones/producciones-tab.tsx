@@ -193,7 +193,11 @@ export function ProduccionesTab({
 
       {/* BOTÓN AÑADIR PRODUCCIÓN */}
       <div className="flex justify-end">
-        <Button onClick={onAñadirClick} className="bg-green-600 hover:bg-green-700">
+        <Button 
+          type="button" 
+          onClick={onAñadirClick} 
+          className="bg-green-600 hover:bg-green-700"
+        >
           + Registrar Producción
         </Button>
       </div>

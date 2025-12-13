@@ -822,7 +822,7 @@ function ElaborationFormPage() {
                 {/* BREADCRUMB & TABS HEADER */}
                 <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
                      {/* Breadcrumb */}
-                     <div className="flex items-center px-4 py-3 gap-2 border-b">
+                     <div className="flex items-center py-3 gap-2 border-b max-w-7xl mx-auto px-4">
                          <Button variant="ghost" size="icon" type="button" onClick={() => router.push('/book/elaboraciones')} className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground">
                             <ChevronLeft className="h-6 w-6" />
                          </Button>
@@ -835,7 +835,7 @@ function ElaborationFormPage() {
                      
                      {/* Tabs */}
                      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-                         <div className="px-0">
+                         <div className="max-w-7xl mx-auto px-4 pb-0">
                              <TabsList className="w-full justify-start bg-transparent p-0 h-12 gap-0 rounded-none">
                                     {["Info. General", "Componentes", "Info. Preparación", "Producciones"].map((tab, i) => {
                                         const val = ["general", "componentes", "preparacion", "producciones"][i];
@@ -853,7 +853,7 @@ function ElaborationFormPage() {
                          </div>
 
                         {/* CONTENT AREA */}
-                        <div className="max-w-7xl mx-auto bg-background pb-32 p-4">
+                        <div className="max-w-7xl mx-auto bg-background pb-32 px-4 pt-4">
                             
                             {/* TAB: GENERAL */}
                             <TabsContent value="general" className="space-y-4 mt-0">
@@ -1018,8 +1018,10 @@ function ElaborationFormPage() {
                 </div>
             </form>
         </FormProvider>
+      </main>
 
-        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      {/* Dialogs - Fuera de main para máximo aislamiento */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
             <AlertDialogContent>
                 <AlertDialogHeader><AlertDialogTitle>¿Eliminar elaboración?</AlertDialogTitle><AlertDialogDescription>Acción irreversible.</AlertDialogDescription></AlertDialogHeader>
                 <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive">Eliminar</AlertDialogAction></AlertDialogFooter>
@@ -1034,14 +1036,11 @@ function ElaborationFormPage() {
             componentesBase={watchedComponentes || []}
             cantidadPlanificada={watchedProduccionTotal || 1}
             onSuccess={() => {
-              // Recargar producciones
               setIsProduccionDialogOpen(false);
-              // Trigger reload de ProduccionesTab
               setReloadProduccionesTrigger(prev => prev + 1);
             }}
           />
         )}
-      </main>
     </TooltipProvider>
   );
 }
