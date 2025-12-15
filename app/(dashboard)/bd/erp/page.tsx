@@ -46,6 +46,10 @@ const ITEMS_PER_PAGE = 20;
 
 function ArticulosERPPageContent() {
     const [items, setItems] = useState<ArticuloERP[]>([]);
+    const [totalCount, setTotalCount] = useState(0);
+    const [isLoadingPage, setIsLoadingPage] = useState(false);
+    const [types, setTypes] = useState<string[]>(['all']);
+    const [providers, setProviders] = useState<string[]>(['all']);
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
@@ -55,6 +59,7 @@ function ArticulosERPPageContent() {
     const [currentPage, setCurrentPage] = useState(1);
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncLog, setSyncLog] = useState<string[]>([]);
+    const [debouncedSearch, setDebouncedSearch] = useState('');
 
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -77,101 +82,203 @@ function ArticulosERPPageContent() {
         return unidadConversion > 0 ? precioConDescuento / unidadConversion : 0;
     }
 
-    useEffect(() => {
-        async function loadData() {
-            // Load articulos from Supabase
-            const { data: articulosData, error } = await supabase
-                .from('articulos_erp')
-                .select('*')
-                .limit(10000);
+    // Keyset pagination (cursor-based) over compound key (nombre, erp_id)
+    const useKeyset = true;
+    const prevCursors = useRef<Array<{ nombre: string; erp_id: string }>>([]);
+    const [cursor, setCursor] = useState<{ nombre: string | null; erp_id: string | null }>({ nombre: null, erp_id: null });
+    const [isAppending, setIsAppending] = useState(false);
 
-            if (error) {
-                console.error('Error loading articulos_erp:', error);
-                toast({ variant: 'destructive', title: 'Error', description: 'Error al cargar los artículos.' });
-                setItems([]);
+    // Server-side pagination loader (keyset-based, nombre + erp_id)
+    const loadPage = async (direction: 'init' | 'next' | 'prev' | 'append' = 'init') => {
+        setIsLoadingPage(true);
+        if (direction === 'append') setIsAppending(true);
+        // Count query with same filters
+        let countQuery = supabase.from('articulos_erp').select('erp_id', { count: 'exact', head: true });
+        const term = debouncedSearch.trim();
+        if (term) {
+            const like = `%${term}%`;
+            countQuery = countQuery.or([
+                `nombre.ilike.${like}`,
+                `nombre_proveedor.ilike.${like}`,
+                `referencia_proveedor.ilike.${like}`,
+                `erp_id.ilike.${like}`,
+                `tipo.ilike.${like}`,
+            ].join(','));
+        }
+        if (typeFilter !== 'all') countQuery = countQuery.eq('tipo', typeFilter);
+        if (providerFilter !== 'all') countQuery = countQuery.eq('nombre_proveedor', providerFilter);
+
+        // Data query (keyset)
+        let dataQuery = supabase.from('articulos_erp').select('*');
+        if (term) {
+            const like = `%${term}%`;
+            dataQuery = dataQuery.or([
+                `nombre.ilike.${like}`,
+                `nombre_proveedor.ilike.${like}`,
+                `referencia_proveedor.ilike.${like}`,
+                `erp_id.ilike.${like}`,
+                `tipo.ilike.${like}`,
+            ].join(','));
+        }
+        if (typeFilter !== 'all') dataQuery = dataQuery.eq('tipo', typeFilter);
+        if (providerFilter !== 'all') dataQuery = dataQuery.eq('nombre_proveedor', providerFilter);
+
+        // Determine direction
+        if (!useKeyset) {
+            // Fallback to offset (not used currently)
+            dataQuery = dataQuery.order('nombre', { ascending: true }).order('erp_id', { ascending: true }).range(0, ITEMS_PER_PAGE - 1);
+        } else {
+            const limit = ITEMS_PER_PAGE;
+            if (direction === 'prev') {
+                const anchor = prevCursors.current.pop();
+                if (anchor) {
+                    // nombre < anchor.nombre OR (nombre = anchor.nombre AND erp_id < anchor.erp_id)
+                    dataQuery = dataQuery
+                        .or(
+                            [
+                                `nombre.lt.${anchor.nombre}`,
+                                `and(nombre.eq.${anchor.nombre},erp_id.lt.${anchor.erp_id})`,
+                            ].join(',')
+                        )
+                        .order('nombre', { ascending: false })
+                        .order('erp_id', { ascending: false })
+                        .limit(limit);
+                } else {
+                    // No previous; init
+                    prevCursors.current = [];
+                    setCursor({ nombre: null, erp_id: null });
+                    dataQuery = dataQuery.order('nombre', { ascending: true }).order('erp_id', { ascending: true }).limit(limit);
+                }
+            } else if (direction === 'next' || direction === 'append') {
+                if (cursor.nombre && cursor.erp_id) {
+                    // Push first row cursor for back navigation if moving next (not for append)
+                    if (direction === 'next' && items.length > 0) {
+                        prevCursors.current.push({ nombre: items[0].nombreProductoERP || '', erp_id: items[0].idreferenciaerp });
+                    }
+                    // nombre > cursor.nombre OR (nombre = cursor.nombre AND erp_id > cursor.erp_id)
+                    dataQuery = dataQuery
+                        .or(
+                            [
+                                `nombre.gt.${cursor.nombre}`,
+                                `and(nombre.eq.${cursor.nombre},erp_id.gt.${cursor.erp_id})`,
+                            ].join(',')
+                        )
+                        .order('nombre', { ascending: true })
+                        .order('erp_id', { ascending: true })
+                        .limit(limit);
+                } else {
+                    dataQuery = dataQuery.order('nombre', { ascending: true }).order('erp_id', { ascending: true }).limit(limit);
+                }
             } else {
-                // Map Supabase data to ArticuloERP type
-                const mappedItems = (articulosData || []).map((row: any) => ({
-                    id: row.id,
-                    idreferenciaerp: row.erp_id || '',
-                    idProveedor: row.proveedor_id || '',
-                    nombreProveedor: row.nombre_proveedor || 'Sin proveedor',
-                    nombreProductoERP: row.nombre || '',
-                    referenciaProveedor: row.referencia_proveedor || '',
-                    familiaCategoria: row.familia_categoria || '',
-                    precioCompra: row.precio_compra || 0,
-                    descuento: row.descuento || 0,
-                    unidadConversion: row.unidad_conversion || 1,
-                    precio: row.precio || 0,
-                    precioAlquiler: row.precio_alquiler || 0,
-                    unidad: row.unidad_medida || 'UD',
-                    tipo: row.tipo || '',
-                    categoriaMice: row.categoria_mice || '',
-                    alquiler: row.alquiler || false,
-                    observaciones: row.observaciones || '',
-                })) as ArticuloERP[];
-
-                setItems(mappedItems);
+                // init
+                prevCursors.current = [];
+                setCursor({ nombre: null, erp_id: null });
+                dataQuery = dataQuery.order('nombre', { ascending: true }).order('erp_id', { ascending: true }).limit(limit);
             }
-
-            setIsMounted(true);
         }
 
-        loadData();
-    }, [toast]);
+        const [{ count, error: countError }, { data, error }] = await Promise.all([
+            countQuery,
+            dataQuery,
+        ]);
 
-    const { types, providers } = useMemo(() => {
-        if (!items) return { types: [], providers: [] };
-        const typeSet = new Set<string>();
-        const provSet = new Set<string>();
-        items.forEach(item => {
-            if (item.tipo) typeSet.add(item.tipo);
-            if (item.nombreProveedor) provSet.add(item.nombreProveedor);
-        });
-        return {
-            types: ['all', ...Array.from(typeSet).sort()],
-            providers: ['all', ...Array.from(provSet).sort()],
-        };
-    }, [items]);
+        if (error || countError) {
+            console.error('Error loading articulos_erp:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Error al cargar los artículos.' });
+            setItems([]);
+            setTotalCount(0);
+        } else {
+            // For prev direction with descending order, reverse for UI
+            let rows = data || [];
+            if (useKeyset && direction === 'prev') rows = [...rows].reverse();
+            const mappedItems = (rows || []).map((row: any) => ({
+                id: row.id,
+                idreferenciaerp: row.erp_id || '',
+                idProveedor: row.proveedor_id || '',
+                nombreProveedor: row.nombre_proveedor || 'Sin proveedor',
+                nombreProductoERP: row.nombre || '',
+                referenciaProveedor: row.referencia_proveedor || '',
+                familiaCategoria: row.familia_categoria || '',
+                precioCompra: row.precio_compra || 0,
+                descuento: row.descuento || 0,
+                unidadConversion: row.unidad_conversion || 1,
+                precio: row.precio || 0,
+                precioAlquiler: row.precio_alquiler || 0,
+                unidad: row.unidad_medida || 'UD',
+                tipo: row.tipo || '',
+                categoriaMice: row.categoria_mice || '',
+                alquiler: row.alquiler || false,
+                observaciones: row.observaciones || '',
+            })) as ArticuloERP[];
+            if (direction === 'append') {
+                setItems(prev => [...prev, ...mappedItems]);
+            } else {
+                setItems(mappedItems);
+            }
+            setTotalCount(count || 0);
+            // Update cursor (last compound key of this page)
+            const lastItem = mappedItems[mappedItems.length - 1];
+            setCursor({ nombre: lastItem?.nombreProductoERP || null, erp_id: lastItem?.idreferenciaerp || null });
+            if (direction === 'init') setCurrentPage(1);
+            else if (direction === 'next') setCurrentPage(p => p + 1);
+            else if (direction === 'prev') setCurrentPage(p => Math.max(1, p - 1));
+        }
+        setIsLoadingPage(false);
+        if (direction === 'append') setIsAppending(false);
+        setIsMounted(true);
+    };
 
-    const filteredItems = useMemo(() => {
-        if (!items) return [];
-        return items.filter(item => {
-            const term = searchTerm.toLowerCase();
-            const searchMatch =
-                (item.nombreProductoERP || '').toLowerCase().includes(term) ||
-                (item.nombreProveedor || '').toLowerCase().includes(term) ||
-                (item.referenciaProveedor || '').toLowerCase().includes(term) ||
-                (item.idreferenciaerp || '').toLowerCase().includes(term) ||
-                (item.tipo || '').toLowerCase().includes(term);
+    useEffect(() => {
+        // Initial load
+        loadPage('init');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-            const typeMatch = typeFilter === 'all' || item.tipo === typeFilter;
-            const providerMatch = providerFilter === 'all' || item.nombreProveedor === providerFilter;
+    // Debounce search input
+    useEffect(() => {
+        const id = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+        return () => clearTimeout(id);
+    }, [searchTerm]);
 
-            return searchMatch && typeMatch && providerMatch;
-        });
-    }, [items, searchTerm, typeFilter, providerFilter]);
+    useEffect(() => {
+        // Reload when filters or debounced search change
+        loadPage('init');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedSearch, typeFilter, providerFilter]);
 
-    const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
-    const paginatedItems = useMemo(() => {
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    }, [filteredItems, currentPage]);
+    // Distinct lists for filters (independent of page data)
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const [{ data: tData }, { data: pData }] = await Promise.all([
+                supabase.from('articulos_erp').select('tipo').not('tipo', 'is', null).order('tipo', { ascending: true }).limit(2000),
+                supabase.from('articulos_erp').select('nombre_proveedor').not('nombre_proveedor', 'is', null).order('nombre_proveedor', { ascending: true }).limit(5000),
+            ]);
+            if (cancelled) return;
+            const tSet = new Set<string>(['all']);
+            (tData || []).forEach((r: any) => r.tipo && tSet.add(r.tipo));
+            setTypes(Array.from(tSet));
+            const pSet = new Set<string>(['all']);
+            (pData || []).forEach((r: any) => r.nombre_proveedor && pSet.add(r.nombre_proveedor));
+            setProviders(Array.from(pSet));
+        })();
+        return () => { cancelled = true };
+    }, []);
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
 
     // Para infinite scroll en móvil: mostrar todos los items filtrados
-    const mobileItems = useMemo(() => {
-        return filteredItems;
-    }, [filteredItems]);
+    const mobileItems = items;
 
     // Hook para infinite scroll
     const sentinelRef = useInfiniteScroll({
         fetchNextPage: () => {
-            if (currentPage < totalPages) {
-                setCurrentPage(prev => prev + 1);
+            if (!isAppending && items.length < totalCount) {
+                void loadPage('append');
             }
         },
-        hasNextPage: currentPage < totalPages,
-        isFetchingNextPage: false,
+        hasNextPage: items.length < totalCount,
+        isFetchingNextPage: isAppending,
         enabled: true,
     });
 
@@ -189,8 +296,8 @@ function ArticulosERPPageContent() {
         { key: 'categoriaMice', label: 'Categoría MICE' },
     ];
 
-    const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
-    const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
+    const handlePreviousPage = () => { if (currentPage > 1) void loadPage('prev'); };
+    const handleNextPage = () => { if (currentPage < totalPages) void loadPage('next'); };
 
 
     const handleFactusolSync = () => {
@@ -207,100 +314,44 @@ function ArticulosERPPageContent() {
                     description: 'La sincronización tardó demasiado. Verifica los logs para más detalles.'
                 });
             }, 900000); // 15 minutes
-
-            const runSync = async () => {
-                try {
-                    setSyncLog(prev => [...prev, '⏳ Enviando petición al servidor...']);
-                    
-                    const controller = new AbortController();
-                    const fetchTimeoutId = setTimeout(() => controller.abort(), 840000); // 14 minutes
-                    
-                    const response = await fetch('/api/factusol/sync-articulos', {
-                        method: 'POST',
-                        signal: controller.signal,
-                    });
-
-                    clearTimeout(fetchTimeoutId);
-
-                    if (!response.ok) {
-                        setSyncLog(prev => [...prev, `❌ Error HTTP ${response.status}: ${response.statusText}`]);
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-
-                    setSyncLog(prev => [...prev, '⏳ Recibiendo respuesta del servidor...']);
-                    const result = await response.json();
-
-                    if (result.success) {
-                        setSyncLog(result.debugLog || []);
-                        toast({
-                            title: 'Sincronización completada',
-                            description: `Se han sincronizado ${result.count} artículos desde Factusol.`
-                        });
-
-                        // Reload data from Supabase after sync
-                        setSyncLog(prev => [...prev, 'Recargando datos desde Supabase...']);
-                        const { data: articulosData, error } = await supabase
-                            .from('articulos_erp')
-                            .select('*')
-                            .limit(10000);
-
-                        if (!error && articulosData) {
-                            setSyncLog(prev => [...prev, `Cargados ${articulosData.length} artículos de Supabase`]);
-                            const mappedItems = articulosData.map((row: any) => ({
-                                id: row.id,
-                                idreferenciaerp: row.erp_id || '',
-                                idProveedor: row.proveedor_id || '',
-                                nombreProveedor: row.nombre_proveedor || 'Sin proveedor',
-                                nombreProductoERP: row.nombre || '',
-                                referenciaProveedor: row.referencia_proveedor || '',
-                                familiaCategoria: row.familia_categoria || '',
-                                precioCompra: row.precio_compra || 0,
-                                descuento: row.descuento || 0,
-                                unidadConversion: row.unidad_conversion || 1,
-                                precio: row.precio || 0,
-                                precioAlquiler: row.precio_alquiler || 0,
-                                unidad: row.unidad_medida || 'UD',
-                                tipo: row.tipo || '',
-                                categoriaMice: row.categoria_mice || '',
-                                alquiler: row.alquiler || false,
-                                observaciones: row.observaciones || '',
-                            })) as ArticuloERP[];
-
-                            setItems(mappedItems);
+            // Start SSE stream for real-time logs
+            try {
+                setSyncLog(prev => [...prev, '⏳ Conectando al stream de logs...']);
+                const es = new EventSource('/api/factusol/sync-articulos/stream');
+                const onMessage = (e: MessageEvent) => setSyncLog(prev => [...prev, e.data]);
+                const onResult = async (e: MessageEvent) => {
+                    try {
+                        const result = JSON.parse(e.data);
+                        if (result.success) {
+                            toast({ title: 'Sincronización completada', description: `Se han sincronizado ${result.count} artículos desde Factusol.` });
+                            setSyncLog(prev => [...prev, 'Recargando datos desde Supabase...']);
+                            await loadPage(1);
                             setSyncLog(prev => [...prev, '✅ Sincronización completada exitosamente']);
                         } else {
-                            setSyncLog(prev => [...prev, `⚠️ Error cargando datos: ${error?.message || 'desconocido'}`]);
+                            setSyncLog(prev => [...prev, `❌ Error: ${result.error}`]);
+                            toast({ variant: 'destructive', title: 'Error en la sincronización', description: result.error });
                         }
-                    } else {
-                        setSyncLog(result.debugLog || []);
-                        setSyncLog(prev => [...prev, `❌ Error: ${result.error}`]);
-                        toast({
-                            variant: 'destructive',
-                            title: 'Error en la sincronización',
-                            description: result.error
-                        });
-                    }
-                } catch (error) {
-                    let errorMessage = 'Error desconocido';
-                    if (error instanceof Error) {
-                        errorMessage = error.message;
-                        if (error.name === 'AbortError') {
-                            errorMessage = 'La solicitud fue cancelada por timeout (14 minutos)';
-                        }
-                    }
-                    setSyncLog(prev => [...prev, `❌ ${errorMessage}`]);
-                    toast({
-                        variant: 'destructive',
-                        title: 'Error',
-                        description: errorMessage
-                    });
-                } finally {
+                    } catch {}
+                };
+                const onEnd = () => {
+                    es.removeEventListener('message', onMessage as any);
+                    es.removeEventListener('result', onResult as any);
+                    es.close();
                     clearTimeout(timeoutId);
                     setIsSyncing(false);
-                }
-            };
-
-            void runSync();
+                };
+                es.onmessage = onMessage;
+                es.addEventListener('result', onResult as any);
+                es.addEventListener('end', onEnd as any);
+                es.onerror = () => {
+                    setSyncLog(prev => [...prev, '❌ Error en el stream de logs']);
+                    onEnd();
+                };
+            } catch (err: any) {
+                setSyncLog(prev => [...prev, `❌ ${err?.message || 'Error desconocido'}`]);
+                clearTimeout(timeoutId);
+                setIsSyncing(false);
+            }
         });
     };
 
@@ -644,8 +695,8 @@ function ArticulosERPPageContent() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {paginatedItems.length > 0 ? (
-                            paginatedItems.map(item => {
+                        {items.length > 0 ? (
+                            items.map(item => {
                                 const precioCalculado = item.precio || 0;
                                 return (
                                     <TableRow key={item.id}>
@@ -671,7 +722,7 @@ function ArticulosERPPageContent() {
                             })
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={10} className="h-24 text-center">No se encontraron artículos que coincidan con la búsqueda.</TableCell>
+                                <TableCell colSpan={10} className="h-24 text-center">{isLoadingPage ? 'Cargando...' : 'No se encontraron artículos que coincidan con la búsqueda.'}</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -694,7 +745,7 @@ function ArticulosERPPageContent() {
             </AlertDialog>
 
             {syncLog.length > 0 && (
-                <AlertDialog open={syncLog.length > 0} onOpenChange={() => setSyncLog([])}>
+                <AlertDialog open={syncLog.length > 0 && !isSyncing} onOpenChange={() => setSyncLog([])}>
                     <AlertDialogContent className="max-w-2xl">
                         <AlertDialogHeader>
                             <AlertDialogTitle>Log de Sincronización</AlertDialogTitle>
