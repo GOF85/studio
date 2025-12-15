@@ -195,29 +195,55 @@ function ArticulosERPPageContent() {
 
     const handleFactusolSync = async () => {
         setIsSyncing(true);
-        setSyncLog([]);
+        setSyncLog(['Iniciando sincronización...']);
+
+        // Set a timeout for the entire sync operation (15 minutes)
+        const timeoutId = setTimeout(() => {
+            setIsSyncing(false);
+            toast({
+                variant: 'destructive',
+                title: 'Timeout',
+                description: 'La sincronización tardó demasiado. Verifica los logs para más detalles.'
+            });
+        }, 900000); // 15 minutes
 
         try {
+            setSyncLog(prev => [...prev, '⏳ Enviando petición al servidor...']);
+            
+            const controller = new AbortController();
+            const fetchTimeoutId = setTimeout(() => controller.abort(), 840000); // 14 minutes
+            
             const response = await fetch('/api/factusol/sync-articulos', {
                 method: 'POST',
+                signal: controller.signal,
             });
 
+            clearTimeout(fetchTimeoutId);
+
+            if (!response.ok) {
+                setSyncLog(prev => [...prev, `❌ Error HTTP ${response.status}: ${response.statusText}`]);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            setSyncLog(prev => [...prev, '⏳ Recibiendo respuesta del servidor...']);
             const result = await response.json();
 
             if (result.success) {
+                setSyncLog(result.debugLog || []);
                 toast({
                     title: 'Sincronización completada',
                     description: `Se han sincronizado ${result.count} artículos desde Factusol.`
                 });
-                setSyncLog(result.debugLog || []);
 
                 // Reload data from Supabase after sync
+                setSyncLog(prev => [...prev, 'Recargando datos desde Supabase...']);
                 const { data: articulosData, error } = await supabase
                     .from('articulos_erp')
                     .select('*')
                     .limit(10000);
 
                 if (!error && articulosData) {
+                    setSyncLog(prev => [...prev, `Cargados ${articulosData.length} artículos de Supabase`]);
                     const mappedItems = articulosData.map((row: any) => ({
                         id: row.id,
                         idreferenciaerp: row.erp_id || '',
@@ -239,23 +265,35 @@ function ArticulosERPPageContent() {
                     })) as ArticuloERP[];
 
                     setItems(mappedItems);
+                    setSyncLog(prev => [...prev, '✅ Sincronización completada exitosamente']);
+                } else {
+                    setSyncLog(prev => [...prev, `⚠️ Error cargando datos: ${error?.message || 'desconocido'}`]);
                 }
             } else {
+                setSyncLog(result.debugLog || []);
+                setSyncLog(prev => [...prev, `❌ Error: ${result.error}`]);
                 toast({
                     variant: 'destructive',
                     title: 'Error en la sincronización',
                     description: result.error
                 });
-                setSyncLog(result.debugLog || []);
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
+            let errorMessage = 'Error desconocido';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+                if (error.name === 'AbortError') {
+                    errorMessage = 'La solicitud fue cancelada por timeout (14 minutos)';
+                }
+            }
+            setSyncLog(prev => [...prev, `❌ ${errorMessage}`]);
             toast({
                 variant: 'destructive',
                 title: 'Error',
                 description: errorMessage
             });
         } finally {
+            clearTimeout(timeoutId);
             setIsSyncing(false);
         }
     };
@@ -446,26 +484,65 @@ function ArticulosERPPageContent() {
     return (
         <>
             {isSyncing && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 space-y-6">
-                        <div className="flex justify-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                        </div>
-                        <div className="text-center space-y-2">
-                            <h2 className="text-xl font-bold">Sincronizando con Factusol...</h2>
-                            <p className="text-sm text-muted-foreground">Por favor espera mientras se actualizan los artículos.</p>
-                        </div>
-                        {syncLog.length > 0 && (
-                            <div className="bg-secondary rounded p-4 max-h-48 overflow-y-auto">
-                                <div className="text-xs space-y-1">
-                                    {syncLog.slice(-10).map((log, idx) => (
-                                        <div key={idx} className="text-muted-foreground font-mono">
-                                            {log}
-                                        </div>
-                                    ))}
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-2xl w-full mx-auto max-h-[90vh] flex flex-col space-y-4">
+                        {/* Header */}
+                        <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
+                            <div className="flex items-center gap-3">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                <div className="flex-1">
+                                    <h2 className="text-lg font-bold text-gray-900">Sincronizando con Factusol...</h2>
+                                    <p className="text-sm text-gray-600">Por favor espera mientras se actualizan los artículos.</p>
                                 </div>
                             </div>
-                        )}
+                        </div>
+
+                        {/* Logs - Full verbose output */}
+                        <div className="flex-1 px-6 py-4 overflow-y-auto font-mono text-xs bg-gray-900 text-green-400 rounded-none border">
+                            <div className="space-y-1">
+                                {syncLog.length > 0 ? (
+                                    syncLog.map((log, idx) => (
+                                        <div key={idx} className="whitespace-pre-wrap break-words">
+                                            <span className="text-gray-500">[{String(idx + 1).padStart(3, '0')}]</span> {log}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-gray-500">Iniciando sincronización...</div>
+                                )}
+                                {/* Auto-scroll to bottom */}
+                                <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+                            </div>
+                        </div>
+
+                        {/* Footer - Status info */}
+                        <div className="px-6 py-4 border-t bg-gray-50 flex justify-between items-center">
+                            <div className="text-xs text-muted-foreground">
+                                <span>{syncLog.length} líneas de log</span>
+                                {syncLog.length > 0 && (
+                                    <span className="ml-4">
+                                        {syncLog[syncLog.length - 1]?.includes('✅') ? (
+                                            <span className="text-green-600 font-medium">✅ Completado</span>
+                                        ) : syncLog[syncLog.length - 1]?.includes('❌') ? (
+                                            <span className="text-red-600 font-medium">❌ Error detectado</span>
+                                        ) : (
+                                            <span className="text-blue-600 font-medium">⏳ En progreso...</span>
+                                        )}
+                                    </span>
+                                )}
+                            </div>
+                            {syncLog.length > 0 && syncLog[syncLog.length - 1]?.includes('❌') && (
+                                <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                        setIsSyncing(false);
+                                        setSyncLog([]);
+                                    }}
+                                >
+                                    Cerrar
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

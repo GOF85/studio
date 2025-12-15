@@ -178,20 +178,27 @@ export async function POST() {
         // This preserves foreign key relationships with ingredientes_internos
         debugLog.push("Sincronizando artículos (UPDATE + INSERT)...");
         
-        const chunks = chunkArray(articulosToInsert, 100);
+        const chunks = chunkArray(articulosToInsert, 50); // Smaller chunks for better progress reporting
         let updatedCount = 0;
         let insertedCount = 0;
+        let chunkNum = 0;
 
         for (const chunk of chunks) {
+            chunkNum++;
+            debugLog.push(`Procesando lote ${chunkNum}/${chunks.length} (${chunk.length} artículos)...`);
+            
             // Separate articles into existing and new
             const existingIds = new Set(existingPricesMap.keys());
             const toUpdate = chunk.filter((a: any) => existingIds.has(a.erp_id));
             const toInsert = chunk.filter((a: any) => !existingIds.has(a.erp_id));
 
-            // Update existing articles
+            debugLog.push(`  → ${toUpdate.length} a actualizar, ${toInsert.length} nuevos`);
+
+            // Batch update existing articles (with better logging) - PARALLELIZED
             if (toUpdate.length > 0) {
-                for (const article of toUpdate) {
-                    const { error: updateError } = await supabase
+                debugLog.push(`  ⏳ Actualizando ${toUpdate.length} artículos (en paralelo)...`);
+                const updatePromises = toUpdate.map(async (article) => {
+                    return supabase
                         .from('articulos_erp')
                         .update({
                             nombre: article.nombre,
@@ -214,29 +221,44 @@ export async function POST() {
                             observaciones: article.observaciones,
                         })
                         .eq('erp_id', article.erp_id);
-                    
-                    if (updateError) {
-                        debugLog.push(`⚠️ Error actualizando ${article.erp_id}: ${updateError.message}`);
+                });
+
+                const updateResults = await Promise.all(updatePromises);
+                
+                let updateErrors = 0;
+                updateResults.forEach((result, i) => {
+                    if (result.error) {
+                        updateErrors++;
+                        if (i < 3) {
+                            debugLog.push(`    ⚠️ ${toUpdate[i].erp_id}: ${result.error.message}`);
+                        }
                     } else {
                         updatedCount++;
                     }
+                });
+                
+                debugLog.push(`    ✓ ${toUpdate.length - updateErrors}/${toUpdate.length} actualizados correctamente`);
+                if (updateErrors > 0) {
+                    debugLog.push(`    ⚠️ ${updateErrors} errores en actualizaciones`);
                 }
-            }
+
 
             // Insert new articles
             if (toInsert.length > 0) {
+                debugLog.push(`  ⏳ Insertando ${toInsert.length} artículos nuevos...`);
                 const { error: insertError } = await supabase
                     .from('articulos_erp')
                     .insert(toInsert);
                 
                 if (insertError) {
-                    debugLog.push(`Error insertando: ${insertError.message}`);
+                    debugLog.push(`  ❌ Error insertando: ${insertError.message}`);
                     throw new Error(`Error inserting articles: ${insertError.message}`);
                 }
                 insertedCount += toInsert.length;
+                debugLog.push(`  ✓ ${toInsert.length} insertados correctamente`);
             }
 
-            debugLog.push(`Procesados: ${updatedCount} actualizados + ${insertedCount} nuevos...`);
+            debugLog.push(`✓ Lote ${chunkNum} completado. Total: ${updatedCount} actualizados, ${insertedCount} nuevos`);
         }
 
         debugLog.push(`✅ Sincronización completada. ${updatedCount} artículos actualizados, ${insertedCount} insertados.`);
