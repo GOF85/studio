@@ -305,7 +305,7 @@ export async function POST() {
                 variacion_porcentaje: parseFloat(variacionPorcentaje.toFixed(2)),
             });
 
-            // Guardar detalles para mostrar en logs
+            // Guardar detalles para mostrar en logs (SOLO para cambios reales registrados)
             const priceDisplay = lastPrice !== undefined 
                 ? `$${lastPrice.toFixed(2)} → $${newPrice.toFixed(2)}`
                 : `$0.00 → $${newPrice.toFixed(2)} (NUEVO)`;
