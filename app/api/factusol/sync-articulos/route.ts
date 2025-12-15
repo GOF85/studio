@@ -355,7 +355,6 @@ export async function POST() {
         }
 
         return NextResponse.json({ success: true, count: updatedCount + insertedCount, priceChanges: priceHistoryEntries.length, debugLog });
-    }
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
