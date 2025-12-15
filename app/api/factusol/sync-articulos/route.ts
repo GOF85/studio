@@ -294,25 +294,34 @@ export async function POST() {
             // Use LAST historical price if available, otherwise use current DB price
             const lastPrice = lastHistoricalPrices.get(newArticulo.erp_id) || existingPricesMap.get(newArticulo.erp_id);
             
-            // Only register change if price actually changed from last recorded price
-            if (lastPrice === undefined || Math.abs(newPrice - lastPrice) > 0.001) {
-                // Calculate percentage change
-                const variacionPorcentaje = lastPrice 
-                    ? ((newPrice - lastPrice) / lastPrice) * 100 
-                    : 0;
-
-                priceHistoryEntries.push({
-                    articulo_erp_id: newArticulo.erp_id,
-                    fecha: today,
-                    precio_calculado: newPrice,
-                    proveedor_id: newArticulo.proveedor_id,
-                    variacion_porcentaje: parseFloat(variacionPorcentaje.toFixed(2)),
-                });
-
-                // Guardar detalles para mostrar en logs
-                const formatted = `${newArticulo.nombre} (${newArticulo.erp_id}): $${lastPrice?.toFixed(2) || '0.00'} → $${newPrice.toFixed(2)} ${variacionPorcentaje > 0 ? '🔴 +' : '🟢 '}${Math.abs(variacionPorcentaje).toFixed(2)}%`;
-                priceChangesDetail.push(formatted);
+            // Skip if price hasn't changed AND we have previous data
+            // Only register if: (1) it's a new article (no lastPrice), OR (2) price changed significantly
+            if (lastPrice !== undefined && Math.abs(newPrice - lastPrice) < 0.001) {
+                continue; // Price unchanged, skip registration
             }
+
+            // Price has changed or is new, register it
+            const variacionPorcentaje = lastPrice 
+                ? ((newPrice - lastPrice) / lastPrice) * 100 
+                : 0;
+
+            priceHistoryEntries.push({
+                articulo_erp_id: newArticulo.erp_id,
+                fecha: today,
+                precio_calculado: newPrice,
+                proveedor_id: newArticulo.proveedor_id,
+                variacion_porcentaje: parseFloat(variacionPorcentaje.toFixed(2)),
+            });
+
+            // Guardar detalles para mostrar en logs
+            const priceDisplay = lastPrice !== undefined 
+                ? `$${lastPrice.toFixed(2)} → $${newPrice.toFixed(2)}`
+                : `$0.00 → $${newPrice.toFixed(2)} (NUEVO)`;
+            const changeDisplay = lastPrice !== undefined
+                ? `${variacionPorcentaje > 0 ? '🔴 +' : '🟢 '}${Math.abs(variacionPorcentaje).toFixed(2)}%`
+                : '(Artículo nuevo en BD)';
+            const formatted = `${newArticulo.nombre} (${newArticulo.erp_id}): ${priceDisplay} ${changeDisplay}`;
+            priceChangesDetail.push(formatted);
         }
 
         debugLog.push(`Total cambios detectados: ${priceHistoryEntries.length}`);
