@@ -33,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indicator';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -222,7 +222,7 @@ export default function SyncLogsPage() {
     ? ((stats.successCount - previousWeekSuccess) / previousWeekSuccess * 100).toFixed(0)
     : 0;
 
-  if (!isMounted) return <LoadingSkeleton title="Cargando logs de sincronización..." />;
+  if (!isMounted) return <GlobalLoadingIndicator />;
 
   return (
     <main className="min-h-screen bg-background pb-10">
@@ -523,7 +523,7 @@ export default function SyncLogsPage() {
           {/* TABLA / CONTENIDO PRINCIPAL */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             {isLoading ? (
-              <LoadingSkeleton title="Cargando logs..." />
+              <GlobalLoadingIndicator />
             ) : filteredLogs.length === 0 ? (
               <Card className="border-dashed h-full flex items-center justify-center">
                 <CardContent className="p-8 text-center">

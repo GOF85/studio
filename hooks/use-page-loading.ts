@@ -32,7 +32,6 @@ export function usePageLoading() {
                     return Math.min(newProgress, 90);
                 });
             }, 200);
-
             return () => clearInterval(interval);
         }
     }, [isLoading, logPhase]);
@@ -41,7 +40,6 @@ export function usePageLoading() {
         // Registrar inicio de carga
         loadingStartTimeRef.current = Date.now();
         log(COMPONENT_NAME, 'Carga iniciada', { pathname, searchParams: (searchParams ?? new URLSearchParams()).toString() });
-        
         setIsLoading(true);
         setProgress(0);
 
@@ -49,14 +47,11 @@ export function usePageLoading() {
         const progressTimeout = setTimeout(() => {
             setProgress(100);
             logPhase(COMPONENT_NAME, 'Completado', 100);
-            
             setTimeout(() => {
                 const loadingDuration = Date.now() - (loadingStartTimeRef.current || Date.now());
                 log(COMPONENT_NAME, 'Carga finalizada', { durationMs: loadingDuration });
-                
                 setIsLoading(false);
                 loadingStartTimeRef.current = null;
-                
                 // Limpiar fallback timeout si existe
                 if (fallbackTimeoutRef.current) {
                     clearTimeout(fallbackTimeoutRef.current);
@@ -72,7 +67,6 @@ export function usePageLoading() {
                 '⚠️ TIMEOUT DE FALLBACK: La carga se completó por timeout (10s)',
                 { pathname, actualProgress: progress }
             );
-            
             setProgress(100);
             setTimeout(() => {
                 setIsLoading(false);

@@ -11,7 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indicator';
 import { cn } from '@/lib/utils';
 import { commercialItems, planningItems, coreOpsItems, reportingItems, adminItems, type MenuItem } from '@/lib/nav-config';
 import { ServiceOrderSearch } from '@/components/dashboard/service-order-search';
@@ -159,7 +159,7 @@ export default function DashboardPage() {
     }, []);
 
     if (loading || !metrics) {
-        return <LoadingSkeleton title="Cargando Panel de Control..." />;
+        return <GlobalLoadingIndicator />;
     }
 
     return (

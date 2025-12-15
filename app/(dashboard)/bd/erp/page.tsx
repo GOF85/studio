@@ -28,7 +28,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indicator';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
@@ -556,7 +556,7 @@ function ArticulosERPPageContent() {
     };
 
     if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Artículos ERP..." />;
+        return <GlobalLoadingIndicator />;
     }
 
     return (
@@ -849,7 +849,7 @@ function ArticulosERPPageContent() {
 
 export default function ArticulosERPPage() {
     return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Artículos ERP..." />}>
+        <Suspense fallback={<GlobalLoadingIndicator />}> 
             <ArticulosERPPageContent />
         </Suspense>
     )
