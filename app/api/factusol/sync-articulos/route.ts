@@ -290,41 +290,39 @@ export async function POST() {
             // Determine comparison price: historical if exists, otherwise current DB price
             const lastPrice = historicalPrice !== undefined ? historicalPrice : currentDbPrice;
             
-            // Skip if price hasn't changed (including when prices are the same in DB)
-            // Only register if: (1) it's a new article (no previous price), OR (2) price changed significantly
+            // Skip if price hasn't changed
             if (lastPrice !== undefined && Math.abs(newPrice - lastPrice) < 0.001) {
-                continue; // Price unchanged, skip registration
+                continue; // Price unchanged, skip this article entirely
             }
             
-            // Additional check: if article exists in DB and has the same price as before, skip it
-            if (currentDbPrice !== undefined && historicalPrice === undefined && Math.abs(newPrice - currentDbPrice) < 0.001) {
-                continue; // Price hasn't changed since last DB sync
+            // If there's no previous price at all (completely new article), decide if it's worth registering
+            // Skip articles with zero price (they're inactive)
+            if (lastPrice === undefined && newPrice === 0) {
+                continue; // New article with zero price - not worth tracking
             }
 
-            // Price has changed or is new, register it
-            const variacionPorcentaje = lastPrice && lastPrice !== 0
-                ? ((newPrice - lastPrice) / Math.abs(lastPrice)) * 100 
-                : 0;
+            // Only price changes warrant a history entry (not new articles)
+            if (lastPrice !== undefined) {
+                // This is a REAL price change
+                const variacionPorcentaje = lastPrice && lastPrice !== 0
+                    ? ((newPrice - lastPrice) / Math.abs(lastPrice)) * 100 
+                    : 0;
 
-            priceHistoryEntries.push({
-                articulo_erp_id: newArticulo.erp_id,
-                fecha: today,
-                precio_calculado: newPrice,
-                proveedor_id: newArticulo.proveedor_id,
-                variacion_porcentaje: parseFloat(variacionPorcentaje.toFixed(2)),
-            });
+                priceHistoryEntries.push({
+                    articulo_erp_id: newArticulo.erp_id,
+                    fecha: today,
+                    precio_calculado: newPrice,
+                    proveedor_id: newArticulo.proveedor_id,
+                    variacion_porcentaje: parseFloat(variacionPorcentaje.toFixed(2)),
+                });
 
-            // Guardar detalles para mostrar en logs (SOLO para cambios REALES, no los sin cambio)
-            if (variacionPorcentaje !== 0 || lastPrice === undefined) {
-                const priceDisplay = lastPrice !== undefined 
-                    ? `€${lastPrice.toFixed(2)} → €${newPrice.toFixed(2)}`
-                    : `€0.00 → €${newPrice.toFixed(2)} (NUEVO)`;
-                const changeDisplay = lastPrice !== undefined
-                    ? `${variacionPorcentaje > 0 ? '🔴 +' : variacionPorcentaje < 0 ? '🟢 ' : '➖ '}${Math.abs(variacionPorcentaje).toFixed(2)}%`
-                    : '(Artículo nuevo en BD)';
+                // Show detail only for REAL price changes
+                const priceDisplay = `€${lastPrice.toFixed(2)} → €${newPrice.toFixed(2)}`;
+                const changeDisplay = `${variacionPorcentaje > 0 ? '🔴 +' : variacionPorcentaje < 0 ? '🟢 ' : '➖ '}${Math.abs(variacionPorcentaje).toFixed(2)}%`;
                 const formatted = `${newArticulo.nombre} (${newArticulo.erp_id}): ${priceDisplay} ${changeDisplay}`;
                 priceChangesDetail.push(formatted);
             }
+            // New articles (lastPrice === undefined && newPrice > 0) are NOT logged - they're noise
         }
 
         debugLog.push(`Total cambios detectados: ${priceHistoryEntries.length}`);
