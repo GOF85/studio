@@ -314,15 +314,17 @@ export async function POST() {
                 variacion_porcentaje: parseFloat(variacionPorcentaje.toFixed(2)),
             });
 
-            // Guardar detalles para mostrar en logs (SOLO para cambios reales registrados)
-            const priceDisplay = lastPrice !== undefined 
-                ? `€${lastPrice.toFixed(2)} → €${newPrice.toFixed(2)}`
-                : `€0.00 → €${newPrice.toFixed(2)} (NUEVO)`;
-            const changeDisplay = lastPrice !== undefined
-                ? `${variacionPorcentaje > 0 ? '🔴 +' : variacionPorcentaje < 0 ? '🟢 ' : '➖ '}${Math.abs(variacionPorcentaje).toFixed(2)}%`
-                : '(Artículo nuevo en BD)';
-            const formatted = `${newArticulo.nombre} (${newArticulo.erp_id}): ${priceDisplay} ${changeDisplay}`;
-            priceChangesDetail.push(formatted);
+            // Guardar detalles para mostrar en logs (SOLO para cambios REALES, no los sin cambio)
+            if (variacionPorcentaje !== 0 || lastPrice === undefined) {
+                const priceDisplay = lastPrice !== undefined 
+                    ? `€${lastPrice.toFixed(2)} → €${newPrice.toFixed(2)}`
+                    : `€0.00 → €${newPrice.toFixed(2)} (NUEVO)`;
+                const changeDisplay = lastPrice !== undefined
+                    ? `${variacionPorcentaje > 0 ? '🔴 +' : variacionPorcentaje < 0 ? '🟢 ' : '➖ '}${Math.abs(variacionPorcentaje).toFixed(2)}%`
+                    : '(Artículo nuevo en BD)';
+                const formatted = `${newArticulo.nombre} (${newArticulo.erp_id}): ${priceDisplay} ${changeDisplay}`;
+                priceChangesDetail.push(formatted);
+            }
         }
 
         debugLog.push(`Total cambios detectados: ${priceHistoryEntries.length}`);
