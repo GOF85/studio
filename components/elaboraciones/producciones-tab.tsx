@@ -25,6 +25,8 @@ import {
 import { Trash2, Edit2, TrendingDown, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { calcularMediaProducciones, calcularConfianza, formatearAjuste } from '@/lib/elaboraciones-helpers';
+import { calcularEscandallosSugeridos, EscandalloAjuste } from '@/lib/escandallo-update-helper';
+import { EscandalloSugeridoDialog } from './escandallo-sugerido-dialog';
 import { supabase } from '@/lib/supabase';
 
 interface ProduccionesTabProps {
@@ -47,6 +49,8 @@ export function ProduccionesTab({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [media, setMedia] = useState<MediaProducciones | null>(null);
+  const [escandallosDialog, setEscandallosDialog] = useState(false);
+  const [escandallosSugeridos, setEscandallosSugeridos] = useState<EscandalloAjuste[]>([]);
   const { toast } = useToast();
 
   // Cargar producciones
@@ -79,6 +83,14 @@ export function ProduccionesTab({
 
         if (onProduccionesLoaded) {
           onProduccionesLoaded(mediaCalc);
+        }
+
+        // Calcular escandallos sugeridos si hay al menos 2 producciones
+        if (typedData.length >= 2) {
+          const sugeridos = await calcularEscandallosSugeridos(elaboracionId, 5);
+          if (sugeridos.length > 0) {
+            setEscandallosSugeridos(sugeridos);
+          }
         }
       } catch (e: any) {
         console.error(e);
@@ -278,6 +290,37 @@ export function ProduccionesTab({
           </AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog for suggested escandallo updates */}
+      <EscandalloSugeridoDialog
+        isOpen={escandallosDialog}
+        onClose={() => setEscandallosDialog(false)}
+        ajustes={escandallosSugeridos}
+        elaboracionId={elaboracionId}
+        onSuccess={async () => {
+          // Reload suggestions after successful update
+          const sugeridos = await calcularEscandallosSugeridos(elaboracionId, 5);
+          setEscandallosSugeridos(sugeridos);
+          setEscandallosDialog(false);
+        }}
+      />
+
+      {/* Button to trigger suggestions dialog when there are suggestions */}
+      {escandallosSugeridos.length > 0 && (
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-blue-900">
+              Se detectaron {escandallosSugeridos.length} posible(s) mejora(s) en los escandallos basadas en las producciones
+            </p>
+            <button
+              onClick={() => setEscandallosDialog(true)}
+              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+            >
+              Revisar Cambios
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

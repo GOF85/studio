@@ -41,12 +41,12 @@ const componenteProducidoSchema = z.object({
   nombre: z.string(),
   cantidad_planificada: z.coerce.number().min(0),
   cantidad_real: z.coerce.number().min(0),
-  merma_real: z.coerce.number().min(0),
-  merma_porcentaje: z.coerce.number().min(0).max(100),
+  merma: z.coerce.number().min(0),
 });
 
 const produccionFormSchema = z.object({
-  cantidad_real_producida: z.coerce.number().min(0.001, 'La cantidad debe ser mayor a 0'),
+  cantidad_a_producir: z.coerce.number().min(0.001, 'La cantidad debe ser mayor a 0'),
+  cantidad_final_producida: z.coerce.number().min(0.001, 'La cantidad final debe ser mayor a 0'),
   componentes_utilizados: z.array(componenteProducidoSchema),
   observaciones: z.string().optional().default(''),
 });
@@ -59,6 +59,7 @@ interface AñadirProduccionDialogProps {
   elaboracionId: string;
   componentesBase: ComponenteElaboracion[];
   cantidadPlanificada: number;
+  unidadProduccion: string;
   onSuccess: () => void;
   editingProduccion?: ElaboracionProduccion | null;
 }
@@ -69,6 +70,7 @@ export function AñadirProduccionDialog({
   elaboracionId,
   componentesBase,
   cantidadPlanificada,
+  unidadProduccion,
   onSuccess,
   editingProduccion,
 }: AñadirProduccionDialogProps) {
@@ -76,23 +78,21 @@ export function AñadirProduccionDialog({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const defaultValues: ProduccionFormValues = {
-    cantidad_real_producida: cantidadPlanificada || 1,
-    componentes_utilizados: (componentesBase || []).map(c => ({
-      componenteId: c.componenteId || '',
-      nombre: c.nombre || '',
-      cantidad_planificada: c.cantidad || 0,
-      cantidad_real: c.cantidad || 0,
-      merma_real: 0,
-      merma_porcentaje: 0,
-    })),
-    observaciones: '',
-  };
-
   const form = useForm<ProduccionFormValues>({
     resolver: zodResolver(produccionFormSchema),
     mode: 'onChange',
-    defaultValues,
+    defaultValues: {
+      cantidad_a_producir: cantidadPlanificada || 1,
+      cantidad_final_producida: cantidadPlanificada || 1,
+      componentes_utilizados: (componentesBase || []).map(c => ({
+        componenteId: c.componenteId || '',
+        nombre: c.nombre || '',
+        cantidad_planificada: c.cantidad || 0,
+        cantidad_real: c.cantidad || 0,
+        merma: 0,
+      })),
+      observaciones: '',
+    },
   });
 
   const { fields } = useFieldArray({
@@ -100,39 +100,87 @@ export function AñadirProduccionDialog({
     name: 'componentes_utilizados',
   });
 
-  // Resetear form cuando se abre/cambia - solo por isOpen y editingProduccion
+  const cantidadAProducir = form.watch('cantidad_a_producir');
+
+  // Resetear form cuando se abre/cambia
   useEffect(() => {
     if (!isOpen) return;
 
     if (editingProduccion) {
       form.reset({
-        cantidad_real_producida: editingProduccion.cantidad_real_producida || cantidadPlanificada,
-        componentes_utilizados: (editingProduccion.componentes_utilizados || []).length > 0 
-          ? editingProduccion.componentes_utilizados 
-          : defaultValues.componentes_utilizados,
+        cantidad_a_producir: editingProduccion.cantidad_real_producida || cantidadPlanificada,
+        cantidad_final_producida: editingProduccion.cantidad_real_producida || cantidadPlanificada,
+        componentes_utilizados: (editingProduccion.componentes_utilizados || []).length > 0
+          ? editingProduccion.componentes_utilizados
+          : (componentesBase || []).map(c => ({
+              componenteId: c.componenteId || '',
+              nombre: c.nombre || '',
+              cantidad_planificada: c.cantidad || 0,
+              cantidad_real: c.cantidad || 0,
+              merma: 0,
+            })),
         observaciones: editingProduccion.observaciones || '',
       });
     } else {
-      form.reset(defaultValues);
+      form.reset({
+        cantidad_a_producir: cantidadPlanificada || 1,
+        cantidad_final_producida: cantidadPlanificada || 1,
+        componentes_utilizados: (componentesBase || []).map(c => ({
+          componenteId: c.componenteId || '',
+          nombre: c.nombre || '',
+          cantidad_planificada: c.cantidad || 0,
+          cantidad_real: c.cantidad || 0,
+          merma: 0,
+        })),
+        observaciones: '',
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editingProduccion?.id]);
 
+  // Calcular escandallo planificado cuando cantidad_a_producir cambia
+  useEffect(() => {
+    const componentes = form.getValues('componentes_utilizados');
+
+    componentes.forEach((comp, index) => {
+      const cantidadBase = componentesBase?.[index]?.cantidad || 0;
+      const planificada = cantidadBase * (cantidadAProducir || 0);
+
+      form.setValue(`componentes_utilizados.${index}.cantidad_planificada`, planificada);
+      form.setValue(`componentes_utilizados.${index}.cantidad_real`, planificada);
+    });
+  }, [cantidadAProducir, componentesBase, form]);
+
   const onSubmit = async (data: ProduccionFormValues) => {
     try {
       if (!user?.email) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No hay usuario autenticado' });
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'No hay usuario autenticado',
+        });
         return;
       }
 
       setIsLoading(true);
 
+      // Calcular ratio de producción
+      const ratioProduccion =
+        (data.cantidad_final_producida || 0) / (data.cantidad_a_producir || 1);
+
       const produccionData = {
         elaboracion_id: elaboracionId,
         fecha_produccion: new Date().toISOString(),
         responsable: user.email,
-        cantidad_real_producida: data.cantidad_real_producida,
-        componentes_utilizados: data.componentes_utilizados,
+        cantidad_real_producida: data.cantidad_final_producida,
+        ratio_produccion: parseFloat(ratioProduccion.toFixed(4)),
+        componentes_utilizados: data.componentes_utilizados.map(c => ({
+          componenteId: c.componenteId,
+          nombre: c.nombre,
+          cantidad_planificada: parseFloat(c.cantidad_planificada.toFixed(6)),
+          cantidad_utilizada: parseFloat(c.cantidad_real.toFixed(6)),
+          merma: parseFloat(c.merma.toFixed(6)),
+        })),
         observaciones: data.observaciones || '',
       };
 
@@ -161,15 +209,14 @@ export function AñadirProduccionDialog({
         throw new Error(error.message || 'Error al guardar la producción');
       }
 
-      form.reset(defaultValues);
       onSuccess();
       onClose();
     } catch (e: any) {
       console.error('Error saving production:', e);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Error', 
-        description: e?.message || 'Error desconocido al guardar' 
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: e?.message || 'Error desconocido al guardar',
       });
     } finally {
       setIsLoading(false);
@@ -183,11 +230,7 @@ export function AñadirProduccionDialog({
 
       const comp = { ...componentes[index] };
       comp.cantidad_real = newValue;
-
-      if (comp.cantidad_planificada > 0) {
-        comp.merma_real = Math.max(0, comp.cantidad_planificada - comp.cantidad_real);
-        comp.merma_porcentaje = (comp.merma_real / comp.cantidad_planificada) * 100;
-      }
+      comp.merma = Math.max(0, comp.cantidad_planificada - comp.cantidad_real);
 
       componentes[index] = comp;
       form.setValue('componentes_utilizados', componentes, { shouldDirty: true });
@@ -198,90 +241,147 @@ export function AñadirProduccionDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] sm:max-h-[85vh] overflow-y-auto p-3 sm:p-6">
+        <DialogHeader className="mb-2">
+          <DialogTitle className="text-base sm:text-lg">
             {editingProduccion ? 'Editar Producción' : 'Registrar Nueva Producción'}
           </DialogTitle>
         </DialogHeader>
 
         {form ? (
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              
-              {/* CANTIDAD REAL PRODUCIDA */}
-              <FormField
-                control={form.control}
-                name="cantidad_real_producida"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-semibold">Cantidad Real Producida</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                        value={field.value || ''}
-                        className="text-base h-10"
-                        placeholder="Ej: 50"
-                        autoFocus
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
+              {/* CANTIDAD A PRODUCIR */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <FormField
+                  control={form.control}
+                  name="cantidad_a_producir"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Cantidad a Producir ({unidadProduccion})
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          {...field}
+                          onChange={e =>
+                            field.onChange(
+                              e.target.value === '' ? '' : parseFloat(e.target.value)
+                            )
+                          }
+                          value={field.value || ''}
+                          className="text-sm sm:text-base h-11 sm:h-10 font-semibold touch-manipulation"
+                          placeholder={`Ej: ${cantidadPlanificada}`}
+                          autoFocus
+                        />
+                      </FormControl>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
 
-              {/* COMPONENTES UTILIZADOS */}
-              <div className="space-y-3">
-                <FormLabel className="text-sm font-semibold">Componentes Utilizados</FormLabel>
-                <div className="border rounded-lg overflow-hidden bg-white">
-                  <Table className="text-sm">
-                    <TableHeader className="bg-slate-100">
+                {/* CANTIDAD FINAL PRODUCIDA */}
+                <FormField
+                  control={form.control}
+                  name="cantidad_final_producida"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Cantidad Final ({unidadProduccion})
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          {...field}
+                          onChange={e =>
+                            field.onChange(
+                              e.target.value === '' ? '' : parseFloat(e.target.value)
+                            )
+                          }
+                          value={field.value || ''}
+                          className="text-sm sm:text-base h-11 sm:h-10 font-semibold touch-manipulation"
+                          placeholder={`Ej: ${cantidadPlanificada}`}
+                        />
+                      </FormControl>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* COMPONENTES - TABLA ÚNICA COMPACTA */}
+              <div className="space-y-2">
+                <FormLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Detalles de Componentes
+                </FormLabel>
+                <div className="border rounded-lg overflow-x-auto bg-white shadow-sm -mx-3 sm:mx-0">
+                  <Table className="text-[11px] sm:text-xs">
+                    <TableHeader className="bg-slate-100 border-b sticky top-0">
                       <TableRow>
-                        <TableHead className="text-sm py-3 px-4 font-semibold">Componente</TableHead>
-                        <TableHead className="text-sm py-3 px-4 font-semibold text-right">Planificado</TableHead>
-                        <TableHead className="text-sm py-3 px-4 font-semibold text-right">Real Utilizado</TableHead>
-                        <TableHead className="text-sm py-3 px-4 font-semibold text-right">Merma %</TableHead>
+                        <TableHead className="py-2 px-2 sm:px-3 font-semibold text-left w-[45%] sm:w-[40%]">
+                          Ingrediente
+                        </TableHead>
+                        <TableHead className="py-2 px-1.5 sm:px-2 font-semibold text-right w-[15%] sm:w-[15%]">
+                          Plan.
+                        </TableHead>
+                        <TableHead className="py-2 px-1.5 sm:px-2 font-semibold text-right w-[20%]">
+                          Real
+                        </TableHead>
+                        <TableHead className="py-2 px-1.5 sm:px-2 font-semibold text-right w-[15%] text-red-600">
+                          Merma
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {fields && fields.length > 0 ? (
                         fields.map((field, index) => {
-                          const cantidadReal = form.watch(`componentes_utilizados.${index}.cantidad_real`) || 0;
-                          const mermaPorc = form.watch(`componentes_utilizados.${index}.merma_porcentaje`) || 0;
-                          const planificada = form.watch(`componentes_utilizados.${index}.cantidad_planificada`) || 0;
-                          const nombre = form.watch(`componentes_utilizados.${index}.nombre`) || 'Sin nombre';
-                          
+                          const cantidadPlan =
+                            form.watch(`componentes_utilizados.${index}.cantidad_planificada`) ||
+                            0;
+                          const cantidadReal =
+                            form.watch(`componentes_utilizados.${index}.cantidad_real`) || 0;
+                          const merma =
+                            form.watch(`componentes_utilizados.${index}.merma`) || 0;
+                          const nombre =
+                            form.watch(`componentes_utilizados.${index}.nombre`) ||
+                            'Sin nombre';
+
                           return (
-                            <TableRow key={field.id} className="border-t hover:bg-slate-50">
-                              <TableCell className="py-3 px-4 font-medium">
-                                {nombre}
+                            <TableRow key={field.id} className="border-b hover:bg-slate-50">
+                              <TableCell className="py-2 px-2 sm:px-3 font-medium truncate text-left">
+                                <span className="line-clamp-2">{nombre}</span>
                               </TableCell>
-                              <TableCell className="py-3 px-4 text-right text-slate-600">
-                                {Number(planificada).toFixed(2)}
+                              <TableCell className="py-2 px-1.5 sm:px-2 text-right font-mono text-slate-600 whitespace-nowrap">
+                                {Number(cantidadPlan).toFixed(3)}
                               </TableCell>
-                              <TableCell className="py-3 px-4 text-right">
+                              <TableCell className="py-2 px-1.5 sm:px-2 text-right">
                                 <Input
                                   type="number"
-                                  step="0.01"
+                                  step="0.001"
                                   value={cantidadReal || ''}
-                                  onChange={(e) => handleComponenteChange(index, parseFloat(e.target.value) || 0)}
-                                  className="h-9 text-right font-medium"
+                                  onChange={e =>
+                                    handleComponenteChange(
+                                      index,
+                                      parseFloat(e.target.value) || 0
+                                    )
+                                  }
+                                  className="h-8 sm:h-7 text-right font-mono text-xs sm:text-sm px-1 touch-manipulation"
                                   placeholder="0"
                                   min="0"
                                 />
                               </TableCell>
-                              <TableCell className="py-3 px-4 text-right font-semibold text-red-600">
-                                {Number(mermaPorc).toFixed(1)}%
+                              <TableCell className="py-2 px-1.5 sm:px-2 text-right font-mono font-semibold text-red-600 whitespace-nowrap">
+                                {Number(merma).toFixed(3)}
                               </TableCell>
                             </TableRow>
                           );
                         })
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={4} className="py-3 px-4 text-center text-slate-500">
+                          <TableCell colSpan={4} className="py-3 px-2 sm:px-3 text-center text-xs text-slate-500">
                             Sin componentes
                           </TableCell>
                         </TableRow>
@@ -297,43 +397,50 @@ export function AñadirProduccionDialog({
                 name="observaciones"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-semibold">Observaciones</FormLabel>
+                    <FormLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Observaciones (Opcional)
+                    </FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
                         value={field.value || ''}
                         placeholder="Notas sobre la producción..."
-                        rows={3}
-                        className="resize-none text-base"
+                        rows={2}
+                        className="resize-none text-sm h-16 sm:h-14 touch-manipulation"
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-xs" />
                   </FormItem>
                 )}
               />
 
               {/* FOOTER */}
-              <DialogFooter className="flex gap-2 pt-4 border-t">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+              <DialogFooter className="flex gap-2 pt-2 sm:pt-3 border-t mt-3 sm:mt-4 flex-col-reverse sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={onClose}
                   disabled={isLoading}
+                  className="text-sm h-10 sm:h-9 touch-manipulation"
                 >
                   Cancelar
                 </Button>
-                <Button 
-                  type="submit" 
-                  className="bg-blue-600 hover:bg-blue-700 text-white" 
+                <Button
+                  type="submit"
+                  className="bg-green-600 hover:bg-green-700 text-white text-sm h-10 sm:h-9 touch-manipulation font-semibold"
                   disabled={isLoading || !form.formState.isValid}
                 >
-                  {isLoading ? 'Guardando...' : editingProduccion ? 'Actualizar' : 'Registrar'}
+                  {isLoading
+                    ? 'Guardando...'
+                    : editingProduccion
+                      ? 'Actualizar'
+                      : 'Registrar'}
                 </Button>
               </DialogFooter>
             </form>
           </Form>
         ) : (
-          <div className="p-4 text-red-600">Error al cargar el formulario</div>
+          <div className="p-4 text-red-600 text-sm">Error al cargar el formulario</div>
         )}
       </DialogContent>
     </Dialog>

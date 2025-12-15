@@ -232,36 +232,42 @@ interface IngredientesDetailCardProps {
 
 function IngredientesDetailCard({ total, stats }: IngredientesDetailCardProps) {
     return (
-        <Link href="/book/ingredientes" className="block h-full">
-            <Card className="h-full border-amber-200/60 shadow-sm hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden flex flex-col bg-amber-50/10">
-                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                    <ChefHat className="w-24 h-24 text-amber-500" />
-                </div>
-                <CardHeader className="p-5 pb-2 relative z-10">
-                    <CardTitle className="text-base font-bold text-amber-700 uppercase tracking-wide flex items-center gap-2">
+        <Card className="h-full border-amber-200/60 shadow-sm hover:border-amber-300 transition-all group relative overflow-hidden flex flex-col bg-amber-50/10">
+            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                <ChefHat className="w-24 h-24 text-amber-500" />
+            </div>
+            <CardHeader className="p-5 pb-2 relative z-10">
+                <Link href="/book/ingredientes" className="w-fit group/title">
+                    <CardTitle className="text-base font-bold text-amber-700 uppercase tracking-wide flex items-center gap-2 group-hover/title:text-amber-800 transition-colors">
                         <ChefHat className="w-5 h-5" />
                         Ingredientes CPR
                     </CardTitle>
-                </CardHeader>
-                <CardContent className="p-5 pt-0 flex-1 relative z-10">
-                    <div className="flex items-baseline gap-2 mb-5">
-                        <span className="text-4xl font-extrabold text-foreground">{total}</span>
+                </Link>
+            </CardHeader>
+            <CardContent className="p-5 pt-0 pb-3 flex-1 relative z-10">
+                <Link href="/book/ingredientes" className="block w-fit group/count mb-5">
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-extrabold text-foreground group-hover/count:text-amber-700 transition-colors">{total}</span>
                         <span className="text-xs text-muted-foreground font-bold uppercase">Componentes</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                        {stats.slice(0, 6).map((cat) => (
-                            <div key={cat.label} className="flex justify-between items-center text-xs border-b border-dashed border-amber-200/50 pb-1">
-                                <span className="text-muted-foreground font-medium truncate max-w-[80%] capitalize" title={cat.label}>
-                                    {cat.label.toLowerCase()}
-                                </span>
-                                <span className="font-mono font-bold text-amber-900">{cat.count}</span>
-                            </div>
-                        ))}
-                        {stats.length === 0 && <span className="text-xs text-muted-foreground italic col-span-2">Sin categorizar</span>}
-                    </div>
-                </CardContent>
-            </Card>
-        </Link>
+                </Link>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                    {stats.map((cat) => (
+                        <Link
+                            key={cat.label}
+                            href={`/book/ingredientes?tipo=${encodeURIComponent(cat.label)}`}
+                            className="flex justify-between items-center text-xs border-b border-dashed border-amber-200/50 pb-0.5 hover:border-amber-400 transition-colors"
+                        >
+                            <span className="text-muted-foreground font-medium truncate max-w-[80%] capitalize hover:text-amber-700 transition-colors" title={cat.label}>
+                                {cat.label.toLowerCase()}
+                            </span>
+                            <span className="font-mono font-bold text-amber-900">{cat.count}</span>
+                        </Link>
+                    ))}
+                    {stats.length === 0 && <span className="text-xs text-muted-foreground italic col-span-2">Sin categorizar</span>}
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -324,8 +330,7 @@ export default function BookDashboardPage() {
         queryFn: async () => { 
             const { data, error } = await supabase
                 .from('articulos_erp')
-                .select('tipo')
-                .limit(500);
+                .select('tipo');
             if (error) throw error; 
             return data || []; 
         },

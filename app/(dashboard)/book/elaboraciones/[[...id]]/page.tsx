@@ -60,6 +60,19 @@ import Image from 'next/image';
 // 2. HELPERS PUROS & CONSTANTES
 // ----------------------------------------------------------------------
 
+// Función para generar UUID compatible con navegadores que no soportan crypto.randomUUID()
+const generateId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // Fallback para navegadores que no soportan randomUUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 const CSV_HEADERS_ELABORACIONES = ["id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotos", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion"];
 const CSV_HEADERS_COMPONENTES = ["id_elaboracion_padre", "tipo_componente", "id_componente", "cantidad", "merma"];
 
@@ -204,7 +217,7 @@ function ComponenteSelector({ onSelect }: ComponenteSelectorProps) {
                             <TableCell className="font-medium">{ing.nombreIngrediente}</TableCell>
                             <TableCell className="text-right">
                                 <DialogClose asChild>
-                                    <Button size="sm" onClick={() => onSelect({ id: crypto.randomUUID(), tipo: 'ingrediente', componenteId: ing.id, nombre: ing.nombreIngrediente, cantidad: 0, merma: 0, costePorUnidad: 0 })} className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs">
+                                    <Button size="sm" onClick={() => onSelect({ id: generateId(), tipo: 'ingrediente', componenteId: ing.id, nombre: ing.nombreIngrediente, cantidad: 0, merma: 0, costePorUnidad: 0 })} className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs">
                                         <PlusCircle className="h-3 w-3 mr-1" /> Añadir
                                     </Button>
                                 </DialogClose>
@@ -429,7 +442,7 @@ function ElaboracionesListPage() {
             let parsedFotos = [];
             try { parsedFotos = item.fotos ? JSON.parse(item.fotos) : []; } catch (e) { console.warn('Error fotos CSV', e); }
             return {
-                id: item.id || crypto.randomUUID(), 
+                id: item.id || generateId(), 
                 nombre: item.nombre,
                 partida: item.partidaProduccion || item.partida,
                 unidad_produccion: item.unidadProduccion,
@@ -687,7 +700,7 @@ function ElaborationFormPage() {
                 const components = (compsData || []).map((c: any) => {
                    const ing = ingMap.get(c.componente_id);
                    return {
-                       id: crypto.randomUUID(),
+                       id: generateId(),
                        tipo: c.tipo_componente === 'ARTICULO' ? 'ingrediente' : 'elaboracion',
                        componenteId: c.componente_id,
                        nombre: ing?.nombreIngrediente || 'Desconocido',
@@ -698,7 +711,7 @@ function ElaborationFormPage() {
                 });
 
                 elabToLoad = {
-                    id: isEditing ? elabData.id : crypto.randomUUID(),
+                    id: isEditing ? elabData.id : generateId(),
                     nombre: cloneId ? `${elabData.nombre} (Copia)` : elabData.nombre,
                     partidaProduccion: (elabData.partida || 'FRIO') as any, 
                     unidadProduccion: (elabData.unidad_produccion || 'KG') as any, 
@@ -715,7 +728,7 @@ function ElaborationFormPage() {
             }
         } else {
              elabToLoad = { 
-                 id: crypto.randomUUID(), 
+                 id: generateId(), 
                  nombre: '', 
                  produccionTotal: 1, 
                  unidadProduccion: 'KG' as const, 
@@ -819,31 +832,19 @@ function ElaborationFormPage() {
         <FormProvider {...form}>
             <form id="elaboration-form" onSubmit={form.handleSubmit(onSubmit)}>
                 
-                {/* BREADCRUMB & TABS HEADER */}
+                {/* TABS HEADER */}
                 <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
-                     {/* Breadcrumb */}
-                     <div className="flex items-center py-3 gap-2 border-b max-w-7xl mx-auto px-4">
-                         <Button variant="ghost" size="icon" type="button" onClick={() => router.push('/book/elaboraciones')} className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground">
-                            <ChevronLeft className="h-6 w-6" />
-                         </Button>
-                         <nav className="flex items-center gap-2 text-sm">
-                             <a href="/book" className="text-muted-foreground hover:text-foreground font-medium">Book Gastronómico</a>
-                             <span className="text-muted-foreground">/</span>
-                             <span className="font-medium text-foreground">Elaboraciones</span>
-                         </nav>
-                     </div>
-                     
                      {/* Tabs */}
                      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-                         <div className="max-w-7xl mx-auto px-4 pb-0">
-                             <TabsList className="w-full justify-start bg-transparent p-0 h-12 gap-0 rounded-none">
+                         <div className="max-w-7xl mx-auto px-2 sm:px-4 overflow-x-auto">
+                             <TabsList className="w-full justify-start bg-transparent p-0 h-10 sm:h-12 gap-0 rounded-none flex">
                                     {["Info. General", "Componentes", "Info. Preparación", "Producciones"].map((tab, i) => {
                                         const val = ["general", "componentes", "preparacion", "producciones"][i];
                                         return (
                                             <TabsTrigger 
                                                 key={val} 
                                                 value={val} 
-                                                className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent transition-all hover:text-foreground whitespace-nowrap"
+                                                className="rounded-none border-b-2 border-transparent px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent transition-all hover:text-foreground whitespace-nowrap flex-shrink-0"
                                             >
                                                 {tab}
                                             </TabsTrigger>
@@ -1035,6 +1036,7 @@ function ElaborationFormPage() {
             elaboracionId={idParam as string}
             componentesBase={watchedComponentes || []}
             cantidadPlanificada={watchedProduccionTotal || 1}
+            unidadProduccion={form.watch('unidadProduccion')}
             onSuccess={() => {
               setIsProduccionDialogOpen(false);
               setReloadProduccionesTrigger(prev => prev + 1);

@@ -33,6 +33,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { isBefore, subMonths, startOfToday, format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 
@@ -82,6 +83,7 @@ function ReviewPanelContent({
     onNavigate: (direction: 'prev' | 'next') => void
 }) {
     const [erpSearchTerm, setErpSearchTerm] = useState('');
+    const [alergenoTab, setAlergenoTab] = useState<'presentes' | 'trazas'>('presentes');
     const form = useForm<IngredienteFormValues>({
         resolver: zodResolver(ingredienteFormSchema),
         defaultValues: {
@@ -143,9 +145,9 @@ function ReviewPanelContent({
     return (
         <Form {...form}>
             <form id="review-form" className="flex flex-col h-full bg-background" onSubmit={(e) => e.preventDefault()}>
-                <ScrollArea className="flex-1 p-4 md:p-6">
-                    <div className="space-y-8 pb-20">
-                        <div className="space-y-4">
+                <ScrollArea className="flex-1 p-2.5 md:p-4">
+                    <div className="space-y-4 pb-10">
+                        <div className="space-y-2">
                             <FormField control={form.control} name="nombreIngrediente" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-muted-foreground uppercase text-xs font-bold tracking-wider">Nombre Interno</FormLabel>
@@ -216,84 +218,100 @@ function ReviewPanelContent({
                             </div>
                         </div>
 
-                        <div className="space-y-6">
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="p-1.5 bg-red-100 rounded text-red-700"><AlertCircle className="w-4 h-4" /></div>
-                                    <h4 className="font-bold text-sm uppercase text-red-900">Contiene (Ingrediente)</h4>
-                                </div>
-                                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 gap-2">
-                                    {ALERGENOS.map((alergeno) => {
-                                        const isSelected = currentPresentes?.includes(alergeno);
-                                        return (
-                                            <button
-                                                key={`presente-${alergeno}`}
-                                                type="button"
-                                                onClick={() => toggleAlergeno(alergeno, 'presentes')}
-                                                className={cn(
-                                                    "flex flex-col items-center justify-center p-2 rounded-lg border transition-all text-center h-20",
-                                                    isSelected 
-                                                        ? "bg-red-50 border-red-500 text-red-700 shadow-sm ring-1 ring-red-500" 
-                                                        : "bg-white border-muted hover:border-red-200 hover:bg-red-50/30 text-muted-foreground"
-                                                )}
-                                            >
-                                                <AlergenoIcon name={alergeno} className={cn("text-lg mb-1", isSelected && "scale-110")} />
-                                                <span className="text-[9px] font-medium leading-tight">{alergeno.replace('_', ' ')}</span>
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            </div>
+                        <div className="space-y-2">
+                            <Tabs value={alergenoTab} onValueChange={(v) => setAlergenoTab(v as 'presentes' | 'trazas')} className="w-full">
+                                <TabsList className="grid w-full grid-cols-2 h-8">
+                                    <TabsTrigger value="presentes" className="flex items-center gap-0.5 text-xs py-0.5 px-1">
+                                        <div className="p-0.5 bg-red-100 text-red-700 rounded text-xs"><AlertCircle className="w-2.5 h-2.5" /></div>
+                                        <span className="hidden sm:inline">Contiene</span>
+                                        <span className="sm:hidden">Contiene</span>
+                                    </TabsTrigger>
+                                    <TabsTrigger value="trazas" className="flex items-center gap-0.5 text-xs py-0.5 px-1">
+                                        <div className="p-0.5 bg-amber-100 text-amber-700 rounded text-xs"><Activity className="w-2.5 h-2.5" /></div>
+                                        <span className="hidden sm:inline">Trazas</span>
+                                        <span className="sm:hidden">Trazas</span>
+                                    </TabsTrigger>
+                                </TabsList>
 
-                            <div className="space-y-3 border-t pt-4 border-dashed">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="p-1.5 bg-amber-100 rounded text-amber-700"><Activity className="w-4 h-4" /></div>
-                                    <h4 className="font-bold text-sm uppercase text-amber-900">Puede Contener (Trazas)</h4>
-                                </div>
-                                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 gap-2">
-                                    {ALERGENOS.map((alergeno) => {
-                                        const isSelected = currentTrazas?.includes(alergeno);
-                                        const isPresente = currentPresentes?.includes(alergeno);
-                                        
-                                        return (
-                                            <button
-                                                key={`traza-${alergeno}`}
-                                                type="button"
-                                                disabled={isPresente}
-                                                onClick={() => toggleAlergeno(alergeno, 'trazas')}
-                                                className={cn(
-                                                    "flex flex-col items-center justify-center p-2 rounded-lg border transition-all text-center h-16",
-                                                    isPresente && "opacity-20 cursor-not-allowed bg-gray-50 border-transparent",
-                                                    !isPresente && isSelected && "bg-amber-50 border-amber-500 text-amber-800 shadow-sm ring-1 ring-amber-500",
-                                                    !isPresente && !isSelected && "bg-white border-muted hover:border-amber-200 hover:bg-amber-50/30 text-muted-foreground"
-                                                )}
-                                            >
-                                                <span className="text-[9px] font-medium leading-tight">{alergeno.replace('_', ' ')}</span>
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            </div>
+                                <TabsContent value="presentes" className="space-y-1 mt-2">
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <div className="p-0.5 bg-red-100 rounded text-red-700"><AlertCircle className="w-2 h-2" /></div>
+                                        <h4 className="font-bold text-[10px] uppercase text-red-900">Contiene</h4>
+                                    </div>
+                                    <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 gap-1">
+                                        {ALERGENOS.map((alergeno) => {
+                                            const isSelected = currentPresentes?.includes(alergeno);
+                                            return (
+                                                <button
+                                                    key={`presente-${alergeno}`}
+                                                    type="button"
+                                                    onClick={() => toggleAlergeno(alergeno, 'presentes')}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-center p-1 rounded-md border transition-all text-center h-14",
+                                                        isSelected 
+                                                            ? "bg-red-50 border-red-500 text-red-700 shadow-sm ring-1 ring-red-500" 
+                                                            : "bg-white border-muted hover:border-red-200 hover:bg-red-50/30 text-muted-foreground"
+                                                    )}
+                                                >
+                                                    <AlergenoIcon name={alergeno} className={cn("text-sm mb-0.5", isSelected && "scale-110")} />
+                                                    <span className="text-[7px] font-medium leading-tight">{alergeno.replace('_', ' ')}</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="trazas" className="space-y-1 mt-2">
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <div className="p-0.5 bg-amber-100 rounded text-amber-700"><Activity className="w-2 h-2" /></div>
+                                        <h4 className="font-bold text-[10px] uppercase text-amber-900">Puede Contener</h4>
+                                    </div>
+                                    <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 gap-1">
+                                        {ALERGENOS.map((alergeno) => {
+                                            const isSelected = currentTrazas?.includes(alergeno);
+                                            const isPresente = currentPresentes?.includes(alergeno);
+                                            
+                                            return (
+                                                <button
+                                                    key={`traza-${alergeno}`}
+                                                    type="button"
+                                                    disabled={isPresente}
+                                                    onClick={() => toggleAlergeno(alergeno, 'trazas')}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-center p-1 rounded-md border transition-all text-center h-12",
+                                                        isPresente && "opacity-20 cursor-not-allowed bg-gray-50 border-transparent",
+                                                        !isPresente && isSelected && "bg-amber-50 border-amber-500 text-amber-800 shadow-sm ring-1 ring-amber-500",
+                                                        !isPresente && !isSelected && "bg-white border-muted hover:border-amber-200 hover:bg-amber-50/30 text-muted-foreground"
+                                                    )}
+                                                >
+                                                    <span className="text-[7px] font-medium leading-tight">{alergeno.replace('_', ' ')}</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
                         </div>
                     </div>
                 </ScrollArea>
 
-                <div className="p-4 border-t bg-background/95 backdrop-blur flex items-center justify-between gap-3">
-                    <Button variant="outline" type="button" size="icon" onClick={() => onNavigate('prev')} disabled={!hasPrev}>
-                         <ChevronLeft className="h-5 w-5" />
+                <div className="px-2.5 py-2 border-t bg-background/95 backdrop-blur flex items-center justify-between gap-1.5 sticky bottom-0">
+                    <Button variant="outline" type="button" size="sm" onClick={() => onNavigate('prev')} disabled={!hasPrev} className="h-7 w-7 p-0 text-xs">
+                         <ChevronLeft className="h-3 w-3" />
                     </Button>
                     
-                    <div className="flex gap-2 flex-1 justify-end">
-                         <Button variant="secondary" onClick={form.handleSubmit((d) => onSave(d, 'save'))} className="hidden sm:flex">
+                    <div className="flex gap-1.5 flex-1 justify-end">
+                         <Button variant="secondary" onClick={form.handleSubmit((d) => onSave(d, 'save'))} className="hidden sm:flex text-[10px] h-7 px-2" size="sm">
                             Guardar
                          </Button>
 
                          <Button 
-                            className={cn("flex-1 sm:flex-none sm:w-auto font-bold shadow-md", hasNext ? "bg-emerald-600 hover:bg-emerald-700" : "")} 
+                            className={cn("flex-1 sm:flex-none sm:w-auto font-bold shadow-md text-[10px] h-7 px-2", hasNext ? "bg-emerald-600 hover:bg-emerald-700" : "")} 
+                            size="sm"
                             onClick={form.handleSubmit((d) => onSave(d, 'save_next'))}
                          >
-                            {hasNext ? 'Validar y Siguiente' : 'Finalizar Revisión'}
-                            {hasNext ? <ChevronsRight className="ml-2 h-4 w-4" /> : <Check className="ml-2 h-4 w-4" />}
+                            {hasNext ? 'Siguiente' : 'Finalizar'}
+                            {hasNext ? <ChevronsRight className="ml-0.5 h-2.5 w-2.5" /> : <Check className="ml-0.5 h-2.5 w-2.5" />}
                          </Button>
                     </div>
                 </div>
@@ -316,6 +334,8 @@ function IngredientesPageContent() {
     
     const searchParams = useSearchParams() ?? new URLSearchParams();
     const [showOnlyPending, setShowOnlyPending] = useState(() => searchParams.get('pending') !== 'false');
+    const [tipoFilter, setTipoFilter] = useState(() => searchParams.get('tipo') || '');
+    const [categoriaFilter, setCategoriaFilter] = useState(() => searchParams.get('categoria') || '');
     const [editingItem, setEditingItem] = useState<IngredienteConERP | null>(null);
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
@@ -482,6 +502,20 @@ function IngredientesPageContent() {
             
             if (showOnlyPending && !needsReview) return false;
 
+            // Filtrar por tipo si está especificado
+            if (tipoFilter) {
+                const itemTipo = (item.erp?.tipo || 'OTROS').toUpperCase().trim();
+                const filterTipo = tipoFilter.toUpperCase().trim();
+                if (itemTipo !== filterTipo) return false;
+            }
+
+            // Filtrar por categoría si está especificado
+            if (categoriaFilter) {
+                const itemCategoria = (item.erp?.tipo || 'OTROS').toUpperCase().trim();
+                const filterCategoria = categoriaFilter.toUpperCase().trim();
+                if (itemCategoria !== filterCategoria) return false;
+            }
+
             const term = searchTerm.toLowerCase();
             return (
                 item.nombreIngrediente.toLowerCase().includes(term) ||
@@ -495,7 +529,7 @@ function IngredientesPageContent() {
             if (!a.needsReview && b.needsReview) return 1;
             return a.nombreIngrediente.localeCompare(b.nombreIngrediente);
         });
-    }, [ingredientes, searchTerm, showOnlyPending]);
+    }, [ingredientes, searchTerm, showOnlyPending, tipoFilter, categoriaFilter]);
 
     const editingIndex = useMemo(() => {
         if (!editingItem) return -1;
@@ -555,6 +589,20 @@ function IngredientesPageContent() {
         }
     };
 
+    // Calcular categorías únicas disponibles
+    const categoriasDisponibles = useMemo(() => {
+        const cats = new Map<string, number>();
+        ingredientes.forEach(item => {
+            const cat = (item.erp?.tipo || 'OTROS').trim();
+            if (cat) {
+                cats.set(cat, (cats.get(cat) || 0) + 1);
+            }
+        });
+        return Array.from(cats.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([categoria, count]) => ({ categoria, count }));
+    }, [ingredientes]);
+
     if (!isMounted) return <LoadingSkeleton title="Cargando..." />;
 
     const paginatedItems = filteredItems.slice(0, currentPage * ITEMS_PER_PAGE);
@@ -585,6 +633,32 @@ function IngredientesPageContent() {
                             {showOnlyPending ? <AlertCircle className="mr-2 h-4 w-4" /> : <Check className="mr-2 h-4 w-4" />}
                             {showOnlyPending ? "Pendientes" : "Todos"}
                         </Button>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant={categoriaFilter ? "default" : "outline"} size="sm" className="h-9">
+                                    {categoriaFilter ? `Categoría: ${categoriaFilter}` : 'Categorías'}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="max-h-96 overflow-y-auto">
+                                <DropdownMenuItem onClick={() => setCategoriaFilter('')} className={!categoriaFilter ? 'bg-primary/10' : ''}>
+                                    <Check className={cn("mr-2 h-4 w-4", !categoriaFilter ? "opacity-100" : "opacity-0")} />
+                                    Todas las categorías
+                                </DropdownMenuItem>
+                                {categoriasDisponibles.map(({ categoria, count }) => (
+                                    <DropdownMenuItem 
+                                        key={categoria}
+                                        onClick={() => setCategoriaFilter(categoria)}
+                                        className={categoriaFilter === categoria ? 'bg-primary/10' : ''}
+                                    >
+                                        <Check className={cn("mr-2 h-4 w-4", categoriaFilter === categoria ? "opacity-100" : "opacity-0")} />
+                                        <span>{categoria}</span>
+                                        <span className="ml-auto text-xs text-muted-foreground">({count})</span>
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="icon"><Menu className="h-4 w-4" /></Button>
@@ -605,6 +679,29 @@ function IngredientesPageContent() {
 
             {/* CONTENIDO PRINCIPAL: LÓGICA MOBILE VS DESKTOP */}
             <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4">
+                
+                {/* Mostrar filtros activos */}
+                {(tipoFilter || categoriaFilter) && (
+                    <div className="mb-4 flex items-center gap-2 flex-wrap">
+                        <span className="text-sm text-muted-foreground">Filtros activos:</span>
+                        {tipoFilter && (
+                            <Badge variant="secondary" className="flex items-center gap-1">
+                                Tipo: {tipoFilter}
+                                <button onClick={() => setTipoFilter('')} className="ml-1 hover:text-destructive">
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </Badge>
+                        )}
+                        {categoriaFilter && (
+                            <Badge variant="secondary" className="flex items-center gap-1">
+                                Categoría: {categoriaFilter}
+                                <button onClick={() => setCategoriaFilter('')} className="ml-1 hover:text-destructive">
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </Badge>
+                        )}
+                    </div>
+                )}
                 
                 {isMobile ? (
                     /* --- VISTA MÓVIL (Lista Infinita) --- */
@@ -664,7 +761,6 @@ function IngredientesPageContent() {
                                     <TableHead>Precio</TableHead>
                                     <TableHead>Categoría</TableHead>
                                     <TableHead>Revisión</TableHead>
-                                    <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -707,17 +803,12 @@ function IngredientesPageContent() {
                                                 <TableCell className="text-xs">
                                                     {lastRev ? format(new Date(lastRev.fecha), 'dd/MM/yy') : 'Nunca'}
                                                 </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button size="sm" variant="ghost" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                </TableCell>
                                             </TableRow>
                                         )
                                     })
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                             No se encontraron ingredientes.
                                         </TableCell>
                                     </TableRow>
@@ -771,8 +862,8 @@ function IngredientesPageContent() {
             ) : (
                 // Solución al error DialogTitle: Añadido Header con título oculto
                 <Drawer open={!!editingItem} onOpenChange={(open: boolean) => !open && setEditingItem(null)}>
-                    <DrawerContent className="h-[90vh] flex flex-col">
-                        <DrawerHeader className="text-left">
+                    <DrawerContent className="h-[80vh] flex flex-col">
+                        <DrawerHeader className="text-left px-2.5 py-1.5">
                             <DrawerTitle className="sr-only">Editar Ingrediente</DrawerTitle>
                             <DrawerDescription className="sr-only">Formulario de revisión</DrawerDescription>
                         </DrawerHeader>
