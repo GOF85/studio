@@ -155,8 +155,8 @@ export async function POST() {
         // 5. Transaction: Delete All and Insert
         debugLog.push("Iniciando transacción en Supabase...");
 
-        // Store existing prices before deletion for comparison
-        debugLog.push("Guardando precios existentes para comparación...");
+        // Store existing articles from database for comparison
+        debugLog.push("Guardando artículos existentes para comparación...");
         const { data: existingArticulos } = await supabase
             .from('articulos_erp')
             .select('erp_id, precio');
@@ -164,6 +164,7 @@ export async function POST() {
         const existingPricesMap = new Map(
             (existingArticulos || []).map((a: any) => [a.erp_id, a.precio])
         );
+        debugLog.push(`Artículos existentes en BD: ${existingArticulos?.length || 0}`);
 
         // Debug specific article if requested (hardcoded for now or via header if we could)
         // We'll log details for a specific article if it exists in the new data
@@ -288,7 +289,7 @@ export async function POST() {
                 });
 
                 // Guardar detalles para mostrar en logs
-                const formatted = `${newArticulo.nombre} (${newArticulo.erp_id}): $${oldPrice?.toFixed(2) || '0.00'} → $${newPrice.toFixed(2)} ${variacionPorcentaje > 0 ? '🟢 +' : '🔴 '}${Math.abs(variacionPorcentaje).toFixed(2)}%`;
+                const formatted = `${newArticulo.nombre} (${newArticulo.erp_id}): $${oldPrice?.toFixed(2) || '0.00'} → $${newPrice.toFixed(2)} ${variacionPorcentaje > 0 ? '� +' : '🟢 '}${Math.abs(variacionPorcentaje).toFixed(2)}%`;
                 priceChangesDetail.push(formatted);
             }
         }
