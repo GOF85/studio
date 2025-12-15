@@ -316,10 +316,14 @@ function ArticulosERPPageContent() {
                 // --- Smart Snapshot Logic ---
                 const today = new Date();
 
-                // Fetch existing price history from Supabase
+                // Fetch existing price history from Supabase (optimized: last 30 days only)
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                
                 const { data: existingHistory } = await supabase
                     .from('historico_precios_erp')
-                    .select('*');
+                    .select('*')
+                    .gte('fecha', thirtyDaysAgo.toISOString());
 
                 const historicoPrecios: HistoricoPreciosERP[] = (existingHistory || []).map(h => ({
                     id: h.id,
@@ -441,6 +445,31 @@ function ArticulosERPPageContent() {
 
     return (
         <>
+            {isSyncing && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 space-y-6">
+                        <div className="flex justify-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                        </div>
+                        <div className="text-center space-y-2">
+                            <h2 className="text-xl font-bold">Sincronizando con Factusol...</h2>
+                            <p className="text-sm text-muted-foreground">Por favor espera mientras se actualizan los artículos.</p>
+                        </div>
+                        {syncLog.length > 0 && (
+                            <div className="bg-secondary rounded p-4 max-h-48 overflow-y-auto">
+                                <div className="text-xs space-y-1">
+                                    {syncLog.slice(-10).map((log, idx) => (
+                                        <div key={idx} className="text-muted-foreground font-mono">
+                                            {log}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-4 mb-4">
                 <Input
                     placeholder="Buscar..."

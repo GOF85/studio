@@ -344,8 +344,7 @@ export default function BookDashboardPage() {
             const sixMonthsAgo = subMonths(startOfToday(), 6); 
             const { data, error } = await supabase
                 .from('ingredientes_internos')
-                .select('id, historial_revisiones')
-                .limit(500);
+                .select('id, historial_revisiones');
             if (error) throw error; 
             return (data || []).filter(item => { 
                 const latestRevision = item.historial_revisiones?.[item.historial_revisiones.length - 1]; 

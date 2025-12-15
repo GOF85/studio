@@ -210,11 +210,17 @@ export async function POST() {
             const newPrice = newArticulo.precio;
 
             if (oldPrice === undefined || Math.abs(newPrice - oldPrice) > 0.001) {
+                // Calculate percentage change
+                const variacionPorcentaje = oldPrice 
+                    ? ((newPrice - oldPrice) / oldPrice) * 100 
+                    : 0;
+
                 priceHistoryEntries.push({
                     articulo_erp_id: newArticulo.erp_id,
                     fecha: today,
                     precio_calculado: newPrice,
                     proveedor_id: newArticulo.proveedor_id,
+                    variacion_porcentaje: parseFloat(variacionPorcentaje.toFixed(2)),
                 });
             }
         }
