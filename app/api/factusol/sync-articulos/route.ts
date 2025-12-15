@@ -174,30 +174,72 @@ export async function POST() {
             debugLog.push(`[DEBUG] Artículo ${debugId}: Precio anterior=${oldP}, Nuevo=${debugItem.precio}`);
         }
 
-        // Delete all existing records
-        const { error: deleteError } = await supabase
-            .from('articulos_erp')
-            .delete()
-            .gte('created_at', '1900-01-01'); // Always true condition to delete all
-
-        if (deleteError) throw new Error(`Error borrando datos antiguos: ${deleteError.message}`);
-        debugLog.push("Datos antiguos borrados.");
-
-        // Insert in chunks (Supabase has limits on request size)
+        // Insert or update in chunks (UPDATE + INSERT strategy)
+        // This preserves foreign key relationships with ingredientes_internos
+        debugLog.push("Sincronizando artículos (UPDATE + INSERT)...");
+        
         const chunks = chunkArray(articulosToInsert, 100);
+        let updatedCount = 0;
         let insertedCount = 0;
 
         for (const chunk of chunks) {
-            const { error: insertError } = await supabase.from('articulos_erp').insert(chunk);
-            if (insertError) {
-                debugLog.push(`Error en chunk: ${insertError.message}`);
-                throw new Error(`Error insertando bloque: ${insertError.message}`);
+            // Separate articles into existing and new
+            const existingIds = new Set(existingPricesMap.keys());
+            const toUpdate = chunk.filter((a: any) => existingIds.has(a.erp_id));
+            const toInsert = chunk.filter((a: any) => !existingIds.has(a.erp_id));
+
+            // Update existing articles
+            if (toUpdate.length > 0) {
+                for (const article of toUpdate) {
+                    const { error: updateError } = await supabase
+                        .from('articulos_erp')
+                        .update({
+                            nombre: article.nombre,
+                            referencia_proveedor: article.referencia_proveedor,
+                            proveedor_id: article.proveedor_id,
+                            nombre_proveedor: article.nombre_proveedor,
+                            familia_id: article.familia_id,
+                            familia_categoria: article.familia_categoria,
+                            tipo: article.tipo,
+                            categoria_mice: article.categoria_mice,
+                            precio_compra: article.precio_compra,
+                            descuento: article.descuento,
+                            unidad_conversion: article.unidad_conversion,
+                            precio: article.precio,
+                            precio_alquiler: article.precio_alquiler,
+                            unidad_medida: article.unidad_medida,
+                            merma_defecto: article.merma_defecto,
+                            stock_minimo: article.stock_minimo,
+                            alquiler: article.alquiler,
+                            observaciones: article.observaciones,
+                        })
+                        .eq('erp_id', article.erp_id);
+                    
+                    if (updateError) {
+                        debugLog.push(`⚠️ Error actualizando ${article.erp_id}: ${updateError.message}`);
+                    } else {
+                        updatedCount++;
+                    }
+                }
             }
-            insertedCount += chunk.length;
-            debugLog.push(`Insertados ${insertedCount}/${articulosToInsert.length} artículos...`);
+
+            // Insert new articles
+            if (toInsert.length > 0) {
+                const { error: insertError } = await supabase
+                    .from('articulos_erp')
+                    .insert(toInsert);
+                
+                if (insertError) {
+                    debugLog.push(`Error insertando: ${insertError.message}`);
+                    throw new Error(`Error inserting articles: ${insertError.message}`);
+                }
+                insertedCount += toInsert.length;
+            }
+
+            debugLog.push(`Procesados: ${updatedCount} actualizados + ${insertedCount} nuevos...`);
         }
 
-        debugLog.push(`✅ Sincronización completada. ${insertedCount} artículos insertados.`);
+        debugLog.push(`✅ Sincronización completada. ${updatedCount} artículos actualizados, ${insertedCount} insertados.`);
 
         // Track price history
         debugLog.push("Registrando historial de precios...");
@@ -246,7 +288,7 @@ export async function POST() {
             debugLog.push("No se detectaron cambios de precio.");
         }
 
-        return NextResponse.json({ success: true, count: insertedCount, priceChanges: priceHistoryEntries.length, debugLog });
+        return NextResponse.json({ success: true, count: updatedCount + insertedCount, priceChanges: priceHistoryEntries.length, debugLog });
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
