@@ -20,14 +20,21 @@ export async function GET() {
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      const write = (line: string) => controller.enqueue(encoder.encode(`data: ${line}\n\n`));
+      let logLines: string[] = [];
+      const write = (line: string) => {
+        logLines.push(line);
+        controller.enqueue(encoder.encode(`data: ${line}\n\n`));
+      };
       const event = (name: string, payload: any) => {
         controller.enqueue(encoder.encode(`event: ${name}\n`));
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
       };
 
       (async () => {
+        const startTime = Date.now();
         const debug = (msg: string) => write(msg);
+        let syncLogId: string | null = null;
+        let syncStatus: string = 'success';
         try {
           debug('Iniciando sincronización de Artículos (F_ART)...');
 
@@ -237,12 +244,39 @@ export async function GET() {
           }
 
           // Emit final result event for the client to act (reload, toast, etc.)
-          event('result', { success: true, count: (articulosToInsert.length), priceChanges: (priceHistoryEntries.length) });
+          // Guardar log en la BD
+          const { data: logInsert, error: logError } = await supabase
+            .from('sync_logs')
+            .insert({
+              type: 'articulos',
+              status: 'success',
+              log: logLines.join('\n'),
+              duration_ms: Date.now() - startTime,
+              extra: { count: articulosToInsert.length, priceChanges: priceHistoryEntries.length }
+            })
+            .select('id')
+            .single();
+          syncLogId = logInsert?.id || null;
+          event('result', { success: true, count: (articulosToInsert.length), priceChanges: (priceHistoryEntries.length), logId: syncLogId });
           event('end', { done: true });
           controller.close();
         } catch (error: any) {
+          syncStatus = 'error';
           write(`❌ Error: ${error?.message || String(error)}`);
-          event('result', { success: false, error: error?.message || String(error) });
+          // Guardar log de error en la BD
+          const { data: logInsert, error: logError } = await supabase
+            .from('sync_logs')
+            .insert({
+              type: 'articulos',
+              status: 'error',
+              log: logLines.join('\n'),
+              duration_ms: Date.now() - startTime,
+              extra: { error: error?.message || String(error) }
+            })
+            .select('id')
+            .single();
+          syncLogId = logInsert?.id || null;
+          event('result', { success: false, error: error?.message || String(error), logId: syncLogId });
           event('end', { done: true });
           controller.close();
         }

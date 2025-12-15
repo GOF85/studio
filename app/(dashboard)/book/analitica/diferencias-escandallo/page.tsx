@@ -171,12 +171,23 @@ export default function DiferenciasEscandalloPage() {
             </div>
 
             {/* CONTROLES */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
                 <div className="flex-1 sm:w-auto">
                     <DatePickerWithRange date={dateRange} setDate={handleDateRangeChange} />
                 </div>
                 <Button variant="outline" size="icon" onClick={handleExport} disabled={data.length === 0} title="Exportar CSV">
                     <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex items-center gap-2 whitespace-nowrap"
+                    onClick={() => window.open('/erp/sync-logs', '_blank')}
+                    title="Ver historial de sincronizaciones"
+                    aria-label="Ver logs de sincronización"
+                >
+                    <Activity className="h-4 w-4" />
+                    <span className="hidden sm:inline">Logs</span>
                 </Button>
             </div>
           </div>

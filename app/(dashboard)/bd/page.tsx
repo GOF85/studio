@@ -6,8 +6,9 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useDataStore } from '@/hooks/use-data-store';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote, Factory } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote, Factory, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -29,16 +30,25 @@ type DatabaseEntry = {
 };
 
 const generalDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
-  { id: '1', name: 'Personal Interno', description: 'Gestión de empleados y contactos de MICE.', path: '/bd/personal', icon: Users },
-  { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', path: '/bd/espacios', icon: ShoppingBag },
   { id: '3', name: 'Artículos MICE', description: 'Gestión de artículos de Almacén, Bodega, Bio y Alquiler.', path: '/bd/articulos', icon: Package },
   { id: '6', name: 'Tipo Servicio (Briefing)', description: 'Gestión de los tipos de servicio para el comercial.', path: '/bd/tipo-servicio', icon: Soup },
   { id: '9', name: 'Atípicos (Conceptos)', description: 'Gestión de conceptos de gastos varios.', path: '/bd/atipicos-db', icon: Percent },
   { id: '10', name: 'Objetivos de Gasto', description: 'Plantillas para el análisis de rentabilidad.', path: '/bd/objetivos-gasto', icon: Target },
   { id: '12', name: 'Decoración (Conceptos)', description: 'Gestión de conceptos de decoración.', path: '/bd/decoracion-db', icon: Flower2 },
+  { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', path: '/bd/plantillas-pedidos', icon: FilePlus2 },
+];
+
+const erpDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
   { id: '13', name: 'Base de Datos ERP', description: 'Gestión de precios y productos de proveedores.', path: '/bd/erp', icon: Package },
   { id: '14', name: 'Familias ERP', description: 'Relaciona códigos de familia ERP con Familia y Categoría.', path: '/bd/familiasERP', icon: Layers },
-  { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', path: '/bd/plantillas-pedidos', icon: FilePlus2 },
+];
+
+const recursosHumanosDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
+  { id: '1', name: 'Personal Interno', description: 'Gestión de empleados y contactos de MICE.', path: '/bd/personal', icon: Users },
+];
+
+const espaciosDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
+  { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', path: '/bd/espacios', icon: ShoppingBag },
 ];
 
 const entregasDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
@@ -68,12 +78,16 @@ const cprDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
 export default function BdPage() {
   const { data, loadAllData } = useDataStore();
   const [generalDatabases, setGeneralDatabases] = useState<DatabaseEntry[]>([]);
+  const [erpDatabases, setErpDatabases] = useState<DatabaseEntry[]>([]);
+  const [recursosHumanosDatabases, setRecursosHumanosDatabases] = useState<DatabaseEntry[]>([]);
+  const [espaciosDatabases, setEspaciosDatabases] = useState<DatabaseEntry[]>([]);
   const [bookGastronomicoDBs, setBookGastronomicoDBs] = useState<DatabaseEntry[]>([]);
   const [entregasDatabases, setEntregasDatabases] = useState<DatabaseEntry[]>([]);
   const [providerDatabases, setProviderDatabases] = useState<DatabaseEntry[]>([]);
   const [cprDatabases, setCprDatabases] = useState<DatabaseEntry[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     setIsMounted(true);
@@ -113,6 +127,9 @@ export default function BdPage() {
     }
 
     setGeneralDatabases(updateCounts(generalDatabasesList));
+    setErpDatabases(updateCounts(erpDatabasesList));
+    setRecursosHumanosDatabases(updateCounts(recursosHumanosDatabasesList));
+    setEspaciosDatabases(updateCounts(espaciosDatabasesList));
     setEntregasDatabases(updateCounts(entregasDatabasesList));
     setBookGastronomicoDBs(updateCounts(bookGastronomicoList));
     setProviderDatabases(updateCounts(providerDatabasesList));
@@ -123,7 +140,22 @@ export default function BdPage() {
     return <LoadingSkeleton title="Cargando Bases de Datos..." />;
   }
 
-  const renderTable = (dbs: DatabaseEntry[], title: string, icon: React.ReactNode, description?: string) => (
+  const filterDatabases = (dbs: DatabaseEntry[]): DatabaseEntry[] => {
+    if (!searchTerm) return dbs;
+    return dbs.filter(db => 
+      db.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (db.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+    );
+  };
+
+  const renderTable = (dbs: DatabaseEntry[], title: string, icon: React.ReactNode, description?: string) => {
+    const filteredDbs = filterDatabases(dbs);
+    
+    if (filteredDbs.length === 0 && searchTerm) {
+      return null; // Hide card if no results match search
+    }
+
+    return (
     <Card className="h-full flex flex-col justify-between">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-3 text-base">{icon} {title}</CardTitle>
@@ -131,8 +163,8 @@ export default function BdPage() {
       </CardHeader>
       <CardContent className="flex-1 flex flex-col justify-center">
         <div className="divide-y">
-          {dbs.length > 0 ? (
-            dbs.map(db => (
+          {filteredDbs.length > 0 ? (
+            filteredDbs.map(db => (
               <button
                 key={db.id}
                 onClick={() => window.location.href = db.path}
@@ -156,16 +188,29 @@ export default function BdPage() {
         </div>
       </CardContent>
     </Card>
-  )
+    );
+  };
 
   return (
     <div className="px-2 py-4">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-4">Bases de Datos</h1>
+        <Input
+          placeholder="Buscar bases de datos..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full"
+        />
+      </div>
       <div
         className="grid gap-4"
         style={{
           gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
         }}
       >
+        {renderTable(erpDatabases, 'Datos ERP', <Database />)}
+        {renderTable(recursosHumanosDatabases, 'Recursos Humanos', <Users />)}
+        {renderTable(espaciosDatabases, 'Espacios', <MapPin />)}
         {renderTable(generalDatabases, 'Bases de Datos Generales y de Catering', <Database />)}
         {renderTable(bookGastronomicoDBs, 'Book Gastronómico', <BookHeart />, 'Categorías y formatos de recetas')}
         {renderTable(entregasDatabases, 'Entregas', <Truck />, 'Gestión de entregas y artículos asociados')}

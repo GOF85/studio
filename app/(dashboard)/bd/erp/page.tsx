@@ -50,6 +50,8 @@ function ArticulosERPPageContent() {
     const [isLoadingPage, setIsLoadingPage] = useState(false);
     const [types, setTypes] = useState<string[]>(['all']);
     const [providers, setProviders] = useState<string[]>(['all']);
+    const [typesCount, setTypesCount] = useState(0);
+    const [providersCount, setProvidersCount] = useState(0);
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
@@ -59,6 +61,8 @@ function ArticulosERPPageContent() {
     const [currentPage, setCurrentPage] = useState(1);
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncLog, setSyncLog] = useState<string[]>([]);
+    const [syncController, setSyncController] = useState<EventSource | null>(null);
+    const [syncProgress, setSyncProgress] = useState<{ percent: number; current: number; total: number } | null>(null);
     const [debouncedSearch, setDebouncedSearch] = useState('');
 
     const { toast } = useToast();
@@ -258,9 +262,11 @@ function ArticulosERPPageContent() {
             const tSet = new Set<string>(['all']);
             (tData || []).forEach((r: any) => r.tipo && tSet.add(r.tipo));
             setTypes(Array.from(tSet));
+            setTypesCount(tSet.size - 1); // exclude 'all'
             const pSet = new Set<string>(['all']);
             (pData || []).forEach((r: any) => r.nombre_proveedor && pSet.add(r.nombre_proveedor));
             setProviders(Array.from(pSet));
+            setProvidersCount(pSet.size - 1);
         })();
         return () => { cancelled = true };
     }, []);
@@ -303,11 +309,13 @@ function ArticulosERPPageContent() {
     const handleFactusolSync = () => {
         setIsSyncing(true);
         setSyncLog(['Iniciando sincronización...']);
+        setSyncProgress(null);
 
         // Defer the heavy async work so the modal paints immediately
         requestAnimationFrame(() => {
             const timeoutId = setTimeout(() => {
                 setIsSyncing(false);
+                setSyncProgress(null);
                 toast({
                     variant: 'destructive',
                     title: 'Timeout',
@@ -318,14 +326,22 @@ function ArticulosERPPageContent() {
             try {
                 setSyncLog(prev => [...prev, '⏳ Conectando al stream de logs...']);
                 const es = new EventSource('/api/factusol/sync-articulos/stream');
+                setSyncController(es);
                 const onMessage = (e: MessageEvent) => setSyncLog(prev => [...prev, e.data]);
+                const onProgress = (e: MessageEvent) => {
+                    try {
+                        const data = JSON.parse(e.data);
+                        setSyncProgress(data);
+                    } catch {}
+                };
                 const onResult = async (e: MessageEvent) => {
                     try {
                         const result = JSON.parse(e.data);
+                        setSyncProgress(null);
                         if (result.success) {
                             toast({ title: 'Sincronización completada', description: `Se han sincronizado ${result.count} artículos desde Factusol.` });
                             setSyncLog(prev => [...prev, 'Recargando datos desde Supabase...']);
-                            await loadPage(1);
+                            await loadPage('init');
                             setSyncLog(prev => [...prev, '✅ Sincronización completada exitosamente']);
                         } else {
                             setSyncLog(prev => [...prev, `❌ Error: ${result.error}`]);
@@ -335,12 +351,16 @@ function ArticulosERPPageContent() {
                 };
                 const onEnd = () => {
                     es.removeEventListener('message', onMessage as any);
+                    es.removeEventListener('progress', onProgress as any);
                     es.removeEventListener('result', onResult as any);
                     es.close();
+                    setSyncController(null);
+                    setSyncProgress(null);
                     clearTimeout(timeoutId);
                     setIsSyncing(false);
                 };
                 es.onmessage = onMessage;
+                es.addEventListener('progress', onProgress as any);
                 es.addEventListener('result', onResult as any);
                 es.addEventListener('end', onEnd as any);
                 es.onerror = () => {
@@ -349,6 +369,7 @@ function ArticulosERPPageContent() {
                 };
             } catch (err: any) {
                 setSyncLog(prev => [...prev, `❌ ${err?.message || 'Error desconocido'}`]);
+                setSyncProgress(null);
                 clearTimeout(timeoutId);
                 setIsSyncing(false);
             }
@@ -551,7 +572,40 @@ function ArticulosERPPageContent() {
                                     <h2 className="text-lg font-bold text-gray-900">Sincronizando con Factusol...</h2>
                                     <p className="text-sm text-gray-600">Por favor espera mientras se actualizan los artículos.</p>
                                 </div>
+                                {/* Cancel button */}
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    aria-label="Cancelar sincronización"
+                                    className="ml-2"
+                                    onClick={() => {
+                                        if (syncController) {
+                                            syncController.close();
+                                            setSyncController(null);
+                                        }
+                                        setIsSyncing(false);
+                                        setSyncProgress(null);
+                                        setSyncLog(prev => [...prev, '❌ Sincronización cancelada por el usuario.']);
+                                    }}
+                                >
+                                    Cancelar
+                                </Button>
                             </div>
+                            {/* Barra de progreso */}
+                            {syncProgress && (
+                                <div className="mt-4">
+                                    <div className="w-full bg-gray-200 rounded-full h-3">
+                                        <div
+                                            className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                                            style={{ width: `${syncProgress.percent}%` }}
+                                        />
+                                    </div>
+                                    <div className="flex justify-between text-xs mt-1">
+                                        <span>{syncProgress.current} / {syncProgress.total} lotes</span>
+                                        <span>{syncProgress.percent}%</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Logs - Full verbose output */}
@@ -593,6 +647,7 @@ function ArticulosERPPageContent() {
                                     size="sm"
                                     onClick={() => {
                                         setIsSyncing(false);
+                                        setSyncProgress(null);
                                         setSyncLog([]);
                                     }}
                                 >
@@ -611,14 +666,24 @@ function ArticulosERPPageContent() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>{types.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'Todos los Tipos' : t}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select value={providerFilter} onValueChange={setProviderFilter}>
-                    <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>{providers.map(p => <SelectItem key={p} value={p}>{p === 'all' ? 'Todos los Proveedores' : p}</SelectItem>)}</SelectContent>
-                </Select>
+                <div className="relative">
+                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                        <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]">
+                            <SelectValue />
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{typesCount}</span>
+                        </SelectTrigger>
+                        <SelectContent>{types.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'Todos los Tipos' : t}</SelectItem>)}</SelectContent>
+                    </Select>
+                </div>
+                <div className="relative">
+                    <Select value={providerFilter} onValueChange={setProviderFilter}>
+                        <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]">
+                            <SelectValue />
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">{providersCount}</span>
+                        </SelectTrigger>
+                        <SelectContent>{providers.map(p => <SelectItem key={p} value={p}>{p === 'all' ? 'Todos los Proveedores' : p}</SelectItem>)}</SelectContent>
+                    </Select>
+                </div>
                 <div className="flex-grow flex justify-end items-center gap-2">
                     <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
                     <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
@@ -633,6 +698,9 @@ function ArticulosERPPageContent() {
                             <DropdownMenuItem onClick={handleFactusolSync} disabled={isSyncing}>
                                 <RefreshCw size={16} className={`mr-2 ${isSyncing ? 'animate-spin' : ''}`} />Sincronizar con Factusol
                             </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); window.open('/erp/sync-logs', '_blank'); }}>
+                                <Database size={16} className="mr-2" />Ver logs de sincronización
+                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsImportAlertOpen(true); }}>
                                 <FileUp size={16} className="mr-2" />Importar CSV
                             </DropdownMenuItem>
@@ -641,6 +709,17 @@ function ArticulosERPPageContent() {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+                    {/* Desktop "Cargar más" button */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-2 hidden md:inline-flex"
+                        disabled={isAppending || items.length >= totalCount}
+                        onClick={() => { if (!isAppending && items.length < totalCount) loadPage('append'); }}
+                    >
+                        {isAppending ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+                        Cargar más
+                    </Button>
                 </div>
             </div>
 
