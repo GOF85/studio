@@ -11,6 +11,11 @@ function chunkArray<T>(array: T[], size: number): T[][] {
     return chunked;
 }
 
+// Normalize prices to cents to avoid noise from float precision
+const normalizePrice = (price: number | null | undefined) => {
+    return Math.round(((price ?? 0) + Number.EPSILON) * 100) / 100;
+};
+
 export async function POST() {
     const debugLog: string[] = [];
 
@@ -281,17 +286,17 @@ export async function POST() {
         const priceChangesDetail = []; // Para mostrar detalles en logs
 
         for (const newArticulo of articulosToInsert) {
-            const newPrice = newArticulo.precio;
+            const newPrice = normalizePrice(newArticulo.precio);
             
             // Check if there's a price history for this article
             const historicalPrice = lastHistoricalPrices.get(newArticulo.erp_id);
             const currentDbPrice = existingPricesMap.get(newArticulo.erp_id);
             
             // Determine comparison price: historical if exists, otherwise current DB price
-            const lastPrice = historicalPrice !== undefined ? historicalPrice : currentDbPrice;
+            const lastPrice = historicalPrice !== undefined ? normalizePrice(historicalPrice) : (currentDbPrice !== undefined ? normalizePrice(currentDbPrice) : undefined);
             
-            // Skip if price hasn't changed
-            if (lastPrice !== undefined && Math.abs(newPrice - lastPrice) < 0.001) {
+            // Skip if price hasn't changed (at cents precision)
+            if (lastPrice !== undefined && newPrice === lastPrice) {
                 continue; // Price unchanged, skip this article entirely
             }
             

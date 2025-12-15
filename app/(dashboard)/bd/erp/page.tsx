@@ -193,109 +193,115 @@ function ArticulosERPPageContent() {
     const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
 
 
-    const handleFactusolSync = async () => {
+    const handleFactusolSync = () => {
         setIsSyncing(true);
         setSyncLog(['Iniciando sincronización...']);
 
-        // Set a timeout for the entire sync operation (15 minutes)
-        const timeoutId = setTimeout(() => {
-            setIsSyncing(false);
-            toast({
-                variant: 'destructive',
-                title: 'Timeout',
-                description: 'La sincronización tardó demasiado. Verifica los logs para más detalles.'
-            });
-        }, 900000); // 15 minutes
-
-        try {
-            setSyncLog(prev => [...prev, '⏳ Enviando petición al servidor...']);
-            
-            const controller = new AbortController();
-            const fetchTimeoutId = setTimeout(() => controller.abort(), 840000); // 14 minutes
-            
-            const response = await fetch('/api/factusol/sync-articulos', {
-                method: 'POST',
-                signal: controller.signal,
-            });
-
-            clearTimeout(fetchTimeoutId);
-
-            if (!response.ok) {
-                setSyncLog(prev => [...prev, `❌ Error HTTP ${response.status}: ${response.statusText}`]);
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            setSyncLog(prev => [...prev, '⏳ Recibiendo respuesta del servidor...']);
-            const result = await response.json();
-
-            if (result.success) {
-                setSyncLog(result.debugLog || []);
-                toast({
-                    title: 'Sincronización completada',
-                    description: `Se han sincronizado ${result.count} artículos desde Factusol.`
-                });
-
-                // Reload data from Supabase after sync
-                setSyncLog(prev => [...prev, 'Recargando datos desde Supabase...']);
-                const { data: articulosData, error } = await supabase
-                    .from('articulos_erp')
-                    .select('*')
-                    .limit(10000);
-
-                if (!error && articulosData) {
-                    setSyncLog(prev => [...prev, `Cargados ${articulosData.length} artículos de Supabase`]);
-                    const mappedItems = articulosData.map((row: any) => ({
-                        id: row.id,
-                        idreferenciaerp: row.erp_id || '',
-                        idProveedor: row.proveedor_id || '',
-                        nombreProveedor: row.nombre_proveedor || 'Sin proveedor',
-                        nombreProductoERP: row.nombre || '',
-                        referenciaProveedor: row.referencia_proveedor || '',
-                        familiaCategoria: row.familia_categoria || '',
-                        precioCompra: row.precio_compra || 0,
-                        descuento: row.descuento || 0,
-                        unidadConversion: row.unidad_conversion || 1,
-                        precio: row.precio || 0,
-                        precioAlquiler: row.precio_alquiler || 0,
-                        unidad: row.unidad_medida || 'UD',
-                        tipo: row.tipo || '',
-                        categoriaMice: row.categoria_mice || '',
-                        alquiler: row.alquiler || false,
-                        observaciones: row.observaciones || '',
-                    })) as ArticuloERP[];
-
-                    setItems(mappedItems);
-                    setSyncLog(prev => [...prev, '✅ Sincronización completada exitosamente']);
-                } else {
-                    setSyncLog(prev => [...prev, `⚠️ Error cargando datos: ${error?.message || 'desconocido'}`]);
-                }
-            } else {
-                setSyncLog(result.debugLog || []);
-                setSyncLog(prev => [...prev, `❌ Error: ${result.error}`]);
+        // Defer the heavy async work so the modal paints immediately
+        requestAnimationFrame(() => {
+            const timeoutId = setTimeout(() => {
+                setIsSyncing(false);
                 toast({
                     variant: 'destructive',
-                    title: 'Error en la sincronización',
-                    description: result.error
+                    title: 'Timeout',
+                    description: 'La sincronización tardó demasiado. Verifica los logs para más detalles.'
                 });
-            }
-        } catch (error) {
-            let errorMessage = 'Error desconocido';
-            if (error instanceof Error) {
-                errorMessage = error.message;
-                if (error.name === 'AbortError') {
-                    errorMessage = 'La solicitud fue cancelada por timeout (14 minutos)';
+            }, 900000); // 15 minutes
+
+            const runSync = async () => {
+                try {
+                    setSyncLog(prev => [...prev, '⏳ Enviando petición al servidor...']);
+                    
+                    const controller = new AbortController();
+                    const fetchTimeoutId = setTimeout(() => controller.abort(), 840000); // 14 minutes
+                    
+                    const response = await fetch('/api/factusol/sync-articulos', {
+                        method: 'POST',
+                        signal: controller.signal,
+                    });
+
+                    clearTimeout(fetchTimeoutId);
+
+                    if (!response.ok) {
+                        setSyncLog(prev => [...prev, `❌ Error HTTP ${response.status}: ${response.statusText}`]);
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    setSyncLog(prev => [...prev, '⏳ Recibiendo respuesta del servidor...']);
+                    const result = await response.json();
+
+                    if (result.success) {
+                        setSyncLog(result.debugLog || []);
+                        toast({
+                            title: 'Sincronización completada',
+                            description: `Se han sincronizado ${result.count} artículos desde Factusol.`
+                        });
+
+                        // Reload data from Supabase after sync
+                        setSyncLog(prev => [...prev, 'Recargando datos desde Supabase...']);
+                        const { data: articulosData, error } = await supabase
+                            .from('articulos_erp')
+                            .select('*')
+                            .limit(10000);
+
+                        if (!error && articulosData) {
+                            setSyncLog(prev => [...prev, `Cargados ${articulosData.length} artículos de Supabase`]);
+                            const mappedItems = articulosData.map((row: any) => ({
+                                id: row.id,
+                                idreferenciaerp: row.erp_id || '',
+                                idProveedor: row.proveedor_id || '',
+                                nombreProveedor: row.nombre_proveedor || 'Sin proveedor',
+                                nombreProductoERP: row.nombre || '',
+                                referenciaProveedor: row.referencia_proveedor || '',
+                                familiaCategoria: row.familia_categoria || '',
+                                precioCompra: row.precio_compra || 0,
+                                descuento: row.descuento || 0,
+                                unidadConversion: row.unidad_conversion || 1,
+                                precio: row.precio || 0,
+                                precioAlquiler: row.precio_alquiler || 0,
+                                unidad: row.unidad_medida || 'UD',
+                                tipo: row.tipo || '',
+                                categoriaMice: row.categoria_mice || '',
+                                alquiler: row.alquiler || false,
+                                observaciones: row.observaciones || '',
+                            })) as ArticuloERP[];
+
+                            setItems(mappedItems);
+                            setSyncLog(prev => [...prev, '✅ Sincronización completada exitosamente']);
+                        } else {
+                            setSyncLog(prev => [...prev, `⚠️ Error cargando datos: ${error?.message || 'desconocido'}`]);
+                        }
+                    } else {
+                        setSyncLog(result.debugLog || []);
+                        setSyncLog(prev => [...prev, `❌ Error: ${result.error}`]);
+                        toast({
+                            variant: 'destructive',
+                            title: 'Error en la sincronización',
+                            description: result.error
+                        });
+                    }
+                } catch (error) {
+                    let errorMessage = 'Error desconocido';
+                    if (error instanceof Error) {
+                        errorMessage = error.message;
+                        if (error.name === 'AbortError') {
+                            errorMessage = 'La solicitud fue cancelada por timeout (14 minutos)';
+                        }
+                    }
+                    setSyncLog(prev => [...prev, `❌ ${errorMessage}`]);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Error',
+                        description: errorMessage
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                    setIsSyncing(false);
                 }
-            }
-            setSyncLog(prev => [...prev, `❌ ${errorMessage}`]);
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: errorMessage
-            });
-        } finally {
-            clearTimeout(timeoutId);
-            setIsSyncing(false);
-        }
+            };
+
+            void runSync();
+        });
     };
 
     const handleExportCSV = () => {
