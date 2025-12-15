@@ -1,22 +1,13 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useDataStore } from '@/hooks/use-data-store';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote, Factory, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Database, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote, Factory, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
 
 
@@ -88,6 +79,7 @@ export default function BdPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [compactMode, setCompactMode] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -136,9 +128,41 @@ export default function BdPage() {
     setCprDatabases(updateCounts(cprDatabasesList));
   }, [isMounted, data]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('bd-compact');
+    if (stored) setCompactMode(stored === '1');
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('bd-compact', compactMode ? '1' : '0');
+  }, [compactMode]);
+
   if (!isMounted || isInitialLoading) {
     return <LoadingSkeleton title="Cargando Bases de Datos..." />;
   }
+
+  const totalBases =
+    generalDatabases.length +
+    erpDatabases.length +
+    recursosHumanosDatabases.length +
+    espaciosDatabases.length +
+    bookGastronomicoDBs.length +
+    entregasDatabases.length +
+    providerDatabases.length +
+    cprDatabases.length;
+
+  const totalRegistros = [
+    ...generalDatabases,
+    ...erpDatabases,
+    ...recursosHumanosDatabases,
+    ...espaciosDatabases,
+    ...bookGastronomicoDBs,
+    ...entregasDatabases,
+    ...providerDatabases,
+    ...cprDatabases,
+  ].reduce((acc, db) => acc + (db.itemCount || 0), 0);
 
   const filterDatabases = (dbs: DatabaseEntry[]): DatabaseEntry[] => {
     if (!searchTerm) return dbs;
@@ -156,56 +180,82 @@ export default function BdPage() {
     }
 
     return (
-    <Card className="h-full flex flex-col justify-between">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-3 text-base">{icon} {title}</CardTitle>
-        {description && <CardDescription className="text-xs mt-1">{description}</CardDescription>}
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col justify-center">
-        <div className="divide-y">
-          {filteredDbs.length > 0 ? (
-            filteredDbs.map(db => (
-              <button
-                key={db.id}
-                onClick={() => window.location.href = db.path}
-                className="w-full flex items-center justify-between gap-3 py-2 px-0 hover:bg-muted/50 transition-colors rounded-md first:pt-0 last:pb-0"
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <db.icon size={22} className="text-muted-foreground flex-shrink-0" />
-                  <div className="text-left min-w-0">
-                    <p className="font-medium text-sm truncate">{db.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{db.itemCount} registro{db.itemCount !== 1 ? 's' : ''}</p>
-                  </div>
-                </div>
-                <ArrowRight size={18} className="text-muted-foreground flex-shrink-0" />
-              </button>
-            ))
-          ) : (
-            <div className="py-8 text-center">
-              <p className="text-sm text-muted-foreground">Aún no hay bases de datos en esta categoría.</p>
-            </div>
+      <Card className="h-full flex flex-col justify-between border-muted/60">
+        <CardHeader className="p-3 pb-1">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+            <span className="text-muted-foreground">{icon}</span> {title}
+          </CardTitle>
+          {description && (
+            <CardDescription className="text-[11px] mt-0.5 line-clamp-2 leading-snug text-muted-foreground">
+              {description}
+            </CardDescription>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent className="p-3 pt-0 flex-1 flex flex-col justify-center">
+          <div className="divide-y">
+            {filteredDbs.length > 0 ? (
+              filteredDbs.map(db => (
+                <Link
+                  key={db.id}
+                  href={db.path}
+                  prefetch
+                  className="w-full flex items-center justify-between gap-2 py-2 px-1 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-ring transition-colors rounded-md first:pt-0 last:pb-0"
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <db.icon size={compactMode ? 16 : 18} className="text-muted-foreground flex-shrink-0" />
+                    <div className="text-left min-w-0">
+                      <p className="font-medium text-sm leading-tight truncate">{db.name}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{db.itemCount} registro{db.itemCount !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  <ArrowRight size={16} className="text-muted-foreground flex-shrink-0" />
+                </Link>
+              ))
+            ) : (
+              <div className="py-6 text-center">
+                <p className="text-xs text-muted-foreground">Aún no hay bases de datos en esta categoría.</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     );
   };
 
   return (
-    <div className="px-2 py-4">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">Bases de Datos</h1>
-        <Input
-          placeholder="Buscar bases de datos..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full"
-        />
+    <div className="px-2 md:px-4 py-3 md:py-4">
+      <div className="mb-4 md:mb-5 sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur border-b border-muted/40 pb-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">{totalBases} bases</span>
+            <span className="h-4 w-px bg-border" aria-hidden />
+            <span>{totalRegistros} registros totales</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground select-none">
+              <input
+                type="checkbox"
+                checked={compactMode}
+                onChange={(e) => setCompactMode(e.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              Modo compacto
+            </label>
+          </div>
+        </div>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <Input
+            placeholder="Buscar bases de datos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full sm:max-w-md"
+          />
+        </div>
       </div>
       <div
-        className="grid gap-4"
+        className={`grid ${compactMode ? 'gap-2.5' : 'gap-3 md:gap-4'}`}
         style={{
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gridTemplateColumns: `repeat(auto-fit, minmax(${compactMode ? 260 : 300}px, 1fr))`,
         }}
       >
         {renderTable(erpDatabases, 'Datos ERP', <Database />)}
