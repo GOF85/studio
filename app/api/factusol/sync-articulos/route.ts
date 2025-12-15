@@ -267,7 +267,7 @@ export async function POST() {
         debugLog.push("Registrando historial de precios...");
         const today = new Date().toISOString();
         const priceHistoryEntries = [];
-        let debugComparisons = 0;
+        const priceChangesDetail = []; // Para mostrar detalles en logs
 
         for (const newArticulo of articulosToInsert) {
             const oldPrice = existingPricesMap.get(newArticulo.erp_id);
@@ -286,10 +286,22 @@ export async function POST() {
                     proveedor_id: newArticulo.proveedor_id,
                     variacion_porcentaje: parseFloat(variacionPorcentaje.toFixed(2)),
                 });
+
+                // Guardar detalles para mostrar en logs
+                const formatted = `${newArticulo.nombre} (${newArticulo.erp_id}): $${oldPrice?.toFixed(2) || '0.00'} → $${newPrice.toFixed(2)} ${variacionPorcentaje > 0 ? '🟢 +' : '🔴 '}${Math.abs(variacionPorcentaje).toFixed(2)}%`;
+                priceChangesDetail.push(formatted);
             }
         }
 
         debugLog.push(`Total cambios detectados: ${priceHistoryEntries.length}`);
+        
+        // Mostrar detalles de cambios
+        if (priceChangesDetail.length > 0) {
+            debugLog.push("📊 Detalle de cambios de precio:");
+            priceChangesDetail.forEach(change => {
+                debugLog.push(`  ${change}`);
+            });
+        }
 
         if (priceHistoryEntries.length > 0) {
             const historyChunks = chunkArray(priceHistoryEntries, 100);
