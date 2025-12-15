@@ -197,87 +197,79 @@ export async function POST() {
         // This preserves foreign key relationships with ingredientes_internos
         debugLog.push("Sincronizando artículos (UPDATE + INSERT)...");
         
-        const chunks = chunkArray(articulosToInsert, 50); // Smaller chunks for better progress reporting
+        const chunks = chunkArray(articulosToInsert, 200); // Optimized: 200 per chunk (was 50: 6100/200=31 lotes vs 122)
         let updatedCount = 0;
         let insertedCount = 0;
-        let chunkNum = 0;
 
-        for (const chunk of chunks) {
-            chunkNum++;
-            debugLog.push(`Procesando lote ${chunkNum}/${chunks.length} (${chunk.length} artículos)...`);
-            
-            // Separate articles into existing and new
-            const existingIds = new Set(existingPricesMap.keys());
-            const toUpdate = chunk.filter((a: any) => existingIds.has(a.erp_id));
-            const toInsert = chunk.filter((a: any) => !existingIds.has(a.erp_id));
+        debugLog.push(`Procesando ${chunks.length} lotes (200 art/lote) en paralelo (máx 4)...`);
+        
+        // Control concurrent execution: max 4 chunks at a time
+        const MAX_CONCURRENT = 4;
+        for (let i = 0; i < chunks.length; i += MAX_CONCURRENT) {
+            const batch = chunks.slice(i, i + MAX_CONCURRENT);
+            const batchResults = await Promise.all(batch.map(async (chunk, batchIdx) => {
+                const chunkNum = i + batchIdx + 1;
+                
+                // Separate articles into existing and new
+                const existingIds = new Set(existingPricesMap.keys());
+                const toUpdate = chunk.filter((a: any) => existingIds.has(a.erp_id));
+                const toInsert = chunk.filter((a: any) => !existingIds.has(a.erp_id));
 
-            debugLog.push(`  → ${toUpdate.length} a actualizar, ${toInsert.length} nuevos`);
+                let chunkUpdates = 0;
+                let chunkInserts = 0;
 
-            // Batch update existing articles (with better logging) - PARALLELIZED
-            if (toUpdate.length > 0) {
-                debugLog.push(`  ⏳ Actualizando ${toUpdate.length} artículos (en paralelo)...`);
-                const updatePromises = toUpdate.map(async (article) => {
-                    return supabase
+                // Batch update existing articles in parallel
+                if (toUpdate.length > 0) {
+                    const updatePromises = toUpdate.map((article) =>
+                        supabase
+                            .from('articulos_erp')
+                            .update({
+                                nombre: article.nombre,
+                                referencia_proveedor: article.referencia_proveedor,
+                                proveedor_id: article.proveedor_id,
+                                nombre_proveedor: article.nombre_proveedor,
+                                familia_id: article.familia_id,
+                                familia_categoria: article.familia_categoria,
+                                tipo: article.tipo,
+                                categoria_mice: article.categoria_mice,
+                                precio_compra: article.precio_compra,
+                                descuento: article.descuento,
+                                unidad_conversion: article.unidad_conversion,
+                                precio: article.precio,
+                                precio_alquiler: article.precio_alquiler,
+                                unidad_medida: article.unidad_medida,
+                                merma_defecto: article.merma_defecto,
+                                stock_minimo: article.stock_minimo,
+                                alquiler: article.alquiler,
+                                observaciones: article.observaciones,
+                            })
+                            .eq('erp_id', article.erp_id)
+                    );
+
+                    const updateResults = await Promise.all(updatePromises);
+                    chunkUpdates = updateResults.filter(r => !r.error).length;
+                }
+
+                // Insert new articles in batch
+                if (toInsert.length > 0) {
+                    const { error: insertError } = await supabase
                         .from('articulos_erp')
-                        .update({
-                            nombre: article.nombre,
-                            referencia_proveedor: article.referencia_proveedor,
-                            proveedor_id: article.proveedor_id,
-                            nombre_proveedor: article.nombre_proveedor,
-                            familia_id: article.familia_id,
-                            familia_categoria: article.familia_categoria,
-                            tipo: article.tipo,
-                            categoria_mice: article.categoria_mice,
-                            precio_compra: article.precio_compra,
-                            descuento: article.descuento,
-                            unidad_conversion: article.unidad_conversion,
-                            precio: article.precio,
-                            precio_alquiler: article.precio_alquiler,
-                            unidad_medida: article.unidad_medida,
-                            merma_defecto: article.merma_defecto,
-                            stock_minimo: article.stock_minimo,
-                            alquiler: article.alquiler,
-                            observaciones: article.observaciones,
-                        })
-                        .eq('erp_id', article.erp_id);
-                });
-
-                const updateResults = await Promise.all(updatePromises);
-                
-                let updateErrors = 0;
-                updateResults.forEach((result, i) => {
-                    if (result.error) {
-                        updateErrors++;
-                        if (i < 3) {
-                            debugLog.push(`    ⚠️ ${toUpdate[i].erp_id}: ${result.error.message}`);
-                        }
-                    } else {
-                        updatedCount++;
+                        .insert(toInsert);
+                    
+                    if (!insertError) {
+                        chunkInserts = toInsert.length;
                     }
-                });
-                
-                debugLog.push(`    ✓ ${toUpdate.length - updateErrors}/${toUpdate.length} actualizados correctamente`);
-                if (updateErrors > 0) {
-                    debugLog.push(`    ⚠️ ${updateErrors} errores en actualizaciones`);
                 }
 
+                return { chunkNum, chunkUpdates, chunkInserts };
+            }));
 
-            // Insert new articles
-            if (toInsert.length > 0) {
-                debugLog.push(`  ⏳ Insertando ${toInsert.length} artículos nuevos...`);
-                const { error: insertError } = await supabase
-                    .from('articulos_erp')
-                    .insert(toInsert);
-                
-                if (insertError) {
-                    debugLog.push(`  ❌ Error insertando: ${insertError.message}`);
-                    throw new Error(`Error inserting articles: ${insertError.message}`);
-                }
-                insertedCount += toInsert.length;
-                debugLog.push(`  ✓ ${toInsert.length} insertados correctamente`);
-            }
-
-            debugLog.push(`✓ Lote ${chunkNum} completado. Total: ${updatedCount} actualizados, ${insertedCount} nuevos`);
+            // Accumulate results from this batch
+            batchResults.forEach(({ chunkNum, chunkUpdates, chunkInserts }) => {
+                updatedCount += chunkUpdates;
+                insertedCount += chunkInserts;
+                debugLog.push(`✓ Lote ${chunkNum}: ${chunkUpdates} actualizados, ${chunkInserts} nuevos`);
+            });
         }
 
         debugLog.push(`✅ Sincronización completada. ${updatedCount} artículos actualizados, ${insertedCount} insertados.`);
@@ -335,22 +327,31 @@ export async function POST() {
         }
 
         if (priceHistoryEntries.length > 0) {
-            const historyChunks = chunkArray(priceHistoryEntries, 100);
+            const historyChunks = chunkArray(priceHistoryEntries, 500); // Batch larger chunks for price history
             let historyInserted = 0;
 
-            for (const historyChunk of historyChunks) {
-                const { error: historyError } = await supabase
-                    .from('historico_precios_erp')
-                    .insert(historyChunk);
+            // Insert price history in parallel (max 3 concurrent)
+            for (let i = 0; i < historyChunks.length; i += 3) {
+                const batch = historyChunks.slice(i, i + 3);
+                const insertResults = await Promise.all(
+                    batch.map(chunk =>
+                        supabase
+                            .from('historico_precios_erp')
+                            .insert(chunk)
+                    )
+                );
 
-                if (historyError) {
-                    debugLog.push(`⚠️ Error registrando historial: ${historyError.message}`);
-                }
-                historyInserted += historyChunk.length;
+                insertResults.forEach((result, idx) => {
+                    if (result.error) {
+                        debugLog.push(`⚠️ Lote ${i + idx + 1}: Error registrando historial: ${result.error.message}`);
+                    } else {
+                        historyInserted += batch[idx].length;
+                    }
+                });
             }
             debugLog.push(`✅ Registrados ${historyInserted} cambios de precio en el historial.`);
         } else {
-            debugLog.push("No se detectaron cambios de precio.");
+            debugLog.push("✓ No se detectaron cambios de precio en esta sincronización.");
         }
 
         return NextResponse.json({ success: true, count: updatedCount + insertedCount, priceChanges: priceHistoryEntries.length, debugLog });
