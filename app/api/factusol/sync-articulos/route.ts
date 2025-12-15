@@ -283,13 +283,22 @@ export async function POST() {
         for (const newArticulo of articulosToInsert) {
             const newPrice = newArticulo.precio;
             
-            // Use LAST historical price if available, otherwise use current DB price
-            const lastPrice = lastHistoricalPrices.get(newArticulo.erp_id) || existingPricesMap.get(newArticulo.erp_id);
+            // Check if there's a price history for this article
+            const historicalPrice = lastHistoricalPrices.get(newArticulo.erp_id);
+            const currentDbPrice = existingPricesMap.get(newArticulo.erp_id);
             
-            // Skip if price hasn't changed AND we have previous data
-            // Only register if: (1) it's a new article (no lastPrice), OR (2) price changed significantly
+            // Determine comparison price: historical if exists, otherwise current DB price
+            const lastPrice = historicalPrice !== undefined ? historicalPrice : currentDbPrice;
+            
+            // Skip if price hasn't changed (including when prices are the same in DB)
+            // Only register if: (1) it's a new article (no previous price), OR (2) price changed significantly
             if (lastPrice !== undefined && Math.abs(newPrice - lastPrice) < 0.001) {
                 continue; // Price unchanged, skip registration
+            }
+            
+            // Additional check: if article exists in DB and has the same price as before, skip it
+            if (currentDbPrice !== undefined && historicalPrice === undefined && Math.abs(newPrice - currentDbPrice) < 0.001) {
+                continue; // Price hasn't changed since last DB sync
             }
 
             // Price has changed or is new, register it
