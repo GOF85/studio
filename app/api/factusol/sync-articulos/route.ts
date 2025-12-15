@@ -166,6 +166,24 @@ export async function POST() {
         );
         debugLog.push(`Artículos existentes en BD: ${existingArticulos?.length || 0}`);
 
+        // Get the LAST recorded price from history for each article (to avoid duplicate changes)
+        debugLog.push("Obteniendo últimos precios registrados del historial...");
+        const { data: latestPrices } = await supabase
+            .from('historico_precios_erp')
+            .select('articulo_erp_id, precio_calculado')
+            .order('fecha', { ascending: false });
+
+        // Map: keep only the FIRST (most recent) price for each article
+        const lastHistoricalPrices = new Map();
+        if (latestPrices) {
+            for (const record of latestPrices) {
+                if (!lastHistoricalPrices.has(record.articulo_erp_id)) {
+                    lastHistoricalPrices.set(record.articulo_erp_id, record.precio_calculado);
+                }
+            }
+        }
+        debugLog.push(`Precios históricos obtenidos: ${lastHistoricalPrices.size} artículos con historial`);
+
         // Debug specific article if requested (hardcoded for now or via header if we could)
         // We'll log details for a specific article if it exists in the new data
         const debugId = '1'; // Example ID, or we could look for one that changed
@@ -271,13 +289,16 @@ export async function POST() {
         const priceChangesDetail = []; // Para mostrar detalles en logs
 
         for (const newArticulo of articulosToInsert) {
-            const oldPrice = existingPricesMap.get(newArticulo.erp_id);
             const newPrice = newArticulo.precio;
-
-            if (oldPrice === undefined || Math.abs(newPrice - oldPrice) > 0.001) {
+            
+            // Use LAST historical price if available, otherwise use current DB price
+            const lastPrice = lastHistoricalPrices.get(newArticulo.erp_id) || existingPricesMap.get(newArticulo.erp_id);
+            
+            // Only register change if price actually changed from last recorded price
+            if (lastPrice === undefined || Math.abs(newPrice - lastPrice) > 0.001) {
                 // Calculate percentage change
-                const variacionPorcentaje = oldPrice 
-                    ? ((newPrice - oldPrice) / oldPrice) * 100 
+                const variacionPorcentaje = lastPrice 
+                    ? ((newPrice - lastPrice) / lastPrice) * 100 
                     : 0;
 
                 priceHistoryEntries.push({
@@ -289,7 +310,7 @@ export async function POST() {
                 });
 
                 // Guardar detalles para mostrar en logs
-                const formatted = `${newArticulo.nombre} (${newArticulo.erp_id}): $${oldPrice?.toFixed(2) || '0.00'} → $${newPrice.toFixed(2)} ${variacionPorcentaje > 0 ? '� +' : '🟢 '}${Math.abs(variacionPorcentaje).toFixed(2)}%`;
+                const formatted = `${newArticulo.nombre} (${newArticulo.erp_id}): $${lastPrice?.toFixed(2) || '0.00'} → $${newPrice.toFixed(2)} ${variacionPorcentaje > 0 ? '🔴 +' : '🟢 '}${Math.abs(variacionPorcentaje).toFixed(2)}%`;
                 priceChangesDetail.push(formatted);
             }
         }
