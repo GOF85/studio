@@ -353,10 +353,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                     }]
                 }));
 
-            // Map other tables...
-            // For now, we keep localStorage for non-migrated tables to avoid breaking everything immediately
-            // or we return empty arrays if we want to force migration.
-            // Let's mix: Supabase for migrated, LocalStorage for others (legacy mode)
+            // Map other tables from Supabase
 
             const mappedEspacios = (espaciosV2 || []).map((e: any) => mapEspacioV2ToLegacy(e as EspacioV2));
 
@@ -365,7 +362,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 id: e.id,
                 serviceNumber: e.numero_expediente,
                 eventName: e.nombre_evento,
-                client: e.cliente_id ? 'Cliente ID ' + e.cliente_id : 'Cliente Desconocido', // Placeholder until clients are fully migrated
+                client: e.cliente_id ? 'Cliente ID ' + e.cliente_id : 'Cliente Desconocido',
                 startDate: e.fecha_inicio,
                 endDate: e.fecha_fin,
                 status: (e.estado === 'CONFIRMADO' ? 'Confirmado' : 'Borrador') as any,

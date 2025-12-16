@@ -9,7 +9,6 @@ import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 
 import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indicator';
 import { QueryProvider } from '@/providers/query-provider';
-import { MigrationBanner } from '@/components/migration-banner';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -50,7 +49,6 @@ export default function RootLayout({
               </NProgressProvider>
             </ImpersonatedUserProvider>
           </AuthProvider>
-          <MigrationBanner />
           <Toaster />
           <SpeedInsights />
           <Analytics />
