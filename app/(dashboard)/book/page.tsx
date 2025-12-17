@@ -324,38 +324,62 @@ export default function BookDashboardPage() {
     // Hooks de datos
     const { data: recetas = [], isLoading: loadingRecetas } = useRecetas();
     const { data: elaboraciones = [], isLoading: loadingElaboraciones } = useElaboraciones();
-    
-    const { data: erpData = [], isLoading: loadingErp } = useQuery({ 
-        queryKey: ['erpData'], 
-        queryFn: async () => { 
-            const { data, error } = await supabase
-                .from('articulos_erp')
-                .select('tipo');
-            if (error) throw error; 
-            return data || []; 
+
+    // Consulta ingredientes_internos y articulos_erp para la tarjeta CPR (merge para obtener tipo)
+    const { data: ingredientesData = [], isLoading: loadingIngredientes } = useQuery({
+        queryKey: ['ingredientesDataWithTipo'],
+        queryFn: async () => {
+            // 1. Obtener ingredientes_internos
+            const { data: ingredientes, error: errorIng } = await supabase
+                .from('ingredientes_internos')
+                .select('id, producto_erp_link_id, historial_revisiones');
+            if (errorIng) throw errorIng;
+            if (!ingredientes || ingredientes.length === 0) return [];
+
+            // 2. Obtener articulos_erp solo para los productos linkeados
+            const erpIds = ingredientes
+                .map((i) => i.producto_erp_link_id)
+                .filter(Boolean);
+            let articulos = [];
+            if (erpIds.length > 0) {
+                const { data: articulosData, error: errorArt } = await supabase
+                    .from('articulos_erp')
+                    .select('erp_id, tipo')
+                    .in('erp_id', erpIds);
+                if (errorArt) throw errorArt;
+                articulos = articulosData || [];
+            }
+
+            // 3. Merge ingredientes + tipo
+            const erpMap = Object.fromEntries(articulos.map(a => [a.erp_id, a.tipo]));
+            return ingredientes.map(ing => ({
+                ...ing,
+                tipo: erpMap[ing.producto_erp_link_id] || 'OTROS',
+            }));
         },
         staleTime: 10 * 60 * 1000,
         gcTime: 30 * 60 * 1000,
     });
 
-    const { data: ingredientesPendingCount = 0, isLoading: loadingIngredientesPending } = useQuery({ 
-        queryKey: ['ingredientesPendingCount'], 
-        queryFn: async () => { 
-            const sixMonthsAgo = subMonths(startOfToday(), 6); 
+    // Ingredientes pendientes (antiguos)
+    const { data: ingredientesPendingCount = 0, isLoading: loadingIngredientesPending } = useQuery({
+        queryKey: ['ingredientesPendingCount'],
+        queryFn: async () => {
+            const sixMonthsAgo = subMonths(startOfToday(), 6);
             const { data, error } = await supabase
                 .from('ingredientes_internos')
                 .select('id, historial_revisiones');
-            if (error) throw error; 
-            return (data || []).filter(item => { 
-                const latestRevision = item.historial_revisiones?.[item.historial_revisiones.length - 1]; 
-                return !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo); 
-            }).length; 
+            if (error) throw error;
+            return (data || []).filter(item => {
+                const latestRevision = item.historial_revisiones?.[item.historial_revisiones.length - 1];
+                return !latestRevision || isBefore(new Date(latestRevision.fecha), sixMonthsAgo);
+            }).length;
         },
         staleTime: 15 * 60 * 1000,
         gcTime: 45 * 60 * 1000,
     });
 
-    const isLoading = loadingRecetas || loadingElaboraciones || loadingErp || loadingIngredientesPending;
+    const isLoading = loadingRecetas || loadingElaboraciones || loadingIngredientes || loadingIngredientesPending;
 
     // Estadísticas Calculadas
     const stats = useMemo(() => {
@@ -373,7 +397,7 @@ export default function BookDashboardPage() {
         recetas.forEach(receta => { (receta.elaboraciones || []).forEach((elab: any) => elaboracionesEnUso.add(elab.elaboracionId)); });
         const elaboracionesHuerfanas = elaboraciones.filter(elab => !elaboracionesEnUso.has(elab.id)).length;
         const elaboracionesParaRevisarCount = elaboraciones.filter(e => e.requiereRevision).length;
-        
+
         const elabStats = {
             frio: elaboraciones.filter(e => e.partidaProduccion === 'FRIO').length,
             caliente: elaboraciones.filter(e => e.partidaProduccion === 'CALIENTE').length,
@@ -381,28 +405,28 @@ export default function BookDashboardPage() {
             otros: elaboraciones.filter(e => !['FRIO', 'CALIENTE', 'PASTELERIA'].includes(e.partidaProduccion)).length
         };
 
-        // 3. Ingredientes
-        const totalIngredientes = erpData.length;
+        // 3. Ingredientes (usando ingredientes_internos)
+        const totalIngredientes = ingredientesData.length;
         const catCount: Record<string, number> = {};
-        erpData.forEach((item: any) => {
+        ingredientesData.forEach((item: any) => {
             const tipo = (item.tipo || 'OTROS').toUpperCase().trim();
             catCount[tipo] = (catCount[tipo] || 0) + 1;
         });
-        
+
         const topCategories = Object.entries(catCount)
-            .sort(([,a], [,b]) => b - a)
+            .sort(([, a], [, b]) => b - a)
             .slice(0, 6)
-            .map(([label, count]) => ({ 
-                label: label.charAt(0) + label.slice(1).toLowerCase(), 
-                count 
+            .map(([label, count]) => ({
+                label: label.charAt(0) + label.slice(1).toLowerCase(),
+                count
             }));
 
-        return { 
+        return {
             totalRecetas, totalRecetasActivas, totalRecetasArchivadas, recetasConAlergenos, recetasParaRevisarCount,
             totalElaboraciones: elaboraciones.length, elabStats, elaboracionesHuerfanas, elaboracionesParaRevisarCount,
             totalIngredientes, ingStats: topCategories, ingredientesPendingCount
         };
-    }, [recetas, elaboraciones, erpData, ingredientesPendingCount, isLoading]);
+    }, [recetas, elaboraciones, ingredientesData, ingredientesPendingCount, isLoading]);
 
     if (isLoading || !stats) return <LoadingSkeleton title="Cargando Dashboard..." />;
 

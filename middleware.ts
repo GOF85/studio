@@ -50,6 +50,18 @@ const numeroToIdCache = new LRUCache(CACHE_MAX_ENTRIES);
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+async function fetchWithRetry(url: string, options: any, maxRetries = 2) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fetch(url, { ...options, signal: AbortSignal.timeout(5000) });
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      // Exponential backoff: 100ms, 200ms
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
+    }
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -67,7 +79,7 @@ export async function middleware(request: NextRequest) {
       }
       try {
         const url = `${SUPABASE_URL}/rest/v1/eventos?select=id&numero_expediente=eq.${encodeURIComponent(segment)}&limit=1`;
-        const res = await fetch(url, {
+        const res = await fetchWithRetry(url, {
           headers: {
             apikey: SUPABASE_ANON_KEY,
             Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
@@ -90,6 +102,7 @@ export async function middleware(request: NextRequest) {
         }
       } catch (err) {
         // ignore and continue to auth check
+        console.error('[Middleware] OS resolution failed:', err instanceof Error ? err.message : err);
       }
     }
   }
@@ -120,16 +133,31 @@ export async function middleware(request: NextRequest) {
         }
       );
 
+      // Add timeout to prevent middleware from hanging
+      const userPromise = supabase.auth.getUser();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Auth check timeout')), 8000)
+      );
+
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await Promise.race([userPromise, timeoutPromise]) as any;
 
       if (!user && !request.nextUrl.pathname.startsWith('/login')) {
         return NextResponse.redirect(new URL('/login', request.url));
       }
     } catch (err) {
-      // ignore auth errors — allow request
+      // Log error but don't throw - allow request to proceed
+      console.error('[Middleware] Auth check failed:', err instanceof Error ? err.message : String(err));
+      
+      // If Supabase is unreachable and user is not on login page, still allow for development
+      // In production, you might want stricter behavior
+      if (pathname !== '/login' && !pathname.startsWith('/api/')) {
+        // Allow access but log the incident
+      }
     }
+  } else {
+    console.warn('[Middleware] Supabase credentials not configured. Auth check skipped.');
   }
 
   // Add caching headers for static assets

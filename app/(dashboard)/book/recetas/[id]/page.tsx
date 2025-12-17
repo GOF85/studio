@@ -502,6 +502,8 @@ function RecetaFormPage() {
                     const { data: last } = await supabase.from('recetas').select('numero_receta').order('numero_receta', { ascending: false }).limit(1);
                     const n = last?.[0]?.numero_receta ? parseInt(last[0].numero_receta.split('-')[1]) : 0;
                     form.reset({ ...defaultValues, id: Date.now().toString(), numeroReceta: `R-${(n + 1).toString().padStart(4, '0')}` } as RecetaFormValues);
+                    // FIX: Cargar elaboraciones incluso para recetas nuevas
+                    await recalculateCostsAndAllergens();
                 }
             } catch (e) { console.error(e); } finally { setIsDataLoaded(true); }
         };
@@ -541,6 +543,7 @@ function RecetaFormPage() {
     }
 
     const onSubmit = async (data: RecetaFormValues) => {
+        console.log('🚀 onSubmit iniciado con data:', { nombre: data.nombre, id: data.id, categoria: data.categoria });
         setIsLoading(true);
         try {
             const dataToSave = {
@@ -555,8 +558,8 @@ function RecetaFormPage() {
                 responsable_escandallo: data.responsableEscandallo, 
                 categoria: data.categoria,
                 gramaje_total: data.gramajeTotal, 
-                estacionalidad: data.estacionalidad, 
-                tipo_dieta: data.tipoDieta, 
+                estacionalidad: data.estacionalidad || 'MIXTO', 
+                tipo_dieta: data.tipoDieta || 'NINGUNO', 
                 porcentaje_coste_produccion: data.porcentajeCosteProduccion,
                 elaboraciones: data.elaboraciones, 
                 menaje_asociado: data.menajeAsociado,
@@ -567,21 +570,20 @@ function RecetaFormPage() {
                 instrucciones_emplatado: data.instruccionesEmplatado, 
                 fotos_emplatado: data.fotosEmplatado,
                 fotos_comerciales: data.fotosComerciales, 
-                perfil_sabor_principal: data.perfilSaborPrincipal, 
+                perfil_sabor_principal: data.perfilSaborPrincipal || null, 
                 perfil_sabor_secundario: data.perfilSaborSecundario, 
                 perfil_textura: data.perfilTextura, 
                 tipo_cocina: data.tipoCocina, 
                 receta_origen: data.recetaOrigen, 
-                temperatura_servicio: data.temperaturaServicio, 
-                tecnica_coccion_principal: data.tecnicaCoccionPrincipal,
-                potencial_mise_en_place: data.potencialMiseEnPlace, 
+                temperatura_servicio: data.temperaturaServicio || null, 
+                tecnica_coccion_principal: data.tecnicaCoccionPrincipal || null,
+                potencial_mise_en_place: data.potencialMiseEnPlace || null, 
                 formato_servicio_ideal: data.formatoServicioIdeal, 
                 equipamiento_critico: data.equipamientoCritico, 
-                dificultad_produccion: data.dificultadProduccion,
-                estabilidad_buffet: data.estabilidadBuffet, 
-                escalabilidad: data.escalabilidad, 
+                dificultad_produccion: data.dificultadProduccion || 3,
+                estabilidad_buffet: data.estabilidadBuffet || 3, 
+                escalabilidad: data.escalabilidad || null, 
                 etiquetas_tendencia: data.etiquetasTendencia, 
-                // FIX: Access properties correctly in camelCase
                 requiere_revision: data.requiereRevision,
                 comentario_revision: data.comentarioRevision, 
                 fecha_revision: data.fechaRevision || null, 
@@ -591,11 +593,24 @@ function RecetaFormPage() {
                 partida_produccion: partidasProduccion.join(', ')
             };
 
+            console.log('💾 dataToSave preparado:', dataToSave);
             const { error } = isEditing && !cloneId ? await supabase.from('recetas').update(dataToSave).eq('id', id) : await supabase.from('recetas').insert([dataToSave]);
-            if (error) throw error;
+            if (error) {
+                console.error('❌ Error Supabase:', error);
+                throw error;
+            }
+            console.log('✅ Receta guardada exitosamente');
             toast({ description: 'Receta guardada correctamente.' });
-            if (!isEditing || cloneId) router.push('/book/recetas'); else router.replace(`/book/recetas/${id}?t=${Date.now()}`);
-        } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); } finally { setIsLoading(false); }
+            
+            const redirectUrl = (!isEditing || cloneId) ? '/book/recetas' : `/book/recetas/${id}?t=${Date.now()}`;
+            console.log('🔗 Redirigiendo a:', redirectUrl);
+            setIsLoading(false);
+            router.push(redirectUrl);
+        } catch (e: any) { 
+            console.error('💥 Error completo:', e);
+            toast({ variant: 'destructive', title: 'Error', description: e.message }); 
+            setIsLoading(false);
+        }
     };
 
     const handleDelete = async () => {
@@ -608,18 +623,45 @@ function RecetaFormPage() {
         <TooltipProvider>
             <main className="pb-24 bg-background min-h-screen">
                 <FormProvider {...form}>
-                    <form id="receta-form" onSubmit={form.handleSubmit(onSubmit)}>
+                    <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                        console.log('❌ Errores de validación del formulario:', errors);
                         
-                        {/* HEADER STICKY (SOLO TABS) */}
-                        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
+                        // Recopilar todos los errores
+                        const errorMessages = Object.entries(errors).map(([field, error]) => {
+                            const fieldNames: Record<string, string> = {
+                                nombre: 'Nombre',
+                                categoria: 'Categoría',
+                                responsableEscandallo: 'Responsable'
+                            };
+                            return `• ${fieldNames[field] || field}: ${(error as any).message}`;
+                        });
+                        
+                        // Mostrar toast con todos los errores
+                        toast({ 
+                            variant: 'destructive', 
+                            title: `Faltan ${errorMessages.length} campo${errorMessages.length > 1 ? 's' : ''} obligatorio${errorMessages.length > 1 ? 's' : ''}`, 
+                            description: errorMessages.join('\n')
+                        });
+                        
+                        // Scroll al primer campo con error
+                        const firstErrorField = Object.keys(errors)[0];
+                        const element = document.querySelector(`[name="${firstErrorField}"]`);
+                        if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            setTimeout(() => (element as HTMLElement).focus?.(), 300);
+                        }
+                    })}>
+                        
+                        {/* HEADER STICKY (SOLO TABS) - Ahora top-12 para estar bajo el breadcrumb */}
+                        <div className="sticky top-12 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
                             <Tabs defaultValue="general" className="w-full">
                                 
                                 {/* PESTAÑAS (MÓVIL: Grid 2x2 - DESKTOP: Fila) */}
-                                <div className="px-2 pb-2">
+                                <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2">
                                     <TabsList className="
                                         w-full 
                                         grid grid-cols-2 grid-rows-2 h-auto gap-2 
-                                        md:flex md:flex-row md:justify-start md:h-10 md:bg-transparent md:p-0 md:gap-4 md:mb-0
+                                        md:flex md:flex-row md:justify-start md:h-10 md:bg-transparent md:p-0 md:gap-6 md:mb-0
                                     ">
                                         {["Info. General", "Receta", "Info. Pase", "Gastronómica"].map((tab, i) => {
                                             const val = ["general", "receta", "pase", "gastronomica"][i];
@@ -643,15 +685,26 @@ function RecetaFormPage() {
                                 </div>
                                 
                                 {/* CONTENIDO DE TABS */}
-                                <div className="p-2 sm:p-4 max-w-7xl mx-auto min-h-screen bg-muted/5">
+                                <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 min-h-screen bg-muted/5">
                                     
                                     {/* --- TAB: GENERAL --- */}
                                     <TabsContent value="general" className="space-y-3 mt-1">
+                                        {/* Banner informativo de campos obligatorios */}
+                                        <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-md">
+                                            <div className="flex items-start gap-2">
+                                                <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                                <div className="text-xs text-blue-800">
+                                                    <p className="font-semibold">Los campos marcados con <span className="text-red-500">*</span> son obligatorios</p>
+                                                    <p className="text-blue-600 mt-0.5">Debes completar <strong>Nombre</strong> y <strong>Categoría</strong> para guardar la receta</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
                                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                             <div className="space-y-3">
                                                 <Card className="shadow-none border border-border/60">
                                                     <CardContent className="p-3 space-y-2">
-                                                        <FormField control={form.control} name="nombre" render={({ field }) => (<FormItem className="space-y-0.5"><FormLabel className="text-[10px] uppercase text-muted-foreground font-bold">Nombre Receta</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="h-8 text-sm" /></FormControl><FormMessage /></FormItem>)} />
+                                                        <FormField control={form.control} name="nombre" render={({ field }) => (<FormItem className="space-y-0.5"><FormLabel className="text-[10px] uppercase text-muted-foreground font-bold">Nombre Receta <span className="text-red-500">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="Escribe el nombre de la receta..." className="h-8 text-sm" /></FormControl><FormMessage /></FormItem>)} />
                                                         
                                                         <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
                                                             <FormField control={form.control} name="responsableEscandallo" render={({ field }) => (
@@ -666,11 +719,12 @@ function RecetaFormPage() {
 
                                                             <FormField control={form.control} name="categoria" render={({ field }) => (
                                                                 <FormItem className="space-y-0.5">
-                                                                    <FormLabel className="text-[10px] uppercase text-muted-foreground font-bold">Categoría</FormLabel>
+                                                                    <FormLabel className="text-[10px] uppercase text-muted-foreground font-bold">Categoría <span className="text-red-500">*</span></FormLabel>
                                                                     <Select onValueChange={field.onChange} value={field.value || ''}>
-                                                                        <FormControl><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="-" /></SelectTrigger></FormControl>
+                                                                        <FormControl><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecciona categoría..." /></SelectTrigger></FormControl>
                                                                         <SelectContent>{dbCategorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}</SelectContent>
                                                                     </Select>
+                                                                    <FormMessage />
                                                                 </FormItem>
                                                             )} />
                                                         </div>
@@ -687,8 +741,37 @@ function RecetaFormPage() {
                                                             <Label htmlFor="archived-sw" className="flex items-center gap-2 font-medium text-xs"><Archive className="h-3.5 w-3.5" /> Archivado</Label>
                                                             <FormField control={form.control} name="isArchived" render={({ field }) => <Switch id="archived-sw" checked={field.value} onCheckedChange={field.onChange} className="scale-75 origin-right" />} />
                                                         </div>
+                                                        <div className="flex items-center justify-between border p-2 rounded-md bg-card">
+                                                            <Label htmlFor="revision-sw" className="flex items-center gap-2 font-medium text-xs"><AlertTriangle className="h-3.5 w-3.5" /> Requiere Revisión</Label>
+                                                            <FormField control={form.control} name="requiereRevision" render={({ field }) => <Switch id="revision-sw" checked={field.value} onCheckedChange={field.onChange} className="scale-75 origin-right" />} />
+                                                        </div>
                                                     </CardContent>
                                                 </Card>
+
+                                                {/* Campo de comentario de revisión - Mostrar solo si requiereRevision está activado */}
+                                                {form.watch('requiereRevision') && (
+                                                    <Card className="shadow-none border border-amber-200 bg-amber-50/50 dark:bg-amber-950/10">
+                                                        <CardContent className="p-3">
+                                                            <FormField control={form.control} name="comentarioRevision" render={({ field }) => (
+                                                                <FormItem className="space-y-1">
+                                                                    <FormLabel className="text-[10px] uppercase text-amber-700 dark:text-amber-400 font-bold flex items-center gap-1">
+                                                                        <AlertTriangle className="h-3 w-3" />
+                                                                        Motivo de Revisión
+                                                                    </FormLabel>
+                                                                    <FormControl>
+                                                                        <Textarea 
+                                                                            {...field} 
+                                                                            value={field.value ?? ''} 
+                                                                            placeholder="Describe por qué requiere revisión..." 
+                                                                            className="resize-none text-sm min-h-24 border-amber-200" 
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )} />
+                                                        </CardContent>
+                                                    </Card>
+                                                )}
                                             </div>
 
                                             <Card className="shadow-none border border-border/60 h-fit">
@@ -905,7 +988,14 @@ function RecetaFormPage() {
             </main>
             
             {/* BOTÓN DE GUARDAR FLOTANTE (FAB) - SIEMPRE VISIBLE */}
-            <div className="fixed bottom-6 right-6 z-50">
+            <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+                {/* Indicador de validación */}
+                {(!form.watch('nombre') || !form.watch('categoria')) && !isLoading && (
+                    <div className="bg-amber-500 text-white text-xs px-3 py-1.5 rounded-full shadow-md animate-pulse">
+                        ⚠️ Completa campos obligatorios (*)
+                    </div>
+                )}
+                
                 <Button 
                     type="submit" 
                     form="receta-form" 

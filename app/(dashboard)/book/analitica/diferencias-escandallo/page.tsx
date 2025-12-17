@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 
 // Hooks & External Components
-import { useEscandalloAnalytics } from '@/hooks/use-escandallo-analytics';
+import { useEscandalloAnalyticsNew } from '@/hooks/use-escandallo-analytics-mejorado';
 import { ComparisonTable } from '@/components/book/analitica/comparison-table';
 // Asegúrate de haber creado el archivo del PASO 1
 import { EvolutionChart } from '@/components/book/analitica/evolution-chart'; 
@@ -104,8 +104,8 @@ export default function DiferenciasEscandalloPage() {
   const dateTo = dateToParam || (dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
   const isValidRange = isValidDateRange(dateFrom, dateTo);
 
-  // 2. Fetch de Datos
-  const { data, snapshots, isLoading, loadingMessage, error } = useEscandalloAnalytics(activeTab, dateFrom, dateTo);
+  // 2. Fetch de Datos (usando hook mejorado con datos reales del histórico)
+  const { data, snapshots, isLoading, loadingMessage, error } = useEscandalloAnalyticsNew(activeTab, dateFrom, dateTo);
 
   // 3. Cálculos
   const summaryStats = useMemo(() => calculateSummaryStats(data), [data]);

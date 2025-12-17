@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useDataStore } from '@/hooks/use-data-store';
-import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indicator';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Database, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote, Factory, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
@@ -140,7 +140,7 @@ export default function BdPage() {
   }, [compactMode]);
 
   if (!isMounted || isInitialLoading) {
-    return <GlobalLoadingIndicator />;
+    return <LoadingSkeleton title="Cargando Bases de Datos..." />;
   }
 
   const totalBases =
