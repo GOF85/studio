@@ -278,12 +278,68 @@ $$;
 COMMENT ON FUNCTION on_articulos_erp_precio_change()
   IS 'Trigger that cascades recalculation when ERP article price changes.';
 
--- Create trigger
+-- Create trigger for UPDATE
 DROP TRIGGER IF EXISTS articulos_erp_precio_change ON articulos_erp CASCADE;
 CREATE TRIGGER articulos_erp_precio_change
 AFTER UPDATE OF precio ON articulos_erp
 FOR EACH ROW
 EXECUTE FUNCTION on_articulos_erp_precio_change();
+
+-- ============================================================================
+-- TRIGGER FUNCTION: on_articulos_erp_insert
+-- ============================================================================
+-- Triggers cascade update when new ERP article is inserted
+CREATE OR REPLACE FUNCTION on_articulos_erp_insert()
+RETURNS TRIGGER LANGUAGE plpgsql VOLATILE AS $$
+DECLARE
+  v_receta_record RECORD;
+  v_start_time TIMESTAMPTZ := CLOCK_TIMESTAMP();
+BEGIN
+  -- Only process if price is set
+  IF NEW.precio > 0 THEN
+    RAISE NOTICE 'New articulo_erp inserted: % with precio %',
+      NEW.erp_id, NEW.precio;
+
+    -- Register in ERP price history (initial record)
+    BEGIN
+      INSERT INTO historico_precios_erp (articulo_erp_id, fecha, precio_calculado, variacion_porcentaje)
+      VALUES (NEW.erp_id, NOW(), NEW.precio, 0);
+    EXCEPTION WHEN unique_violation THEN
+      -- Already exists, skip
+      NULL;
+    END;
+
+    -- Find all recipes that use ingredients from this ERP article and recalculate
+    FOR v_receta_record IN
+      SELECT DISTINCT r.id
+      FROM recetas r, 
+           jsonb_array_elements(r.elaboraciones) AS elem,
+           ingredientes_internos ii
+      WHERE ii.producto_erp_link_id = NEW.erp_id
+      LIMIT 1000
+    LOOP
+      -- Recalculate recipe costs
+      PERFORM recalc_receta_costos(v_receta_record.id);
+    END LOOP;
+
+    RAISE NOTICE 'on_articulos_erp_insert(%): processed in %ms',
+      NEW.erp_id,
+      ROUND(EXTRACT(EPOCH FROM (CLOCK_TIMESTAMP() - v_start_time)) * 1000);
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION on_articulos_erp_insert()
+  IS 'Trigger that cascades recalculation when new ERP article is inserted.';
+
+-- Create trigger for INSERT
+DROP TRIGGER IF EXISTS articulos_erp_insert ON articulos_erp CASCADE;
+CREATE TRIGGER articulos_erp_insert
+AFTER INSERT ON articulos_erp
+FOR EACH ROW
+EXECUTE FUNCTION on_articulos_erp_insert();
 
 -- ============================================================================
 -- FUNCTION: recalc_all_recipes

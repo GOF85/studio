@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { useEscandalloAnalytics } from '@/hooks/use-escandallo-analytics';
+import { useEscandalloAnalyticsNew } from '@/hooks/use-escandallo-analytics-mejorado';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { BarChart3, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { subDays, format } from 'date-fns';
@@ -13,14 +13,16 @@ export default function AnalisisEconomicoCard() {
     const fromDate = format(subDays(today, 30), 'yyyy-MM-dd');
     const toDate = format(today, 'yyyy-MM-dd');
 
-    const { data, isLoading } = useEscandalloAnalytics('recetas', fromDate, toDate);
+    const { data, isLoading } = useEscandalloAnalyticsNew('recetas', fromDate, toDate);
 
-    const recetasAfectadas = data.length;
+    const recetasAfectadas = data.filter(r => r.startPrice > 0 || r.endPrice > 0).length;
     
     const variacionPromedio = useMemo(() => {
         if (!data.length) return 0;
-        const totalPercent = data.reduce((acc, curr) => acc + curr.percent, 0);
-        return totalPercent / data.length;
+        const validData = data.filter(r => r.startPrice > 0 || r.endPrice > 0);
+        if (!validData.length) return 0;
+        const totalPercent = validData.reduce((acc, curr) => acc + curr.percent, 0);
+        return totalPercent / validData.length;
     }, [data]);
 
     const isCostUp = variacionPromedio > 0;
