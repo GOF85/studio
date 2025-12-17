@@ -689,17 +689,6 @@ function RecetaFormPage() {
                                     
                                     {/* --- TAB: GENERAL --- */}
                                     <TabsContent value="general" className="space-y-3 mt-1">
-                                        {/* Banner informativo de campos obligatorios */}
-                                        <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-md">
-                                            <div className="flex items-start gap-2">
-                                                <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                                                <div className="text-xs text-blue-800">
-                                                    <p className="font-semibold">Los campos marcados con <span className="text-red-500">*</span> son obligatorios</p>
-                                                    <p className="text-blue-600 mt-0.5">Debes completar <strong>Nombre</strong> y <strong>Categoría</strong> para guardar la receta</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
                                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                             <div className="space-y-3">
                                                 <Card className="shadow-none border border-border/60">

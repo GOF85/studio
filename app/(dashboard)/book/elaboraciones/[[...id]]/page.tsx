@@ -35,10 +35,10 @@ import { Label } from '@/components/ui/label';
 
 // Icons (Lucide)
 import { 
-  Loader2, Save, X, PlusCircle, GripVertical, 
-  Trash2, Download, Upload, Menu, 
-  AlertTriangle, ChevronLeft, ChevronRight, Search, 
-  Image as ImageIcon, Filter
+    Loader2, Save, X, PlusCircle, GripVertical, 
+    Trash2, Download, Upload, Menu, 
+    AlertTriangle, ChevronLeft, ChevronRight, Search, 
+    Image as ImageIcon, Filter, Euro
 } from 'lucide-react';
 
 // Custom Components & Hooks
@@ -180,55 +180,78 @@ interface ComponenteSelectorProps {
 }
 
 function ComponenteSelector({ onSelect }: ComponenteSelectorProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [ingredientes, setIngredientes] = useState<IngredienteInterno[]>([]);
-  
-  // Nota: En un refactor mayor, esto iría a un useIngredientes() hook
-  useEffect(() => {
-    const fetchIngredientes = async () => {
-      const { data } = await supabase.from('ingredientes_internos').select('*');
-      if (data) setIngredientes(data.map((i: any) => ({
-        id: i.id,
-        nombreIngrediente: i.nombre_ingrediente,
-        productoERPlinkId: i.producto_erp_link_id,
-        alergenosPresentes: i.alergenos_presentes || [],
-        alergenosTrazas: i.alergenos_trazas || [],
-        historialRevisiones: []
-      })));
-    };
-    fetchIngredientes();
-  }, []);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [ingredientes, setIngredientes] = useState<IngredienteInterno[]>([]);
+    const [erpMap, setErpMap] = useState<Map<string, number>>(new Map());
 
-  const filtered = ingredientes.filter(i => i.nombreIngrediente.toLowerCase().includes(searchTerm.toLowerCase()));
+    // Nota: En un refactor mayor, esto iría a un useIngredientes() hook
+    useEffect(() => {
+        const fetchIngredientes = async () => {
+            const [{ data: ingData }, { data: erpData }] = await Promise.all([
+                supabase.from('ingredientes_internos').select('*'),
+                supabase.from('articulos_erp').select('*'),
+            ]);
+            if (ingData) setIngredientes(ingData.map((i: any) => ({
+                id: i.id,
+                nombreIngrediente: i.nombre_ingrediente,
+                productoERPlinkId: i.producto_erp_link_id,
+                alergenosPresentes: i.alergenos_presentes || [],
+                alergenosTrazas: i.alergenos_trazas || [],
+                historialRevisiones: []
+            })));
+            if (erpData) {
+                const map = new Map<string, number>();
+                erpData.forEach((a: any) => {
+                    const price = (a.precio_compra || 0) / (a.unidad_conversion || 1);
+                    if (a.id) map.set(a.id, price);
+                    if (a.erp_id) map.set(a.erp_id, price);
+                });
+                setErpMap(map);
+            }
+        };
+        fetchIngredientes();
+    }, []);
 
-  return (
-    <DialogContent className="max-h-[80vh] flex flex-col max-w-2xl">
-        <DialogHeader><DialogTitle>Añadir Ingrediente</DialogTitle></DialogHeader>
-        <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar ingrediente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
-        </div>
-        <div className="flex-1 overflow-y-auto border rounded-md mt-2">
-            <Table>
-                <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead className="text-right">Acción</TableHead></TableRow></TableHeader>
-                <TableBody>
-                    {filtered.map(ing => (
-                        <TableRow key={ing.id} className="hover:bg-muted/50">
-                            <TableCell className="font-medium">{ing.nombreIngrediente}</TableCell>
-                            <TableCell className="text-right">
-                                <DialogClose asChild>
-                                    <Button size="sm" onClick={() => onSelect({ id: generateId(), tipo: 'ingrediente', componenteId: ing.id, nombre: ing.nombreIngrediente, cantidad: 0, merma: 0, costePorUnidad: 0 })} className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs">
-                                        <PlusCircle className="h-3 w-3 mr-1" /> Añadir
-                                    </Button>
-                                </DialogClose>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
-    </DialogContent>
-  );
+    const filtered = ingredientes.filter(i => i.nombreIngrediente.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    return (
+        <DialogContent className="max-h-[80vh] flex flex-col max-w-2xl">
+                <DialogHeader><DialogTitle>Añadir Ingrediente</DialogTitle></DialogHeader>
+                <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Buscar ingrediente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+                </div>
+                <div className="flex-1 overflow-y-auto border rounded-md mt-2">
+                        <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nombre</TableHead>
+                                        <TableHead className="text-right">Precio</TableHead>
+                                        <TableHead className="text-right">Acción</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                        {filtered.map(ing => {
+                                            const costePorUnidad = erpMap.get(ing.productoERPlinkId) || 0;
+                                            return (
+                                                <TableRow key={ing.id} className="hover:bg-muted/50">
+                                                        <TableCell className="font-medium">{ing.nombreIngrediente}</TableCell>
+                                                        <TableCell className="text-right font-mono text-xs">{formatCurrency(costePorUnidad)}</TableCell>
+                                                        <TableCell className="text-right">
+                                                                <DialogClose asChild>
+                                                                        <Button size="sm" onClick={() => onSelect({ id: generateId(), tipo: 'ingrediente', componenteId: ing.id, nombre: ing.nombreIngrediente, cantidad: 0, merma: 0, costePorUnidad })} className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs">
+                                                                                <PlusCircle className="h-3 w-3 mr-1" /> Añadir
+                                                                        </Button>
+                                                                </DialogClose>
+                                                        </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                </TableBody>
+                        </Table>
+                </div>
+        </DialogContent>
+    );
 }
 
 interface ImageGalleryModalProps {
@@ -347,12 +370,14 @@ function ElaboracionesListPage() {
   const searchParams = useSearchParams() ?? new URLSearchParams();
   const { toast } = useToast();
   
-  // State
-  const [items, setItems] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [importType, setImportType] = useState<'elaboraciones' | 'componentes' | null>(null);
-  // Splash screen: muestra solo en carga inicial
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+    // State
+    const [items, setItems] = useState<any[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [importType, setImportType] = useState<'elaboraciones' | 'componentes' | null>(null);
+    // Splash screen: muestra solo en carga inicial
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+    // Desktop selection state
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Filtro activo desde URL
   const activePartida = searchParams.get('partida') || 'ALL';
@@ -372,9 +397,15 @@ function ElaboracionesListPage() {
     }
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+    useEffect(() => {
+        // Si hay una bandera de recarga en sessionStorage, recargar y limpiar
+        if (typeof window !== 'undefined' && window.sessionStorage.getItem('reloadElaboraciones')) {
+            window.sessionStorage.removeItem('reloadElaboraciones');
+            loadData();
+            return;
+        }
+        loadData();
+    }, [loadData]);
 
   // Handlers URL Params
   const handlePartidaChange = (value: string) => {
@@ -429,60 +460,137 @@ function ElaboracionesListPage() {
     fileInputRef.current?.click();
   };
 
-  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !importType) return;
+    const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !importType) return;
 
-    Papa.parse<any>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        if (importType === 'elaboraciones') {
-          const importedData = results.data.map((item: any) => {
-            let parsedFotos = [];
-            try { parsedFotos = item.fotos ? JSON.parse(item.fotos) : []; } catch (e) { console.warn('Error fotos CSV', e); }
-            return {
-                id: item.id || generateId(), 
-                nombre: item.nombre,
-                partida: item.partidaProduccion || item.partida,
-                unidad_produccion: item.unidadProduccion,
-                produccion_total: parseFloat(item.produccionTotal) || 1,
-                instrucciones: item.instruccionesPreparacion,
-                fotos: parsedFotos,
-                video_produccion_url: item.videoProduccionURL,
-                formato_expedicion: item.formatoExpedicion,
-                ratio_expedicion: parseFloat(item.ratioExpedicion) || 0,
-                tipo_expedicion: item.tipoExpedicion || 'REFRIGERADO',
-                coste_unitario: parseFloat(item.costePorUnidad) || 0,
-            };
-          });
-          const { error } = await supabase.from('elaboraciones').upsert(importedData);
-          if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });
-          else { loadData(); toast({ title: 'Importación completada' }); }
-        } else if (importType === 'componentes') {
-             const mappedComponents = results.data.map((item: any) => ({
-                 elaboracion_padre_id: item.id_elaboracion_padre || item.elaboracion_padre_id,
-                 tipo_componente: item.tipo_componente,
-                 componente_id: item.id_componente || item.componente_id,
-                 cantidad_neta: parseFloat(item.cantidad) || 0,
-                 merma_aplicada: parseFloat(item.merma) || 0
-             }));
-             const { error } = await supabase.from('elaboracion_componentes').upsert(mappedComponents);
-             if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });
-             else toast({ title: 'Importación completada' });
-        }
-      }
+        Papa.parse<any>(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                let errors: string[] = [];
+                let ignoredRows = 0;
+                if (importType === 'elaboraciones') {
+                    const importedData = results.data.map((item: any, idx: number) => {
+                        let parsedFotos = [];
+                        let valid = true;
+                        // Validar campos obligatorios
+                        if (!item.nombre || !item.partidaProduccion && !item.partida || !item.unidadProduccion) {
+                            errors.push(`Fila ${idx + 2}: Faltan campos obligatorios (nombre, partida o unidad)`);
+                            valid = false;
+                        }
+                        let produccionTotal = parseFloat(item.produccionTotal);
+                        if (isNaN(produccionTotal) || produccionTotal <= 0) {
+                            errors.push(`Fila ${idx + 2}: Producción total inválida`);
+                            valid = false;
+                        }
+                        let costeUnitario = parseFloat(item.costePorUnidad);
+                        if (isNaN(costeUnitario)) costeUnitario = 0;
+                        try { parsedFotos = item.fotos ? JSON.parse(item.fotos) : []; } catch (e) { errors.push(`Fila ${idx + 2}: Fotos mal formateadas`); parsedFotos = []; }
+                        if (!valid) { ignoredRows++; return null; }
+                        return {
+                                id: item.id || generateId(), 
+                                nombre: item.nombre,
+                                partida: item.partidaProduccion || item.partida,
+                                unidad_produccion: item.unidadProduccion,
+                                produccion_total: produccionTotal,
+                                instrucciones: item.instruccionesPreparacion,
+                                fotos: parsedFotos,
+                                video_produccion_url: item.videoProduccionURL,
+                                formato_expedicion: item.formatoExpedicion,
+                                ratio_expedicion: parseFloat(item.ratioExpedicion) || 0,
+                                tipo_expedicion: item.tipoExpedicion || 'REFRIGERADO',
+                                coste_unitario: costeUnitario,
+                        };
+                    }).filter(Boolean);
+                    const { error } = await supabase.from('elaboraciones').upsert(importedData);
+                    if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });
+                    else {
+                        loadData();
+                        let msg = 'Importación completada';
+                        if (errors.length > 0) msg += `. Errores: ${errors.length}.`;
+                        if (ignoredRows > 0) msg += ` Filas ignoradas: ${ignoredRows}.`;
+                        toast({ title: msg, description: errors.length > 0 ? errors.join('\n').slice(0, 500) : undefined, variant: errors.length > 0 ? 'destructive' : 'default', duration: errors.length > 0 ? 8000 : 3000 });
+                    }
+                } else if (importType === 'componentes') {
+                         const mappedComponents = results.data.map((item: any, idx: number) => {
+                             let valid = true;
+                             if (!item.id_elaboracion_padre && !item.elaboracion_padre_id) {
+                                 errors.push(`Fila ${idx + 2}: Falta id_elaboracion_padre`);
+                                 valid = false;
+                             }
+                             if (!item.tipo_componente) {
+                                 errors.push(`Fila ${idx + 2}: Falta tipo_componente`);
+                                 valid = false;
+                             }
+                             if (!item.id_componente && !item.componente_id) {
+                                 errors.push(`Fila ${idx + 2}: Falta id_componente`);
+                                 valid = false;
+                             }
+                             let cantidad = parseFloat(item.cantidad);
+                             if (isNaN(cantidad)) cantidad = 0;
+                             let merma = parseFloat(item.merma);
+                             if (isNaN(merma)) merma = 0;
+                             if (!valid) { ignoredRows++; return null; }
+                             return {
+                                 elaboracion_padre_id: item.id_elaboracion_padre || item.elaboracion_padre_id,
+                                 tipo_componente: item.tipo_componente,
+                                 componente_id: item.id_componente || item.componente_id,
+                                 cantidad_neta: cantidad,
+                                 merma_aplicada: merma
+                             };
+                         }).filter(Boolean);
+                         const { error } = await supabase.from('elaboracion_componentes').upsert(mappedComponents);
+                         if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });
+                         else {
+                             let msg = 'Importación completada';
+                             if (errors.length > 0) msg += `. Errores: ${errors.length}.`;
+                             if (ignoredRows > 0) msg += ` Filas ignoradas: ${ignoredRows}.`;
+                             toast({ title: msg, description: errors.length > 0 ? errors.join('\n').slice(0, 500) : undefined, variant: errors.length > 0 ? 'destructive' : 'default', duration: errors.length > 0 ? 8000 : 3000 });
+                         }
+                }
+            }
+        });
+        if (event.target) event.target.value = '';
+        setImportType(null);
+    };
+
+    // Lógica de filtrado combinada (Búsqueda + Partida URL)
+    const filtered = items.filter(i => {
+            const matchSearch = i.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchPartida = activePartida !== 'ALL' ? i.partida === activePartida : true;
+            return matchSearch && matchPartida;
     });
-    if (event.target) event.target.value = '';
-    setImportType(null);
-  };
 
-  // Lógica de filtrado combinada (Búsqueda + Partida URL)
-  const filtered = items.filter(i => {
-      const matchSearch = i.nombre.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchPartida = activePartida !== 'ALL' ? i.partida === activePartida : true;
-      return matchSearch && matchPartida;
-  });
+        // Desktop: handle checkbox selection
+        const isAllSelected = filtered.length > 0 && filtered.every(item => selectedIds.includes(item.id));
+        const isIndeterminate = selectedIds.length > 0 && !isAllSelected;
+        const handleSelectAll = () => {
+                if (isAllSelected) setSelectedIds([]);
+                else setSelectedIds(filtered.map(item => item.id));
+        };
+        const handleSelectOne = (id: string) => {
+                setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+        };
+
+        // Bulk delete dialog state
+        const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+        // Bulk delete handler
+        const handleBulkDelete = async () => {
+            try {
+                if (selectedIds.length === 0) return;
+                const { error } = await supabase.from('elaboraciones').delete().in('id', selectedIds);
+                if (error) throw error;
+                setSelectedIds([]);
+                loadData();
+                toast({ title: 'Elaboraciones eliminadas' });
+            } catch (e) {
+                toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar.' });
+            } finally {
+                setShowBulkDeleteConfirm(false);
+            }
+        };
 
   if (isInitialLoading) {
     return <LoadingSkeleton title="Cargando Elaboraciones..." />;
@@ -574,11 +682,34 @@ function ElaboracionesListPage() {
             {filtered.length === 0 && <div className="text-center py-10 text-muted-foreground text-sm border-2 border-dashed rounded-lg bg-muted/10">No se encontraron elaboraciones.</div>}
          </div>
 
-         {/* VISTA DESKTOP */}
-         <div className="hidden md:block border rounded-lg overflow-hidden bg-white shadow-sm">
-            <Table>
+                 {/* VISTA DESKTOP */}
+                 <div className="hidden md:block">
+                     {selectedIds.length > 0 && (
+                         <div className="flex justify-end mb-2">
+                             <Button
+                                 variant="destructive"
+                                 size="sm"
+                                 className="h-8 px-3 text-xs shadow"
+                                 onClick={() => setShowBulkDeleteConfirm(true)}
+                             >
+                                 <Trash2 className="h-4 w-4 mr-1" /> Borrar seleccionados
+                             </Button>
+                         </div>
+                     )}
+                     <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+                        <Table>
                 <TableHeader className="bg-muted/40">
                     <TableRow>
+                                                <TableHead className="w-8 pl-2 pr-1 align-middle">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="accent-blue-600 h-4 w-4 align-middle"
+                                                        checked={isAllSelected}
+                                                        ref={el => { if (el) el.indeterminate = isIndeterminate; }}
+                                                        onChange={handleSelectAll}
+                                                        aria-label="Seleccionar todas"
+                                                    />
+                                                </TableHead>
                         <TableHead>Nombre</TableHead>
                         <TableHead>Partida</TableHead>
                         <TableHead className="text-right">Coste / Ud.</TableHead>
@@ -587,20 +718,44 @@ function ElaboracionesListPage() {
                 </TableHeader>
                 <TableBody>
                     {filtered.map(item => (
-                        <TableRow key={item.id} onClick={() => router.push(`/book/elaboraciones/${item.id}`)} className="cursor-pointer hover:bg-muted/50 group">
-                            <TableCell className="font-medium">{item.nombre}</TableCell>
-                            <TableCell><Badge variant="outline" className="font-normal">{item.partida}</Badge></TableCell>
-                            <TableCell className="text-right font-mono text-sm">{formatCurrency(item.coste_unitario)} / {formatUnit(item.unidad_produccion)}</TableCell>
-                            <TableCell className="text-right">
+                        <TableRow key={item.id} className={selectedIds.includes(item.id) ? "bg-blue-50/40" : "cursor-pointer hover:bg-muted/50 group"}>
+                                                        <TableCell className="w-8 pl-2 pr-1 align-middle">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="accent-blue-600 h-4 w-4 align-middle"
+                                                                checked={selectedIds.includes(item.id)}
+                                                                onChange={() => handleSelectOne(item.id)}
+                                                                onClick={e => e.stopPropagation()}
+                                                                aria-label="Seleccionar elaboración"
+                                                            />
+                                                        </TableCell>
+                            <TableCell className="font-medium" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.nombre}</TableCell>
+                            <TableCell onClick={() => router.push(`/book/elaboraciones/${item.id}`)}><Badge variant="outline" className="font-normal">{item.partida}</Badge></TableCell>
+                            <TableCell className="text-right font-mono text-sm" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{formatCurrency(item.coste_unitario)} / {formatUnit(item.unidad_produccion)}</TableCell>
+                            <TableCell className="text-right" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                             </TableCell>
                         </TableRow>
                     ))}
-                    {filtered.length === 0 && <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No se encontraron elaboraciones.</TableCell></TableRow>}
+                    {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No se encontraron elaboraciones.</TableCell></TableRow>}
                 </TableBody>
-            </Table>
-         </div>
-    </div>
+                </Table>
+              </div>
+            </div>
+        {/* Bulk delete confirmation dialog */}
+        <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Eliminar seleccionados?</AlertDialogTitle>
+                    <AlertDialogDescription>Esta acción eliminará todas las elaboraciones seleccionadas. ¿Desea continuar?</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive">Eliminar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        </div>
   )
 }
 
@@ -899,13 +1054,41 @@ function ElaborationFormPage() {
                                  </Card>
 
                                 <Card className="shadow-none border border-border/60">
-                                    <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between bg-muted/10 border-b">
-                                        <CardTitle className="text-sm font-bold">Componentes</CardTitle>
-                                        <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                                            <DialogTrigger asChild><Button variant="outline" size="sm" className="h-7 text-xs bg-background"><PlusCircle className="h-3.5 w-3.5 mr-1" /> Añadir</Button></DialogTrigger>
-                                            <ComponenteSelector onSelect={(comp) => { appendComp(comp); setIsSelectorOpen(false); }} />
-                                        </Dialog>
-                                    </CardHeader>
+                                                                        <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between bg-muted/10 border-b">
+                                                                                <CardTitle className="text-sm font-bold">Componentes</CardTitle>
+                                                                                <div className="flex gap-2 items-center">
+                                                                                    <Button
+                                                                                        type="button"
+                                                                                        variant="outline"
+                                                                                        size="sm"
+                                                                                        className="h-7 text-xs bg-background"
+                                                                                        onClick={() => {
+                                                                                            // Recalcular costes: actualiza el form con los nuevos costes
+                                                                                            const comps = form.getValues('componentes');
+                                                                                            let total = 0;
+                                                                                            const nuevos = comps.map((c: any, idx: number) => {
+                                                                                                const cantidad = Number(c.cantidad) || 0;
+                                                                                                const merma = Number(c.merma) || 0;
+                                                                                                const costePorUnidad = Number(c.costePorUnidad) || 0;
+                                                                                                const costeTotal = costePorUnidad * cantidad * (1 + merma / 100);
+                                                                                                total += costeTotal;
+                                                                                                return { ...c, recalculado: true };
+                                                                                            });
+                                                                                            form.setValue('componentes', nuevos, { shouldDirty: true });
+                                                                                            // Forzar recalculo de totales (ya que useMemo depende de watchedComponentes)
+                                                                                            form.trigger('componentes');
+                                                                                            toast({ title: 'Costes recalculados', description: 'Los costes han sido actualizados con los valores actuales.', duration: 2000 });
+                                                                                        }}
+                                                                                        title="Recalcular costes"
+                                                                                    >
+                                                                                        <Euro className="h-3.5 w-3.5 mr-1" /> Recalcular
+                                                                                    </Button>
+                                                                                    <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                                                                                        <DialogTrigger asChild><Button variant="outline" size="sm" className="h-7 text-xs bg-background"><PlusCircle className="h-3.5 w-3.5 mr-1" /> Añadir</Button></DialogTrigger>
+                                                                                        <ComponenteSelector onSelect={(comp) => { appendComp(comp); setIsSelectorOpen(false); }} />
+                                                                                    </Dialog>
+                                                                                </div>
+                                                                        </CardHeader>
                                     <CardContent className="p-0 sm:p-2">
                                         <div className="hidden md:block overflow-x-auto">
                                             <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
