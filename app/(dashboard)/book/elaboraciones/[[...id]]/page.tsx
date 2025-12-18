@@ -30,7 +30,7 @@ import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from '@/components/ui/label';
 
@@ -438,6 +438,10 @@ function ElaboracionesListPage() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     // Desktop selection state
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    // Map for recipe counts
+    const [recipeCountMap, setRecipeCountMap] = useState<Map<string, { count: number; names: string[] }>>(new Map());
+    // Filter for orphan elaborations
+    const [showOrphansOnly, setShowOrphansOnly] = useState(false);
 
   // Filtro activo desde URL
   const activePartida = searchParams.get('partida') || 'ALL';
@@ -450,8 +454,36 @@ function ElaboracionesListPage() {
     // Scroll reset for UX
     window.scrollTo({ top: 0, behavior: 'instant' });
     try {
-      const { data } = await supabase.from('elaboraciones').select('*').order('nombre');
-      if(data) setItems(data);
+      const [elaboracionesRes, recetasRes] = await Promise.all([
+        supabase.from('elaboraciones').select('*').order('nombre'),
+        supabase.from('recetas').select('id, nombre, elaboraciones')
+      ]);
+      
+      if(elaboracionesRes.data) setItems(elaboracionesRes.data);
+      
+      // Build recipe count map
+      if (recetasRes.data) {
+        const countMap = new Map<string, { count: number; names: string[] }>();
+        
+        recetasRes.data.forEach(receta => {
+          const elaboraciones = receta.elaboraciones || [];
+          elaboraciones.forEach((elab: any) => {
+            const elaboracionId = elab.elaboracionId;
+            if (elaboracionId) {
+              if (!countMap.has(elaboracionId)) {
+                countMap.set(elaboracionId, { count: 0, names: [] });
+              }
+              const current = countMap.get(elaboracionId)!;
+              current.count += 1;
+              if (!current.names.includes(receta.nombre)) {
+                current.names.push(receta.nombre);
+              }
+            }
+          });
+        });
+        
+        setRecipeCountMap(countMap);
+      }
     } finally {
       setIsInitialLoading(false);
     }
@@ -615,11 +647,12 @@ function ElaboracionesListPage() {
         setImportType(null);
     };
 
-    // Lógica de filtrado combinada (Búsqueda + Partida URL)
+    // Lógica de filtrado combinada (Búsqueda + Partida URL + Huérfanas)
     const filtered = items.filter(i => {
             const matchSearch = i.nombre.toLowerCase().includes(searchTerm.toLowerCase());
             const matchPartida = activePartida !== 'ALL' ? i.partida === activePartida : true;
-            return matchSearch && matchPartida;
+            const matchOrphans = showOrphansOnly ? (recipeCountMap.get(i.id)?.count ?? 0) === 0 : true;
+            return matchSearch && matchPartida && matchOrphans;
     });
 
         // Desktop: handle checkbox selection
@@ -652,12 +685,53 @@ function ElaboracionesListPage() {
             }
         };
 
+        // Clone single elaboration
+        const handleCloneOne = (id: string) => {
+            router.push(`/book/elaboraciones/nueva?cloneId=${id}`);
+        };
+
+        // Clone multiple elaborations
+        const handleCloneMultiple = async () => {
+            try {
+                const toClone = items.filter(i => selectedIds.includes(i.id));
+                const newElaboraciones = toClone.map(e => ({
+                    id: generateId(),
+                    nombre: `${e.nombre} (Copia)`,
+                    partida: e.partida,
+                    unidad_produccion: e.unidad_produccion,
+                    produccion_total: e.produccion_total,
+                    instrucciones: e.instrucciones,
+                    caducidad_dias: e.caducidad_dias,
+                    fotos: e.fotos,
+                    video_produccion_url: e.video_produccion_url,
+                    formato_expedicion: e.formato_expedicion,
+                    ratio_expedicion: e.ratio_expedicion,
+                    tipo_expedicion: e.tipo_expedicion,
+                    coste_unitario: e.coste_unitario,
+                    requiere_revision: false,
+                    comentario_revision: null,
+                    fecha_revision: null,
+                    responsable_revision: null
+                }));
+                
+                const { error } = await supabase.from('elaboraciones').insert(newElaboraciones);
+                if (error) throw error;
+                
+                setSelectedIds([]);
+                loadData();
+                toast({ title: `${newElaboraciones.length} elaboración(es) clonada(s)` });
+            } catch (e: any) {
+                toast({ variant: 'destructive', title: 'Error', description: e.message });
+            }
+        };
+
   if (isInitialLoading) {
     return <LoadingSkeleton title="Cargando Elaboraciones..." />;
   }
 
   return (
-    <div className="space-y-4 p-4 max-w-7xl mx-auto pb-24">
+    <TooltipProvider>
+      <div className="space-y-4 p-4 max-w-7xl mx-auto pb-24">
          <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelected} />
 
          {/* TOOLBAR */}
@@ -691,6 +765,14 @@ function ElaboracionesListPage() {
                             </SelectContent>
                         </Select>
                     </div>
+                    <Button
+                        variant={showOrphansOnly ? "default" : "outline"}
+                        size="sm"
+                        className={`h-9 text-xs px-3 ${showOrphansOnly ? 'bg-orange-600 hover:bg-orange-700 text-white' : ''}`}
+                        onClick={() => setShowOrphansOnly(!showOrphansOnly)}
+                    >
+                        Elaboraciones Huérfanas{showOrphansOnly && ` (${filtered.length})`}
+                    </Button>
                 </div>
 
                 {/* Actions Group */}
@@ -726,19 +808,66 @@ function ElaboracionesListPage() {
             {filtered.map(item => (
                 <div 
                     key={item.id} 
-                    className={`bg-card border-l-4 rounded-lg p-3 shadow-sm active:scale-[0.98] transition-all cursor-pointer group ${item.requiere_revision ? 'border-l-amber-500 border-r border-t border-b border-amber-200 bg-amber-50/30' : 'border-l-primary/20 border-r border-t border-b'}`}
-                    onClick={() => router.push(`/book/elaboraciones/${item.id}`)}
+                    className={`bg-card border-l-4 rounded-lg p-3 shadow-sm active:scale-[0.98] transition-all group ${item.requiere_revision ? 'border-l-amber-500 border-r border-t border-b border-amber-200 bg-amber-50/30' : 'border-l-primary/20 border-r border-t border-b'}`}
                 >
                     <div className="flex justify-between items-start mb-1">
                         <div className="flex items-center gap-2 flex-1">
-                            <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{item.nombre}</span>
+                            <input
+                                type="checkbox"
+                                className="accent-blue-600 h-4 w-4 align-middle cursor-pointer"
+                                checked={selectedIds.includes(item.id)}
+                                onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleSelectOne(item.id);
+                                }}
+                                aria-label="Seleccionar elaboración"
+                            />
+                            <span 
+                                className="font-bold text-sm text-foreground group-hover:text-primary transition-colors cursor-pointer flex-1"
+                                onClick={() => router.push(`/book/elaboraciones/${item.id}`)}
+                            >
+                                {item.nombre}
+                            </span>
                             {item.requiere_revision && <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />}
                         </div>
-                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal">{item.partida}</Badge>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => e.stopPropagation()}>
+                                    <Menu className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>Abrir</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleCloneOne(item.id)}>Clonar</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive" onClick={() => {
+                                    setSelectedIds([item.id]);
+                                    setShowBulkDeleteConfirm(true);
+                                }}>Eliminar</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                     <div className="flex justify-between items-center text-xs text-muted-foreground">
                         <span>{formatCurrency(item.coste_unitario)} / {formatUnit(item.unidad_produccion)}</span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary" />
+                        <div className="flex items-center gap-2">
+                            {recipeCountMap.get(item.id) && recipeCountMap.get(item.id)!.count > 0 && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal cursor-pointer hover:bg-primary/10">
+                                            {recipeCountMap.get(item.id)!.count} receta{recipeCountMap.get(item.id)!.count !== 1 ? 's' : ''}
+                                        </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs">
+                                        <div className="space-y-1">
+                                            {recipeCountMap.get(item.id)!.names.map((name, idx) => (
+                                                <div key={idx} className="text-xs">{name}</div>
+                                            ))}
+                                        </div>
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
+                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal">{item.partida}</Badge>
+                        </div>
                     </div>
                 </div>
             ))}
@@ -748,14 +877,22 @@ function ElaboracionesListPage() {
                  {/* VISTA DESKTOP */}
                  <div className="hidden md:block">
                      {selectedIds.length > 0 && (
-                         <div className="flex justify-end mb-2">
+                         <div className="flex justify-end gap-2 mb-2">
+                             <Button
+                                 variant="outline"
+                                 size="sm"
+                                 className="h-8 px-3 text-xs shadow"
+                                 onClick={handleCloneMultiple}
+                             >
+                                 📋 Clonar ({selectedIds.length})
+                             </Button>
                              <Button
                                  variant="destructive"
                                  size="sm"
                                  className="h-8 px-3 text-xs shadow"
                                  onClick={() => setShowBulkDeleteConfirm(true)}
                              >
-                                 <Trash2 className="h-4 w-4 mr-1" /> Borrar seleccionados
+                                 <Trash2 className="h-4 w-4 mr-1" /> Borrar ({selectedIds.length})
                              </Button>
                          </div>
                      )}
@@ -776,7 +913,8 @@ function ElaboracionesListPage() {
                         <TableHead>Nombre</TableHead>
                         <TableHead>Partida</TableHead>
                         <TableHead className="text-right">Coste / Ud.</TableHead>
-                        <TableHead className="text-right w-[60px]"></TableHead>
+                        <TableHead className="text-center">Recetas</TableHead>
+                        <TableHead className="text-right w-[100px]">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -785,7 +923,7 @@ function ElaboracionesListPage() {
                                                         <TableCell className="w-8 pl-2 pr-1 align-middle">
                                                             <input
                                                                 type="checkbox"
-                                                                className="accent-blue-600 h-4 w-4 align-middle"
+                                                                className="accent-blue-600 h-4 w-4 align-middle cursor-pointer"
                                                                 checked={selectedIds.includes(item.id)}
                                                                 onChange={() => handleSelectOne(item.id)}
                                                                 onClick={e => e.stopPropagation()}
@@ -800,12 +938,47 @@ function ElaboracionesListPage() {
                             </TableCell>
                             <TableCell onClick={() => router.push(`/book/elaboraciones/${item.id}`)}><Badge variant="outline" className="font-normal">{item.partida}</Badge></TableCell>
                             <TableCell className="text-right font-mono text-sm" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{formatCurrency(item.coste_unitario)} / {formatUnit(item.unidad_produccion)}</TableCell>
-                            <TableCell className="text-right" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>
-                                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <TableCell className="text-center">
+                                {recipeCountMap.get(item.id) && recipeCountMap.get(item.id)!.count > 0 ? (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Badge variant="outline" className="text-xs px-2 py-1 font-normal cursor-pointer hover:bg-primary/10">
+                                                {recipeCountMap.get(item.id)!.count}
+                                            </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-xs">
+                                            <div className="space-y-1">
+                                                {recipeCountMap.get(item.id)!.names.map((name, idx) => (
+                                                    <div key={idx} className="text-xs">{name}</div>
+                                                ))}
+                                            </div>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                                            <Menu className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>Abrir</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleCloneOne(item.id)}>Clonar</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-destructive" onClick={() => {
+                                            setSelectedIds([item.id]);
+                                            setShowBulkDeleteConfirm(true);
+                                        }}>Eliminar</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </TableCell>
                         </TableRow>
                     ))}
-                    {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No se encontraron elaboraciones.</TableCell></TableRow>}
+                    {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No se encontraron elaboraciones.</TableCell></TableRow>}
                 </TableBody>
                 </Table>
               </div>
@@ -823,7 +996,8 @@ function ElaboracionesListPage() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-        </div>
+      </div>
+    </TooltipProvider>
   )
 }
 

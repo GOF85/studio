@@ -11,7 +11,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { 
     Loader2, Save, X, Info, PlusCircle, GripVertical, 
     Trash2, Eye, Component, Archive, BrainCircuit, AlertTriangle, 
-    Maximize2, Image as ImageIcon, ChevronLeft, ChevronRight, Search
+    Maximize2, Image as ImageIcon, ChevronLeft, ChevronRight, Search, RefreshCw
 } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno, CategoriaReceta, PartidaProduccion, ElaboracionEnReceta } from '@/types';
 import { SABORES_PRINCIPALES, ALERGENOS, UNIDADES_MEDIDA, TECNICAS_COCCION } from '@/types';
@@ -797,12 +797,23 @@ function RecetaFormPage() {
                                             {/* LISTA ELABORACIONES (75% en Desktop) */}
                                             <div className="lg:col-span-9 order-2 lg:order-1 space-y-4">
                                                 <Card className="shadow-none border border-border/60">
-                                                    <CardHeader className="p-2 pb-1 flex flex-row items-center justify-between bg-muted/10 border-b">
+                                                    <CardHeader className="p-2 pb-1 flex flex-row items-center justify-between gap-2 bg-muted/10 border-b">
                                                         <CardTitle className="text-sm font-bold">Elaboraciones</CardTitle>
-                                                        <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                                                            <DialogTrigger asChild><Button variant="outline" size="sm" className="h-6 text-xs px-2 bg-background"><PlusCircle className="h-3 w-3 mr-1" /> Añadir</Button></DialogTrigger>
-                                                            <ElaborationSelector allElaboraciones={dbElaboraciones} onSelect={onAddElab} />
-                                                        </Dialog>
+                                                        <div className="flex gap-2 items-center">
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="h-6 text-xs px-2 bg-background"
+                                                                onClick={() => recalculateCostsAndAllergens()}
+                                                                title="Recalcular costes y alérgenos"
+                                                            >
+                                                                <RefreshCw className="h-3 w-3 mr-1" /> Recalcular
+                                                            </Button>
+                                                            <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                                                                <DialogTrigger asChild><Button variant="outline" size="sm" className="h-6 text-xs px-2 bg-background"><PlusCircle className="h-3 w-3 mr-1" /> Añadir</Button></DialogTrigger>
+                                                                <ElaborationSelector allElaboraciones={dbElaboraciones} onSelect={onAddElab} />
+                                                            </Dialog>
+                                                        </div>
                                                     </CardHeader>
                                                     <CardContent className="p-0 sm:p-2">
                                                         {/* Vista Móvil (Cards) */}
