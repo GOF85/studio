@@ -1,149 +1,74 @@
-# Project Overview
+## Contexto para Gemini CLI
 
-This is a Next.js project that uses TypeScript. It appears to be a web application for managing catering services, with features related to recipes, ingredients, clients, and events.
+Este archivo explica cómo debe trabajar Gemini CLI en este repositorio: qué tecnologías usamos, cómo ejecutarlo y, sobre todo, el estilo de producto, UX y código que esperamos.
 
-**Key Technologies:**
+### Stack y fundamento
+- Framework: Next.js (App Router)
+- Lenguaje: TypeScript (tipado estricto pero pragmático)
+- Backend: Supabase
+- Data fetching: React Query (hooks personalizados)
+- Estilos: Tailwind CSS
+- UI: Radix UI + shadcn/ui + iconos Lucide
+- AI: Genkit
 
-*   **Framework:** Next.js
-*   **Language:** TypeScript
-*   **Backend:** Supabase
-*   **Styling:** Tailwind CSS
-*   **UI:** Radix UI, shadcn-ui
-*   **Data Fetching:** React Query
-*   **AI:** Genkit
+### Cómo arrancar
+1) Instalar dependencias: `npm install`
+2) Variables: crear `.env.local` con `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+3) Desarrollo: `npm run dev`
+4) Build: `npm run build` y producción: `npm run start`
 
-# Building and Running
+### Estructura clave
+- app/: rutas Next (grupos `(auth)` público y `(dashboard)` privado con layout compartido)
+- components/: UI reutilizable (ui/, layout/, dashboard/…)
+- hooks/: lógica de datos encapsulada (React Query)
+- lib/: utilidades y clientes (ej. supabase.ts)
+- providers/: contextos (auth, query)
+- ai/: configuración de Genkit
+- migrations/: SQL
+- middleware.ts: protección de rutas (redirección a /login si no hay sesión)
+- docs/: toda la documentación temática (consultar docs/README.md)
 
-To get the project up and running, you'll need to have Node.js and npm installed.
+### Guía de estilo y UX (resumen de style.md)
+- Clean Page: en cada page.tsx el orden es Imports → Helpers puros → Subcomponentes locales tipados → Componente principal (hooks al inicio, efectos de UX, manejo de loading/error, JSX limpio).
+- Cero redundancia: si el breadcrumb ya indica el contexto, evita repetirlo en H1.
+- Scroll reset: al cambiar de pestañas o navegar a detalle, forzar scroll a (0,0) `behavior: 'instant'` para sensación de velocidad.
+- UI guiada por URL: pestañas/filtros deben reflejarse en la URL (`?tab=`). Recargar debe mantener el estado.
+- Feedback constante:
+	- Loading: skeletons que imitan la estructura final (no spinners genéricos).
+	- Empty states: componentes dedicados con icono y mensaje claro.
+	- Hover: tarjetas interactivas con borde/sombra sutil (p. ej. `hover:border-amber-400`).
+- Diseño visual:
+	- Paleta semántica con acento ámbar para estados de atención/revisión.
+	- Tarjetas: `rounded-lg`, posible `border-l-4` por estado, usar `group` para animar hijos en hover.
+	- Badges: variantes suaves (secondary) para contadores en tabs.
+	- Sticky headers/toolbars: `sticky top-0` + `backdrop-blur` para contexto en scroll.
+- Buenas prácticas de código:
+	- Siempre tipar props (interfaces) incluso en subcomponentes locales.
+	- Navegación programática en tarjetas clicables (`router.push`) en vez de envolver todo en Link.
+	- La página no conoce el fetch: solo llama a hooks (ej. `useRecetas()`), la lógica vive en hooks.
+	- Fechas con `Intl.DateTimeFormat('es-ES')` para consistencia.
+- Checklist antes de entregar:
+	- ¿La URL refleja el estado (tabs/filtros)?
+	- ¿Sin títulos redundantes respecto a breadcrumb?
+	- ¿Scroll correcto al cargar/cambiar?
+	- ¿Hay estado de loading y empty state?
+	- ¿Props tipados? ¿Subcomponentes locales donde toque?
 
-**1. Install Dependencies:**
+### Qué espera el usuario
+- Experiencia rápida y clara: navegación sin fricción, feedback inmediato.
+- Visual “limpio y profesional”, con acentos ámbar para pendientes/atención.
+- Código fácil de mantener: hooks para datos, páginas ligeras, componentes bien tipados.
 
-```bash
-npm install
-```
+### Referencias útiles
+- Documentación central: docs/DOCUMENTACION_INDEX.md y docs/SUMMARY.md
+- Guía rápida: docs/guia_rapida/START_HERE.md
+- Implementación/Checklist: docs/implementacion/COMO_PROCEDER.md
+- Fixes técnicos: docs/fixes/README_FIX_FETCH_ERROR.md
+- Optimización: docs/optimizaciones/RESUMEN_OPTIMIZACIONES.md
 
-**2. Set up Environment Variables:**
-
-Create a `.env.local` file in the root of the project and add the following variables:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-```
-
-**3. Run the Development Server:**
-
-```bash
-npm run dev
-```
-
-This will start the development server on `http://localhost:3000`.
-
-**4. Build for Production:**
-
-```bash
-npm run build
-```
-
-**5. Start the Production Server:**
-
-```bash
-npm run start
-```
-
-# Project Structure
-
-The project follows a clean, organized structure with all source files at the root level:
-
-## Directory Structure
-
-```
-studio/
-├── app/                          ← Next.js App Router
-│   ├── (auth)/                   ← Public authentication routes
-│   │   └── login/
-│   ├── (dashboard)/              ← Private routes (requires auth)
-│   │   ├── layout.tsx            ← Dashboard layout with Header
-│   │   ├── page.tsx              ← Main dashboard
-│   │   ├── book/                 ← Gastronomic Book (recipes, ingredients)
-│   │   ├── control-explotacion/  ← Financial control
-│   │   ├── entregas/             ← MICE deliveries
-│   │   ├── analitica/            ← Analytics and reports
-│   │   ├── bd/                   ← Databases (clients, providers, etc.)
-│   │   ├── cpr/                  ← Production Center
-│   │   ├── os/                   ← Service Orders
-│   │   ├── rrhh/                 ← Human Resources
-│   │   └── ...                   ← Other modules
-│   ├── api/                      ← API routes
-│   ├── globals.css               ← Global styles
-│   └── layout.tsx                ← Root layout (global providers)
-│
-├── components/                   ← Reusable UI components
-│   ├── ui/                       ← shadcn-ui components
-│   ├── layout/                   ← Layout components (Header, etc.)
-│   ├── dashboard/
-│   └── ...
-│
-├── lib/                          ← Utilities and configuration
-│   ├── supabase.ts               ← Supabase client
-│   ├── utils.ts                  ← General utilities
-│   └── constants.ts
-│
-├── hooks/                        ← Custom React hooks
-│   ├── use-data-store.ts         ← Global data store
-│   ├── use-supabase.ts           ← Supabase hooks
-│   └── ...
-│
-├── types/                        ← TypeScript type definitions
-│   └── index.ts
-│
-├── providers/                    ← React Context providers
-│   ├── auth-provider.tsx
-│   └── query-provider.tsx
-│
-├── services/                     ← External service integrations
-├── ai/                           ← AI configuration (Genkit)
-├── migrations/                   ← Database migrations (SQL files)
-└── middleware.ts                 ← Auth & route protection
-```
-
-## Key Features
-
-### Route Organization
-- **Route Groups**: Uses `(auth)` and `(dashboard)` for logical separation
-- **Nested Layouts**: Dashboard routes share a common layout with Header
-- **Protected Routes**: Middleware automatically protects all routes except `/login`
-
-### Path Aliases
-All imports use the `@/` alias pointing to the root:
-```typescript
-import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import type { ServiceOrder } from '@/types';
-```
-
-### Middleware
-- Protects all routes except public ones
-- Uses `@supabase/ssr` for session management
-- Automatic redirect to `/login` for unauthenticated users
-
-# Data Migration
-
-A major data migration was completed to move all business data from `localStorage` to Supabase. This was done to improve performance, security, and scalability. The migration involved creating over 40 tables in Supabase and implementing over 15 React Query hooks.
-
-You can find more information about the migration in the following files:
-
-*   `MIGRATION_README.md`
-*   `migrations/` directory (SQL migration files)
-*   `lib/migrate-localStorage.ts`
-*   `app/(dashboard)/migration/page.tsx`
-
-For detailed structure documentation, see `ESTRUCTURA_PROYECTO.md`.
-
-# Development Conventions
-
-*   **Linting:** The project uses ESLint for linting. You can run the linter with `npm run lint`.
-*   **Type Checking:** The project uses TypeScript for type checking. You can run the type checker with `npm run typecheck`.
-*   **Code Formatting:** The project uses Prettier for code formatting. It's recommended to set up your editor to format on save.
-*   **Styling:** The project uses Tailwind CSS for styling. It's recommended to use the Tailwind CSS IntelliSense extension for VS Code.
-*   **Components:** The project uses shadcn-ui for components. You can add new components with the `npx shadcn-ui@latest add` command.
+### Instrucciones para prompts a Gemini
+- Siempre pedir soluciones alineadas con el estilo anterior (Clean Page, URL-driven UI, skeletons, empty states, acentos ámbar).
+- Responder en español, conciso y accionable.
+- Priorizar TypeScript estricto y componentes tipados.
+- Proponer navegación programática en tarjetas clicables y mantener accesibilidad.
+- Si se sugiere UI, incluir clases Tailwind coherentes con la paleta y patrones descritos.

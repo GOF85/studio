@@ -1,6 +1,25 @@
 # Studio
 
-Proyecto Next.js (app router) usado por el equipo. Este README ofrece pasos rápidos para arrancar el proyecto y recomendaciones mínimas para mejorar la calidad del desarrollo.
+
+Proyecto Next.js (app router) usado por el equipo.
+
+## 📚 Documentación
+
+Toda la documentación ha sido reorganizada y se encuentra en la carpeta [`docs/`](docs/README.md):
+
+- [Índice Maestro de Documentación](docs/DOCUMENTACION_INDEX.md)
+- [Resumen Visual y Guía Rápida](docs/guia_rapida/START_HERE.md)
+- [Implementación y Checklist](docs/implementacion/COMO_PROCEDER.md)
+- [Fixes y Cambios Técnicos](docs/fixes/README_FIX_FETCH_ERROR.md)
+- [Guías de CSV](docs/csv/CSV_GUIDE.md)
+- [Optimización y Rendimiento](docs/optimizaciones/RESUMEN_OPTIMIZACIONES.md)
+- [Escandallo y Producción](docs/escandallo/README_ESCANDALLO_SYSTEM.md)
+- [Guías de Usuario](docs/usuario/INFORME_EJECUTIVO.md)
+- [Guías de Desarrollo](docs/dev/SETUP_DEV_ENVIRONMENT.md)
+
+Consulta el archivo [`docs/SUMMARY.md`](docs/SUMMARY.md) para un índice completo por temas.
+
+---
 
 ## Requisitos
 - Node.js 18+ (recomendado)
@@ -45,40 +64,12 @@ Para mejorar calidad y DX, considera añadir:
 - Añadir `.env.example` (ya existe) y documentar variables de entorno críticas
 - Añadir workflow de CI (GitHub Actions) que corra `npm run ci` en Pull Requests
 
+
 ## 🎨 Gestor de Imágenes para Artículos
 
-**NUEVO:** Se ha añadido un gestor completo de imágenes para artículos (crear y editar).
-
-### Características
-- ✅ Máximo 5 imágenes por artículo
-- ✅ Selección de imagen principal
-- ✅ Drag & drop para reordenar
-- ✅ Soporte JPEG, PNG, HEIC
-- ✅ Almacenamiento en Supabase Storage (bucket: `articulosMice`)
-- ✅ Persistencia en base de datos (columna `imagenes` JSONB)
-- ✅ Compatible con cámara (mobile)
-
-### Activar (3 pasos, 8 minutos)
-1. **Migración SQL:** Copia [`migrations/008_add_imagenes_to_articulos.sql`](migrations/008_add_imagenes_to_articulos.sql) a Supabase SQL Editor y ejecuta
-2. **Verificar bucket:** Ve a Supabase Storage y confirma que bucket `articulosMice` existe y es PUBLIC
-3. **Test:** Abre `http://localhost:3000/bd/articulos/nuevo` y crea un artículo con imágenes
-
-### Documentación completa
-- 🟢 [`COMIENZA_AQUI.md`](COMIENZA_AQUI.md) - Punto de entrada rápido (2 min)
-- 🟡 [`QUICK_REFERENCE.md`](QUICK_REFERENCE.md) - Referencia rápida (3 min)
-- 📘 [`INDEX_MAESTRO.md`](INDEX_MAESTRO.md) - Índice completo de documentación
-- 📗 [`GUIA_IMAGENES_ARTICULOS.md`](GUIA_IMAGENES_ARTICULOS.md) - Detalle técnico (20 min)
-- 📙 [`CHECKLIST_IMPLEMENTACION.md`](CHECKLIST_IMPLEMENTACION.md) - Testing paso a paso (45 min)
-
-### Archivos modificados
-- `app/(dashboard)/bd/articulos/nuevo/page.tsx` - Crear nuevo artículo
-- `app/(dashboard)/bd/articulos/[id]/page.tsx` - Editar artículo existente
-- `migrations/008_add_imagenes_to_articulos.sql` - Nueva migración
-
-### Más información
-- Estado: ✅ 100% implementado y listo
-- Calidad: Production-ready
-- Ver: [`TABLERO_CONTROL.md`](TABLERO_CONTROL.md) para estado del proyecto
+Ver documentación técnica y guía de imágenes en:
+- [`docs/implementacion/`](docs/implementacion/)
+- [`docs/guia_rapida/`](docs/guia_rapida/)
 
 ---
 

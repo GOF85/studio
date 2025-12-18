@@ -38,8 +38,8 @@
 - [x] SQL injection prevention (Supabase ORM)
 
 ### 6. Documentation
-- [x] [IMPLEMENTACION_FACTUSOL_AUTOMATICA.md](../docs/implementacion/IMPLEMENTACION_FACTUSOL_AUTOMATICA.md) (guía detallada)
-- [x] [ACTIVACION_RAPIDA.md](../docs/guia_rapida/ACTIVACION_RAPIDA.md) (pasos rápidos)
+- [x] IMPLEMENTACION_FACTUSOL_AUTOMATICA.md (guía detallada)
+- [x] ACTIVACION_RAPIDA.md (pasos rápidos)
 - [x] Inline code comments
 - [x] Este STATUS_FINAL.md
 
@@ -61,8 +61,8 @@ app/api/cron/sync-factusol/route.ts           (60 líneas)
 vercel.json                                    (6 líneas)
 .github/workflows/sync-factusol-daily.yml      (35 líneas)
 migrations/020_add_variacion_porcentaje.sql    (24 líneas)
-../docs/implementacion/IMPLEMENTACION_FACTUSOL_AUTOMATICA.md          (~300 líneas)
-../docs/guia_rapida/ACTIVACION_RAPIDA.md                           (~150 líneas)
+IMPLEMENTACION_FACTUSOL_AUTOMATICA.md          (~300 líneas)
+ACTIVACION_RAPIDA.md                           (~150 líneas)
 ```
 
 ### 📝 MODIFICADOS (2 archivos)
@@ -351,7 +351,7 @@ El sistema está listo para:
 3. Monitoreo automático
 4. Escala sin límites
 
-**Próximo paso**: Activar siguiendo [ACTIVACION_RAPIDA.md](../docs/guia_rapida/ACTIVACION_RAPIDA.md)
+**Próximo paso**: Activar siguiendo [ACTIVACION_RAPIDA.md](ACTIVACION_RAPIDA.md)
 
 ---
 

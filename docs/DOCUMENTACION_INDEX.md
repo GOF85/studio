@@ -9,25 +9,25 @@
 ## 🎯 ¿POR DÓNDE EMPIEZO?
 
 ### Si tienes POCO TIEMPO (2 minutos) 🚀
-👉 Lee **[START_HERE.md](START_HERE.md)**
+👉 Lee **[START_HERE.md](guia_rapida/START_HERE.md)**
 - Resumen ejecutivo
 - Qué cambió
 - Comando mágico para iniciar
 
 ### Si necesitas INSTRUCCIONES PASO A PASO (5 minutos) 📋
-👉 Lee **[COMO_PROCEDER.md](COMO_PROCEDER.md)**
+👉 Lee **[COMO_PROCEDER.md](implementacion/COMO_PROCEDER.md)**
 - Fases 1, 2, 3 bien documentadas
 - Checklist interactivo
 - Soluciones por error
 
 ### Si quieres ENTENDER TÉCNICAMENTE (10 minutos) 🔧
-👉 Lee **[README_FIX_FETCH_ERROR.md](README_FIX_FETCH_ERROR.md)**
+👉 Lee **[README_FIX_FETCH_ERROR.md](fixes/README_FIX_FETCH_ERROR.md)**
 - Qué era el problema
 - Qué cambios se hicieron
 - Comparativa antes/después
 
 ### Si necesitas REFERENCIA COMPLETA (20 minutos) 📖
-👉 Lee **[SETUP_DEV_ENVIRONMENT.md](SETUP_DEV_ENVIRONMENT.md)**
+👉 Lee **[SETUP_DEV_ENVIRONMENT.md](dev/SETUP_DEV_ENVIRONMENT.md)**
 - Setup desde cero
 - Troubleshooting exhaustivo
 - Checklist y recursos
@@ -36,37 +36,37 @@
 
 ## 📁 ARCHIVOS CREADOS
 
-### 1️⃣ **[START_HERE.md](START_HERE.md)** ⭐ EMPIEZA AQUÍ
+### 1️⃣ **[START_HERE.md](guia_rapida/START_HERE.md)** ⭐ EMPIEZA AQUÍ
 - **Tipo**: Resumen ejecutivo
 - **Tiempo**: 2 minutos
 - **Para**: Todos (especialmente si tienes prisa)
 - **Contiene**: Qué cambió, quick start, comando mágico
 
-### 2️⃣ **[COMO_PROCEDER.md](COMO_PROCEDER.md)**
+### 2️⃣ **[COMO_PROCEDER.md](implementacion/COMO_PROCEDER.md)**
 - **Tipo**: Guía paso a paso interactiva
 - **Tiempo**: 5-10 minutos
 - **Para**: Si quieres instrucciones precisas
 - **Contiene**: 3 fases, checklist, troubleshooting
 
-### 3️⃣ **[README_FIX_FETCH_ERROR.md](README_FIX_FETCH_ERROR.md)**
+### 3️⃣ **[README_FIX_FETCH_ERROR.md](fixes/README_FIX_FETCH_ERROR.md)**
 - **Tipo**: Explicación técnica detallada
 - **Tiempo**: 10 minutos
 - **Para**: Si quieres entender el problema
 - **Contiene**: Antes/después, estado actual, próximos pasos
 
-### 4️⃣ **[SETUP_DEV_ENVIRONMENT.md](SETUP_DEV_ENVIRONMENT.md)**
+### 4️⃣ **[SETUP_DEV_ENVIRONMENT.md](dev/SETUP_DEV_ENVIRONMENT.md)**
 - **Tipo**: Guía completa y referencia
 - **Tiempo**: 20-30 minutos
 - **Para**: Setup desde cero o futuras referencias
 - **Contiene**: Setup detallado, troubleshooting exhaustivo, recursos
 
-### 5️⃣ **[FIX_FETCH_FAILED_MIDDLEWARE.md](FIX_FETCH_FAILED_MIDDLEWARE.md)**
+### 5️⃣ **[FIX_FETCH_FAILED_MIDDLEWARE.md](fixes/FIX_FETCH_FAILED_MIDDLEWARE.md)**
 - **Tipo**: Solución rápida técnica
 - **Tiempo**: 5-10 minutos
 - **Para**: Si necesitas entender la solución rápidamente
 - **Contiene**: Problema, solución, qué cambió
 
-### 6️⃣ **[CAMBIOS_FIX_MIDDLEWARE_FETCH.md](CAMBIOS_FIX_MIDDLEWARE_FETCH.md)**
+### 6️⃣ **[CAMBIOS_FIX_MIDDLEWARE_FETCH.md](fixes/CAMBIOS_FIX_MIDDLEWARE_FETCH.md)**
 - **Tipo**: Documentación formal de cambios
 - **Tiempo**: 15 minutos
 - **Para**: Registro histórico y análisis de impacto
