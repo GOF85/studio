@@ -64,12 +64,10 @@ export function SettingsDialog({ open, onOpenChange, onSave }: SettingsDialogPro
 
   useEffect(() => {
     if (isSettingsLoaded) {
-      form.reset({
-        codfab: settings.codfab || '',
-        codcli: settings.codcli || '',
-        basedatos: settings.basedatos || '',
-        password: settings.password || '',
-      });
+      form.setValue('codfab', settings.codfab || '');
+      form.setValue('codcli', settings.codcli || '');
+      form.setValue('basedatos', settings.basedatos || '');
+      form.setValue('password', settings.password || '');
     }
   }, [isSettingsLoaded, settings, form]);
 

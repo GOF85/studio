@@ -8,6 +8,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
+import Decimal from 'decimal.js';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Papa from 'papaparse';
@@ -38,7 +39,7 @@ import {
     Loader2, Save, X, PlusCircle, GripVertical, 
     Trash2, Download, Upload, Menu, 
     AlertTriangle, ChevronLeft, ChevronRight, Search, 
-    Image as ImageIcon, Filter, Euro
+    Image as ImageIcon, Filter, Euro, AlertCircle
 } from 'lucide-react';
 
 // Custom Components & Hooks
@@ -71,6 +72,34 @@ const generateId = (): string => {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+};
+
+// Configurar precisión de Decimal.js para 15 decimales
+Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
+
+// Función para calcular costes con precisión
+const calculateCostWithPrecision = (
+  precioUnitario: number,
+  cantidad: number,
+  merma: number = 0
+): { costeTotal: number; costePreciso: Decimal } => {
+  try {
+    const precio = new Decimal(precioUnitario || 0);
+    const cant = new Decimal(cantidad || 0);
+    const mermaDecimal = new Decimal(merma || 0);
+    
+    // costeConMerma = precio * (1 + merma/100)
+    const factor = new Decimal(1).plus(mermaDecimal.dividedBy(100));
+    const costePreciso = precio.times(factor).times(cant);
+    
+    return {
+      costeTotal: parseFloat(costePreciso.toString()),
+      costePreciso
+    };
+  } catch (e) {
+    console.error('Error calculating cost:', e);
+    return { costeTotal: 0, costePreciso: new Decimal(0) };
+  }
 };
 
 const CSV_HEADERS_ELABORACIONES = ["id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotos", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion"];
@@ -118,6 +147,7 @@ const elaboracionFormSchema = z.object({
   requiereRevision: z.boolean().optional().default(false),
   comentarioRevision: z.string().optional().default(''),
   fechaRevision: z.string().optional().nullable(),
+  responsableRevision: z.string().optional().default(''),
 });
 
 type ElaborationFormValues = z.infer<typeof elaboracionFormSchema>;
@@ -131,9 +161,10 @@ interface SortableRowProps {
     index: number;
     remove: (index: number) => void;
     form: any;
+    erpData?: any;
 }
 
-function SortableComponentRow({ field, index, remove, form }: SortableRowProps) {
+function SortableComponentRow({ field, index, remove, form, erpData }: SortableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
   
   const style = { 
@@ -142,9 +173,9 @@ function SortableComponentRow({ field, index, remove, form }: SortableRowProps) 
     zIndex: transform ? 999 : 'auto' 
   };
   
-  const costeConMerma = (field.costePorUnidad || 0) * (1 + (field.merma || 0) / 100);
   const quantity = form.watch(`componentes.${index}.cantidad`) || 0;
-  const costeTotal = costeConMerma * quantity;
+  const merma = form.watch(`componentes.${index}.merma`) || 0;
+  const { costeTotal } = calculateCostWithPrecision(field.costePorUnidad || 0, quantity, merma);
 
   return (
       <TableRow ref={setNodeRef} style={style} {...attributes} className="bg-card hover:bg-muted/30">
@@ -154,7 +185,11 @@ function SortableComponentRow({ field, index, remove, form }: SortableRowProps) 
               </div>
           </TableCell>
           <TableCell className="font-semibold py-1 px-2 text-xs sm:text-sm min-w-[120px]">{field.nombre}</TableCell>
-          <TableCell className="text-right font-mono py-1 px-2 hidden sm:table-cell text-xs">{formatCurrency(field.costePorUnidad)}</TableCell>
+          <TableCell className="text-muted-foreground py-1 px-2 hidden lg:table-cell text-xs min-w-[100px]">{erpData?.nombreProveedor || '-'}</TableCell>
+          <TableCell className="text-muted-foreground py-1 px-2 hidden lg:table-cell text-xs min-w-[140px] truncate" title={erpData?.nombreArticulo}>{erpData?.nombreArticulo || '-'}</TableCell>
+          <TableCell className="text-right font-mono py-1 px-2 text-xs min-w-[80px]">{erpData ? formatCurrency(erpData.precioCompra) : '-'}</TableCell>
+          <TableCell className="text-center font-mono py-1 px-2 text-xs min-w-[100px]">{erpData ? `${erpData.cantidadConversion} ${erpData.unidadConversion}` : '-'}</TableCell>
+          <TableCell className="text-right font-mono font-bold py-1 px-2 text-xs min-w-[80px] bg-blue-50/50 dark:bg-blue-900/10">{erpData ? formatCurrency(erpData.precioUnitario) : '-'}</TableCell>
           <TableCell className="py-1 px-2 w-32">
               <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
                   <FormItem><FormControl><Input type="number" step="any" {...qField} value={qField.value ?? ''} className="h-8 text-xs px-2 text-center" /></FormControl></FormItem>
@@ -182,7 +217,7 @@ interface ComponenteSelectorProps {
 function ComponenteSelector({ onSelect }: ComponenteSelectorProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [ingredientes, setIngredientes] = useState<IngredienteInterno[]>([]);
-    const [erpMap, setErpMap] = useState<Map<string, number>>(new Map());
+    const [erpFullMap, setErpFullMap] = useState<Map<string, any>>(new Map());
 
     // Nota: En un refactor mayor, esto iría a un useIngredientes() hook
     useEffect(() => {
@@ -200,13 +235,29 @@ function ComponenteSelector({ onSelect }: ComponenteSelectorProps) {
                 historialRevisiones: []
             })));
             if (erpData) {
-                const map = new Map<string, number>();
+                const map = new Map<string, any>();
                 erpData.forEach((a: any) => {
-                    const price = (a.precio_compra || 0) / (a.unidad_conversion || 1);
-                    if (a.id) map.set(a.id, price);
-                    if (a.erp_id) map.set(a.erp_id, price);
+                    const precioBase = a.precio_compra || 0;
+                    const descuentoPct = a.descuento || 0;
+                    const precioConDescuento = precioBase * (1 - descuentoPct / 100);
+                    const cantConv = a.unidad_conversion || 1;
+                    const precioUnitario = precioConDescuento / cantConv;
+                    
+                    const erpObj = {
+                        id: a.id,
+                        erp_id: a.erp_id,
+                        nombreArticulo: a.nombre_articulo || a.erp_id || '',
+                        nombreProveedor: a.nombre_proveedor || '',
+                        precioCompra: precioConDescuento,
+                        precioUnitario: precioUnitario,
+                        descuento: descuentoPct,
+                        cantidadConversion: cantConv,
+                        unidadConversion: a.unidad_medida || ''
+                    };
+                    if (a.id) map.set(a.id, erpObj);
+                    if (a.erp_id) map.set(a.erp_id, erpObj);
                 });
-                setErpMap(map);
+                setErpFullMap(map);
             }
         };
         fetchIngredientes();
@@ -215,31 +266,40 @@ function ComponenteSelector({ onSelect }: ComponenteSelectorProps) {
     const filtered = ingredientes.filter(i => i.nombreIngrediente.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return (
-        <DialogContent className="max-h-[80vh] flex flex-col max-w-2xl">
+        <DialogContent className="max-h-[80vh] flex flex-col max-w-7xl">
                 <DialogHeader><DialogTitle>Añadir Ingrediente</DialogTitle></DialogHeader>
                 <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input placeholder="Buscar ingrediente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
                 </div>
-                <div className="flex-1 overflow-y-auto border rounded-md mt-2">
-                        <Table>
-                                <TableHeader>
+                <div className="flex-1 overflow-x-auto overflow-y-auto border rounded-md mt-2">
+                        <Table className="text-xs">
+                                <TableHeader className="bg-muted/40 sticky top-0">
                                     <TableRow>
-                                        <TableHead>Nombre</TableHead>
-                                        <TableHead className="text-right">Precio</TableHead>
-                                        <TableHead className="text-right">Acción</TableHead>
+                                        <TableHead className="min-w-[150px]">Ingrediente</TableHead>
+                                        <TableHead className="min-w-[140px]">Proveedor</TableHead>
+                                        <TableHead className="min-w-[140px]">Artículo ERP</TableHead>
+                                        <TableHead className="text-right min-w-[90px]">Precio Compra</TableHead>
+                                        <TableHead className="text-right min-w-[100px] bg-blue-50 dark:bg-blue-900/20 font-bold">Precio/Ud</TableHead>
+                                        <TableHead className="text-center min-w-[100px]">Conversión</TableHead>
+                                        <TableHead className="text-right w-[60px]">Acción</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                         {filtered.map(ing => {
-                                            const costePorUnidad = erpMap.get(ing.productoERPlinkId) || 0;
+                                            const erp = erpFullMap.get(ing.productoERPlinkId);
+                                            const costePorUnidad = erp ? erp.precioUnitario : 0;
                                             return (
                                                 <TableRow key={ing.id} className="hover:bg-muted/50">
                                                         <TableCell className="font-medium">{ing.nombreIngrediente}</TableCell>
-                                                        <TableCell className="text-right font-mono text-xs">{formatCurrency(costePorUnidad)}</TableCell>
+                                                        <TableCell className="text-muted-foreground text-xs">{erp?.nombreProveedor || '-'}</TableCell>
+                                                        <TableCell className="text-muted-foreground text-xs max-w-[140px] truncate" title={erp?.nombreArticulo}>{erp?.nombreArticulo || '-'}</TableCell>
+                                                        <TableCell className="text-right font-mono font-semibold text-xs">{erp ? formatCurrency(erp.precioCompra) : '-'}</TableCell>
+                                                        <TableCell className="text-right font-mono font-bold text-xs bg-blue-50/50 dark:bg-blue-900/10">{erp ? formatCurrency(erp.precioUnitario) : '-'}</TableCell>
+                                                        <TableCell className="text-center font-mono text-xs">{erp ? `${erp.cantidadConversion} ${erp.unidadConversion}` : '-'}</TableCell>
                                                         <TableCell className="text-right">
                                                                 <DialogClose asChild>
-                                                                        <Button size="sm" onClick={() => onSelect({ id: generateId(), tipo: 'ingrediente', componenteId: ing.id, nombre: ing.nombreIngrediente, cantidad: 0, merma: 0, costePorUnidad })} className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs">
+                                                                        <Button size="sm" onClick={() => onSelect({ id: generateId(), tipo: 'ingrediente', componenteId: ing.id, nombre: ing.nombreIngrediente, cantidad: 0, merma: 0, costePorUnidad, erpData: erp })} className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs px-2">
                                                                                 <PlusCircle className="h-3 w-3 mr-1" /> Añadir
                                                                         </Button>
                                                                 </DialogClose>
@@ -666,11 +726,14 @@ function ElaboracionesListPage() {
             {filtered.map(item => (
                 <div 
                     key={item.id} 
-                    className="bg-card border-l-4 border-l-primary/20 border-r border-t border-b rounded-lg p-3 shadow-sm active:scale-[0.98] transition-all cursor-pointer group"
+                    className={`bg-card border-l-4 rounded-lg p-3 shadow-sm active:scale-[0.98] transition-all cursor-pointer group ${item.requiere_revision ? 'border-l-amber-500 border-r border-t border-b border-amber-200 bg-amber-50/30' : 'border-l-primary/20 border-r border-t border-b'}`}
                     onClick={() => router.push(`/book/elaboraciones/${item.id}`)}
                 >
                     <div className="flex justify-between items-start mb-1">
-                        <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{item.nombre}</span>
+                        <div className="flex items-center gap-2 flex-1">
+                            <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{item.nombre}</span>
+                            {item.requiere_revision && <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />}
+                        </div>
                         <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal">{item.partida}</Badge>
                     </div>
                     <div className="flex justify-between items-center text-xs text-muted-foreground">
@@ -718,7 +781,7 @@ function ElaboracionesListPage() {
                 </TableHeader>
                 <TableBody>
                     {filtered.map(item => (
-                        <TableRow key={item.id} className={selectedIds.includes(item.id) ? "bg-blue-50/40" : "cursor-pointer hover:bg-muted/50 group"}>
+                        <TableRow key={item.id} className={`${selectedIds.includes(item.id) ? "bg-blue-50/40" : item.requiere_revision ? "bg-amber-50/40 hover:bg-amber-50/60" : "cursor-pointer hover:bg-muted/50"} group transition-colors`}>
                                                         <TableCell className="w-8 pl-2 pr-1 align-middle">
                                                             <input
                                                                 type="checkbox"
@@ -729,7 +792,12 @@ function ElaboracionesListPage() {
                                                                 aria-label="Seleccionar elaboración"
                                                             />
                                                         </TableCell>
-                            <TableCell className="font-medium" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.nombre}</TableCell>
+                            <TableCell className="font-medium" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>
+                                <div className="flex items-center gap-2">
+                                    <span>{item.nombre}</span>
+                                    {item.requiere_revision && <AlertCircle className="h-4 w-4 text-amber-600" />}
+                                </div>
+                            </TableCell>
                             <TableCell onClick={() => router.push(`/book/elaboraciones/${item.id}`)}><Badge variant="outline" className="font-normal">{item.partida}</Badge></TableCell>
                             <TableCell className="text-right font-mono text-sm" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{formatCurrency(item.coste_unitario)} / {formatUnit(item.unidad_produccion)}</TableCell>
                             <TableCell className="text-right" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>
@@ -803,6 +871,7 @@ function ElaborationFormPage() {
     defaultValues: {
       id: '', nombre: '', produccionTotal: 1, unidadProduccion: 'KG', partidaProduccion: 'FRIO', componentes: [],
       tipoExpedicion: 'REFRIGERADO', formatoExpedicion: '', ratioExpedicion: 0, instruccionesPreparacion: '', videoProduccionURL: '', fotos: [],
+      requiereRevision: false, comentarioRevision: '', fechaRevision: null, responsableRevision: '',
     }
   });
 
@@ -827,10 +896,33 @@ function ElaborationFormPage() {
         ]);
         
         const erpMap = new Map<string, number>();
+        const erpFullMap = new Map<string, any>();
         (erpRes.data || []).forEach((a: any) => {
-             const price = (a.precio_compra || 0) / (a.unidad_conversion || 1);
-             if(a.id) erpMap.set(a.id, price);
-             if(a.erp_id) erpMap.set(a.erp_id, price);
+             const descuentoPct = a.descuento || 0;
+             const precioBase = a.precio_compra || 0;
+             const precioConDescuento = precioBase * (1 - descuentoPct / 100);
+             const cantConv = a.unidad_conversion || 1;
+             const precioUnitario = precioConDescuento / cantConv;
+             
+             const erpData = {
+               id: a.id,
+               erp_id: a.erp_id,
+               nombreArticulo: a.nombre_articulo || a.erp_id || 'Sin nombre',
+               nombreProveedor: a.nombre_proveedor || 'Sin proveedor',
+               precioCompra: precioConDescuento,
+               precioUnitario: precioUnitario,
+               descuento: descuentoPct,
+               cantidadConversion: cantConv,
+               unidadConversion: a.unidad_medida || 'UN'
+             };
+             if(a.id) {
+               erpMap.set(a.id, precioUnitario);
+               erpFullMap.set(a.id, erpData);
+             }
+             if(a.erp_id) {
+               erpMap.set(a.erp_id, precioUnitario);
+               erpFullMap.set(a.erp_id, erpData);
+             }
         });
 
         const ingMap = new Map<string, IngredienteInterno>();
@@ -840,6 +932,7 @@ function ElaborationFormPage() {
                 alergenosPresentes: i.alergenos_presentes, alergenosTrazas: i.alergenos_trazas, historialRevisiones: []
             };
             (ing as any).coste = erpMap.get(i.producto_erp_link_id) || 0;
+            (ing as any).erpData = erpFullMap.get(i.producto_erp_link_id);
             ingMap.set(i.id, ing);
         });
         setIngredientesMap(ingMap);
@@ -861,7 +954,8 @@ function ElaborationFormPage() {
                        nombre: ing?.nombreIngrediente || 'Desconocido',
                        cantidad: c.cantidad_neta || 0,
                        merma: c.merma_aplicada || 0,
-                       costePorUnidad: (ing as any)?.coste || 0
+                       costePorUnidad: (ing as any)?.coste || 0,
+                       erpData: (ing as any)?.erpData
                    };
                 });
 
@@ -877,7 +971,11 @@ function ElaborationFormPage() {
                     videoProduccionURL: elabData.video_produccion_url || '',
                     formatoExpedicion: elabData.formato_expedicion || '',
                     ratioExpedicion: elabData.ratio_expedicion || 0,
-                    tipoExpedicion: (elabData.tipo_expedicion || 'REFRIGERADO') as any, 
+                    tipoExpedicion: (elabData.tipo_expedicion || 'REFRIGERADO') as any,
+                    requiereRevision: elabData.requiere_revision || false,
+                    comentarioRevision: elabData.comentario_revision || '',
+                    fechaRevision: elabData.fecha_revision || null,
+                    responsableRevision: elabData.responsable_revision || '',
                     componentes: components as any 
                 };
             }
@@ -903,15 +1001,19 @@ function ElaborationFormPage() {
 
   // Derived Calculations
   const { costeTotal, costeUnitario, alergenos } = useMemo(() => {
-     let coste = 0;
-     const prod = watchedProduccionTotal || 1;
+     let costeDecimal = new Decimal(0);
+     const prod = new Decimal(watchedProduccionTotal || 1);
+     
      (watchedComponentes || []).forEach(c => {
-         const cost = c.costePorUnidad || 0;
-         coste += cost * c.cantidad * (1 + (c.merma || 0)/100);
+         const { costePreciso } = calculateCostWithPrecision(c.costePorUnidad || 0, c.cantidad || 0, c.merma || 0);
+         costeDecimal = costeDecimal.plus(costePreciso);
      });
+     
+     const costeUnitarioDecimal = costeDecimal.dividedBy(prod);
+     
      return {
-         costeTotal: coste,
-         costeUnitario: coste / prod,
+         costeTotal: parseFloat(costeDecimal.toString()),
+         costeUnitario: parseFloat(costeUnitarioDecimal.toString()),
          alergenos: calculateElabAlergenos(watchedComponentes || [], ingredientesMap)
      };
   }, [watchedComponentes, watchedProduccionTotal, ingredientesMap]);
@@ -929,24 +1031,43 @@ function ElaborationFormPage() {
   const onSubmit = async (data: ElaborationFormValues) => {
     setIsLoading(true);
     try {
-      const elaboracionData = {
-        id: data.id,
-        nombre: data.nombre,
-        partida: data.partidaProduccion,
-        unidad_produccion: data.unidadProduccion,
-        instrucciones: data.instruccionesPreparacion,
-        produccion_total: data.produccionTotal,
+      // Obtener usuario autenticado
+      const { data: authData } = await supabase.auth.getUser();
+      const currentUser = authData?.user?.email || 'Sistema';
+
+      // Si requiere revisión, auto-capturar fecha y responsable
+      if (data.requiereRevision) {
+        form.setValue('responsableRevision', currentUser);
+        form.setValue('fechaRevision', new Date().toISOString());
+      }
+
+      // Re-obtener los valores del formulario después de las actualizaciones
+      const updatedData = form.getValues();
+
+      const elaboracionData: any = {
+        id: updatedData.id,
+        nombre: updatedData.nombre,
+        partida: updatedData.partidaProduccion,
+        unidad_produccion: updatedData.unidadProduccion,
+        instrucciones: updatedData.instruccionesPreparacion,
+        produccion_total: updatedData.produccionTotal,
         coste_unitario: costeUnitario,
-        caducidad_dias: data.caducidadDias,
-        fotos: data.fotos, 
-        video_produccion_url: data.videoProduccionURL,
-        formato_expedicion: data.formatoExpedicion,
-        ratio_expedicion: data.ratioExpedicion,
-        tipo_expedicion: data.tipoExpedicion,
-        requiere_revision: data.requiereRevision,
-        comentario_revision: data.comentarioRevision,
-        fecha_revision: data.fechaRevision || new Date().toISOString()
+        caducidad_dias: updatedData.caducidadDias,
+        fotos: updatedData.fotos, 
+        video_produccion_url: updatedData.videoProduccionURL,
+        formato_expedicion: updatedData.formatoExpedicion,
+        ratio_expedicion: updatedData.ratioExpedicion,
+        tipo_expedicion: updatedData.tipoExpedicion
       };
+
+      // Agregar campos de revisión solo si es necesario
+      // (Verificar si existen en el schema antes de intentar guardar)
+      if (updatedData.requiereRevision !== undefined) {
+        elaboracionData.requiere_revision = updatedData.requiereRevision;
+        elaboracionData.comentario_revision = updatedData.comentarioRevision;
+        elaboracionData.fecha_revision = updatedData.requiereRevision ? updatedData.fechaRevision : null;
+        elaboracionData.responsable_revision = updatedData.requiereRevision ? updatedData.responsableRevision : null;
+      }
 
       const { error: elabError } = await supabase.from('elaboraciones').upsert(elaboracionData);
       if (elabError) throw elabError;
@@ -1027,6 +1148,54 @@ function ElaborationFormPage() {
                                     </CardContent>
                                 </Card>
 
+                                <Card className="shadow-none border border-amber-200 bg-amber-50/50 dark:bg-amber-900/10">
+                                    <CardHeader className="p-3 pb-1 border-b border-amber-200 bg-amber-100/30 dark:bg-amber-900/20"><CardTitle className="text-sm font-bold text-amber-900 dark:text-amber-100">Revisión Requerida</CardTitle></CardHeader>
+                                    <CardContent className="p-3 space-y-3">
+                                        <FormField control={form.control} name="requiereRevision" render={({ field }) => (
+                                            <FormItem className="flex items-center gap-3 space-y-0">
+                                                <FormControl>
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={field.value || false}
+                                                        onChange={(e) => field.onChange(e.target.checked)}
+                                                        className="h-4 w-4 accent-amber-600 rounded"
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="text-sm font-medium text-amber-900 dark:text-amber-100 cursor-pointer">¿Requiere revisión?</FormLabel>
+                                            </FormItem>
+                                        )} />
+                                        
+                                        {form.watch('requiereRevision') && (
+                                            <>
+                                                <FormField control={form.control} name="comentarioRevision" render={({ field }) => (
+                                                    <FormItem className="space-y-0.5">
+                                                        <FormLabel className="text-[10px] uppercase font-bold text-muted-foreground">Comentarios</FormLabel>
+                                                        <FormControl>
+                                                            <Textarea {...field} value={field.value ?? ''} rows={3} placeholder="Describir qué requiere revisión..." className="resize-none text-sm" />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                                
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1">
+                                                        <FormLabel className="text-[10px] uppercase font-bold text-muted-foreground">Responsable</FormLabel>
+                                                        <div className="flex items-center h-8 px-3 bg-gray-100 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">
+                                                            {form.watch('responsableRevision') || '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <FormLabel className="text-[10px] uppercase font-bold text-muted-foreground">Fecha de Revisión</FormLabel>
+                                                        <div className="flex items-center h-8 px-3 bg-gray-100 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">
+                                                            {form.watch('fechaRevision') ? new Date(form.watch('fechaRevision')).toLocaleDateString('es-ES') : '—'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
                                 {isEditing && (
                                     <div className="mt-8 pt-4 border-t border-dashed">
                                         <Card className="border-destructive/30 bg-destructive/5 shadow-none">
@@ -1093,10 +1262,10 @@ function ElaborationFormPage() {
                                         <div className="hidden md:block overflow-x-auto">
                                             <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
                                                 <Table>
-                                                    <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Nombre</TableHead><TableHead className="text-right">Coste/Ud</TableHead><TableHead className="w-24 text-center">Cant.</TableHead><TableHead className="w-20 text-center">Merma</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="w-8"></TableHead></TableRow></TableHeader>
+                                                    <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Nombre</TableHead><TableHead className="hidden lg:table-cell">Proveedor</TableHead><TableHead className="hidden lg:table-cell">Artículo ERP</TableHead><TableHead className="text-right">P. Compra</TableHead><TableHead className="text-center">Conversión</TableHead><TableHead className="text-right bg-blue-50 dark:bg-blue-900/20 font-bold">Precio/Ud</TableHead><TableHead className="w-24 text-center">Cant.</TableHead><TableHead className="hidden sm:table-cell w-20 text-center">Merma</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="w-8"></TableHead></TableRow></TableHeader>
                                                     <SortableContext items={compFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                                         <TableBody>
-                                                            {compFields.map((field, index) => <SortableComponentRow key={field.id} field={field} index={index} remove={removeComp} form={form} />)}
+                                                            {compFields.map((field, index) => <SortableComponentRow key={field.id} field={field} index={index} remove={removeComp} form={form} erpData={(field as any).erpData} />)}
                                                         </TableBody>
                                                     </SortableContext>
                                                 </Table>

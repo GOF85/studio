@@ -104,7 +104,7 @@ export default function CtaExplotacionPage() {
             decoracion: 0, atipicos: 0, personalMice: 0, personalExterno: 0, costePruebaMenu: 0 };
     
     if (!plantillaGuardadaId) {
-        plantillaGuardadaId = localStorage.getItem('defaultObjetivoGastoId');
+        plantillaGuardadaId = localStorage.getItem('defaultObjetivoGastoId') ?? undefined;
     }
 
     if (plantillaGuardadaId) {
@@ -170,7 +170,7 @@ export default function CtaExplotacionPage() {
             const itemKey = `${item.orderId}_${item.itemCode}`;
             const state = sheet.itemStates[itemKey];
             if (state && item.sentQuantity > state.returnedQuantity) {
-                const perdida = (item.sentQuantity - state.returnedQuantity) * item.price;
+                const perdida = (item.sentQuantity - state.returnedQuantity) * (item.price || 0);
                 const categoria = item.category;
                 if (categoria) {
                     devolucionesPorCategoria[categoria] = (devolucionesPorCategoria[categoria] || 0) + perdida;

@@ -4,7 +4,7 @@ import { z } from "zod";
 export type CateringItem = {
     itemCode: string;
     description: string;
-    price: number;
+    price?: number | null;
     stock: number;
     imageUrl: string;
     imageHint: string;
@@ -42,8 +42,8 @@ export type CateringVertical = typeof CATERING_VERTICALES[number];
 export type ServiceOrder = {
     id: string;
     serviceNumber: string;
-    startDate: string;
-    endDate: string;
+    startDate?: string | Date;
+    endDate?: string | Date;
     client: string;
     tipoCliente?: 'Empresa' | 'Agencia' | 'Particular';
     finalClient: string;
@@ -402,8 +402,8 @@ export type ComercialBriefingItem = {
     horaFin: string;
     conGastronomia: boolean;
     descripcion: string;
-    comentarios: string;
-    sala: string;
+    comentarios?: string;
+    sala?: string;
     asistentes: number;
     precioUnitario: number;
     importeFijo?: number;
@@ -500,8 +500,8 @@ export type PersonalMiceOrder = {
     horaEntrada: string;
     horaSalida: string;
     precioHora: number;
-    horaEntradaReal: string;
-    horaSalidaReal: string;
+    horaEntradaReal?: string;
+    horaSalidaReal?: string;
 }
 
 export type AsignacionPersonal = {
@@ -513,8 +513,8 @@ export type AsignacionPersonal = {
     comentarios?: string;
     rating?: number; // From 1 to 5
     comentariosMice?: string;
-    horaEntradaReal: string;
-    horaSalidaReal: string;
+    horaEntradaReal?: string;
+    horaSalidaReal?: string;
 };
 
 export type PersonalExternoTurno = {

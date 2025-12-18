@@ -38,7 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
-import { logActivity } from '../activity-log/utils';
+import { logActivity } from '@/app/(dashboard)/portal/activity-log/utils';
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -81,6 +81,7 @@ const formSchema = z.object({
         concepto: z.string().min(1, "El concepto del ajuste es obligatorio."),
         importe: z.coerce.number(),
     })).optional(),
+    observacionesGenerales: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -220,7 +221,8 @@ export default function PersonalExternoPage() {
     const { totalPlanned, totalReal, totalAjustes, costeFinalPlanificado, finalTotalReal } = useMemo(() => {
         const planned = watchedFields?.reduce((acc, order) => {
             const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-            const quantity = (order.asignaciones || []).length > 0 ? order.asignaciones.length : 1;
+            const asignaciones = order.asignaciones || [];
+            const quantity = asignaciones.length > 0 ? asignaciones.length : 1;
             return acc + plannedHours * (order.precioHora || 0) * quantity;
         }, 0) || 0;
 

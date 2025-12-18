@@ -289,7 +289,7 @@ export default function AlbaranPage() {
                                 <Label>Firma del Cliente</Label>
                                 <div className="border rounded-md bg-white">
                                     {SignatureCanvasComponent && (
-                                        <SignatureCanvasComponent ref={sigCanvas} penColor='black' canvasProps={{className: 'w-full h-32'}} />
+                                        <SignatureCanvasComponent ref={(ref) => { sigCanvas.current = ref; }} penColor='black' canvasProps={{className: 'w-full h-32'}} />
                                     )}
                                 </div>
                             </div>

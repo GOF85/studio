@@ -340,7 +340,7 @@ export default function BookDashboardPage() {
             const erpIds = ingredientes
                 .map((i) => i.producto_erp_link_id)
                 .filter(Boolean);
-            let articulos = [];
+            let articulos: { erp_id: any; tipo: any; }[] = [];
             if (erpIds.length > 0) {
                 const { data: articulosData, error: errorArt } = await supabase
                     .from('articulos_erp')

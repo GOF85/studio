@@ -14,21 +14,26 @@ import { Input } from '../ui/input';
 import type { SolicitudPersonalCPR } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useFormContext } from 'react-hook-form';
 
 interface FeedbackDialogProps {
   initialRating?: number;
   initialComment?: string;
   initialHoraEntrada?: string;
   initialHoraSalida?: string;
-  workerName: string;
+  workerName?: string;
   turnoInfo?: SolicitudPersonalCPR | null;
-  onSave: (feedback: { rating: number; comment: string; horaEntradaReal?: string, horaSalidaReal?: string }) => void;
+  onSave?: (feedback: { rating: number; comment: string; horaEntradaReal?: string, horaSalidaReal?: string }) => void;
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   title?: string;
   description?: string;
   saveButtonText?: string;
+  // Props for react-hook-form integration
+  form?: any;
+  turnoIndex?: number;
+  asigIndex?: number;
 }
 
 export function FeedbackDialog({
@@ -40,46 +45,87 @@ export function FeedbackDialog({
   turnoInfo,
   onSave,
   trigger,
-  open,
-  onOpenChange,
-  title = "Valoración",
-  description = "Deja una valoración y comentarios sobre el desempeño.",
-  saveButtonText = "Guardar Valoración"
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  title: parentTitle,
+  description,
+  saveButtonText,
+  form,
+  turnoIndex,
+  asigIndex,
 }: FeedbackDialogProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
+    
+    const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+    const onOpenChange = controlledOnOpenChange !== undefined ? controlledOnOpenChange : setInternalOpen;
+
+    // Logic for standalone component
     const [rating, setRating] = useState(initialRating || 3);
     const [comment, setComment] = useState(initialComment || '');
     const [horaEntrada, setHoraEntrada] = useState(initialHoraEntrada || '');
     const [horaSalida, setHoraSalida] = useState(initialHoraSalida || '');
-    
+
+    // Logic for react-hook-form integration
+    let rhfProps: any = {};
+    if (form && turnoIndex !== undefined && asigIndex !== undefined) {
+        const { getValues, setValue } = form;
+        const asignacion = getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}`);
+        
+        rhfProps.workerName = asignacion.nombre;
+        rhfProps.initialRating = asignacion.rating;
+        rhfProps.initialComment = asignacion.comentariosMice;
+        rhfProps.initialHoraEntrada = asignacion.horaEntradaReal;
+        rhfProps.initialHoraSalida = asignacion.horaSalidaReal;
+        
+        rhfProps.onSave = (feedback: any) => {
+            setValue(`turnos.${turnoIndex}.asignaciones.${asigIndex}.rating`, feedback.rating, { shouldDirty: true });
+            setValue(`turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`, feedback.comment, { shouldDirty: true });
+            setValue(`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`, feedback.horaEntradaReal, { shouldDirty: true });
+            setValue(`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`, feedback.horaSalidaReal, { shouldDirty: true });
+            onOpenChange(false);
+        };
+        rhfProps.trigger = <Button variant="ghost" size="icon" className="h-9 w-9"><Pencil className="h-4 w-4" /></Button>;
+        rhfProps.title = `Valoración para ${rhfProps.workerName}`;
+    }
+
+    const finalProps = {
+        initialRating, initialComment, initialHoraEntrada, initialHoraSalida,
+        workerName, turnoInfo, onSave, trigger, open, onOpenChange, title: parentTitle,
+        description, saveButtonText,
+        ...rhfProps
+    };
+
     useEffect(() => {
-        if(open) {
-            setRating(initialRating || 3);
-            setComment(initialComment || '');
-            setHoraEntrada(initialHoraEntrada || '');
-            setHoraSalida(initialHoraSalida || '');
+        if(finalProps.open) {
+            setRating(finalProps.initialRating || 3);
+            setComment(finalProps.initialComment || '');
+            setHoraEntrada(finalProps.initialHoraEntrada || '');
+            setHoraSalida(finalProps.initialHoraSalida || '');
         }
-    }, [open, initialRating, initialComment, initialHoraEntrada, initialHoraSalida]);
+    }, [finalProps.open, finalProps.initialRating, finalProps.initialComment, finalProps.initialHoraEntrada, finalProps.initialHoraSalida]);
 
     const handleSave = () => {
-        onSave({ rating, comment, horaEntradaReal: horaEntrada, horaSalidaReal: horaSalida });
-        if (onOpenChange) {
-          onOpenChange(false);
+        if (finalProps.onSave) {
+            finalProps.onSave({ rating, comment, horaEntradaReal: horaEntrada, horaSalidaReal: horaSalida });
+        }
+        if (finalProps.onOpenChange) {
+          finalProps.onOpenChange(false);
         }
     };
     
     const dialogContent = (
         <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-                <DialogTitle>{title}</DialogTitle>
-                <DialogDescription>{description}</DialogDescription>
+                <DialogTitle>{finalProps.title}</DialogTitle>
+                <DialogDescription>{finalProps.description}</DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
                  <div className="text-sm p-2 bg-secondary rounded-md">
-                    <p><strong>Trabajador:</strong> {workerName}</p>
-                    {turnoInfo && (
+                    <p><strong>Trabajador:</strong> {finalProps.workerName}</p>
+                    {finalProps.turnoInfo && (
                         <>
-                        <p><strong>Categoría:</strong> {turnoInfo.categoria} ({turnoInfo.partida})</p>
-                        <p><strong>Fecha y Hora (Plan):</strong> {format(new Date(turnoInfo.fechaServicio), 'dd/MM/yyyy')} de {turnoInfo.horaInicio} a {turnoInfo.horaFin}</p>
+                        <p><strong>Categoría:</strong> {finalProps.turnoInfo.categoria} ({finalProps.turnoInfo.partida})</p>
+                        <p><strong>Fecha y Hora (Plan):</strong> {format(new Date(finalProps.turnoInfo.fechaServicio), 'dd/MM/yyyy')} de {finalProps.turnoInfo.horaInicio} a {finalProps.turnoInfo.horaFin}</p>
                         </>
                     )}
                 </div>
@@ -112,16 +158,16 @@ export function FeedbackDialog({
                 </div>
             </div>
             <DialogFooter>
-                <Button variant="secondary" onClick={() => onOpenChange?.(false)}>Cancelar</Button>
-                <Button onClick={handleSave}>{saveButtonText}</Button>
+                <Button variant="secondary" onClick={() => finalProps.onOpenChange?.(false)}>Cancelar</Button>
+                <Button onClick={handleSave}>{finalProps.saveButtonText || 'Guardar'}</Button>
             </DialogFooter>
         </DialogContent>
     );
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-            {open && dialogContent}
+        <Dialog open={finalProps.open} onOpenChange={finalProps.onOpenChange}>
+            {finalProps.trigger && <DialogTrigger asChild>{finalProps.trigger}</DialogTrigger>}
+            {finalProps.open && dialogContent}
         </Dialog>
     );
 }

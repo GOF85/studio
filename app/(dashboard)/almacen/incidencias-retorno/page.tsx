@@ -123,7 +123,7 @@ export default function IncidenciasRetornoPage() {
             
             incidenciasPorTipo[tipo].forEach(inc => {
                 const merma = inc.item.sentQuantity - inc.item.returnedQuantity;
-                const valorMerma = merma * inc.item.price;
+                const valorMerma = merma * (inc.item.price || 0);
                 const pctMerma = inc.item.sentQuantity > 0 ? (merma / inc.item.sentQuantity) * 100 : 0;
                 tableRows.push([
                     inc.item.description,
@@ -248,7 +248,7 @@ export default function IncidenciasRetornoPage() {
                                                     <TableBody>
                                                         {incs.map(inc => {
                                                             const merma = inc.item.sentQuantity - inc.item.returnedQuantity;
-                                                            const valorMerma = merma * inc.item.price;
+                                                            const valorMerma = merma * (inc.item.price || 0);
                                                             const pctMerma = inc.item.sentQuantity > 0 ? (merma / inc.item.sentQuantity) * 100 : 0;
                                                             return (
                                                                 <TableRow key={`${inc.osId}-${inc.item.itemCode}-${inc.timestamp}`}>

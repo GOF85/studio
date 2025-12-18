@@ -219,7 +219,7 @@ export default function BodegaPage() {
     
     statusItems['Asignado'] = pending;
 
-    const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const totalValoracionPendiente = pending.reduce((acc, item) => acc + ((item.price || 0) * item.quantity), 0);
 
     return { 
         allItems: all, 
@@ -258,7 +258,7 @@ export default function BodegaPage() {
   
     const renderSummaryModal = () => {
     const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
-     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+     const totalValue = all.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0);
     return (
       <DialogContent className="max-w-4xl">
         <DialogHeader><DialogTitle>Resumen de Artículos de Bodega</DialogTitle></DialogHeader>
@@ -282,7 +282,7 @@ export default function BodegaPage() {
                     <TableCell>{item.description}</TableCell>
                     <TableCell>{item.quantity}</TableCell>
                     <TableCell>{cajas}</TableCell>
-                    <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                    <TableCell>{formatCurrency(item.quantity * (item.price || 0))}</TableCell>
                     <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
                   </TableRow>
                 )
@@ -324,7 +324,7 @@ export default function BodegaPage() {
        <div className="grid md:grid-cols-3 gap-6 mb-8">
             {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
                 const items = itemsByStatus[status];
-                const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                const totalValue = items.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0);
                 return (
                 <StatusCard 
                     key={status}
@@ -360,7 +360,7 @@ export default function BodegaPage() {
                                     <TableCell>{item.solicita}</TableCell>
                                     <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
                                     <TableCell>{item.quantity}</TableCell>
-                                    <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                                    <TableCell>{formatCurrency(item.quantity * (item.price || 0))}</TableCell>
                                 </TableRow>
                             )) : (
                                 <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>

@@ -286,7 +286,7 @@ export default function SolicitudesCprPage() {
                     )}
                 </div>
                  <AlertDialogFooter>
-                    {solicitudToManage && (solicitudToManage.estado === 'Pendiente' || solicitudToManage.estado === 'Aprobada') && (
+                    {solicitudToManage && (solicitudToManage.estado === 'Solicitado' || solicitudToManage.estado === 'Aprobada') && (
                         <Button variant="destructive" onClick={() => handleAction('delete')}>Borrar Solicitud</Button>
                     )}
                 </AlertDialogFooter>

@@ -75,9 +75,9 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
             const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {importe: number}[];
 
             const costeTurnos = personalExternoData?.turnos.reduce((sum, turno) => {
-                const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-                const quantity = (turno.asignaciones || []).length > 0 ? turno.asignaciones.length : 1;
-                return sum + (plannedHours * (turno.precioHora || 0) * quantity);
+                            const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+                            const asignaciones = turno.asignaciones || [];
+                            const quantity = asignaciones.length > 0 ? asignaciones.length : 1;                return sum + (plannedHours * (turno.precioHora || 0) * quantity);
             }, 0) || 0;
 
             const costeAjustes = allPersonalExternoAjustes.reduce((sum: number, ajuste) => sum + ajuste.importe, 0);

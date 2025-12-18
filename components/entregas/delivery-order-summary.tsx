@@ -161,9 +161,9 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
                             <span>Portes ({formatCurrency(costePorte)}/ud)</span>
                         </div>
                         <div className="flex items-center gap-1">
-                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handlePortesChange((hito.portes || 0) - 1)}><Minus className="h-3 w-3" /></Button>
-                            <Input type="number" value={hito.portes || 0} onChange={(e) => handlePortesChange(parseInt(e.target.value) || 0)} className="h-6 w-10 text-center px-1 text-sm" />
-                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handlePortesChange((hito.portes || 0) + 1)}><Plus className="h-3 w-3" /></Button>
+                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handlePortesChange((hito.portes ?? 0) - 1)}><Minus className="h-3 w-3" /></Button>
+                            <Input type="number" value={hito.portes ?? 0} onChange={(e) => handlePortesChange(parseInt(e.target.value) || 0)} className="h-6 w-10 text-center px-1 text-sm" />
+                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handlePortesChange((hito.portes ?? 0) + 1)}><Plus className="h-3 w-3" /></Button>
                         </div>
                     </div>
                     <div className="flex justify-between items-center">
@@ -172,9 +172,9 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
                             <span>Horas de Camarero ({formatCurrency(pvpCamareroHora)}/h)</span>
                         </div>
                         <div className="flex items-center gap-1">
-                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleHorasCamareroChange((hito.horasCamarero || 0) - 1)}><Minus className="h-3 w-3" /></Button>
-                            <Input type="number" value={hito.horasCamarero || 0} onChange={(e) => handleHorasCamareroChange(parseInt(e.target.value) || 0)} className="h-6 w-10 text-center px-1 text-sm" />
-                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleHorasCamareroChange((hito.horasCamarero || 0) + 1)}><Plus className="h-3 w-3" /></Button>
+                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleHorasCamareroChange((hito.horasCamarero ?? 0) - 1)}><Minus className="h-3 w-3" /></Button>
+                            <Input type="number" value={hito.horasCamarero ?? 0} onChange={(e) => handleHorasCamareroChange(parseInt(e.target.value) || 0)} className="h-6 w-10 text-center px-1 text-sm" />
+                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleHorasCamareroChange((hito.horasCamarero ?? 0) + 1)}><Plus className="h-3 w-3" /></Button>
                         </div>
                     </div>
                     {horasCamarero > 0 && horasCamarero < 4 && <p className="text-xs text-amber-600 text-center pt-1">Se facturará el mínimo de 4 horas de servicio.</p>}

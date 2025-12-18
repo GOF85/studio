@@ -268,7 +268,7 @@ export default function ComercialPage() {
   };
 
   const handleSaveItem = (data: BriefingItemFormValues) => {
-    if (!briefing) return;
+    if (!briefing) return false;
     let newItems;
     if (editingItem) {
       newItems = briefing.items.map(item => item.id === editingItem.id ? data : item);

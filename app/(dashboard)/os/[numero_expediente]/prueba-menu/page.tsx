@@ -199,7 +199,7 @@ const handlePrint = async () => {
 
             const body = sectionItems.map(item => {
                 if(item.type === 'header') {
-                    return [{ content: item.referencia, colSpan: 2, styles: { fontStyle: 'bold', fillColor: '#f3f4f6' } }];
+                    return [{ content: item.referencia, colSpan: 2, styles: { fontStyle: 'bold' as 'bold', fillColor: '#f3f4f6' } }];
                 }
                 return [item.referencia, ''];
             });

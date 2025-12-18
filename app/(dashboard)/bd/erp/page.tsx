@@ -157,7 +157,7 @@ function ArticulosERPPageContent() {
                 if (cursor.nombre && cursor.erp_id) {
                     // Push first row cursor for back navigation if moving next (not for append)
                     if (direction === 'next' && items.length > 0) {
-                        prevCursors.current.push({ nombre: items[0].nombreProductoERP || '', erp_id: items[0].idreferenciaerp });
+                        prevCursors.current.push({ nombre: items[0].nombreProductoERP || '', erp_id: String(items[0].idreferenciaerp) });
                     }
                     // nombre > cursor.nombre OR (nombre = cursor.nombre AND erp_id > cursor.erp_id)
                     dataQuery = dataQuery

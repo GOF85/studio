@@ -758,8 +758,12 @@ export const useDataStore = create<DataStore>((set, get) => ({
                         })),
                     menajeAsociado: [],
                     instruccionesMiseEnPlace: '',
+                    fotosMiseEnPlace: [],
                     instruccionesRegeneracion: '',
-                    instruccionesEmplatado: ''
+                    fotosRegeneracion: [],
+                    instruccionesEmplatado: '',
+                    fotosEmplatado: [],
+                    fotosComerciales: []
                 })),
 
                 categoriasRecetas: (categoriasRecetasDB || []).map((c: any) => ({

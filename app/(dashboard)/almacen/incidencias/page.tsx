@@ -119,7 +119,7 @@ export default function IncidenciasPickingPage() {
                 orderToUpdate.items[itemIndex] = { ...originalItem, quantity: newQuantity };
 
                 // 2. Recalculate total for the order
-                orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
+                orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + ((current.price || 0) * current.quantity), 0);
                 
                 // 3. Save updated MaterialOrders array
                 allMaterialOrders[orderIndex] = orderToUpdate;

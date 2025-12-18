@@ -68,9 +68,9 @@ const osFormSchema = z.object({
     phone: z.string().optional(),
     email: z.string().optional(),
     finalClient: z.string().optional(),
-    status: z.string().optional(),
-    tarifa: z.string().optional(),
-    tipoCliente: z.string().optional(),
+    status: z.enum(['Borrador', 'Confirmado', 'Enviado', 'Entregado', 'Pendiente', 'Anulado']).optional(),
+    tarifa: z.enum(['Empresa', 'IFEMA']).optional(),
+    tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
     comercial: z.string().optional(),
     agencyPercentage: z.number().min(0).max(100).default(0),
     agencyCommissionValue: z.number().min(0).default(0),
@@ -83,6 +83,8 @@ const osFormSchema = z.object({
     comments: z.string().optional(),
     deliveryLocations: z.array(z.string()).optional(),
     direccionPrincipal: z.string().optional(),
+    startDate: z.date().optional(),
+    endDate: z.date().optional(),
 });
 
 
@@ -456,10 +458,11 @@ export default function EntregaFormPage() {
             setTransporteOrders(allTransporte.filter(t => t.osId === id));
 
             if (currentEntrega) {
-                const { startDate, endDate, ...restEntrega } = currentEntrega;
                 reset({
-                    ...defaultValues, // Ensure all keys are present
-                    ...restEntrega,
+                    ...defaultValues,
+                    ...currentEntrega,
+                    startDate: currentEntrega.startDate ? new Date(currentEntrega.startDate) : undefined,
+                    endDate: currentEntrega.endDate ? new Date(currentEntrega.endDate) : undefined,
                 });
                 setHitos(currentPedido?.hitos || []);
             } else {
@@ -538,8 +541,8 @@ export default function EntregaFormPage() {
         const entregaData: Entrega = {
             ...data as unknown as Entrega,
             id: currentId,
-            startDate: new Date().toISOString(),
-            endDate: new Date().toISOString(),
+            startDate: data.startDate ? (data.startDate as Date).toISOString() : new Date().toISOString(),
+            endDate: data.endDate ? (data.endDate as Date).toISOString() : new Date().toISOString(),
             vertical: 'Entregas',
             deliveryTime: hitos?.[0]?.hora || '',
             space: '',
@@ -659,14 +662,14 @@ export default function EntregaFormPage() {
             finalY += 15;
 
             // --- INFO CLIENTE ---
-            const clientInfo = [
-                [T.client, osData.client],
-                [T.finalClient, osData.finalClient || '-'],
-                [T.contact, `${osData.contact || ''} ${osData.phone ? `(${osData.phone})` : ''}`],
-                [T.eventDate, (osData as any).startDate ? format((osData as any).startDate as Date, 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')]
+            const clientInfo: (string | undefined)[][] = [
+                [T.client, osData.client ?? ''],
+                [T.finalClient, osData.finalClient ?? '-'],
+                [T.contact, `${osData.contact ?? ''} ${osData.phone ? `(${osData.phone})` : ''}`],
+                [T.eventDate, (osData as any).startDate ? format(new Date((osData as any).startDate), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')]
             ];
             autoTable(doc, {
-                body: clientInfo,
+                body: clientInfo as any,
                 startY: finalY,
                 theme: 'plain',
                 styles: { fontSize: 9, cellPadding: 0.5 },
@@ -706,15 +709,16 @@ export default function EntregaFormPage() {
                     ]
                 });
 
-                if (hito.portes > 0) {
-                    body.push([
-                        { content: `${T.logistics} (${hito.portes} ${hito.portes > 1 ? T.portes : T.porte})`, styles: { fontStyle: 'bold' } },
+
+
+                if (hito.portes && hito.portes > 0) {
+                    (body as any[]).push([
+                        { content: `${T.logistics} (${hito.portes} ${hito.portes! > 1 ? T.portes : T.porte})`, styles: { fontStyle: 'bold' } },
                         '',
                         formatCurrency(costePorte),
                         formatCurrency(portesHito)
                     ]);
                 }
-
                 autoTable(doc, {
                     head: [[T.item, T.qty, T.unitPrice, T.subtotal]],
                     body: body,
@@ -743,9 +747,9 @@ export default function EntregaFormPage() {
             const summaryData = [
                 [T.productsSubtotal, formatCurrency(totalProductos)],
                 [T.logisticsSubtotal, formatCurrency(totalLogisticsCost)],
-                [{ content: T.taxableBase, styles: { fontStyle: 'bold' } }, { content: formatCurrency(baseImponible), styles: { fontStyle: 'bold' } }],
+                [{ content: T.taxableBase, styles: { fontStyle: 'bold' as 'bold' } }, { content: formatCurrency(baseImponible), styles: { fontStyle: 'bold' as 'bold' } }],
                 [`${T.vat} (10%)`, formatCurrency(iva)],
-                [{ content: T.total, styles: { fontStyle: 'bold', fontSize: 12, textColor: '#f97316' } }, { content: formatCurrency(totalFinal), styles: { fontStyle: 'bold', fontSize: 12, textColor: '#f97316' } }]
+                [{ content: T.total, styles: { fontStyle: 'bold' as 'bold', fontSize: 12, textColor: '#f97316' } }, { content: formatCurrency(totalFinal), styles: { fontStyle: 'bold' as 'bold', fontSize: 12, textColor: '#f97316' } }]
             ];
 
             doc.setFontSize(14);

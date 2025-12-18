@@ -252,7 +252,7 @@ export default function ProduccionDetallePage() {
                      <Card>
                         <CardHeader><CardTitle className="flex items-center gap-2"><Camera/> Guía Multimedia</CardTitle></CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {elaboracion.fotosProduccionURLs.map((foto, index) => (
+                            {(elaboracion?.fotosProduccionURLs ?? []).map((foto, index) => (
                                 <div key={index} className="relative aspect-video rounded-lg overflow-hidden">
                                     <Image src={foto.value} alt={`Foto de producción ${index + 1}`} fill className="object-cover" />
                                 </div>

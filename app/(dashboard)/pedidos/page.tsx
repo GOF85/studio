@@ -62,6 +62,7 @@ export default function PedidosPage() {
                 imageHint: p.nombre,
                 tipo: p.tipo,
                 unidadVenta: p.unidadVenta,
+                category: p.categoria,
             }));
 
         itemsToLoad = fromArticulos;
