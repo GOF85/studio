@@ -801,6 +801,7 @@ function RecetaFormPage() {
                                                         <CardTitle className="text-sm font-bold">Elaboraciones</CardTitle>
                                                         <div className="flex gap-2 items-center">
                                                             <Button 
+                                                                type="button"
                                                                 variant="outline" 
                                                                 size="sm" 
                                                                 className="h-6 text-xs px-2 bg-background"
@@ -810,7 +811,7 @@ function RecetaFormPage() {
                                                                 <RefreshCw className="h-3 w-3 mr-1" /> Recalcular
                                                             </Button>
                                                             <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                                                                <DialogTrigger asChild><Button variant="outline" size="sm" className="h-6 text-xs px-2 bg-background"><PlusCircle className="h-3 w-3 mr-1" /> Añadir</Button></DialogTrigger>
+                                                                <DialogTrigger asChild><Button type="button" variant="outline" size="sm" className="h-6 text-xs px-2 bg-background"><PlusCircle className="h-3 w-3 mr-1" /> Añadir</Button></DialogTrigger>
                                                                 <ElaborationSelector allElaboraciones={dbElaboraciones} onSelect={onAddElab} />
                                                             </Dialog>
                                                         </div>
