@@ -37,6 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DayExpandedBottomSheet } from '@/components/calendar/day-expanded-bottom-sheet';
 import { cn } from '@/lib/utils';
 
 // 2. TYPES & INTERFACES
@@ -51,17 +52,21 @@ interface CalendarEvent {
   finalClient: string;
   asistentes: number;
   status: CalendarStatus | string;
+  respMetre?: string;
+  respPase?: string;
+  respProjectManager?: string;
+  respMetrePhone?: string;
+  respPasePhone?: string;
+  respProjectManagerPhone?: string;
+  respMetreMail?: string;
+  respPaseMail?: string;
+  respProjectManagerMail?: string;
 }
 
 interface EventsByDay {
   [dayKey: string]: {
     [osId: string]: CalendarEvent[]
   }
-}
-
-interface DayDetails {
-  day: Date;
-  osEvents: { [osId: string]: CalendarEvent[] };
 }
 
 // 3. HELPERS PUROS
@@ -100,7 +105,7 @@ const DayGridCell = memo(function DayGridCell({
   day: Date;
   dayOsEvents: { [osId: string]: CalendarEvent[] };
   currentDate: Date;
-  onViewDetails: (details: DayDetails) => void;
+  onViewDetails: (day: Date) => void;
   router: any;
 }) {
   const osIds = Object.keys(dayOsEvents);
@@ -116,8 +121,10 @@ const DayGridCell = memo(function DayGridCell({
 
   return (
     <div
+      onClick={() => Object.keys(dayOsEvents).length > 0 && onViewDetails(day)}
       className={cn(
         'min-h-[140px] p-2 flex flex-col transition-colors duration-200 relative group border-b border-r last:border-r-0',
+        Object.keys(dayOsEvents).length > 0 && 'cursor-pointer hover:shadow-md',
         loadClass,
         !isCurrentMonth && 'bg-muted/10 text-muted-foreground/40'
       )}
@@ -202,7 +209,7 @@ const DayGridCell = memo(function DayGridCell({
             variant="ghost" 
             size="sm" 
             className="w-full h-5 text-[10px] text-muted-foreground hover:text-primary p-0" 
-            onClick={() => onViewDetails({ day, osEvents: dayOsEvents })}
+            onClick={() => onViewDetails(day)}
           >
             + {osIds.length - 4} más
           </Button>
@@ -320,7 +327,7 @@ export default function CalendarioServiciosPage() {
     return new Date();
   }, [dateParam]);
 
-  const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   // --- DATA FETCHING ---
   const { data: serviceOrders = [], isLoading } = useEventos();
@@ -343,6 +350,16 @@ export default function CalendarioServiciosPage() {
           finalClient: os.finalClient || 'Cliente',
           asistentes: os.asistentes || 0,
           status: statusNormalized,
+          // NUEVOS CAMPOS - RESPONSABLES
+          respMetre: os.respMetre || undefined,
+          respPase: os.respPase || undefined,
+          respProjectManager: os.respProjectManager || undefined,
+          respMetrePhone: os.respMetrePhone || undefined,
+          respPasePhone: os.respPasePhone || undefined,
+          respProjectManagerPhone: os.respProjectManagerPhone || undefined,
+          respMetreMail: os.respMetreMail || undefined,
+          respPaseMail: os.respPaseMail || undefined,
+          respProjectManagerMail: os.respProjectManagerMail || undefined,
         });
       }
     });
@@ -403,6 +420,19 @@ export default function CalendarioServiciosPage() {
     // Scroll Reset Effect
     window.scrollTo({ top: 0, behavior: 'instant' }); 
   };
+
+  const handleDayClick = useCallback((day: Date) => {
+    setSelectedDay(day);
+  }, []);
+
+  const handleCloseDayDetails = useCallback(() => {
+    setSelectedDay(null);
+  }, []);
+
+  const handleEventClick = useCallback((serviceNumber: string) => {
+    router.push(`/os/${serviceNumber}`);
+    handleCloseDayDetails();
+  }, [router, handleCloseDayDetails]);
 
   // --- RENDER ---
   
@@ -500,7 +530,7 @@ export default function CalendarioServiciosPage() {
                       day={day}
                       dayOsEvents={eventsByDay[format(day, 'yyyy-MM-dd')] || {}}
                       currentDate={currentDate}
-                      onViewDetails={setDayDetails}
+                      onViewDetails={handleDayClick}
                       router={router}
                     />
                 ))}
@@ -510,59 +540,17 @@ export default function CalendarioServiciosPage() {
         </div>
       </main>
 
-      {/* DIALOG DETAILS (Clean Local State) */}
-      <Dialog open={!!dayDetails} onOpenChange={(o) => !o && setDayDetails(null)}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader className="border-b pb-4">
-            <DialogTitle className="flex items-center gap-2 text-xl">
-                <div className="bg-primary/10 p-2 rounded-full">
-                    <CalendarIcon className="h-5 w-5 text-primary" />
-                </div>
-                <span className="capitalize">
-                    {dayDetails?.day ? format(dayDetails.day, 'EEEE d MMMM', { locale: es }) : ''}
-                </span>
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="overflow-y-auto p-1 space-y-3 mt-2 pr-2 flex-1">
-            {dayDetails && Object.values(dayDetails.osEvents).flat().map((event, idx) => {
-               const styles = getStatusStyles(event.status);
-               return (
-                <div 
-                    key={`${event.osId}-${idx}`} 
-                    onClick={() => router.push(`/os/${event.serviceNumber}`)}
-                    className={cn(
-                        "p-3 rounded-lg border transition-all hover:bg-muted/50 cursor-pointer flex gap-3 group relative",
-                        styles.bg,
-                        styles.border !== 'border-dashed border-muted-foreground/40' && `border-l-4 ${styles.border}`
-                    )}
-                 >
-                    <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center mb-1">
-                            <p className="font-bold text-sm truncate pr-2">{event.finalClient}</p>
-                            <Badge variant={styles.badge as any} className="text-[10px] h-5">{event.status}</Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">{event.space}</p>
-                        <div className="flex items-center gap-2 mt-2 text-xs font-mono text-muted-foreground">
-                             <span className="flex items-center gap-1 bg-background/50 px-1.5 py-0.5 rounded border"><Clock className="w-3 h-3"/> {event.horaInicio}</span>
-                        </div>
-                    </div>
-                    <div className="flex flex-col items-center justify-center pl-3 border-l bg-background/30 w-16 shrink-0">
-                        <span className="font-bold text-lg">{event.asistentes}</span>
-                        <span className="text-[9px] uppercase tracking-wide text-muted-foreground">pax</span>
-                    </div>
-                 </div>
-               );
-            })}
-            {dayDetails && Object.keys(dayDetails.osEvents).length === 0 && (
-                 <div className="text-center py-8 text-muted-foreground">
-                    <AlertCircle className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                    <p>No hay eventos detallados.</p>
-                 </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* DAY EXPANDED BOTTOM SHEET */}
+      {selectedDay && (
+        <DayExpandedBottomSheet
+          day={selectedDay}
+          osEvents={eventsByDay[format(selectedDay, 'yyyy-MM-dd')] || {}}
+          isOpen={!!selectedDay}
+          onClose={handleCloseDayDetails}
+          onEventClick={handleEventClick}
+          router={router}
+        />
+      )}
     </TooltipProvider>
   );
 }
