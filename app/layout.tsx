@@ -1,59 +1,33 @@
-
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
-import { cn } from '@/lib/utils';
-import { NProgressProvider } from '@/components/providers/nprogress-provider';
-import { AuthProvider } from '@/providers/auth-provider';
-import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 
-import { GlobalLoadingIndicator } from '@/components/layout/global-loading-indicator';
-import { QueryProvider } from '@/providers/query-provider';
-import { SpeedInsights } from '@vercel/speed-insights/next';
-import { Analytics } from '@vercel/analytics/react';
+// 1. IMPORTAMOS AMBOS PROVEEDORES
+import QueryProvider from '@/providers/query-provider'; 
+import { AuthProvider } from '@/providers/auth-provider'; // Asumiendo exportación nombrada
 
-// Force dynamic rendering to prevent static generation issues with useSearchParams
-export const dynamic = 'force-dynamic';
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'MICE Catering',
-  description: 'Soluciones de alquiler para tus eventos',
+  title: 'Studio App',
+  description: 'Gestión de eventos',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <head>
-        {/* Preconnect to external resources */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://zyrqdqpbrsevuygjrhvk.supabase.co" />
-        
-        {/* Optimize font loading */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Roboto:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className={cn('min-h-screen bg-background font-body antialiased')}>
-        <QueryProvider>
-          <AuthProvider>
-            <ImpersonatedUserProvider>
-              <NProgressProvider>
-                <GlobalLoadingIndicator />
-                {children}
-              </NProgressProvider>
-            </ImpersonatedUserProvider>
-          </AuthProvider>
-          <Toaster />
-          <SpeedInsights />
-          <Analytics />
-        </QueryProvider>
+    <html lang="es">
+      <body className={inter.className}>
+        {/* 2. ENVOLVEMOS: AuthProvider (primero) -> QueryProvider -> App */}
+        <AuthProvider>
+          <QueryProvider>
+            {children}
+          </QueryProvider>
+        </AuthProvider>
       </body>
-    </html >
+    </html>
   );
 }

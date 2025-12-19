@@ -1,6 +1,21 @@
 "use client";
 
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import type { 
+    ServiceOrder, 
+    ComercialBriefing, 
+    CategoriaPersonal, 
+    PersonalExternoTurno, 
+    SolicitudPersonalCPR 
+} from '@/types';
+
+// ============================================
+// TIPOS AUXILIARES
+// ============================================
+type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
+type AssignableWorker = { label: string; value: string; id: string; };
 
 // ============================================
 // CATEGORÍAS DE PERSONAL
@@ -19,13 +34,6 @@ export function useCategoriasPersonal() {
         },
     });
 }
-import { supabase } from '@/lib/supabase';
-import type { ServiceOrder, ComercialBriefing, CategoriaPersonal, PersonalExternoTurno, SolicitudPersonalCPR } from '@/types';
-import { useState, useEffect, useCallback } from 'react';
-
-
-type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
-type AssignableWorker = { label: string; value: string; id: string; };
 
 // ============================================
 // EVENTOS (Service Orders)
@@ -35,9 +43,10 @@ export function useEventos() {
     return useQuery({
         queryKey: ['eventos'],
         queryFn: async () => {
+            // Hacemos join con espacios_v2 para obtener el nombre real del espacio
             const { data, error } = await supabase
                 .from('eventos')
-                .select(`*, espacios_v2(nombre)`) // join con espacios_v2 para traer nombre
+                .select(`*, espacios_v2(nombre)`) 
                 .order('fecha_inicio', { ascending: false });
 
             if (error) throw error;
@@ -48,14 +57,14 @@ export function useEventos() {
                 serviceNumber: e.numero_expediente,
                 client: e.nombre_evento || 'Evento Sin Nombre',
                 tipoCliente: 'Empresa',
-                finalClient: e.nombre_evento || 'Evento Sin Nombre', // nombre_evento como cliente final
+                finalClient: e.nombre_evento || 'Evento Sin Nombre', 
                 startDate: e.fecha_inicio,
                 endDate: e.fecha_fin,
                 status: e.estado,
                 asistentes: e.comensales || 0,
                 vertical: 'Catering',
                 comercial: 'Comercial ID ' + e.comercial_id,
-                space: e.espacios_v2?.nombre || 'Espacio por definir', // nombre real del espacio
+                space: e.espacios_v2?.nombre || 'Espacio por definir', 
                 facturacion: 0,
                 comisionesAgencia: 0,
                 comisionesCanon: 0,
@@ -216,7 +225,7 @@ export function useRecetas() {
 
             const { data: elaboraciones, error: elabError } = await supabase
                 .from('elaboraciones')
-                .select('id, nombre, alergenos'); // Fetch name and allergens
+                .select('id, nombre, alergenos'); 
 
             if (elabError) {
                 console.warn('Error fetching elaboraciones:', elabError);
@@ -224,7 +233,6 @@ export function useRecetas() {
 
             const elabMap = new Map((elaboraciones || []).map((e: any) => [e.id, e]));
 
-            // Map to Receta type
             return (recetas || []).map((r: any) => ({
                 id: r.id,
                 nombre: r.nombre,
@@ -367,11 +375,9 @@ export function useMaterialOrders(eventoId?: string) {
         queryKey: ['materialOrders', eventoId],
         queryFn: async () => {
             let query = supabase.from('pedidos_material').select('*');
-
             if (eventoId) {
                 query = query.eq('evento_id', eventoId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
             return data || [];
@@ -389,11 +395,9 @@ export function useTransporteOrders(eventoId?: string) {
         queryKey: ['transporteOrders', eventoId],
         queryFn: async () => {
             let query = supabase.from('pedidos_transporte').select('*');
-
             if (eventoId) {
                 query = query.eq('evento_id', eventoId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
             return data || [];
@@ -411,11 +415,9 @@ export function useHieloOrders(eventoId?: string) {
         queryKey: ['hieloOrders', eventoId],
         queryFn: async () => {
             let query = supabase.from('pedidos_hielo').select('*');
-
             if (eventoId) {
                 query = query.eq('evento_id', eventoId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
             return data || [];
@@ -433,11 +435,9 @@ export function useDecoracionOrders(eventoId?: string) {
         queryKey: ['decoracionOrders', eventoId],
         queryFn: async () => {
             let query = supabase.from('pedidos_decoracion').select('*');
-
             if (eventoId) {
                 query = query.eq('evento_id', eventoId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
             return data || [];
@@ -455,11 +455,9 @@ export function useAtipicoOrders(eventoId?: string) {
         queryKey: ['atipicoOrders', eventoId],
         queryFn: async () => {
             let query = supabase.from('pedidos_atipicos').select('*');
-
             if (eventoId) {
                 query = query.eq('evento_id', eventoId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
             return data || [];
@@ -477,11 +475,9 @@ export function usePersonalMiceOrders(eventoId?: string) {
         queryKey: ['personalMiceOrders', eventoId],
         queryFn: async () => {
             let query = supabase.from('personal_mice_asignaciones').select('*');
-
             if (eventoId) {
                 query = query.eq('evento_id', eventoId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
             return data || [];
@@ -499,11 +495,9 @@ export function usePersonalExterno(eventoId?: string) {
         queryKey: ['personalExterno', eventoId],
         queryFn: async () => {
             let query = supabase.from('personal_externo_eventos').select('*');
-
             if (eventoId) {
                 query = query.eq('evento_id', eventoId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
             return data || [];
@@ -521,11 +515,9 @@ export function usePersonalExternoAjustes(eventoId?: string) {
         queryKey: ['personalExternoAjustes', eventoId],
         queryFn: async () => {
             let query = supabase.from('personal_externo_ajustes').select('*');
-
             if (eventoId) {
                 query = query.eq('evento_id', eventoId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
 
@@ -553,11 +545,9 @@ export function usePedidosEntrega(entregaId?: string) {
         queryKey: ['pedidosEntrega', entregaId],
         queryFn: async () => {
             let query = supabase.from('pedidos_entrega').select('*');
-
             if (entregaId) {
                 query = query.eq('entrega_id', entregaId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
             return data || [];
@@ -575,11 +565,9 @@ export function usePersonalEntrega(entregaId?: string) {
         queryKey: ['personalEntrega', entregaId],
         queryFn: async () => {
             let query = supabase.from('personal_entrega').select('*');
-
             if (entregaId) {
                 query = query.eq('entrega_id', entregaId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
             return data || [];
@@ -597,11 +585,9 @@ export function usePruebasMenu(eventoId?: string) {
         queryKey: ['pruebasMenu', eventoId],
         queryFn: async () => {
             let query = supabase.from('pruebas_menu').select('*');
-
             if (eventoId) {
                 query = query.eq('evento_id', eventoId);
             }
-
             const { data, error } = await query;
             if (error) throw error;
             return data || [];
@@ -664,13 +650,10 @@ export function usePersonal() {
                 .order('nombre', { ascending: true });
 
             if (error) throw error;
-            if (error) throw error;
             return data || [];
         },
     });
 }
-
-
 
 // ============================================
 // COMERCIAL BRIEFINGS
@@ -680,8 +663,6 @@ export function useComercialBriefings(osId?: string) {
     return useQuery({
         queryKey: ['comercialBriefings', osId],
         queryFn: async () => {
-            // TODO: Verify table name. Assuming 'comercial_briefings' or 'briefings'
-            // If migration hasn't created this, we return empty structure to avoid crashes.
             try {
                 let query = supabase.from('comercial_briefings').select('*');
                 if (osId) {
@@ -699,4 +680,3 @@ export function useComercialBriefings(osId?: string) {
         enabled: !!osId || osId === undefined,
     });
 }
-

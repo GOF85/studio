@@ -1,17 +1,17 @@
 'use client';
 
+import { useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { useState, type ReactNode } from 'react';
 
-export function QueryProvider({ children }: { children: ReactNode }) {
+export default function QueryProvider({ children }: { children: ReactNode }) {
     const [queryClient] = useState(
         () =>
             new QueryClient({
                 defaultOptions: {
                     queries: {
-                        staleTime: 60 * 1000, // 1 minute
-                        gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
+                        staleTime: 60 * 1000, // 1 minuto
+                        gcTime: 5 * 60 * 1000, // 5 minutos
                         refetchOnWindowFocus: false,
                         retry: 1,
                     },
@@ -25,9 +25,8 @@ export function QueryProvider({ children }: { children: ReactNode }) {
     return (
         <QueryClientProvider client={queryClient}>
             {children}
-            {process.env.NODE_ENV === 'development' && (
-                <ReactQueryDevtools initialIsOpen={false} position="bottom-right" as any />
-            )}
+            {/* Las DevTools solo se mostrarán en entorno de desarrollo */}
+            <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
         </QueryClientProvider>
     );
 }
