@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Papa from 'papaparse';
 import { 
@@ -63,7 +63,7 @@ const AllergenList = ({ alergenos }: { alergenos: Alergeno[] | null | undefined 
   );
 };
 
-export default function RecetasListPage() {
+function RecetasListPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
   const { toast } = useToast();
@@ -526,4 +526,11 @@ export default function RecetasListPage() {
        </div>
     </main>
   );
+}
+export default function RecetasListPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <RecetasListPageInner />
+        </Suspense>
+    );
 }

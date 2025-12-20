@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { format, formatDistanceToNow, subDays, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -79,7 +79,7 @@ interface LogStatistics {
 
 const ITEMS_PER_PAGE = 15;
 
-export default function SyncLogsPage() {
+function SyncLogsPageInner() {
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -957,4 +957,12 @@ export default function SyncLogsPage() {
       </AlertDialog>
     </main>
   );
+}
+
+export default function SyncLogsPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <SyncLogsPageInner />
+        </Suspense>
+    );
 }

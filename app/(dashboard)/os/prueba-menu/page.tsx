@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -39,7 +39,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function PruebaMenuPage() {
+function PruebaMenuPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
   const osId = searchParams.get('osId');
@@ -456,4 +456,12 @@ const handlePrint = async () => {
     </Form>
     </>
   );
+}
+
+export default function PruebaMenuPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <PruebaMenuPageInner />
+        </Suspense>
+    );
 }
