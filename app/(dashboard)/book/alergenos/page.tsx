@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Sprout, Search, AlertTriangle, X } from 'lucide-react';
 import type { Alergeno, ElaboracionEnReceta } from '@/types';
@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
-export default function AlergenosPage() {
+export default function AlergenosPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -309,5 +309,12 @@ export default function AlergenosPage() {
         </div>
       </main>
     </TooltipProvider>
+  );
+}
+export default function AlergenosPage() {
+  return (
+    <Suspense fallback={<div>Cargando ...</div>}>
+      <AlergenosPageInner />
+    </Suspense>
   );
 }

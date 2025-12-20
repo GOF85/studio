@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AreaChart, Calendar as CalendarIcon, Info } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachDayOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
@@ -31,7 +31,7 @@ type VentaDetalle = {
     margenBruto: number;
 };
 
-export default function VentaGastronomiaPage() {
+function VentaGastronomiaPageInner() {
     const [isMounted, setIsMounted] = useState(false);
     const [detalleVentas, setDetalleVentas] = useState<VentaDetalle[]>([]);
     const router = useRouter();
@@ -255,5 +255,13 @@ export default function VentaGastronomiaPage() {
                 </TabsContent>
             </Tabs>
         </main>
+    );
+}
+
+export default function VentaGastronomiaPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <VentaGastronomiaPageInner />
+        </Suspense>
     );
 }

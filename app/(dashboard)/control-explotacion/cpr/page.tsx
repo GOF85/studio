@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from "react"
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AreaChart, TrendingUp, TrendingDown, Euro, Calendar as CalendarIcon, BarChart, Info, MessageSquare, Save } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
@@ -72,7 +72,7 @@ const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 const MONTHS = Array.from({ length: 12 }, (_, i) => i);
 
 
-export default function CprControlExplotacionPage() {
+function CprControlExplotacionPageInner() {
     const [isMounted, setIsMounted] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams() ?? new URLSearchParams();
@@ -720,5 +720,13 @@ export default function CprControlExplotacionPage() {
                 </Tabs>
             </TooltipProvider>
         </div>
+    );
+}
+
+export default function CprControlExplotacionPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <CprControlExplotacionPageInner />
+        </Suspense>
     );
 }

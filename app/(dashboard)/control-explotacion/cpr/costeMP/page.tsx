@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TrendingDown, ArrowLeft } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
@@ -29,7 +29,7 @@ type CosteMPDetalle = {
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-export default function CosteMPPage() {
+function CosteMPPageInner() {
     const [isMounted, setIsMounted] = useState(false);
     const [detalleCostes, setDetalleCostes] = useState<CosteMPDetalle[]>([]);
     const router = useRouter();
@@ -233,5 +233,13 @@ export default function CosteMPPage() {
                 </TabsContent>
             </Tabs>
         </main>
+    );
+}
+
+export default function CosteMPPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <CosteMPPageInner />
+        </Suspense>
     );
 }

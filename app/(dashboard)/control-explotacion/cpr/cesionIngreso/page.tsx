@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -23,7 +23,7 @@ type DetalleIngreso = CesionStorage & {
     costePlanificado: number;
 };
 
-export default function CesionIngresoPage() {
+function CesionIngresoPageInner() {
     const [isMounted, setIsMounted] = useState(false);
     const [detalles, setDetalles] = useState<DetalleIngreso[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -197,5 +197,13 @@ export default function CesionIngresoPage() {
                 </CardContent>
             </Card>
         </main>
+    );
+}
+
+export default function CesionIngresoPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <CesionIngresoPageInner />
+        </Suspense>
     );
 }

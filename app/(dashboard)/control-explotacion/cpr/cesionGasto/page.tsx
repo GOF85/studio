@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -24,7 +24,7 @@ type DetalleGasto = CesionStorage & {
     os?: ServiceOrder;
 };
 
-export default function CesionGastoPage() {
+function CesionGastoPageInner() {
     const [isMounted, setIsMounted] = useState(false);
     const [detalles, setDetalles] = useState<DetalleGasto[]>([]);
     const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
@@ -206,5 +206,13 @@ export default function CesionGastoPage() {
                 </CardContent>
             </Card>
         </main>
+    );
+}
+
+export default function CesionGastoPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <CesionGastoPageInner />
+        </Suspense>
     );
 }

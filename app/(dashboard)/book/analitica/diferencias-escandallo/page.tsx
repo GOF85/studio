@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, Suspense } from 'react';
 import { subDays, format } from 'date-fns';
 import { Download, TrendingUp, TrendingDown, Activity, Search, BarChart3, ChefHat, Scroll, Carrot, Package, AlertCircle } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
@@ -79,7 +79,7 @@ function StatCard({ title, value, subtext, trend = 'neutral', icon: Icon, isLoad
 
 // --- PÁGINA PRINCIPAL ---
 
-export default function DiferenciasEscandalloPage() {
+function DiferenciasEscandalloPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
 
@@ -320,4 +320,11 @@ export default function DiferenciasEscandalloPage() {
       </div>
     </main>
   );
+}
+export default function DiferenciasEscandalloPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <DiferenciasEscandalloPageInner />
+        </Suspense>
+    );
 }

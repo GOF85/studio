@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle, Calendar, ChevronRight, CheckCircle2, FileText, Component } from 'lucide-react';
 import { useRecetas, useElaboraciones } from '@/hooks/use-data-queries';
@@ -81,7 +81,7 @@ function EmptyState({ message }: { message: string }) {
 
 // --- PÁGINA PRINCIPAL ---
 
-export default function RevisionPage() {
+function RevisionPageInner() {
     const router = useRouter();
     const searchParams = useSearchParams() ?? new URLSearchParams();
     
@@ -202,5 +202,12 @@ export default function RevisionPage() {
                 </Tabs>
             </div>
         </main>
+    );
+}
+export default function RevisionPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <RevisionPageInner />
+        </Suspense>
     );
 }

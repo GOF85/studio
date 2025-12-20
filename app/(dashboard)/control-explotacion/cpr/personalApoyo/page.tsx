@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -58,7 +58,7 @@ function CommentModal({ comment, trigger }: { comment: string, trigger: React.Re
     )
 }
 
-export default function DetallePersonalApoyoCprPage() {
+function DetallePersonalApoyoCprPageInner() {
     const [isMounted, setIsMounted] = useState(false);
     const [detalles, setDetalles] = useState<DetallePersonalApoyo[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -284,5 +284,13 @@ export default function DetallePersonalApoyoCprPage() {
                 </TabsContent>
             </Tabs>
       </main>
+    );
+}
+
+export default function DetallePersonalApoyoCprPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <DetallePersonalApoyoCprPageInner />
+        </Suspense>
     );
 }
