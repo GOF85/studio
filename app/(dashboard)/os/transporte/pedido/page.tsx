@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,7 +38,7 @@ const transporteOrderSchema = z.object({
 
 type TransporteOrderFormValues = z.infer<typeof transporteOrderSchema>;
 
-export default function PedidoTransportePage() {
+function PedidoTransportePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
   const osId = searchParams.get('osId');
@@ -267,5 +267,13 @@ export default function PedidoTransportePage() {
         </Form>
       </main>
     </>
+  );
+}
+
+export default function PedidoTransportePage() {
+  return (
+    <Suspense fallback={<div>Cargando ...</div>}>
+      <PedidoTransportePageInner />
+    </Suspense>
   );
 }

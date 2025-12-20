@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -131,7 +131,7 @@ function PESMobileCard({ os }: { os: ServiceOrder }) {
 
 // --- PÁGINA PRINCIPAL ---
 
-export default function PESPage() {
+function PESPageInner() {
     const router = useRouter();
     const searchParams = useSearchParams() ?? new URLSearchParams();
     
@@ -355,5 +355,12 @@ export default function PESPage() {
                 </div>
             </div>
         </main>
+    );
+}
+export default function PESPage() {
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <PESPageInner />
+        </Suspense>
     );
 }

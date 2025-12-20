@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { OrderItem, MaterialOrder, ServiceOrder, PedidoPlantilla, ArticuloCatering, AlquilerDBItem, Precio, CateringItem, Proveedor } from '@/types';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
@@ -12,7 +12,7 @@ import { Briefcase, FilePlus2, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ObjectiveDisplay } from '@/components/os/objective-display';
 
-export default function PedidosPage() {
+function PedidosPageInner() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [catalogItems, setCatalogItems] = useState<CateringItem[]>([]);
@@ -284,5 +284,13 @@ export default function PedidosPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function PedidosPage() {
+  return (
+    <Suspense fallback={<div>Cargando ...</div>}>
+      <PedidosPageInner />
+    </Suspense>
   );
 }

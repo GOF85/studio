@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -100,7 +100,7 @@ function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (pr
 }
 
 
-export default function PedidoHieloPage() {
+export default function PedidoHieloPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
   const osId = searchParams.get('osId');
@@ -364,5 +364,13 @@ export default function PedidoHieloPage() {
         </Form>
       </main>
     </>
+  );
+}
+
+export default function PedidoHieloPage() {
+  return (
+    <Suspense fallback={<div>Cargando ...</div>}>
+      <PedidoHieloPageInner />
+    </Suspense>
   );
 }

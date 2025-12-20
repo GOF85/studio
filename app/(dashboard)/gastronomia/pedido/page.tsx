@@ -2,10 +2,10 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
-export default function PedidoGastronomiaRedirectPage() {
+function PedidoGastronomiaRedirectPageInner() {
     const router = useRouter();
     const searchParams = useSearchParams() ?? new URLSearchParams();
     const osId = searchParams.get('osId');
@@ -23,4 +23,12 @@ export default function PedidoGastronomiaRedirectPage() {
     }, [osId, briefingItemId, router]);
 
     return <LoadingSkeleton title="Redirigiendo..." />;
+}
+
+export default function PedidoGastronomiaRedirectPage() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando ..." />}>
+            <PedidoGastronomiaRedirectPageInner />
+        </Suspense>
+    );
 }
