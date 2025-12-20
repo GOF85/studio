@@ -1,7 +1,7 @@
 'use client';
 
 // 1. IMPORTS
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, memo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   format,
@@ -307,7 +307,7 @@ const AgendaView = memo(function AgendaView({
 });
 
 // 5. MAIN COMPONENT
-export default function CalendarioServiciosPage() {
+function CalendarioServiciosPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -552,5 +552,12 @@ export default function CalendarioServiciosPage() {
         />
       )}
     </TooltipProvider>
+  );
+}
+export default function CalendarioServiciosPage() {
+  return (
+    <Suspense fallback={<div>Cargando ...</div>}>
+      <CalendarioServiciosPageInner />
+    </Suspense>
   );
 }
