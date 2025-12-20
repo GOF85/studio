@@ -100,7 +100,7 @@ function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (pr
 }
 
 
-export default function PedidoHieloPageInner() {
+function PedidoHieloPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
   const osId = searchParams.get('osId');
