@@ -314,8 +314,8 @@ export default function CalendarioServiciosPage() {
 
   // --- STATE & URL SYNC ---
   // Leemos estado de la URL, fallback a valores por defecto
-  const viewParam = searchParams.get('view');
-  const dateParam = searchParams.get('date');
+  const viewParam = searchParams?.get('view');
+  const dateParam = searchParams?.get('date');
 
   const viewMode = (viewParam === 'agenda' ? 'agenda' : 'grid') as 'grid' | 'agenda';
   
@@ -401,7 +401,7 @@ export default function CalendarioServiciosPage() {
 
   // Actualizar URL sin recargar
   const updateParams = useCallback((newParams: { view?: string; date?: string }) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? '');
     if (newParams.view) params.set('view', newParams.view);
     if (newParams.date) params.set('date', newParams.date);
     
