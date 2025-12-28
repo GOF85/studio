@@ -13,75 +13,78 @@ import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
 import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
 import { formatCurrency } from '@/lib/utils';
 
+import { useEntrega, usePedidosEntrega, useArticulos, useRecetas } from '@/hooks/use-data-queries';
+import { useSyncPedidosEntrega } from '@/hooks/mutations/use-pedidos-entrega-mutations';
+
 export default function ConfeccionarEntregaPage() {
-    const [entrega, setEntrega] = useState<Entrega | null>(null);
-    const [hito, setHito] = useState<EntregaHito | null>(null);
-    const [productosVenta, setProductosVenta] = useState<ProductoVenta[]>([]);
-    const [recetas, setRecetas] = useState<Receta[]>([]);
-    const [isMounted, setIsMounted] = useState(false);
-    const [expedicionNumero, setExpedicionNumero] = useState('');
-    
     const router = useRouter();
     const params = useParams() ?? {};
     const hitoId = (params.id as string) || '';
     const searchParams = useSearchParams() ?? new URLSearchParams();
-    const osId = searchParams.get('osId');
+    const osId = searchParams.get('osId') || '';
     const { toast } = useToast();
 
+    const [hito, setHito] = useState<EntregaHito | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+    const [expedicionNumero, setExpedicionNumero] = useState('');
+
+    // Supabase Hooks
+    const { data: currentEntrega, isLoading: loadingEntrega } = useEntrega(osId);
+    const { data: pedidosEntregaData, isLoading: loadingPedidos } = usePedidosEntrega(osId);
+    const { data: articulosData } = useArticulos();
+    const { data: recetasData } = useRecetas();
+    const syncPedidosEntrega = useSyncPedidosEntrega();
+
+    const productosVenta = useMemo(() => (articulosData || []) as any[], [articulosData]);
+    const recetas = useMemo(() => (recetasData || []) as any[], [recetasData]);
     const recetasMap = useMemo(() => new Map(recetas.map(r => [r.id, r])), [recetas]);
 
-    const loadData = useCallback(() => {
-        if (!osId || !hitoId) return;
+    useEffect(() => {
+        if (!osId || !hitoId || loadingEntrega || loadingPedidos) return;
 
-        const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
-        const currentEntrega = allEntregas.find(e => e.id === osId);
-        setEntrega(currentEntrega || null);
-        
-        const allPedidos = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-        const currentPedido = allPedidos.find(p => p.osId === osId);
-        const currentHito = currentPedido?.hitos?.find(h => h.id === hitoId);
+        if (currentEntrega && pedidosEntregaData) {
+            const currentPedido = Array.isArray(pedidosEntregaData) 
+                ? pedidosEntregaData.find((p: any) => p.evento_id === osId) 
+                : null;
+            
+            const hitos = currentPedido?.hitos || [];
+            const currentHito = hitos.find((h: any) => h.id === hitoId);
 
-        if (currentPedido && currentHito && currentEntrega) {
-            const hitoIndex = currentPedido.hitos.findIndex(h => h.id === hitoId);
-            if (hitoIndex !== -1 && currentEntrega) {
-                setExpedicionNumero(`${currentEntrega.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
+            if (currentHito) {
+                setHito(currentHito);
+                const hitoIndex = hitos.findIndex((h: any) => h.id === hitoId);
+                setExpedicionNumero(`${currentEntrega.numero_expediente || currentEntrega.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se encontró la entrega." });
+                router.push(`/entregas/pedido/${osId}`);
             }
         }
         
-        if (!currentHito) {
-            toast({ variant: "destructive", title: "Error", description: "No se encontró la entrega." });
-            router.push(`/entregas/pedido/${osId}`);
-            return;
-        }
-        setHito(currentHito);
-        
-        const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
-        setProductosVenta(allProductosVenta);
-        
-        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        setRecetas(allRecetas);
-
         setIsMounted(true);
-    }, [osId, hitoId, router, toast]);
-
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
+    }, [osId, hitoId, currentEntrega, pedidosEntregaData, loadingEntrega, loadingPedidos, router, toast]);
     
-     const handleUpdateHito = (updatedHito: EntregaHito) => {
-        if (!osId || !hito) return;
+     const handleUpdateHito = async (updatedHito: EntregaHito) => {
+        if (!osId || !hito || !pedidosEntregaData) return;
 
         setHito(updatedHito);
         
-        const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-        const pedidoIndex = allPedidosEntrega.findIndex(p => p.osId === osId);
-
-        if (pedidoIndex > -1) {
-            const hitoIndex = allPedidosEntrega[pedidoIndex].hitos.findIndex(h => h.id === hitoId);
-            if(hitoIndex > -1) {
-                allPedidosEntrega[pedidoIndex].hitos[hitoIndex] = updatedHito;
-                localStorage.setItem('pedidosEntrega', JSON.stringify(allPedidosEntrega));
-                // Do not toast on every change for a smoother experience
+        const currentPedido = Array.isArray(pedidosEntregaData) 
+            ? pedidosEntregaData.find((p: any) => p.evento_id === osId) 
+            : null;
+        
+        if (currentPedido) {
+            const hitos = currentPedido.hitos || [];
+            const hitoIndex = hitos.findIndex((h: any) => h.id === hitoId);
+            if (hitoIndex > -1) {
+                const newHitos = [...hitos];
+                newHitos[hitoIndex] = updatedHito;
+                
+                try {
+                    await syncPedidosEntrega.mutateAsync({ osId, hitos: newHitos });
+                } catch (error) {
+                    console.error('Error syncing hito:', error);
+                    toast({ variant: 'destructive', title: 'Error', description: 'No se pudo sincronizar el cambio.' });
+                }
             }
         }
     };
@@ -109,7 +112,7 @@ export default function ConfeccionarEntregaPage() {
             id: item.id,
             nombre: item.nombre,
             quantity: quantity,
-            pvp: entrega?.tarifa === 'IFEMA' ? (item.pvpIfema || item.pvp) : item.pvp,
+            pvp: currentEntrega?.tarifa === 'IFEMA' ? (item.pvpIfema || item.pvp) : item.pvp,
             coste: itemCoste,
             categoria: item.categoria,
           });
@@ -118,61 +121,78 @@ export default function ConfeccionarEntregaPage() {
     }
     
     const catalogItems = useMemo(() => {
-      if (!entrega) return productosVenta;
-      if (entrega.tarifa === 'IFEMA') {
+      if (!currentEntrega) return productosVenta;
+      if (currentEntrega.tarifa === 'IFEMA') {
         return productosVenta;
       }
       return productosVenta.filter(p => !p.exclusivoIfema);
-    }, [productosVenta, entrega]);
+    }, [productosVenta, currentEntrega]);
 
     const totalPedido = useMemo(() => {
         if (!hito) return 0;
         const totalProductos = hito.items.reduce((sum, item) => sum + (item.pvp * item.quantity), 0);
-        const costePorte = entrega?.tarifa === 'IFEMA' ? 95 : 30;
+        const costePorte = currentEntrega?.tarifa === 'IFEMA' ? 95 : 30;
         const totalPortes = (hito.portes || 0) * costePorte;
         
         const horasCamarero = hito.horasCamarero || 0;
         const horasFacturables = horasCamarero > 0 && horasCamarero < 4 ? 4 : horasCamarero;
-        const pvpCamareroHora = entrega?.tarifa === 'IFEMA' ? 44.50 : 36.50;
+        const pvpCamareroHora = currentEntrega?.tarifa === 'IFEMA' ? 44.50 : 36.50;
         const totalPvpCamarero = horasFacturables * pvpCamareroHora;
 
         return totalProductos + totalPortes + totalPvpCamarero;
-    }, [hito, entrega]);
+    }, [hito, currentEntrega]);
 
 
-    if (!isMounted || !entrega || !hito) {
+    if (!isMounted || !currentEntrega || !hito) {
         return <LoadingSkeleton title="Cargando Hoja de Confección..." />;
     }
 
     return (
-        <main className="container mx-auto px-4 py-8">
-            <div className="flex items-center justify-between mb-4">
-                <div>
-                    <Button variant="ghost" size="sm" onClick={() => router.push(`/entregas/pedido/${osId}`)} className="mb-2 no-print">
-                        <ArrowLeft className="mr-2" /> Volver al Pedido
-                    </Button>
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        <Package /> Confección de Entrega: {expedicionNumero}
-                    </h1>
-                    <CardDescription>
-                        {hito.lugarEntrega}
-                    </CardDescription>
-                </div>
-                 <div className="text-right">
-                    <p className="text-sm text-muted-foreground">PVP Total Entrega</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(totalPedido)}</p>
+        <main className="min-h-screen bg-background">
+            {/* Premium Sticky Header */}
+            <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
+                <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
+                    <div className="flex items-center gap-4">
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/entregas/pedido/${osId}`)} className="h-8 w-8 p-0 rounded-full hover:bg-amber-500/10 hover:text-amber-600 no-print">
+                            <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                            <Package className="h-5 w-5 text-amber-500" />
+                        </div>
+                    </div>
+
+                    <div className="flex-1" />
+
+                    <div className="flex items-center gap-6">
+                        <div className="text-right">
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">PVP Total Entrega</p>
+                            <p className="text-lg font-black text-amber-600">{formatCurrency(totalPedido)}</p>
+                        </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-[10px] font-bold uppercase tracking-wider border-amber-500/20 hover:bg-amber-500/10 hover:text-amber-600 no-print"
+                            onClick={() => router.push(`/entregas/pedido/${osId}`)}
+                        >
+                            Finalizar
+                        </Button>
+                    </div>
                 </div>
             </div>
-            
-             <div className="grid lg:grid-cols-2 lg:gap-8 mt-6">
-                <UnifiedItemCatalog items={catalogItems} onAddItem={handleAddItem} />
-                <div className="mt-8 lg:mt-0">
-                    <DeliveryOrderSummary 
-                        entrega={entrega}
-                        hito={hito}
-                        onUpdateHito={handleUpdateHito}
-                        isEditing={true} 
-                    />
+
+            <div className="max-w-7xl mx-auto px-4 pb-12">
+                <div className="grid lg:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        <UnifiedItemCatalog items={catalogItems} onAddItem={handleAddItem} />
+                    </div>
+                    <div className="space-y-6">
+                        <DeliveryOrderSummary 
+                            entrega={currentEntrega}
+                            hito={hito}
+                            onUpdateHito={handleUpdateHito}
+                            isEditing={true} 
+                        />
+                    </div>
                 </div>
             </div>
         </main>

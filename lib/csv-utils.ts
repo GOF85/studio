@@ -84,7 +84,7 @@ export function exportEspaciosToCSV(espacios: EspacioV2[], filename: string = 'e
     document.body.removeChild(link);
 }
 
-export function downloadCSVTemplate() {
+export function downloadCSVTemplate(headers?: string[], filename: string = 'plantilla.csv') {
     const template = [
         {
             'Nombre': 'Hotel Gran Meliá',

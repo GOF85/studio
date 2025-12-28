@@ -37,6 +37,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useEvento, useEspacios, useComercialBriefings, usePersonalMiceOrders, usePersonal } from '@/hooks/use-data-queries';
+import { useSyncPersonalMiceAssignments } from '@/hooks/mutations/use-personal-mice-mutations';
 
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -77,32 +79,53 @@ const formSchema = z.object({
 type PersonalMiceFormValues = z.infer<typeof formSchema>;
 
 export default function PersonalMicePage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [spaceAddress, setSpaceAddress] = useState<string>('');
-  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [personalDB, setPersonalDB] = useState<Personal[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [rowToDelete, setRowToDelete] = useState<number | null>(null);
-
   const router = useRouter();
   const params = useParams() ?? {};
   const osId = (params.id as string) || '';
   const { toast } = useToast();
+
+  const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId);
+  const { data: allEspacios = [] } = useEspacios();
+  const { data: allBriefings = [] } = useComercialBriefings();
+  const { data: personalMiceOrders = [], isLoading: isLoadingOrders } = usePersonalMiceOrders(osId);
+  const { data: personalDB = [] } = usePersonal();
+  const { mutateAsync: syncAssignments } = useSyncPersonalMiceAssignments();
+
+  const [isMounted, setIsMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+
+  const spaceAddress = useMemo(() => {
+    if (!serviceOrder?.space) return '';
+    const currentSpace = allEspacios.find(e => e.nombre === serviceOrder.space);
+    return currentSpace?.calle || '';
+  }, [serviceOrder, allEspacios]);
+
+  const briefingItems = useMemo(() => {
+    const currentBriefing = allBriefings.find(b => b.osId === osId);
+    return currentBriefing?.items || [];
+  }, [allBriefings, osId]);
 
   const form = useForm<PersonalMiceFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { personal: [] },
   });
 
-  const { control, setValue } = form;
+  const { control, setValue, reset } = form;
 
   const { fields, append, remove, move } = useFieldArray({
     control,
     name: "personal",
   });
-  
- const handlePersonalChange = useCallback((index: number, name: string) => {
+
+  useEffect(() => {
+    if (personalMiceOrders.length > 0) {
+        reset({ personal: personalMiceOrders as any });
+    }
+    setIsMounted(true);
+  }, [personalMiceOrders, reset]);
+
+  const handlePersonalChange = useCallback((index: number, name: string) => {
     if (!name) return;
     const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
     if (person) {
@@ -131,67 +154,24 @@ export default function PersonalMicePage() {
     return { totalPlanned: totals.planned, totalReal: totals.real };
   }, [watchedFields]);
 
-  const loadData = useCallback(() => {
-     if (!osId) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
-        router.push('/pes');
-        return;
-    }
-    
-    try {
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const currentOS = allServiceOrders.find(os => os.id === osId);
-        setServiceOrder(currentOS || null);
-
-        if (currentOS?.space) {
-            const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-            const currentSpace = allEspacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
-            setSpaceAddress(currentSpace?.identificacion.calle || '');
-        }
-
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const currentBriefing = allBriefings.find(b => b.osId === osId);
-        setBriefingItems(currentBriefing?.items || []);
-
-        const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
-        const relatedOrders = allOrders.filter(order => order.osId === osId);
-        form.reset({ personal: relatedOrders });
-
-        const dbPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        setPersonalDB(dbPersonal);
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
-    } finally {
-        setIsMounted(true);
-    }
-  }, [osId, router, toast, form]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-
- const onSubmit = (data: PersonalMiceFormValues) => {
+  const onSubmit = async (data: PersonalMiceFormValues) => {
     setIsLoading(true);
-    if (!osId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
-      setIsLoading(false);
-      return;
-    }
-
-    const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
-    const otherOsOrders = allOrders.filter(o => o.osId !== osId);
-    
-    const currentOsOrders: PersonalMiceOrder[] = data.personal.map(p => ({ ...p, osId })) as unknown as PersonalMiceOrder[];
-
-    const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
-    localStorage.setItem('personalMiceOrders', JSON.stringify(updatedAllOrders));
-
-    setTimeout(() => {
+    try {
+        await syncAssignments({
+            osId,
+            assignments: data.personal.map(p => ({
+                ...p,
+                osId,
+                centroCoste: (p as any).centroCoste || 'SALA'
+            }))
+        });
         toast({ title: 'Personal MICE guardado', description: 'Todos los cambios han sido guardados.' });
+        reset(data);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar los cambios.' });
+    } finally {
         setIsLoading(false);
-        form.reset(data); // Resets form with new values, marking it as not dirty
-    }, 500);
+    }
   };
   
   const addRow = () => {
@@ -222,8 +202,17 @@ export default function PersonalMicePage() {
     return personalDB.map(p => ({ label: p.nombre, value: p.nombre.toLowerCase() }));
   }, [personalDB]);
 
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted || isLoadingOS || isLoadingOrders) {
     return <LoadingSkeleton title="Cargando Módulo de Personal MICE..." />;
+  }
+
+  if (!serviceOrder) {
+    return (
+        <div className="container mx-auto px-4 py-8 text-center">
+            <h2 className="text-2xl font-bold">Orden de Servicio no encontrada</h2>
+            <Button onClick={() => router.push('/os')} className="mt-4">Volver a la lista</Button>
+        </div>
+    );
   }
 
   return (

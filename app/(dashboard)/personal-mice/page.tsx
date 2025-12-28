@@ -42,31 +42,29 @@ import { cn } from '@/lib/utils';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+import { usePersonalMiceOrders, useEventos } from '@/hooks/use-data-queries';
+
 const ITEMS_PER_PAGE = 20;
 
 export default function PersonalMicePage() {
-  const [orders, setOrders] = useState<PersonalMiceOrder[]>([]);
-  const [serviceOrders, setServiceOrders] = useState<Map<string, ServiceOrder>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    let storedOrders = localStorage.getItem('personalMiceOrders');
-    setOrders(storedOrders ? JSON.parse(storedOrders) : []);
+  const { data: orders = [], isLoading: isLoadingOrders } = usePersonalMiceOrders();
+  const { data: allEventos = [], isLoading: isLoadingEventos } = useEventos();
 
-    let storedServiceOrders = localStorage.getItem('serviceOrders');
+  const serviceOrders = useMemo(() => {
     const osMap = new Map<string, ServiceOrder>();
-    if (storedServiceOrders) {
-        (JSON.parse(storedServiceOrders) as ServiceOrder[]).forEach(os => osMap.set(os.id, os));
-    }
-    setServiceOrders(osMap);
+    allEventos.forEach(os => osMap.set(os.id, os));
+    return osMap;
+  }, [allEventos]);
 
+  useEffect(() => {
     setIsMounted(true);
   }, []);
 
@@ -81,7 +79,7 @@ export default function PersonalMicePage() {
         (os && os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()));
 
       let dateMatch = true;
-      if (dateRange?.from && os) {
+      if (dateRange?.from && os && os.startDate) {
           const osDate = new Date(os.startDate);
           if(dateRange.to) {
               dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
@@ -101,22 +99,13 @@ export default function PersonalMicePage() {
 
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
 
-  const handleDelete = () => {
-    if (!orderToDelete) return;
-    const updatedData = orders.filter(e => e.id !== orderToDelete);
-    localStorage.setItem('personalMiceOrders', JSON.stringify(updatedData));
-    setOrders(updatedData);
-    toast({ title: 'Asignación eliminada', description: 'El registro se ha eliminado correctamente.' });
-    setOrderToDelete(null);
-  };
-  
-  if (!isMounted) {
+  if (!isMounted || isLoadingOrders || isLoadingEventos) {
     return <LoadingSkeleton title="Cargando Personal MICE..." />;
   }
 
   return (
     <>
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 pt-0 pb-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal MICE</h1>
           <p className="text-muted-foreground">Esta página es de solo lectura. Para añadir o editar, accede desde la Orden de Servicio.</p>
@@ -167,7 +156,7 @@ export default function PersonalMicePage() {
                 paginatedOrders.map(item => {
                   const os = serviceOrders.get(item.osId);
                   return (
-                    <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/personal-mice/${item.osId}`)}>
+                    <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/os/${os?.serviceNumber || item.osId}/personal-mice`)}>
                         <TableCell><Badge variant="outline">{os?.serviceNumber}</Badge></TableCell>
                         <TableCell className="font-medium">{item.nombre}</TableCell>
                         <TableCell>{item.centroCoste}</TableCell>
@@ -175,7 +164,7 @@ export default function PersonalMicePage() {
                         <TableCell>{item.horaEntrada} - {item.horaSalida}</TableCell>
                         <TableCell>{item.precioHora.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/personal-mice/${item.osId}`)}}>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/os/${os?.serviceNumber || item.osId}/personal-mice`)}}>
                             <Pencil className="h-4 w-4" />
                           </Button>
                         </TableCell>

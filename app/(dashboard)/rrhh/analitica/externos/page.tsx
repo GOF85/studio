@@ -76,6 +76,9 @@ type AnaliticaData = {
 }
 
 
+import { usePersonalMiceOrders, usePersonalExterno, useProveedores, usePersonal, usePersonalExternoDB, useCategoriasPersonal, useEventos } from '@/hooks/use-data-queries';
+import { useCprSolicitudesPersonal } from '@/hooks/use-cpr-data';
+
 export default function AnaliticaExternosPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -86,30 +89,25 @@ export default function AnaliticaExternosPage() {
     const [proveedorFilter, setProveedorFilter] = useState('all');
     const [osFilter, setOsFilter] = useState('');
 
-    const [allPersonalMice, setAllPersonalMice] = useState<PersonalMiceOrder[]>([]);
-    const [allPersonalExterno, setAllPersonalExterno] = useState<PersonalExterno[]>([]);
-    const [allSolicitudesCPR, setAllSolicitudesCPR] = useState<SolicitudPersonalCPR[]>([]);
-    const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-    const [personalInterno, setPersonalInterno] = useState<Personal[]>([]);
-    const [personalExternoDB, setPersonalExternoDB] = useState<PersonalExternoDB[]>([]);
-    const [tiposPersonal, setTiposPersonal] = useState<CategoriaPersonal[]>([]);
+    const { data: allPersonalMice = [], isLoading: loadingMice } = usePersonalMiceOrders();
+    const { data: allPersonalExterno = [], isLoading: loadingExterno } = usePersonalExterno();
+    const { data: allSolicitudesCPR = [], isLoading: loadingCpr } = useCprSolicitudesPersonal();
+    const { data: proveedores = [], isLoading: loadingProv } = useProveedores();
+    const { data: personalInterno = [], isLoading: loadingPersonal } = usePersonal();
+    const { data: personalExternoDB = [], isLoading: loadingExternoDB } = usePersonalExternoDB();
+    const { data: tiposPersonal = [], isLoading: loadingTipos } = useCategoriasPersonal();
+    const { data: allServiceOrders = [], isLoading: loadingEvents } = useEventos();
 
     const [selectedWorkerForModal, setSelectedWorkerForModal] = useState<{ id: string, nombre: string } | null>(null);
 
-
     useEffect(() => {
-        setAllPersonalMice(JSON.parse(localStorage.getItem('personalMiceOrders') || '[]'));
-        setAllPersonalExterno(JSON.parse(localStorage.getItem('personalExterno') || '[]'));
-        setAllSolicitudesCPR(JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]'));
-        setProveedores(JSON.parse(localStorage.getItem('proveedores') || '[]'));
-        setPersonalInterno(JSON.parse(localStorage.getItem('personal') || '[]'));
-        setPersonalExternoDB(JSON.parse(localStorage.getItem('personalExternoDB') || '[]'));
-        setTiposPersonal(JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]);
         setIsMounted(true);
     }, []);
 
+    const isLoading = loadingMice || loadingExterno || loadingCpr || loadingProv || loadingPersonal || loadingExternoDB || loadingTipos || loadingEvents;
+
     const uniqueProveedores = useMemo(() => {
-        const ettIds = new Set(allPersonalExterno.flatMap(p => p.turnos.map(t => t.proveedorId)));
+        const ettIds = new Set((allPersonalExterno as PersonalExterno[]).flatMap(p => p.turnos.map(t => t.proveedorId)));
         tiposPersonal.forEach(tp => ettIds.add(tp.proveedorId));
         return proveedores.filter(p => ettIds.has(p.id) && p.nombreComercial && p.nombreComercial.length > 0);
     }, [allPersonalExterno, proveedores, tiposPersonal]);
@@ -139,15 +137,13 @@ export default function AnaliticaExternosPage() {
 
         let costeTotal = 0, costePlanificado = 0, horasTotales = 0, horasPlanificadas = 0, numTurnos = 0;
         
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        
         const tiposPersonalMap = new Map((tiposPersonal || []).map(t => [t.id, t]));
 
 
         // Personal Externo Eventos
-        allPersonalExterno.forEach(pedido => {
+        (allPersonalExterno as PersonalExterno[]).forEach(pedido => {
             const os = allServiceOrders.find((so: ServiceOrder) => so.id === pedido.osId);
-            if (!os || !isWithinInterval(new Date(os.startDate), { start: rangeStart, end: rangeEnd })) return;
+            if (!os || !os.startDate || !isWithinInterval(new Date(os.startDate), { start: rangeStart, end: rangeEnd })) return;
              if (osFilter && !(os.serviceNumber.toLowerCase().includes(osFilter.toLowerCase()) || os.client.toLowerCase().includes(osFilter.toLowerCase()))) return;
             
             pedido.turnos.forEach(turno => {
@@ -156,7 +152,7 @@ export default function AnaliticaExternosPage() {
 
                 const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
                 
-                (turno.asignaciones || []).forEach(asig => {
+                (turno.asignaciones || []).forEach((asig: any) => {
                     numTurnos++;
                     const realHours = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || plannedHours;
                     const costeRealTurno = realHours * turno.precioHora;
@@ -335,7 +331,7 @@ export default function AnaliticaExternosPage() {
         setIsDatePickerOpen(false);
     };
     
-    if (!isMounted) {
+    if (!isMounted || isLoading) {
         return <LoadingSkeleton title="Cargando Analítica de RRHH..." />;
     }
 

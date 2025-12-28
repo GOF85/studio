@@ -21,8 +21,9 @@ import type { EspacioV2 } from '@/types/espacios';
 import { cn } from '@/lib/utils';
 
 interface CSVImporterProps {
-    onClose: () => void;
-    onSuccess: () => void;
+    onClose?: () => void;
+    onSuccess?: () => void;
+    onImportComplete?: () => void;
 }
 
 interface CSVRow {

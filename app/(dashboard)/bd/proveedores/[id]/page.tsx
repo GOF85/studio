@@ -6,7 +6,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Save, X, Building2, Trash2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import type { Proveedor, PortalUserRole } from '@/types';
 import { TIPO_PROVEEDOR_OPCIONES } from '@/types';
 import { proveedorSchema, type ProveedorFormValues } from '../nuevo/page';
@@ -17,9 +16,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useLoadingStore } from '@/hooks/use-loading-store';
+import { useProveedor, useUpsertProveedor, useDeleteProveedor } from '@/hooks/use-data-queries';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 const defaultFormValues: ProveedorFormValues = {
   id: '',
@@ -44,7 +44,10 @@ export default function EditarProveedorPage() {
   const params = useParams() ?? {};
   const id = (params.id as string) || '';
 
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: proveedor, isLoading: isLoadingProveedor } = useProveedor(id);
+  const upsertProveedor = useUpsertProveedor();
+  const deleteProveedor = useDeleteProveedor();
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
 
@@ -54,94 +57,25 @@ export default function EditarProveedorPage() {
   });
 
   useEffect(() => {
-    async function loadProvider() {
-      try {
-        const { data, error } = await supabase
-          .from('proveedores')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (error) throw error;
-        if (data) {
-          // Map Supabase data to form values
-          const formValues: ProveedorFormValues = {
-            ...defaultFormValues,
-            id: data.id,
-            nombreComercial: data.nombre_comercial || '',
-            nombreFiscal: data.nombre_fiscal || '',
-            cif: data.cif || '',
-            IdERP: data.id_erp || '',
-            direccionFacturacion: data.direccion_facturacion || '',
-            codigoPostal: data.codigo_postal || '',
-            ciudad: data.ciudad || '',
-            provincia: data.provincia || '',
-            pais: data.pais || 'España',
-            emailContacto: data.email_contacto || '',
-            telefonoContacto: data.telefono_contacto || '',
-            contacto: data.contacto || '',
-            iban: data.iban || '',
-            formaDePagoHabitual: data.forma_de_pago_habitual || '',
-          };
-          form.reset(formValues);
-        }
-      } catch (error) {
-        console.error('Error loading provider:', error);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar el proveedor.' });
-        router.push('/bd/proveedores');
-      }
+    if (proveedor) {
+      form.reset(proveedor as ProveedorFormValues);
     }
-    loadProvider();
-  }, [id, form, router, toast]);
+  }, [proveedor, form]);
 
   async function onSubmit(data: ProveedorFormValues) {
-    setIsLoading(true);
-
     try {
-      const { id: providerId, ...rest } = data;
-
-      const { error } = await supabase
-        .from('proveedores')
-        .update({
-          nombre_comercial: data.nombreComercial,
-          nombre_fiscal: data.nombreFiscal,
-          cif: data.cif,
-          id_erp: data.IdERP,
-          direccion_facturacion: data.direccionFacturacion,
-          codigo_postal: data.codigoPostal,
-          ciudad: data.ciudad,
-          provincia: data.provincia,
-          pais: data.pais,
-          email_contacto: data.emailContacto,
-          telefono_contacto: data.telefonoContacto,
-          contacto: data.contacto,
-          iban: data.iban,
-          forma_de_pago_habitual: data.formaDePagoHabitual,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
+      await upsertProveedor.mutateAsync({ ...data, id });
       toast({ description: 'Proveedor actualizado correctamente.' });
       router.push('/bd/proveedores');
     } catch (error: any) {
       console.error('Error updating provider:', error);
       toast({ variant: 'destructive', title: 'Error', description: 'Error al actualizar: ' + error.message });
-    } finally {
-      setIsLoading(false);
     }
   }
 
   const handleDelete = async () => {
     try {
-      const { error } = await supabase
-        .from('proveedores')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
+      await deleteProveedor.mutateAsync(id);
       toast({ title: 'Proveedor eliminado' });
       router.push('/bd/proveedores');
     } catch (error: any) {
@@ -149,6 +83,10 @@ export default function EditarProveedorPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'Error al eliminar: ' + error.message });
     }
   };
+
+  if (isLoadingProveedor) {
+    return <LoadingSkeleton title="Cargando Proveedor..." />;
+  }
 
   const tiposOptions = TIPO_PROVEEDOR_OPCIONES.map(t => ({ label: t, value: t }));
 
@@ -165,8 +103,8 @@ export default function EditarProveedorPage() {
               <div className="flex gap-2">
                 <Button variant="outline" type="button" onClick={() => router.push('/bd/proveedores')}> <X className="mr-2" /> Cancelar</Button>
                 <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2" /> Borrar</Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                <Button type="submit" disabled={upsertProveedor.isPending}>
+                  {upsertProveedor.isPending ? <Loader2 className="animate-spin" /> : <Save />}
                   <span className="ml-2">Guardar Cambios</span>
                 </Button>
               </div>

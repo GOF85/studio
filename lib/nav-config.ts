@@ -101,7 +101,6 @@ export const commercialItems: MenuItem[] = [
         href: '/bd/espacios',
         icon: Building2,
         description: 'Gestión de venues y espacios para eventos',
-        badge: { label: 'Nuevo', variant: 'default' }
     },
 ];
 

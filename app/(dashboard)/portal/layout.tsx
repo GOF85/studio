@@ -22,29 +22,23 @@ const breadcrumbNameMap: { [key: string]: { name: string; icon: React.ElementTyp
 };
 
 
+import { useProveedores } from '@/hooks/use-data-queries';
+
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const { user, profile, isProvider, isLoading } = useAuth();
-    const [proveedor, setProveedor] = useState<Proveedor | null>(null);
     const [isMounted, setIsMounted] = useState(false);
+
+    const { data: allProveedores = [] } = useProveedores();
+
+    const proveedor = useMemo(() => {
+        if (!profile?.proveedor_id) return null;
+        return allProveedores.find(p => p.id === profile.proveedor_id) || null;
+    }, [profile?.proveedor_id, allProveedores]);
 
     useEffect(() => {
         setIsMounted(true);
-        if (profile?.proveedor_id) {
-            // In a real app, we should fetch this from Supabase "proveedores" table
-            // For now, we keep the localStorage fallback or fetch from DB if we implement it
-            // Let's try to fetch from DB first, then fallback to localStorage for migration
-            const fetchProveedor = async () => {
-                // TODO: Fetch from Supabase
-                const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-                const currentProveedor = allProveedores.find(p => p.id === profile.proveedor_id);
-                setProveedor(currentProveedor || null);
-            };
-            fetchProveedor();
-        } else {
-            setProveedor(null);
-        }
-    }, [profile]);
+    }, []);
 
     const pathSegments = useMemo(() => {
         const safePath = pathname ?? '';
@@ -85,7 +79,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                     </div>
                 </div>
             </div>
-            <div className="py-8 container mx-auto">
+            <div className="container mx-auto pt-0 pb-8">
                 {children}
             </div>
         </>

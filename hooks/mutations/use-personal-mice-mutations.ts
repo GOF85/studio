@@ -32,8 +32,8 @@ export function useCreatePersonalMiceAssignment() {
             if (error) throw error;
             return data;
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['personal-mice'] });
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['personalMiceOrders', variables.osId] });
         }
     });
 }
@@ -46,11 +46,17 @@ export function useUpdatePersonalMiceAssignment() {
             const { data, error } = await supabase
                 .from('personal_mice_asignaciones')
                 .update({
+                    categoria: updates.tipoServicio,
                     hora_entrada: updates.horaEntrada,
                     hora_salida: updates.horaSalida,
                     hora_entrada_real: updates.horaEntradaReal,
                     hora_salida_real: updates.horaSalidaReal,
                     precio_hora: updates.precioHora,
+                    data: {
+                        centroCoste: updates.centroCoste,
+                        nombre: updates.nombre,
+                        dni: updates.dni,
+                    }
                 })
                 .eq('id', id)
                 .select()
@@ -59,8 +65,9 @@ export function useUpdatePersonalMiceAssignment() {
             if (error) throw error;
             return data;
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['personal-mice'] });
+        onSuccess: (_, variables) => {
+            // We don't have osId here easily unless we pass it or invalidate all
+            queryClient.invalidateQueries({ queryKey: ['personalMiceOrders'] });
         }
     });
 }
@@ -78,7 +85,51 @@ export function useDeletePersonalMiceAssignment() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['personal-mice'] });
+            queryClient.invalidateQueries({ queryKey: ['personalMiceOrders'] });
+        }
+    });
+}
+
+export function useSyncPersonalMiceAssignments() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ osId, assignments }: { osId: string, assignments: Partial<PersonalMiceOrder>[] }) => {
+            // 1. Delete existing assignments for this OS
+            const { error: deleteError } = await supabase
+                .from('personal_mice_asignaciones')
+                .delete()
+                .eq('evento_id', osId);
+
+            if (deleteError) throw deleteError;
+
+            if (assignments.length === 0) return [];
+
+            // 2. Insert new assignments
+            const { data, error: insertError } = await supabase
+                .from('personal_mice_asignaciones')
+                .insert(assignments.map(a => ({
+                    evento_id: osId,
+                    personal_id: a.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(a.id) ? a.id : null,
+                    categoria: a.tipoServicio,
+                    hora_entrada: a.horaEntrada,
+                    hora_salida: a.horaSalida,
+                    hora_entrada_real: a.horaEntradaReal,
+                    hora_salida_real: a.horaSalidaReal,
+                    precio_hora: a.precioHora,
+                    data: {
+                        centroCoste: a.centroCoste,
+                        nombre: a.nombre,
+                        dni: a.dni,
+                    }
+                })))
+                .select();
+
+            if (insertError) throw insertError;
+            return data;
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['personalMiceOrders', variables.osId] });
         }
     });
 }

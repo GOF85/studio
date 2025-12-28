@@ -45,19 +45,23 @@ export function ItemListItem({ item, onAddItem, orderType }: ItemListItemProps) 
   }
 
 
-  const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : `https://picsum.photos/seed/${item.itemCode}/400/300`;
+  const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : null;
 
   return (
     <div className="flex items-center gap-2 p-2 border-b transition-colors hover:bg-secondary/50">
-      <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-md">
-        <Image
-          src={imageUrl}
-          alt={item.description}
-          fill
-          className="object-cover"
-          sizes="40px"
-          data-ai-hint={item.imageHint}
-        />
+      <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center">
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={item.description}
+            fill
+            className="object-cover"
+            sizes="40px"
+            data-ai-hint={item.imageHint}
+          />
+        ) : (
+          <div className="text-[10px] text-muted-foreground font-bold text-center px-1">SIN FOTO</div>
+        )}
       </div>
       <div className="flex-grow">
         <h3 className="font-semibold text-base">{item.description}</h3>
@@ -65,7 +69,7 @@ export function ItemListItem({ item, onAddItem, orderType }: ItemListItemProps) 
       </div>
       <div className="flex flex-col items-end gap-1">
         <p className="text-base font-semibold text-primary">
-          {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+          {(item.price || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
         </p>
       </div>
       <div className="flex items-center gap-2 w-48">

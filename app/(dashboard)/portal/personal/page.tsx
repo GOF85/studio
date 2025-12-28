@@ -37,6 +37,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { 
+    usePersonalExternoDB, 
+    useUpsertPersonalExternoDB, 
+    useDeletePersonalExternoDB, 
+    usePersonalExterno, 
+    useEventos, 
+    useProveedores,
+    useUpdatePersonalExterno,
+    useComercialBriefings
+} from '@/hooks/use-data-queries';
+import { useCprSolicitudesPersonal, useUpdateCprSolicitudPersonal } from '@/hooks/use-cpr-data';
 
 
 type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO'; osId: string; estado: PersonalExterno['status']; osNumber?: string; cliente?: string; costeEstimado: number; horario: string; horas: number; isCprRequest: false; }) | (SolicitudPersonalCPR & { type: 'CPR'; osNumber?: string; cliente?: string; costeEstimado: number; horario: string; horas: number; isCprRequest: true; });
@@ -64,7 +75,8 @@ const statusVariant: { [key: string]: 'success' | 'secondary' | 'warning' | 'des
 };
 
 const nuevoTrabajadorSchema = z.object({
-    id: z.string().min(1, 'El DNI/ID es obligatorio'),
+    id: z.string().optional(), // UUID in Supabase, but we might use DNI as ID in some contexts
+    dni: z.string().min(1, 'El DNI/ID es obligatorio'),
     nombre: z.string().min(1, 'El nombre es obligatorio'),
     apellido1: z.string().min(1, 'El primer apellido es obligatororio'),
     apellido2: z.string().optional().default(''),
@@ -74,47 +86,54 @@ const nuevoTrabajadorSchema = z.object({
 type NuevoTrabajadorFormValues = z.infer<typeof nuevoTrabajadorSchema>;
 
 
-function NuevoTrabajadorDialog({ onWorkerCreated, initialData, trigger }: { onWorkerCreated: (worker: PersonalExternoDB) => void, initialData?: Partial<NuevoTrabajadorFormValues>, trigger: React.ReactNode }) {
+function NuevoTrabajadorDialog({ onWorkerCreated, initialData, trigger }: { onWorkerCreated: (worker: PersonalExternoDB) => void, initialData?: any, trigger: React.ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
     const { profile } = useAuth();
+    const upsertWorker = useUpsertPersonalExternoDB();
 
     const form = useForm<NuevoTrabajadorFormValues>({
         resolver: zodResolver(nuevoTrabajadorSchema),
-        defaultValues: initialData || { id: '', nombre: '', apellido1: '', apellido2: '', telefono: '', email: '' }
+        defaultValues: initialData ? {
+            id: initialData.id,
+            dni: initialData.dni || initialData.id,
+            nombre: initialData.nombre,
+            apellido1: initialData.apellido1,
+            apellido2: initialData.apellido2 || '',
+            telefono: initialData.telefono || '',
+            email: initialData.email || ''
+        } : { dni: '', nombre: '', apellido1: '', apellido2: '', telefono: '', email: '' }
     });
 
     useEffect(() => {
         if (isOpen) {
-            form.reset(initialData || { id: '', nombre: '', apellido1: '', apellido2: '', telefono: '', email: '' });
+            form.reset(initialData ? {
+                id: initialData.id,
+                dni: initialData.dni || initialData.id,
+                nombre: initialData.nombre,
+                apellido1: initialData.apellido1,
+                apellido2: initialData.apellido2 || '',
+                telefono: initialData.telefono || '',
+                email: initialData.email || ''
+            } : { dni: '', nombre: '', apellido1: '', apellido2: '', telefono: '', email: '' });
         }
     }, [isOpen, initialData, form]);
 
-    const onSubmit = (data: NuevoTrabajadorFormValues) => {
-        const allWorkers = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
+    const onSubmit = async (data: NuevoTrabajadorFormValues) => {
+        try {
+            const newWorker: any = {
+                ...data,
+                proveedorId: profile?.proveedor_id || '',
+                nombreCompleto: `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim(),
+                nombreCompacto: `${data.nombre} ${data.apellido1}`,
+            };
 
-        const existingIndex = allWorkers.findIndex(w => w.id === data.id);
-
-        if (existingIndex === -1 && allWorkers.some(w => w.id.toLowerCase() === data.id.toLowerCase())) {
-            form.setError('id', { message: 'Este DNI/ID ya existe.' });
-            return;
+            const result = await upsertWorker.mutateAsync(newWorker);
+            onWorkerCreated(result);
+            setIsOpen(false);
+            form.reset();
+        } catch (error) {
+            // Error handled by mutation
         }
-
-        const newWorker: PersonalExternoDB = {
-            ...data,
-            proveedorId: profile?.proveedor_id || '',
-            nombreCompleto: `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim(),
-            nombreCompacto: `${data.nombre} ${data.apellido1}`,
-        };
-
-        if (existingIndex > -1) {
-            allWorkers[existingIndex] = newWorker;
-        } else {
-            allWorkers.push(newWorker);
-        }
-        localStorage.setItem('personalExternoDB', JSON.stringify(allWorkers));
-        onWorkerCreated(newWorker);
-        setIsOpen(false);
-        form.reset();
     };
 
     return (
@@ -126,7 +145,7 @@ function NuevoTrabajadorDialog({ onWorkerCreated, initialData, trigger }: { onWo
                 <DialogHeader><DialogTitle>{initialData ? 'Editar' : 'Nuevo'} Trabajador</DialogTitle></DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField control={form.control} name="id" render={({ field }) => <FormItem><FormLabel>DNI / ID</FormLabel><FormControl><Input {...field} readOnly={!!initialData} /></FormControl><FormMessage /></FormItem>} />
+                        <FormField control={form.control} name="dni" render={({ field }) => <FormItem><FormLabel>DNI / ID</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                         <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="nombre" render={({ field }) => <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                             <FormField control={form.control} name="apellido1" render={({ field }) => <FormItem><FormLabel>Primer Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
@@ -136,7 +155,10 @@ function NuevoTrabajadorDialog({ onWorkerCreated, initialData, trigger }: { onWo
                         <FormField control={form.control} name="email" render={({ field }) => <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                         <DialogFooter>
                             <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                            <Button type="submit">Guardar</Button>
+                            <Button type="submit" disabled={upsertWorker.isPending}>
+                                {upsertWorker.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Guardar
+                            </Button>
                         </DialogFooter>
                     </form>
                 </Form>
@@ -146,35 +168,29 @@ function NuevoTrabajadorDialog({ onWorkerCreated, initialData, trigger }: { onWo
 }
 
 function EmployeeTab({ proveedorId }: { proveedorId: string | null | undefined }) {
-    const [workers, setWorkers] = useState<PersonalExternoDB[]>([]);
+    const { data: allWorkers = [], isLoading } = usePersonalExternoDB();
+    const deleteWorker = useDeletePersonalExternoDB();
     const [editingWorker, setEditingWorker] = useState<PersonalExternoDB | null>(null);
     const [workerToDelete, setWorkerToDelete] = useState<PersonalExternoDB | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
 
-    const loadWorkers = useCallback(() => {
-        const allWorkers = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
-        const filtered = allWorkers.filter(w => w.proveedorId === proveedorId);
-        setWorkers(filtered);
-    }, [proveedorId]);
-
-    useEffect(() => {
-        loadWorkers();
-    }, [loadWorkers]);
+    const workers = useMemo(() => {
+        return allWorkers.filter(w => w.proveedorId === proveedorId);
+    }, [allWorkers, proveedorId]);
 
     const handleWorkerSaved = () => {
-        loadWorkers();
         toast({ title: 'Datos del trabajador guardados.' });
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!workerToDelete) return;
-        let allWorkers = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
-        allWorkers = allWorkers.filter(w => w.id !== workerToDelete.id);
-        localStorage.setItem('personalExternoDB', JSON.stringify(allWorkers));
-        loadWorkers();
-        setWorkerToDelete(null);
-        toast({ title: 'Trabajador eliminado.' });
+        try {
+            await deleteWorker.mutateAsync(workerToDelete.id);
+            setWorkerToDelete(null);
+        } catch (error) {
+            // Error handled by mutation
+        }
     };
 
     const filteredWorkers = useMemo(() => {
@@ -183,6 +199,8 @@ function EmployeeTab({ proveedorId }: { proveedorId: string | null | undefined }
             w.id.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [workers, searchTerm]);
+
+    if (isLoading) return <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /><p className="mt-2">Cargando trabajadores...</p></div>;
 
     return (
         <Card>
@@ -247,6 +265,7 @@ function EmployeeTab({ proveedorId }: { proveedorId: string | null | undefined }
 function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, onSave: (turnoId: string, asignacion: AsignacionPersonal, isCpr: boolean) => void, isReadOnly: boolean }) {
     const [isOpen, setIsOpen] = useState(false);
     const { assignableWorkers, isLoading: isLoadingWorkers, refresh } = useAssignablePersonal(turno);
+    const { data: allWorkers = [] } = usePersonalExternoDB();
 
     const initialAsignacion = useMemo(() => {
         if (!turno) return null;
@@ -288,9 +307,8 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
     };
 
     const workerDetails = useMemo(() => {
-        const allPersonalExternoDB = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
-        return allPersonalExternoDB.find(w => w.id === selectedWorkerId);
-    }, [selectedWorkerId]);
+        return allWorkers.find(w => w.id === selectedWorkerId);
+    }, [selectedWorkerId, allWorkers]);
 
     const buttonLabel = selectedWorkerId ? (assignableWorkers.find(w => w.value === selectedWorkerId)?.label || initialAsignacion?.label || "Asignar Personal") : "Asignar Personal";
     const buttonIcon = selectedWorkerId ? <Pencil className="mr-2 h-4 w-4" /> : <Users className="mr-2 h-4 w-4" />;
@@ -345,13 +363,18 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
 }
 
 export default function PortalPersonalPage() {
-    const [pedidos, setPedidos] = useState<UnifiedTurno[]>([]);
-    const [serviceOrders, setServiceOrders] = useState<Map<string, ServiceOrder>>(new Map());
-    const [briefings, setBriefings] = useState<Map<string, { items: ComercialBriefingItem[] }>>(new Map());
-    const [isMounted, setIsMounted] = useState(false);
-    const { user, profile, effectiveRole, hasRole, isProvider } = useAuth();
+    const { user, profile, effectiveRole, hasRole } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
+
+    const { data: allEventos = [], isLoading: loadingEventos } = useEventos();
+    const { data: allPersonalExterno = [], isLoading: loadingPersonal } = usePersonalExterno();
+    const { data: allCprSolicitudes = [], isLoading: loadingCpr } = useCprSolicitudesPersonal();
+    const { data: allProveedores = [], isLoading: loadingProveedores } = useProveedores();
+    const { data: allBriefings = [], isLoading: loadingBriefings } = useComercialBriefings();
+    
+    const updatePersonalExterno = useUpdatePersonalExterno();
+    const updateCprSolicitud = useUpdateCprSolicitudPersonal();
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
@@ -359,7 +382,6 @@ export default function PortalPersonalPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [showCompleted, setShowCompleted] = useState(false);
-    const [proveedorNombre, setProveedorNombre] = useState('');
 
     const isAdminOrComercial = useMemo(() => {
         return effectiveRole === 'ADMIN' || effectiveRole === 'COMERCIAL';
@@ -372,62 +394,62 @@ export default function PortalPersonalPage() {
 
     const proveedorId = useMemo(() => profile?.proveedor_id, [profile]);
 
-    const loadData = useCallback(() => {
-        const partnerShouldBeDefined = hasRole('PARTNER_PERSONAL');
-        if (partnerShouldBeDefined && !proveedorId) {
-            setPedidos([]);
-            setIsMounted(true);
-            return;
-        }
+    const proveedorNombre = useMemo(() => {
+        if (!proveedorId) return '';
+        return allProveedores.find(p => p.id === proveedorId)?.nombreComercial || '';
+    }, [proveedorId, allProveedores]);
 
-        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        if (proveedorId) {
-            const proveedor = allProveedores.find(p => p.id === proveedorId);
-            setProveedorNombre(proveedor?.nombreComercial || '');
-        }
+    const pedidos = useMemo(() => {
+        if (loadingEventos || loadingPersonal || loadingCpr) return [];
 
-        const allTiposPersonal = (JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]);
+        const serviceOrdersMap = new Map(allEventos.map(os => [os.id, os]));
 
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const filteredPedidosEventos = allPersonalExterno.map(p => ({
-            ...p,
-            turnos: p.turnos.filter(t => {
-                const tipo = allTiposPersonal.find(tp => tp.id === t.proveedorId);
-                return isAdminOrComercial || tipo?.proveedorId === proveedorId;
-            })
-        })).filter(p => p.turnos.length > 0);
-
-        const allSolicitudesCPR = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[]);
-        const filteredSolicitudesCPR = allSolicitudesCPR.filter(s => {
-            if (s.estado === 'Rechazada') return false;
-            const tipo = allTiposPersonal.find(t => t.id === s.proveedorId);
-            return isAdminOrComercial || tipo?.proveedorId === proveedorId;
-        });
-
-        const cprTurnos: UnifiedTurno[] = filteredSolicitudesCPR.map(s => {
-            const tipo = allTiposPersonal.find(t => t.id === s.proveedorId);
-            return { ...s, type: 'CPR', costeEstimado: s.costeImputado || ((calculateHours(s.horaInicio, s.horaFin) * (tipo?.precioHora || 0)) * s.cantidad), horario: `${s.horaInicio} - ${s.horaFin}`, horas: calculateHours(s.horaInicio, s.horaFin), isCprRequest: true, osNumber: 'CPR', cliente: 'Producción Interna' };
-        });
-
-        const allServiceOrdersData = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const serviceOrdersMap = new Map(allServiceOrdersData.map(os => [os.id, os]));
-        setServiceOrders(serviceOrdersMap);
-
-        const eventoTurnos: UnifiedTurno[] = filteredPedidosEventos.flatMap(p => {
+        // Filter and map Event-based personal
+        const eventoTurnos: UnifiedTurno[] = (allPersonalExterno as PersonalExterno[]).flatMap(p => {
             const os = serviceOrdersMap.get(p.osId);
-            return p.turnos.map(t => {
-                const coste = calculateHours(t.horaEntrada, t.horaSalida) * t.precioHora * (t.asignaciones?.length || 1);
-                return { ...t, osId: p.osId, type: 'EVENTO', estado: p.status, osNumber: os?.serviceNumber || '', cliente: os?.client || '', costeEstimado: coste, horario: `${t.horaEntrada} - ${t.horaSalida}`, horas: calculateHours(t.horaEntrada, t.horaSalida), isCprRequest: false };
+            if (!os) return [];
+
+            // Filter turns by provider if not admin
+            const filteredTurnos = p.turnos.filter(t => isAdminOrComercial || t.proveedorId === proveedorId);
+            
+            return filteredTurnos.map(t => {
+                const hours = calculateHours(t.horaEntrada, t.horaSalida);
+                const coste = hours * t.precioHora * (t.asignaciones?.length || 1);
+                return { 
+                    ...t, 
+                    osId: p.osId, 
+                    type: 'EVENTO', 
+                    estado: p.status, 
+                    osNumber: os.serviceNumber || '', 
+                    cliente: os.client || '', 
+                    costeEstimado: coste, 
+                    horario: `${t.horaEntrada} - ${t.horaSalida}`, 
+                    horas: hours, 
+                    isCprRequest: false 
+                } as UnifiedTurno;
             });
         });
 
-        setPedidos([...cprTurnos, ...eventoTurnos]);
+        // Filter and map CPR-based personal
+        const cprTurnos: UnifiedTurno[] = allCprSolicitudes.filter(s => {
+            if (s.estado === 'Rechazada') return false;
+            return isAdminOrComercial || s.proveedorId === proveedorId;
+        }).map(s => {
+            const hours = calculateHours(s.horaInicio, s.horaFin);
+            return { 
+                ...s, 
+                type: 'CPR', 
+                costeEstimado: s.costeImputado || 0, 
+                horario: `${s.horaInicio} - ${s.horaFin}`, 
+                horas: hours, 
+                isCprRequest: true, 
+                osNumber: 'CPR', 
+                cliente: 'Producción Interna' 
+            } as UnifiedTurno;
+        });
 
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as { osId: string; items: ComercialBriefingItem[] }[];
-        setBriefings(new Map(allBriefings.map(b => [b.osId, b])));
-
-        setIsMounted(true);
-    }, [proveedorId, hasRole, isAdminOrComercial]);
+        return [...cprTurnos, ...eventoTurnos];
+    }, [allEventos, allPersonalExterno, allCprSolicitudes, proveedorId, isAdminOrComercial, loadingEventos, loadingPersonal, loadingCpr]);
 
     useEffect(() => {
         if (user) {
@@ -438,50 +460,47 @@ export default function PortalPersonalPage() {
         }
     }, [user, hasRole, router, isAdminOrComercial]);
 
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
-
-    const handleSaveAsignacion = (turnoId: string, asignacion: AsignacionPersonal, isCpr: boolean) => {
+    const handleSaveAsignacion = async (turnoId: string, asignacion: AsignacionPersonal, isCpr: boolean) => {
         if (!user) return;
 
-        if (isCpr) {
-            let allSolicitudesCPR = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-            const index = allSolicitudesCPR.findIndex(s => s.id === turnoId);
-            if (index > -1) {
-                allSolicitudesCPR[index].personalAsignado = [{ idPersonal: asignacion.id, nombre: asignacion.nombre }];
-                allSolicitudesCPR[index].estado = 'Confirmado';
-                localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allSolicitudesCPR));
+        try {
+            if (isCpr) {
+                await updateCprSolicitud.mutateAsync({
+                    id: turnoId,
+                    personalAsignado: [{ idPersonal: asignacion.id, nombre: asignacion.nombre }],
+                    estado: 'Confirmado'
+                });
+            } else {
+                // For events, we need to find the whole PersonalExterno object and update its turnos
+                const pedido = (allPersonalExterno as PersonalExterno[]).find(p => p.turnos.some(t => t.id === turnoId));
+                if (pedido) {
+                    const updatedTurnos: PersonalExternoTurno[] = pedido.turnos.map(t => {
+                        if (t.id === turnoId) {
+                            return { ...t, asignaciones: [asignacion], statusPartner: 'Gestionado' };
+                        }
+                        return t;
+                    });
+                    await updatePersonalExterno.mutateAsync({
+                        osId: pedido.osId,
+                        turnos: updatedTurnos
+                    });
+                }
             }
-        } else {
-            let allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-            allPersonalExterno = allPersonalExterno.map(pedido => ({
-                ...pedido,
-                turnos: pedido.turnos.map(turno => {
-                    if (turno.id === turnoId) {
-                        return { ...turno, asignaciones: [asignacion], statusPartner: 'Gestionado' };
-                    }
-                    return turno;
-                })
-            }));
-            localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-        }
 
-        loadData();
-        const turno = pedidos.find(p => p.id === turnoId);
-        if (turno) {
-            // We need to adapt logActivity to accept our new user structure or keep it as is if it accepts generic object
-            // For now, let's construct a minimal object that matches what logActivity expects if possible, or update logActivity.
-            // Assuming logActivity expects { id, nombre, email, roles }
-            const activityUser = {
-                id: user.id,
-                nombre: profile?.nombre_completo || user.email || 'Usuario',
-                email: user.email || '',
-                roles: [effectiveRole || '']
-            };
-            logActivity(activityUser as any, 'Asignar Personal', `Asignado ${asignacion.nombre} a ${turno.categoria}`, turno.type === 'EVENTO' ? turno.osId : 'CPR');
+            const turno = pedidos.find(p => p.id === turnoId);
+            if (turno) {
+                const activityUser = {
+                    id: user.id,
+                    nombre: profile?.nombre_completo || user.email || 'Usuario',
+                    email: user.email || '',
+                    roles: [effectiveRole || '']
+                };
+                logActivity(activityUser as any, 'Asignar Personal', `Asignado ${asignacion.nombre} a ${turno.categoria}`, turno.type === 'EVENTO' ? turno.osId : 'CPR');
+            }
+            toast({ title: 'Asignación guardada' });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
         }
-        toast({ title: 'Asignación guardada' });
     };
 
     const filteredPedidos = useMemo(() => {
@@ -510,7 +529,7 @@ export default function PortalPersonalPage() {
 
 
     const turnosAgrupados = useMemo(() => {
-        const grouped: { [date: string]: { [osId: string]: { os: ServiceOrder | { id: string; serviceNumber: string; client: string; space: string; }; briefing: ComercialBriefingItem | undefined; turnos: UnifiedTurno[] } } } = {};
+        const grouped: { [date: string]: { [osId: string]: { os: any; briefing: ComercialBriefingItem | undefined; turnos: UnifiedTurno[] } } } = {};
 
         filteredPedidos.forEach(turno => {
             const fechaServicio = 'fecha' in turno ? turno.fecha : ('fechaServicio' in turno ? turno.fechaServicio : new Date().toISOString());
@@ -520,8 +539,8 @@ export default function PortalPersonalPage() {
 
             const osId = 'osId' in turno ? turno.osId : 'CPR';
             if (!grouped[dateKey][osId]) {
-                const os = osId !== 'CPR' ? serviceOrders.get(osId) : { id: 'CPR', serviceNumber: 'CPR', client: 'Producción Interna', space: 'CPR' };
-                const briefing = osId !== 'CPR' ? briefings.get(osId) : undefined;
+                const os = osId !== 'CPR' ? allEventos.find(os => os.id === osId) : { id: 'CPR', serviceNumber: 'CPR', client: 'Producción Interna', space: 'CPR' };
+                const briefing = allBriefings.find(b => b.osId === osId);
                 const hito = briefing?.items.find(item => 'fecha' in turno && isSameDay(new Date(item.fecha), new Date(turno.fecha)));
                 grouped[dateKey][osId] = { os: os!, briefing: hito, turnos: [] };
             }
@@ -535,16 +554,23 @@ export default function PortalPersonalPage() {
                     ('statusPartner' in t && t.statusPartner === 'Gestionado') ||
                     ('estado' in t && (t.estado === 'Confirmado' || t.estado === 'Cerrado'))
                 );
-                const earliestTime = Object.values(osData).flatMap(os => os.turnos).reduce((earliest, p) => ('horaInicio' in p && p.horaInicio < earliest ? p.horaInicio : earliest), '23:59');
+                const earliestTime = Object.values(osData).flatMap(os => os.turnos).reduce((earliest, p) => {
+                    const time = 'horaInicio' in p ? p.horaInicio : ('horaEntrada' in p ? p.horaEntrada : '23:59');
+                    return time < earliest ? time : earliest;
+                }, '23:59');
 
                 const groupedByOS = Object.values(osData).map(osEntry => ({
                     ...osEntry,
-                    turnos: osEntry.turnos.sort((a, b) => ('horaInicio' in a && 'horaInicio' in b) ? a.horaInicio.localeCompare(b.horaInicio) : 0)
+                    turnos: osEntry.turnos.sort((a, b) => {
+                        const timeA = 'horaInicio' in a ? a.horaInicio : ('horaEntrada' in a ? a.horaEntrada : '00:00');
+                        const timeB = 'horaInicio' in b ? b.horaInicio : ('horaEntrada' in b ? b.horaEntrada : '00:00');
+                        return timeA.localeCompare(timeB);
+                    })
                 })).sort((a, b) => a.os.serviceNumber.localeCompare(b.os.serviceNumber));
 
                 return { date, osEntries: groupedByOS, allAccepted, earliestTime };
             });
-    }, [filteredPedidos, serviceOrders, briefings]);
+    }, [filteredPedidos, allEventos, allBriefings]);
 
     const eventsByDay = useMemo(() => {
         const grouped: { [dayKey: string]: UnifiedTurno[] } = {};
@@ -567,7 +593,7 @@ export default function PortalPersonalPage() {
     const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
 
 
-    if (!isMounted) {
+    if (loadingEventos || loadingPersonal || loadingCpr || loadingProveedores || loadingBriefings) {
         return <LoadingSkeleton title="Cargando Portal de Personal..." />;
     }
 

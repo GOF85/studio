@@ -78,7 +78,7 @@ export default function ControlExplotacionLayout({ children }: { children: React
             }>
                 <Breadcrumbs />
             </Suspense>
-            <div className="py-8 container mx-auto">
+            <div className="container mx-auto px-4 pt-0 pb-8">
                 {children}
             </div>
         </>

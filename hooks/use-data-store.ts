@@ -81,16 +81,7 @@ type DataStore = {
     updatePickingEntregaState: (hitoId: string, newState: Partial<PickingEntregaState>) => void;
 };
 
-const loadFromLocalStorage = <T>(key: string, defaultValue: T): T => {
-    if (typeof window === 'undefined') return defaultValue;
-    const storedValue = localStorage.getItem(key);
-    try {
-        return storedValue ? JSON.parse(storedValue) : defaultValue;
-    } catch (e) {
-        console.error(`Error parsing localStorage key "${key}":`, e);
-        return defaultValue;
-    }
-};
+
 
 const mapEspacioV2ToLegacy = (v2: EspacioV2): Espacio => ({
     id: v2.id,
@@ -266,7 +257,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 supabase.from('pedidos_entrega').select('*'),
                 supabase.from('pedidos_transporte').select('*'),
                 supabase.from('pedidos_decoracion').select('*'),
-                supabase.from('pedidos_atipicos').select('*'),
+                supabase.from('atipico_orders').select('*'),
                 supabase.from('pedidos_material').select('*'),
                 supabase.from('pedidos_hielo').select('*'),
                 supabase.from('personal_mice_asignaciones').select('*'),
@@ -657,7 +648,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
             const allData = {
                 serviceOrders,
                 entregas: mappedEntregas,
-                comercialBriefings: loadFromLocalStorage<ComercialBriefing[]>('comercialBriefings', []),
+                comercialBriefings: [],
                 pedidosEntrega: mappedPedidosEntrega,
                 gastronomyOrders,
                 materialOrders: mappedMaterialOrders,
@@ -667,19 +658,19 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 atipicoOrders: mappedAtipicos,
                 personalMiceOrders: mappedPersonalMice,
                 personalExterno: mappedPersonalExterno,
-                pruebasMenu: loadFromLocalStorage<PruebaMenuData[]>('pruebasMenu', []),
+                pruebasMenu: [],
                 pickingSheets: mappedPickingSheets,
                 returnSheets: mappedReturnSheets,
                 ordenesFabricacion: mappedOrdenesFabricacion,
-                pickingStates: loadFromLocalStorage<Record<string, PickingState>>('pickingStates', {}),
-                excedentesProduccion: loadFromLocalStorage<ExcedenteProduccion[]>('excedentesProduccion', []),
+                pickingStates: {},
+                excedentesProduccion: [],
                 personalEntrega: mappedPersonalEntrega,
-                partnerPedidosStatus: loadFromLocalStorage<Record<string, any>>('partnerPedidosStatus', {}),
-                activityLogs: loadFromLocalStorage<ActivityLog[]>('activityLogs', []),
-                ctaRealCosts: loadFromLocalStorage<Record<string, any>>('ctaRealCosts', {}),
-                ctaComentarios: loadFromLocalStorage<Record<string, any>>('ctaComentarios', {}),
-                objetivosGastoPlantillas: loadFromLocalStorage<ObjetivosGasto[]>('objetivosGastoPlantillas', []),
-                defaultObjetivoGastoId: loadFromLocalStorage<string | null>('defaultObjetivoGastoId', null),
+                partnerPedidosStatus: {},
+                activityLogs: [],
+                ctaRealCosts: {},
+                ctaComentarios: {},
+                objetivosGastoPlantillas: [],
+                defaultObjetivoGastoId: null,
 
                 // Mapped catalogs
                 ingredientesERP: (articulosERP || []).map((a: any) => ({
@@ -771,17 +762,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
                     nombre: c.nombre,
                     snack: c.snack
                 })),
-                portalUsers: loadFromLocalStorage<PortalUser[]>('portalUsers', []),
-                comercialAjustes: loadFromLocalStorage<Record<string, ComercialAjuste[]>>('comercialAjustes', {}),
-                productosVenta: loadFromLocalStorage<ProductoVenta[]>('productosVenta', []),
-                pickingEntregasState: loadFromLocalStorage<Record<string, PickingEntregaState>>('pickingEntregasState', {}),
-                stockElaboraciones: loadFromLocalStorage<Record<string, StockElaboracion>>('stockElaboraciones', {}),
+                portalUsers: [],
+                comercialAjustes: {},
+                productosVenta: [],
+                pickingEntregasState: {},
+                stockElaboraciones: {},
                 personalExternoAjustes: mappedPersonalExternoAjustes,
-                personalExternoDB: loadFromLocalStorage<PersonalExternoDB[]>('personalExternoDB', []),
-                historicoPreciosERP: loadFromLocalStorage<HistoricoPreciosERP[]>('historicoPreciosERP', []),
-                costesFijosCPR: loadFromLocalStorage<CosteFijoCPR[]>('costesFijosCPR', []),
-                objetivosCPR: loadFromLocalStorage<ObjetivoMensualCPR[]>('objetivosCPR', []),
-                personal: loadFromLocalStorage<Personal[]>('personal', []),
+                personalExternoDB: [],
+                historicoPreciosERP: [],
+                costesFijosCPR: [],
+                objetivosCPR: [],
+                personal: [],
                 espacios: mappedEspacios,
                 articulos: (articulosData || []).map((a: any) => {
                     const parseJSON = (val: any) => {
@@ -835,9 +826,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 tipoServicio: (tiposServicioBriefingDB || []).map((t: any) => ({
                     id: t.id,
                     nombre: t.nombre,
+                    servicio: t.nombre,
                     descripcion: t.descripcion
                 })),
-                tiposPersonal: loadFromLocalStorage<CategoriaPersonal[]>('tiposPersonal', []),
+                tiposPersonal: [],
                 proveedores: (proveedores || []).map((p: any) => ({
                     id: p.id,
                     nombreComercial: p.nombre_comercial,
@@ -855,17 +847,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
                     iban: p.iban || '',
                     formaDePagoHabitual: p.forma_de_pago_habitual || '',
                 })),
-                tiposTransporte: loadFromLocalStorage<any[]>('tiposTransporte', []),
-                decoracionDB: loadFromLocalStorage<DecoracionDBItem[]>('decoracionDB', []),
-                atipicosDB: loadFromLocalStorage<AtipicoDBItem[]>('atipicosDB', []),
-                pedidoPlantillas: loadFromLocalStorage<PedidoPlantilla[]>('pedidoPlantillas', []),
+                tiposTransporte: [],
+                decoracionDB: [],
+                atipicosDB: [],
+                pedidoPlantillas: [],
                 formatosExpedicionDB: (formatosExpedicionDB || []).map((f: any) => ({
                     id: f.id,
                     nombre: f.nombre
                 })),
-                solicitudesPersonalCPR: loadFromLocalStorage<SolicitudPersonalCPR[]>('solicitudesPersonalCPR', []),
-                incidenciasRetorno: loadFromLocalStorage<any[]>('incidenciasRetorno', []),
-                precios: loadFromLocalStorage<Precio[]>('precios', []),
+                solicitudesPersonalCPR: [],
+                incidenciasRetorno: [],
+                precios: [],
             };
             set({ data: allData, isLoaded: true });
         } catch (error) {
@@ -880,9 +872,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
             const updatedState = { ...currentState, ...newState };
             const newStates = { ...currentStates, [hitoId]: updatedState };
 
-            if (typeof window !== 'undefined') {
-                localStorage.setItem('pickingEntregasState', JSON.stringify(newStates));
-            }
+
 
             return {
                 data: {

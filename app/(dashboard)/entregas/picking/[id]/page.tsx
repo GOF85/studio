@@ -24,7 +24,8 @@ import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDesc, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { CSS } from '@dnd-kit/utilities';
-import { useDataStore } from '@/hooks/use-data-store';
+import { useEntrega, usePedidosEntrega, useArticulos } from '@/hooks/use-data-queries';
+import { useUpdateHitoPickingState } from '@/hooks/mutations/use-pedidos-entrega-mutations';
 
 
 type ItemParaPicking = {
@@ -85,14 +86,11 @@ function PickingPageContent() {
     const osId = Array.isArray(idParam) ? idParam[0] : idParam;
     const hitoId = searchParams?.get('hitoId') || '';
 
-    const isLoaded = useDataStore(s => s.isLoaded);
-    const loadAllData = useDataStore(s => s.loadAllData);
-    const updatePickingEntregaState = useDataStore(s => s.updatePickingEntregaState);
-    const entregas = useDataStore(s => s.data.entregas);
-    const pedidosEntrega = useDataStore(s => s.data.pedidosEntrega);
-    const productosVenta = useDataStore(s => s.data.productosVenta);
-    const precios = useDataStore(s => s.data.precios);
-    const pickingEntregasState = useDataStore(s => s.data.pickingEntregasState);
+    // Supabase Hooks
+    const { data: currentEntrega, isLoading: loadingEntrega } = useEntrega(osId || '');
+    const { data: pedidosData, isLoading: loadingPedidos } = usePedidosEntrega(osId || '');
+    const { data: articulosData } = useArticulos();
+    const updateHitoPicking = useUpdateHitoPickingState();
 
     const [entrega, setEntrega] = useState<Entrega | null>(null);
     const [hito, setHito] = useState<EntregaHito | null>(null);
@@ -110,110 +108,101 @@ function PickingPageContent() {
 
     useEffect(() => {
         setIsMounted(true);
-        if (!isLoaded) {
-            loadAllData();
-        }
-    }, [isLoaded, loadAllData]);
+    }, []);
 
-    const saveState = useCallback((newState: Partial<PickingEntregaState>) => {
-        setPickingState(prev => ({ ...prev, ...newState }));
+    const saveState = useCallback(async (newState: Partial<PickingEntregaState>) => {
+        const updatedPickingState = { ...pickingState, ...newState };
+        setPickingState(updatedPickingState);
 
-        // Convert Set to Array for store/storage
-        const stateForStore: any = { ...newState };
-        if (newState.checkedItems instanceof Set) {
-            stateForStore.checkedItems = Array.from(newState.checkedItems);
+        // Convert Set to Array for Supabase
+        const stateForSupabase: any = { ...updatedPickingState };
+        if (updatedPickingState.checkedItems instanceof Set) {
+            stateForSupabase.checkedItems = Array.from(updatedPickingState.checkedItems);
         }
 
-        updatePickingEntregaState(hitoId, stateForStore);
-
-        setShowSaveFeedback(true);
-        setTimeout(() => setShowSaveFeedback(false), 1000);
-    }, [hitoId, updatePickingEntregaState]);
+        try {
+            await updateHitoPicking.mutateAsync({
+                osId: osId || '',
+                hitoId,
+                pickingState: stateForSupabase
+            });
+            setShowSaveFeedback(true);
+            setTimeout(() => setShowSaveFeedback(false), 1000);
+        } catch (error) {
+            console.error('Error saving picking state:', error);
+            toast({ title: 'Error al guardar', description: 'No se pudo sincronizar con Supabase.', variant: 'destructive' });
+        }
+    }, [osId, hitoId, pickingState, updateHitoPicking, toast]);
 
     useEffect(() => {
-        if (!isLoaded || !osId || !hitoId) return;
+        if (loadingEntrega || loadingPedidos || !currentEntrega || !pedidosData) return;
 
-        const entregaFound = entregas.find(e => e.id === osId);
-        if (entregaFound) {
-            setEntrega(entregaFound);
-            // Find the pedido that contains this hito
-            const pedidoFound = pedidosEntrega.find(p => p.osId === osId && p.hitos?.some(h => h.id === hitoId));
-            const hitoFound = pedidoFound?.hitos?.find(h => h.id === hitoId);
-            if (hitoFound) {
-                setHito(hitoFound);
-                const hitoIndex = pedidoFound?.hitos?.findIndex(h => h.id === hitoId) ?? 0;
-                setExpedicionNumero(`${entregaFound.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
-            } else {
-                router.push('/entregas/picking'); // Hito not found
-                return;
+        setEntrega(currentEntrega);
+        const pedidoFound = Array.isArray(pedidosData) ? pedidosData.find((p: any) => p.osId === osId) : null;
+        const hitoFound = pedidoFound?.hitos?.find((h: any) => h.id === hitoId);
+        
+        if (hitoFound) {
+            setHito(hitoFound);
+            const hitoIndex = pedidoFound?.hitos?.findIndex((h: any) => h.id === hitoId) ?? 0;
+            setExpedicionNumero(`${currentEntrega.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
+            
+            if (hitoFound.pickingState) {
+                setPickingState({
+                    ...hitoFound.pickingState,
+                    checkedItems: new Set(hitoFound.pickingState.checkedItems || [])
+                });
             }
         } else {
-            router.push('/entregas/picking'); // Entrega not found
-            return;
+            router.push('/entregas/picking');
         }
+    }, [currentEntrega, pedidosData, osId, hitoId, loadingEntrega, loadingPedidos, router]);
 
-        // Load picking state
-        const savedState = pickingEntregasState[hitoId];
-        if (savedState) {
-            setPickingState({
-                ...savedState,
-                checkedItems: new Set(savedState.checkedItems || []),
-                status: savedState.status || 'Pendiente'
-            });
-        } else {
-            setPickingState({ hitoId, checkedItems: new Set(), incidencias: [], fotoUrl: null, status: 'Pendiente' });
-        }
+    // Generate items for picking
+    useEffect(() => {
+        if (!hito || !articulosData) return;
 
-        // Process items
-        const pedidos = pedidosEntrega.filter(p => p.osId === osId);
         const initialItems: ItemParaPicking[] = [];
+        
+        // Use articulosData to find product info
+        const articulosMap = new Map(articulosData.map((a: any) => [a.id, a]));
 
-        // Original logic from the old useEffect, adapted to use store data
-        const productosMap = new Map(productosVenta.map(p => [p.id, p]));
-        const preciosMap = new Map(precios.map(p => [p.id, p])); // Assuming precios have an 'id' field
-
-        // The original code iterated over currentHito.items.
-        // The new structure iterates over pedidos filtered by osId, then their items.
-        // This needs to correctly reconstruct the items for the specific hito.
-        // Assuming `currentHito.items` refers to `PedidoEntregaItem[]`
-        // and `currentHito` is already set.
         if (hito) {
             (hito.items || []).forEach(item => {
-                const producto = productosMap.get(item.id); // item.id is productId
-                if (producto) {
-                    if (producto.producidoPorPartner) {
-                        const uniqueId = `prod_partner_${producto.id}`;
+                const articulo = articulosMap.get(item.id); // item.id is productId
+                if (articulo) {
+                    if (articulo.producidoPorPartner) {
+                        const uniqueId = `prod_partner_${articulo.id}`;
                         if (!initialItems.some(i => i.id === uniqueId)) {
                             initialItems.push({
                                 id: uniqueId,
-                                nombre: producto.nombre,
+                                nombre: articulo.nombre,
                                 cantidad: item.quantity,
                                 unidad: 'Uds',
-                                loc: 'N/A', // Location from Partner
-                                categoria: producto.categoria,
+                                loc: 'N/A',
+                                categoria: articulo.categoria,
                                 origen: 'Recibido de Partner',
                                 producidoPorPartner: true,
-                                imageUrl: (producto.imagenes.find(i => i.isPrincipal)?.url || producto.imagenes[0]?.url) || (preciosMap.get(producto.id) || {}).imagen,
+                                imageUrl: articulo.imagen_url,
                             });
                         }
-                    } else if (producto.recetaId) {
-                        const uniqueId = `prod_cpr_${producto.id}`;
+                    } else if (articulo.recetaId) {
+                        const uniqueId = `prod_cpr_${articulo.id}`;
                         if (!initialItems.some(i => i.id === uniqueId)) {
                             initialItems.push({
                                 id: uniqueId,
-                                nombre: producto.nombre,
+                                nombre: articulo.nombre,
                                 cantidad: item.quantity,
                                 unidad: 'Uds',
-                                loc: 'N/A', // Location from CPR
-                                categoria: producto.categoria,
+                                loc: 'N/A',
+                                categoria: articulo.categoria,
                                 origen: 'Preparado por CPR MICE',
                                 producidoPorPartner: false,
-                                imageUrl: (producto.imagenes.find(i => i.isPrincipal)?.url || producto.imagenes[0]?.url) || '',
+                                imageUrl: articulo.imagen_url,
                             });
                         }
                     } else { // It's a Pack, so we need to pick its components
-                        (producto.componentes || []).forEach(comp => {
-                            const compInfo = preciosMap.get(comp.erpId);
+                        (articulo.componentes || []).forEach((comp: any) => {
+                            const compInfo = articulosMap.get(comp.erpId);
                             const cantidadParaHito = comp.cantidad * item.quantity;
 
                             const existingItemIndex = initialItems.findIndex(i => i.id === comp.erpId && i.origen === 'Picking de Almacén');
@@ -227,8 +216,8 @@ function PickingPageContent() {
                                     unidad: compInfo?.unidad || 'Uds',
                                     loc: compInfo?.loc || 'N/A',
                                     categoria: compInfo?.categoria || 'Varios',
-                                    origen: 'Picking de Almacén', // This is a component from a pack
-                                    imageUrl: compInfo?.imagen || '',
+                                    origen: 'Picking de Almacén',
+                                    imageUrl: compInfo?.imagen_url || '',
                                 });
                             }
                         });
@@ -236,12 +225,8 @@ function PickingPageContent() {
                 }
             });
             setItemsParaPicking(initialItems);
-        } else {
-            router.push('/entregas/picking');
         }
-
-        setIsMounted(true);
-    }, [osId, hitoId, router]);
+    }, [hito, articulosData]);
 
     const handleCheck = (itemId: string, checked: boolean) => {
         const newCheckedItems = new Set(pickingState.checkedItems);

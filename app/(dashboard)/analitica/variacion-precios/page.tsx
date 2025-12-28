@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Loader2, ArrowUp, ArrowDown, Minus, Search, TrendingUp, TrendingDown, AlertTriangle, Package, ChefHat, UtensilsCrossed, Database } from 'lucide-react';
 import { addDays, format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { useAllPrecioHistory } from '@/hooks/use-precio-history';
 import { supabase } from '@/lib/supabase';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
+import SplashScreen from '@/components/layout/splash-screen';
 import {
     Table,
     TableBody,
@@ -22,7 +23,52 @@ import {
 } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
 
+// Local KPI Card Component
+function KpiCard({ title, value, icon: Icon, color, description }: { title: string, value: string | number, icon: any, color: 'primary' | 'emerald' | 'rose' | 'amber' | 'blue', description?: string }) {
+    const colorClasses = {
+        primary: "text-indigo-600 bg-indigo-50 border-indigo-100",
+        emerald: "text-emerald-600 bg-emerald-50 border-emerald-100",
+        rose: "text-rose-600 bg-rose-50 border-rose-100",
+        amber: "text-amber-600 bg-amber-50 border-amber-100",
+        blue: "text-blue-600 bg-blue-50 border-blue-100"
+    };
+
+    const iconColorClasses = {
+        primary: "text-indigo-600",
+        emerald: "text-emerald-600",
+        rose: "text-rose-600",
+        amber: "text-amber-600",
+        blue: "text-blue-600"
+    };
+
+    return (
+        <Card className="bg-card/60 backdrop-blur-md border-border/40 shadow-xl hover:-translate-y-1 transition-all duration-500 group overflow-hidden relative">
+            <div className={cn("absolute top-0 left-0 w-1 h-full",
+                color === 'primary' ? 'bg-indigo-500' :
+                    color === 'emerald' ? 'bg-emerald-500' :
+                        color === 'rose' ? 'bg-rose-500' :
+                            color === 'amber' ? 'bg-amber-500' : 'bg-blue-500'
+            )} />
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+                <div className={cn("p-2 rounded-xl transition-colors duration-500", colorClasses[color])}>
+                    <Icon className={cn("h-4 w-4", iconColorClasses[color])} />
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold tracking-tight">{value}</div>
+                {description && (
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        {description}
+                    </p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function VariacionPreciosPage() {
+    const [isMounted, setIsMounted] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: subDays(new Date(), 30),
         to: new Date(),
@@ -33,6 +79,10 @@ export default function VariacionPreciosPage() {
     const [elaboraciones, setElaboraciones] = useState<any[]>([]);
     const [recetas, setRecetas] = useState<any[]>([]);
     const [isLoadingArticulos, setIsLoadingArticulos] = useState(true);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Fetch ERP articles and related data directly
     useEffect(() => {
@@ -87,13 +137,6 @@ export default function VariacionPreciosPage() {
                         }))
                 }));
 
-                console.log('[DEBUG] Recetas from Supabase:', recetasRes.data?.length || 0);
-
-                // Log the structure of the first recipe to verify JSONB path
-                if (recetasRes.data && recetasRes.data.length > 0) {
-                    console.log('[DEBUG] First recipe raw elaboraciones:', JSON.stringify(recetasRes.data[0].elaboraciones));
-                }
-
                 const mappedRecetas = (recetasRes.data || []).map((r: any) => {
                     // Handle both direct array and nested object structure for elaboraciones
                     let elaboracionesData = [];
@@ -114,8 +157,6 @@ export default function VariacionPreciosPage() {
                         }))
                     };
                 });
-
-                console.log('[DEBUG] Mapped recetas:', mappedRecetas.length, mappedRecetas);
 
                 setArticulosErp(mappedArticulos);
                 setIngredientesInternos(mappedIngredientes);
@@ -160,57 +201,22 @@ export default function VariacionPreciosPage() {
     // --- Cost Calculation Helpers ---
 
     const getIngredientCost = useCallback((ingredienteId: string, date: Date) => {
-        if (!ingredientesInternos || !articulosErp) {
-            console.log('[DEBUG] getIngredientCost: Missing data', { hasIngredientes: !!ingredientesInternos, hasArticulos: !!articulosErp });
-            return 0;
-        }
+        if (!ingredientesInternos || !articulosErp) return 0;
 
         const ingrediente = ingredientesInternos.find((i: any) => i.id === ingredienteId);
-        if (!ingrediente) {
-            console.log('[DEBUG] getIngredientCost: Ingrediente not found', ingredienteId);
-            return 0;
-        }
+        if (!ingrediente || !ingrediente.productoERPlinkId) return 0;
 
-        if (!ingrediente.productoERPlinkId) {
-            console.log('[DEBUG] getIngredientCost: No ERP link', { ingrediente: ingrediente.nombreIngrediente, id: ingredienteId });
-            return 0;
-        }
-
-        // IMPORTANT: productoERPlinkId stores the ERP code (erpId), not the UUID!
         const erpItem = articulosErp.find(a => a.erpId === ingrediente.productoERPlinkId);
-        if (!erpItem) {
-            console.log('[DEBUG] getIngredientCost: ERP item not found', { linkId: ingrediente.productoERPlinkId, ingrediente: ingrediente.nombreIngrediente });
-            return 0;
-        }
+        if (!erpItem || !erpItem.erpId) return 0;
 
-        if (!erpItem.erpId) {
-            console.log('[DEBUG] getIngredientCost: No erpId', { erpItem: erpItem.nombre });
-            return 0;
-        }
-
-        const cost = getEffectivePrice(erpItem.erpId, date, erpItem.precioCompra);
-        console.log('[DEBUG] getIngredientCost SUCCESS:', {
-            ingrediente: ingrediente.nombreIngrediente,
-            erpItem: erpItem.nombre,
-            erpId: erpItem.erpId,
-            cost
-        });
-        return cost;
+        return getEffectivePrice(erpItem.erpId, date, erpItem.precioCompra);
     }, [ingredientesInternos, articulosErp, getEffectivePrice]);
 
     const getElaboracionCost = useCallback((elaboracionId: string, date: Date): number => {
         if (!elaboraciones) return 0;
 
         const elaboracion = elaboraciones.find((e: any) => e.id === elaboracionId);
-        if (!elaboracion) {
-            console.log('[DEBUG] getElaboracionCost: Elaboracion not found', elaboracionId);
-            return 0;
-        }
-
-        console.log('[DEBUG] getElaboracionCost:', {
-            elaboracion: elaboracion.nombre,
-            componentes: elaboracion.componentes?.length || 0
-        });
+        if (!elaboracion) return 0;
 
         let totalCost = 0;
         for (const comp of elaboracion.componentes || []) {
@@ -218,59 +224,40 @@ export default function VariacionPreciosPage() {
             if (comp.tipo === 'ingrediente') {
                 componentCost = getIngredientCost(comp.componenteId, date);
             } else {
-                // Recursive call - be careful with circular dependencies
                 componentCost = getElaboracionCost(comp.componenteId, date);
             }
-            console.log('[DEBUG] Component cost:', { tipo: comp.tipo, cantidad: comp.cantidad, unitCost: componentCost, total: componentCost * comp.cantidad });
             totalCost += componentCost * comp.cantidad;
         }
-        console.log('[DEBUG] Total elaboracion cost:', { elaboracion: elaboracion.nombre, totalCost });
         return totalCost;
     }, [elaboraciones, getIngredientCost]);
 
     const getRecetaCost = useCallback((recetaId: string, date: Date): number => {
-        if (!recetas) {
-            console.log('[DEBUG] getRecetaCost: Missing recetas data');
-            return 0;
-        }
+        if (!recetas) return 0;
 
         const receta = recetas.find((r: any) => r.id === recetaId);
-        if (!receta) {
-            console.log('[DEBUG] getRecetaCost: Receta not found', recetaId);
-            return 0;
-        }
-
-        console.log('[DEBUG] getRecetaCost:', receta.nombre, 'elaboraciones:', receta.elaboraciones?.length || 0, 'data:', JSON.stringify(receta.elaboraciones));
+        if (!receta) return 0;
 
         let totalCost = 0;
         for (const elab of receta.elaboraciones || []) {
             const elabCost = getElaboracionCost(elab.elaboracionId, date);
-            console.log('[DEBUG] Elaboracion in receta - cantidad:', elab.cantidad, 'unitCost:', elabCost, 'total:', elabCost * elab.cantidad);
             totalCost += elabCost * elab.cantidad;
         }
-        console.log('[DEBUG] Total receta cost for', receta.nombre, '=', totalCost);
         return totalCost;
     }, [recetas, getElaboracionCost]);
 
     // --- Variations Memos ---
 
     const erpVariations = useMemo(() => {
-        if (!dateRange?.from || !dateRange?.to || !articulosErp) {
-            return [];
-        }
+        if (!dateRange?.from || !dateRange?.to || !articulosErp) return [];
 
-        const results = articulosErp.map((item, index) => {
-            // Use erpId (the ERP article code) to match with history, not the UUID
+        return articulosErp.map((item) => {
             const startPrice = getEffectivePrice(item.erpId, dateRange.from!, item.precioCompra);
             const endPrice = getEffectivePrice(item.erpId, dateRange.to!, item.precioCompra);
             const diff = endPrice - startPrice;
             const percent = startPrice > 0 ? (diff / startPrice) * 100 : 0;
-
             return { ...item, startPrice, endPrice, diff, percent, type: 'ERP' };
         });
-
-        return results;
-    }, [articulosErp, dateRange, getEffectivePrice]);
+    }, [articulosErp, dateRange, history, getEffectivePrice]);
 
     const ingredientVariations = useMemo(() => {
         if (!dateRange?.from || !dateRange?.to || !ingredientesInternos) return [];
@@ -315,12 +302,9 @@ export default function VariacionPreciosPage() {
     }, [elaboraciones, dateRange, getElaboracionCost]);
 
     const recetaVariations = useMemo(() => {
-        console.log('[DEBUG] recetaVariations:', { hasDateRange: !!dateRange, hasRecetas: !!recetas, recetasCount: recetas?.length });
         if (!dateRange?.from || !dateRange?.to || !recetas) return [];
 
-        console.log('[DEBUG] Processing recetas:', recetas.length);
         return recetas.map((item: any) => {
-            console.log('[DEBUG] Processing receta:', item.nombre);
             const startPrice = getRecetaCost(item.id, dateRange.from!);
             const endPrice = getRecetaCost(item.id, dateRange.to!);
             const diff = endPrice - startPrice;
@@ -338,7 +322,6 @@ export default function VariacionPreciosPage() {
         });
     }, [recetas, dateRange, getRecetaCost]);
 
-    // --- Active Tab Data ---
     const [activeTab, setActiveTab] = useState('erp');
 
     const currentVariations = useMemo(() => {
@@ -361,7 +344,6 @@ export default function VariacionPreciosPage() {
         });
     }, [activeTab, erpVariations, ingredientVariations, elaboracionVariations, recetaVariations, searchTerm]);
 
-    // Sorting
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'percent', direction: 'desc' });
 
     const sortedVariations = useMemo(() => {
@@ -385,58 +367,77 @@ export default function VariacionPreciosPage() {
         }));
     };
 
+    const summaryKpis = useMemo(() => {
+        if (currentVariations.length === 0) return { avg: 0, up: 0, down: 0, max: { nombre: '-', percent: 0 } };
+
+        const up = currentVariations.filter(v => v.percent > 0).length;
+        const down = currentVariations.filter(v => v.percent < 0).length;
+        const avg = currentVariations.reduce((acc, v) => acc + v.percent, 0) / currentVariations.length;
+        const max = [...currentVariations].sort((a, b) => b.percent - a.percent)[0];
+
+        return { avg, up, down, max };
+    }, [currentVariations]);
+
+    if (!isMounted || isLoading) return <SplashScreen />;
+
     const renderTable = (data: any[]) => (
-        <div className="rounded-md border">
+        <div className="overflow-hidden">
             <Table>
                 <TableHeader>
-                    <TableRow>
-                        <TableHead className="cursor-pointer" onClick={() => handleSort('nombre')}>Nombre</TableHead>
+                    <TableRow className="bg-primary/5 hover:bg-primary/5 border-border/40">
+                        <TableHead className="pl-6 cursor-pointer group" onClick={() => handleSort('nombre')}>
+                            <div className="flex items-center gap-2">
+                                Nombre
+                                <Search className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                        </TableHead>
                         <TableHead className="text-right cursor-pointer" onClick={() => handleSort('startPrice')}>Coste Inicial</TableHead>
                         <TableHead className="text-right cursor-pointer" onClick={() => handleSort('endPrice')}>Coste Final</TableHead>
                         <TableHead className="text-right cursor-pointer" onClick={() => handleSort('diff')}>Var. €</TableHead>
-                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('percent')}>Var. %</TableHead>
+                        <TableHead className="text-right pr-6 cursor-pointer" onClick={() => handleSort('percent')}>Var. %</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {isLoading ? (
+                    {data.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">
-                                <div className="flex justify-center items-center gap-2">
-                                    <Loader2 className="h-4 w-4 animate-spin" /> Cargando datos...
+                            <TableCell colSpan={5} className="h-64 text-center">
+                                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                                    <AlertTriangle className="h-8 w-8 opacity-20" />
+                                    <p>No se encontraron variaciones en este periodo.</p>
                                 </div>
-                            </TableCell>
-                        </TableRow>
-                    ) : data.length === 0 ? (
-                        <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">
-                                No se encontraron resultados.
                             </TableCell>
                         </TableRow>
                     ) : (
                         data.slice(0, 100).map((item) => (
-                            <TableRow key={item.id}>
-                                <TableCell className="font-medium">
-                                    <div>{item.nombre}</div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {item.type === 'ERP'
-                                            ? `${item.erpId || ''} - ${item.nombreProveedor || 'Sin proveedor'}`
-                                            : item.id}
+                            <TableRow key={item.id} className="group hover:bg-primary/5 border-border/40 transition-colors">
+                                <TableCell className="pl-6 py-4">
+                                    <div className="font-semibold text-sm">{item.nombre}</div>
+                                    <div className="text-[10px] font-mono text-muted-foreground mt-0.5 flex items-center gap-2">
+                                        {item.type === 'ERP' ? (
+                                            <>
+                                                <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100">{item.erpId}</span>
+                                                <span className="truncate max-w-[200px]">{item.nombreProveedor || 'Sin proveedor'}</span>
+                                            </>
+                                        ) : (
+                                            <span className="bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded border border-slate-100">{item.id}</span>
+                                        )}
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-right">{formatCurrency(item.startPrice)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(item.endPrice)}</TableCell>
-                                <TableCell className={`text-right ${item.diff > 0 ? 'text-red-500' : item.diff < 0 ? 'text-green-500' : ''}`}>
+                                <TableCell className="text-right font-medium text-muted-foreground">{formatCurrency(item.startPrice)}</TableCell>
+                                <TableCell className="text-right font-bold">{formatCurrency(item.endPrice)}</TableCell>
+                                <TableCell className={cn("text-right font-medium", item.diff > 0 ? 'text-rose-500' : item.diff < 0 ? 'text-emerald-500' : 'text-muted-foreground')}>
                                     {item.diff > 0 ? '+' : ''}{formatCurrency(item.diff)}
                                 </TableCell>
-                                <TableCell className={`text-right font-bold ${item.percent > 0 ? 'text-red-500' : item.percent < 0 ? 'text-green-500' : ''}`}>
-                                    {item.percent !== 0 ? (
-                                        <span className="flex items-center justify-end gap-1">
-                                            {item.percent > 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                                            {item.percent.toFixed(2)}%
-                                        </span>
-                                    ) : (
-                                        <span className="text-muted-foreground">-</span>
-                                    )}
+                                <TableCell className="text-right pr-6">
+                                    <div className={cn(
+                                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold",
+                                        item.percent > 0 ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                            item.percent < 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                                'bg-slate-50 text-slate-400 border border-slate-100'
+                                    )}>
+                                        {item.percent > 0 ? <ArrowUp className="h-3 w-3" /> : item.percent < 0 ? <ArrowDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                                        {Math.abs(item.percent).toFixed(2)}%
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))
@@ -447,54 +448,90 @@ export default function VariacionPreciosPage() {
     );
 
     return (
-        <div className="space-y-6 p-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Variación de Precios</h1>
-                    <p className="text-muted-foreground">
-                        Analiza la evolución de costes por periodo.
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
+        <div className="space-y-8">
+            <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-6">
+                <div className="flex items-center gap-3 bg-card/60 backdrop-blur-md p-2 rounded-2xl border border-border/40 shadow-sm">
                     <DatePickerWithRange date={dateRange} setDate={setDateRange} />
                 </div>
             </div>
 
-            <Tabs defaultValue="erp" className="space-y-4" onValueChange={setActiveTab}>
-                <TabsList>
-                    <TabsTrigger value="erp">Artículos ERP</TabsTrigger>
-                    <TabsTrigger value="ingredientes">Ingredientes</TabsTrigger>
-                    <TabsTrigger value="elaboraciones">Elaboraciones</TabsTrigger>
-                    <TabsTrigger value="recetas">Recetas</TabsTrigger>
-                </TabsList>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <KpiCard
+                    title="Variación Media"
+                    value={`${summaryKpis.avg.toFixed(2)}%`}
+                    icon={summaryKpis.avg > 0 ? TrendingUp : TrendingDown}
+                    color={summaryKpis.avg > 0 ? 'rose' : 'emerald'}
+                    description="Promedio de todos los items"
+                />
+                <KpiCard
+                    title="Incrementos"
+                    value={summaryKpis.up}
+                    icon={ArrowUp}
+                    color="rose"
+                    description="Items que han subido de precio"
+                />
+                <KpiCard
+                    title="Descensos"
+                    value={summaryKpis.down}
+                    icon={ArrowDown}
+                    color="emerald"
+                    description="Items que han bajado de precio"
+                />
+                <KpiCard
+                    title="Máxima Subida"
+                    value={`${summaryKpis.max.percent.toFixed(1)}%`}
+                    icon={AlertTriangle}
+                    color="amber"
+                    description={summaryKpis.max.nombre}
+                />
+            </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>
-                            {activeTab === 'erp' && 'Artículos ERP'}
-                            {activeTab === 'ingredientes' && 'Ingredientes Internos'}
-                            {activeTab === 'elaboraciones' && 'Elaboraciones'}
-                            {activeTab === 'recetas' && 'Recetas'}
-                        </CardTitle>
-                        <CardDescription>
-                            Comparativa de costes ({sortedVariations.length} items)
-                        </CardDescription>
+            <Tabs defaultValue="erp" className="space-y-6" onValueChange={setActiveTab}>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <TabsList className="bg-muted/50 p-1 rounded-full border border-border/40 h-auto">
+                        <TabsTrigger value="erp" className="rounded-full px-6 py-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all flex gap-2">
+                            <Database className="h-4 w-4" /> ERP
+                        </TabsTrigger>
+                        <TabsTrigger value="ingredientes" className="rounded-full px-6 py-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all flex gap-2">
+                            <Package className="h-4 w-4" /> Ingredientes
+                        </TabsTrigger>
+                        <TabsTrigger value="elaboraciones" className="rounded-full px-6 py-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all flex gap-2">
+                            <ChefHat className="h-4 w-4" /> Elaboraciones
+                        </TabsTrigger>
+                        <TabsTrigger value="recetas" className="rounded-full px-6 py-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all flex gap-2">
+                            <UtensilsCrossed className="h-4 w-4" /> Recetas
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <div className="relative w-full md:w-96 group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        <Input
+                            placeholder="Buscar por nombre, proveedor o referencia..."
+                            value={searchTerm}
+                            onChange={(event) => setSearchTerm(event.target.value)}
+                            className="pl-10 rounded-full bg-card/60 backdrop-blur-md border-border/40 focus-visible:ring-primary/20 transition-all"
+                        />
+                    </div>
+                </div>
+
+                <Card className="bg-card/60 backdrop-blur-md border-border/40 shadow-xl overflow-hidden">
+                    <CardHeader className="border-b border-border/40 bg-primary/5">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <CardTitle className="text-xl">
+                                    {activeTab === 'erp' && 'Artículos ERP'}
+                                    {activeTab === 'ingredientes' && 'Ingredientes Internos'}
+                                    {activeTab === 'elaboraciones' && 'Elaboraciones'}
+                                    {activeTab === 'recetas' && 'Recetas'}
+                                </CardTitle>
+                            </div>
+                            <div className="text-xs font-medium text-muted-foreground bg-background/50 px-3 py-1 rounded-full border border-border/40">
+                                Mostrando top 100
+                            </div>
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center py-4">
-                            <Input
-                                placeholder="Buscar por nombre, proveedor o referencia..."
-                                value={searchTerm}
-                                onChange={(event) => setSearchTerm(event.target.value)}
-                                className="w-[480px]"
-                            />
-                        </div>
-
+                    <CardContent className="p-0">
                         {renderTable(sortedVariations)}
-
-                        <div className="mt-4 text-xs text-muted-foreground text-center">
-                            Mostrando los primeros 100 resultados
-                        </div>
                     </CardContent>
                 </Card>
             </Tabs>

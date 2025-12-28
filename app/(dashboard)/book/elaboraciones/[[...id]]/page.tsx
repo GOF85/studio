@@ -731,11 +731,11 @@ function ElaboracionesListPage() {
 
   return (
     <TooltipProvider>
-      <div className="space-y-4 p-4 max-w-7xl mx-auto pb-24">
+      <div className="space-y-4 pt-0 px-4 max-w-7xl mx-auto pb-24">
          <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelected} />
 
          {/* TOOLBAR */}
-         <div className="flex flex-col gap-4 sticky top-0 z-10 bg-background/95 backdrop-blur py-2">
+         <div className="flex flex-col gap-4 sticky top-12 z-10 bg-background/95 backdrop-blur py-2">
             
             <div className="flex flex-col sm:flex-row gap-3 items-end sm:items-center justify-between">
                 {/* Search & Filter Group */}
@@ -1283,7 +1283,7 @@ function ElaborationFormPage() {
             <form id="elaboration-form" onSubmit={form.handleSubmit(onSubmit)}>
                 
                 {/* TABS HEADER */}
-                <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
+                <div className="sticky top-12 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
                      {/* Tabs */}
                      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
                          <div className="max-w-7xl mx-auto px-2 sm:px-4 overflow-x-auto">
@@ -1361,7 +1361,7 @@ function ElaborationFormPage() {
                                                     <div className="space-y-1">
                                                         <FormLabel className="text-[10px] uppercase font-bold text-muted-foreground">Fecha de Revisión</FormLabel>
                                                         <div className="flex items-center h-8 px-3 bg-gray-100 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">
-                                                            {form.watch('fechaRevision') ? new Date(form.watch('fechaRevision')).toLocaleDateString('es-ES') : '—'}
+                                                            {form.watch('fechaRevision') ? new Date(form.watch('fechaRevision') as string).toLocaleDateString('es-ES') : '—'}
                                                         </div>
                                                     </div>
                                                 </div>

@@ -1,8 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';;
-import type { PersonalExterno, PersonalExternoTurno, PersonalExternoAjuste } from '@/types';
-
-
+import type { PersonalExterno, PersonalExternoAjuste } from '@/types';
 
 export function useCreatePersonalExterno() {
     const queryClient = useQueryClient();
@@ -26,8 +24,8 @@ export function useCreatePersonalExterno() {
             if (error) throw error;
             return data;
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['personal-externo'] });
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['personalExterno', variables.osId] });
         }
     });
 }
@@ -54,8 +52,8 @@ export function useUpdatePersonalExterno() {
             if (error) throw error;
             return data;
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['personal-externo'] });
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['personalExterno', variables.osId] });
         }
     });
 }
@@ -73,7 +71,7 @@ export function useDeletePersonalExterno() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['personal-externo'] });
+            queryClient.invalidateQueries({ queryKey: ['personalExterno'] });
         }
     });
 }
@@ -100,8 +98,35 @@ export function useCreatePersonalExternoAjuste() {
             if (error) throw error;
             return data;
         },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['personalExternoAjustes', variables.osId] });
+        }
+    });
+}
+
+export function useUpdatePersonalExternoAjuste() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ id, updates }: { id: string; updates: Partial<PersonalExternoAjuste> }) => {
+            const { data, error } = await supabase
+                .from('personal_externo_ajustes')
+                .update({
+                    concepto: updates.concepto,
+                    importe: updates.importe,
+                    data: {
+                        proveedorId: updates.proveedorId,
+                    }
+                })
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['personal-externo-ajustes'] });
+            queryClient.invalidateQueries({ queryKey: ['personalExternoAjustes'] });
         }
     });
 }
@@ -119,7 +144,44 @@ export function useDeletePersonalExternoAjuste() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['personal-externo-ajustes'] });
+            queryClient.invalidateQueries({ queryKey: ['personalExternoAjustes'] });
+        }
+    });
+}
+
+export function useSyncPersonalExternoAjustes() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ osId, ajustes }: { osId: string, ajustes: Partial<PersonalExternoAjuste>[] }) => {
+            // 1. Delete existing adjustments for this OS
+            const { error: deleteError } = await supabase
+                .from('personal_externo_ajustes')
+                .delete()
+                .eq('evento_id', osId);
+
+            if (deleteError) throw deleteError;
+
+            if (ajustes.length === 0) return [];
+
+            // 2. Insert new adjustments
+            const { data, error: insertError } = await supabase
+                .from('personal_externo_ajustes')
+                .insert(ajustes.map(a => ({
+                    evento_id: osId,
+                    concepto: a.concepto,
+                    importe: a.importe,
+                    data: {
+                        proveedorId: a.proveedorId,
+                    }
+                })))
+                .select();
+
+            if (insertError) throw insertError;
+            return data;
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['personalExternoAjustes', variables.osId] });
         }
     });
 }

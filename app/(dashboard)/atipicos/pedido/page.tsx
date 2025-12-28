@@ -9,7 +9,7 @@ import { z } from "zod";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Save, FilePlus, Calendar as CalendarIcon, Loader2, X } from 'lucide-react';
-import type { ServiceOrder, AtipicoDBItem, AtipicoOrder } from '@/types';
+import type { AtipicoOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,8 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
 import { Combobox } from '@/components/ui/combobox';
+import { useEvento } from '@/hooks/use-data-queries';
+import { useAtipicos } from '@/hooks/use-atipicos';
 
 const statusOptions: AtipicoOrder['status'][] = ['Pendiente', 'Aprobado', 'Rechazado'];
 
@@ -39,117 +41,109 @@ type AtipicoOrderFormValues = z.infer<typeof atipicoOrderSchema>;
 function PedidoAtipicoPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
-  const osId = searchParams.get('osId');
+  const osId = searchParams.get('osId') || '';
   const orderId = searchParams.get('orderId');
   const isEditing = !!orderId;
 
-  const [isMounted, setIsMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [atipicosDB, setAtipicosDB] = useState<AtipicoDBItem[]>([]);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { toast } = useToast();
+  const { data: evento, isLoading: loadingOS } = useEvento(osId);
+  const { atipicos, catalogo, isLoading: loadingAtipicos, createAtipico, updateAtipico, addToCatalogo } = useAtipicos(evento?.id || '');
+
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const form = useForm<AtipicoOrderFormValues>({
     resolver: zodResolver(atipicoOrderSchema),
+    defaultValues: {
+      id: '',
+      fecha: new Date(),
+      concepto: '',
+      observaciones: '',
+      precio: 0,
+      status: 'Pendiente',
+    }
   });
 
-  const { setValue, watch } = form;
+  const { setValue, watch, reset } = form;
   const selectedConcepto = watch('concepto');
 
   useEffect(() => {
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    setServiceOrder(currentOS || null);
-
-    const dbItems = JSON.parse(localStorage.getItem('atipicosDB') || '[]') as AtipicoDBItem[];
-    setAtipicosDB(dbItems);
-
-    if (isEditing) {
-      const allOrders = JSON.parse(localStorage.getItem('atipicoOrders') || '[]') as AtipicoOrder[];
-      const order = allOrders.find(o => o.id === orderId);
+    if (isEditing && atipicos.length > 0) {
+      const order = atipicos.find(o => o.id === orderId);
       if (order) {
-        form.reset({
+        reset({
           ...order,
           fecha: new Date(order.fecha),
         });
       }
-    } else {
-      form.reset({
-        id: Date.now().toString(),
-        fecha: currentOS?.startDate ? new Date(currentOS.startDate) : new Date(),
+    } else if (!isEditing && evento) {
+      reset({
+        id: 'temp',
+        fecha: evento.startDate ? new Date(evento.startDate) : new Date(),
         status: 'Pendiente',
         precio: 0,
         concepto: '',
         observaciones: '',
       });
     }
-    
-    setIsMounted(true);
-  }, [osId, orderId, form, isEditing]);
+  }, [osId, orderId, isEditing, atipicos, evento, reset]);
 
   useEffect(() => {
-    const dbItem = atipicosDB.find(item => item.concepto.toLowerCase() === selectedConcepto?.toLowerCase());
+    const dbItem = catalogo.find(item => item.concepto.toLowerCase() === selectedConcepto?.toLowerCase());
     if (dbItem) {
       setValue('precio', dbItem.precio);
     }
-  }, [selectedConcepto, atipicosDB, setValue]);
+  }, [selectedConcepto, catalogo, setValue]);
 
   const atipicosOptions = useMemo(() => {
-    return atipicosDB.map(item => ({ label: item.concepto, value: item.concepto }));
-  }, [atipicosDB]);
+    return catalogo.map(item => ({ label: item.concepto, value: item.concepto }));
+  }, [catalogo]);
 
-  const onSubmit = (data: AtipicoOrderFormValues) => {
-    setIsLoading(true);
-    if (!osId) {
+  const onSubmit = async (data: AtipicoOrderFormValues) => {
+    if (!evento?.id) {
       toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
-      setIsLoading(false);
       return;
     }
 
-    // Check if the concept is new. If so, add it to the DB.
-    const isNewConcept = !atipicosDB.some(item => item.concepto.toLowerCase() === data.concepto.toLowerCase());
-    if (isNewConcept) {
-      const newDBItem: AtipicoDBItem = {
-        id: Date.now().toString(),
-        concepto: data.concepto,
-        precio: data.precio,
-      };
-      const updatedDB = [...atipicosDB, newDBItem];
-      localStorage.setItem('atipicosDB', JSON.stringify(updatedDB));
-      setAtipicosDB(updatedDB);
-      toast({ title: "Concepto nuevo guardado", description: `"${data.concepto}" se ha añadido a la base de datos.` });
+    try {
+        // Check if the concept is new. If so, add it to the DB.
+        const isNewConcept = !catalogo.some(item => item.concepto.toLowerCase() === data.concepto.toLowerCase());
+        if (isNewConcept) {
+            await addToCatalogo.mutateAsync({
+                concepto: data.concepto,
+                precio: data.precio,
+            });
+            toast({ title: "Concepto nuevo guardado", description: `"${data.concepto}" se ha añadido al catálogo.` });
+        }
+
+        const finalOrder = {
+            ...data,
+            fecha: format(data.fecha, 'yyyy-MM-dd'),
+        };
+
+        if (isEditing && orderId) {
+            await updateAtipico.mutateAsync({ ...finalOrder, id: orderId });
+        } else {
+            const { id, ...newOrder } = finalOrder;
+            await createAtipico.mutateAsync(newOrder);
+        }
+        
+        router.push(`/os/${osId}/atipicos`);
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message });
     }
-
-    const allOrders = JSON.parse(localStorage.getItem('atipicoOrders') || '[]') as AtipicoOrder[];
-    
-    const finalOrder: AtipicoOrder = {
-      ...data,
-      osId,
-      fecha: format(data.fecha, 'yyyy-MM-dd'),
-    };
-
-    if (isEditing) {
-      const index = allOrders.findIndex(o => o.id === orderId);
-      if (index !== -1) {
-        allOrders[index] = finalOrder;
-        toast({ title: "Gasto actualizado" });
-      }
-    } else {
-      allOrders.push(finalOrder);
-      toast({ title: "Gasto atípico creado" });
-    }
-
-    localStorage.setItem('atipicoOrders', JSON.stringify(allOrders));
-    
-    setTimeout(() => {
-        setIsLoading(false);
-        router.push(`/atipicos?osId=${osId}`);
-    }, 500);
   };
 
-  if (!isMounted || !serviceOrder) {
+  if (loadingOS || loadingAtipicos) {
     return <LoadingSkeleton title="Cargando Gasto Atípico..." />;
+  }
+
+  if (!evento) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <p className="text-destructive mb-4">No se ha encontrado la Orden de Servicio.</p>
+        <Button onClick={() => router.push('/os')}>Volver a OS</Button>
+      </div>
+    );
   }
 
   return (
@@ -159,20 +153,20 @@ function PedidoAtipicoPageInner() {
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/atipicos?osId=${osId}`)} className="mb-2">
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/atipicos`)} className="mb-2">
                             <ArrowLeft className="mr-2" />
                             Volver al Módulo
                         </Button>
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><FilePlus />{isEditing ? 'Editar' : 'Nuevo'} Gasto Atípico</h1>
-                        <p className="text-muted-foreground">Para la OS: {serviceOrder.serviceNumber}</p>
+                        <p className="text-muted-foreground">Para la OS: {evento.serviceNumber}</p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" type="button" onClick={() => router.push(`/atipicos?osId=${osId}`)}>
+                        <Button variant="outline" type="button" onClick={() => router.push(`/os/${osId}/atipicos`)}>
                             <X className="mr-2 h-4 w-4" />
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={isLoading}>
-                            {isLoading ? <Loader2 className="animate-spin" /> : <Save className="mr-2" />}
+                        <Button type="submit" disabled={createAtipico.isPending || updateAtipico.isPending}>
+                            {(createAtipico.isPending || updateAtipico.isPending) ? <Loader2 className="animate-spin" /> : <Save className="mr-2" />}
                             Guardar Gasto
                         </Button>
                     </div>

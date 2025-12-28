@@ -22,9 +22,11 @@ import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 
+import { useCprCesionesPersonal } from '@/hooks/use-cpr-data';
+import { usePersonal } from '@/hooks/use-data-queries';
+import { supabase } from '@/lib/supabase';
+
 export default function ValidacionCesionesPage() {
-  const [cesiones, setCesiones] = useState<CesionStorage[]>([]);
-  const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
@@ -32,19 +34,16 @@ export default function ValidacionCesionesPage() {
 
   const { toast } = useToast();
 
-  const loadData = useCallback(() => {
-    const storedData = (JSON.parse(localStorage.getItem('cesionesPersonal') || '[]') as CesionStorage[]);
-    setCesiones(storedData);
+  const { data: cesiones = [], isLoading: loadingCesiones, refetch: refetchCesiones } = useCprCesionesPersonal();
+  const { data: personal = [], isLoading: loadingPersonal } = usePersonal();
 
-    const storedPersonal = (JSON.parse(localStorage.getItem('personal') || '[]') as Personal[]);
-    setPersonalMap(new Map(storedPersonal.map(p => [p.nombreCompleto, p])));
-
-    setIsMounted(true);
-  }, []);
+  const personalMap = useMemo(() => {
+    return new Map(personal.map(p => [p.nombreCompleto, p]));
+  }, [personal]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    setIsMounted(true);
+  }, []);
   
   const filteredCesiones = useMemo(() => {
     return cesiones.filter(c => {
@@ -64,25 +63,32 @@ export default function ValidacionCesionesPage() {
     }).sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
   }, [cesiones, searchTerm, dateFilter, showValidated, personalMap]);
   
-  const handleSaveHours = (id: string, horaEntradaReal: string, horaSalidaReal: string) => {
-    const allCesiones = JSON.parse(localStorage.getItem('cesionesPersonal') || '[]') as CesionStorage[];
-    const index = allCesiones.findIndex(c => c.id === id);
+  const handleSaveHours = async (id: string, horaEntradaReal: string, horaSalidaReal: string) => {
+    try {
+        const { error } = await supabase
+            .from('cpr_cesiones_personal')
+            .update({
+                hora_entrada_real: horaEntradaReal,
+                hora_salida_real: horaSalidaReal,
+                estado: 'Cerrado',
+            })
+            .eq('id', id);
 
-    if (index > -1) {
-        allCesiones[index] = {
-            ...allCesiones[index],
-            horaEntradaReal,
-            horaSalidaReal,
-            estado: 'Cerrado',
-        };
-        localStorage.setItem('cesionesPersonal', JSON.stringify(allCesiones));
-        setCesiones(allCesiones);
+        if (error) throw error;
+
+        await refetchCesiones();
         toast({ title: 'Horas Validadas', description: `Se ha guardado el horario real para la cesión.` });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message
+        });
     }
   };
 
 
-  if (!isMounted) {
+  if (!isMounted || loadingCesiones || loadingPersonal) {
     return <LoadingSkeleton title="Cargando Validación de Horas..." />;
   }
 

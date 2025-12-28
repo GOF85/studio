@@ -11,6 +11,7 @@ import { formatCurrency, formatNumber } from '@/lib/utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from '@/lib/recharts-lazy';
 import { startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { useRecetas, useElaboraciones, useEntregas, useGastronomyOrders, useIngredientesInternos } from '@/hooks/use-data-queries';
 
 type StatCardProps = {
     title: string;
@@ -37,118 +38,102 @@ function StatCard({ title, value, icon: Icon, bgColorClass, href }: StatCardProp
 }
 
 export default function BookInformePage() {
-    const [stats, setStats] = useState({
-        totalRecetas: 0,
-        totalElaboraciones: 0,
-        totalIngredientes: 0,
-    });
-    const [topUsedRecipes, setTopUsedRecipes] = useState<{ nombre: string, count: number, pvp: number, coste: number, margen: number }[]>([]);
-    const [mostUsedElaborationsByUnit, setMostUsedElaborationsByUnit] = useState<{ nombre: string; count: number; pvp: number; coste: number; margen: number; unidad: string; }[]>([]);
-    const [mostUsedElaborationsByWeight, setMostUsedElaborationsByWeight] = useState<{ nombre: string; count: number; pvp: number; coste: number; margen: number; unidad: string; }[]>([]);
+    const { data: storedRecetas = [] } = useRecetas();
+    const { data: storedElaboraciones = [] } = useElaboraciones();
+    const { data: storedIngredientes = [] } = useIngredientesInternos();
+    const { data: serviceOrders = [] } = useEntregas();
+    const { data: gastronomyOrders = [] } = useGastronomyOrders();
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        const loadData = async () => {
-            const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-            const storedElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-
-            // Load ingredients from Supabase
-            const { data: ingredientesData } = await supabase
-                .from('ingredientes_internos')
-                .select('id');
-
-            const totalIngredientes = (ingredientesData || []).length;
-
-            const serviceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-            const gastronomyOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-
-            setStats({
-                totalRecetas: storedRecetas.length,
-                totalElaboraciones: storedElaboraciones.length,
-                totalIngredientes,
-            });
-
-            const now = new Date();
-            const startOfCurrentYear = startOfYear(now);
-            const endOfCurrentYear = endOfYear(now);
-
-            const osIdsCurrentYear = new Set(
-                serviceOrders
-                    .filter(os => {
-                        try {
-                            const osDate = new Date(os.startDate);
-                            return isWithinInterval(osDate, { start: startOfCurrentYear, end: endOfCurrentYear });
-                        } catch (e) { return false; }
-                    })
-                    .map(os => os.id)
-            );
-
-            const gastroOrdersCurrentYear = gastronomyOrders.filter(go => osIdsCurrentYear.has(go.osId));
-
-            const recipeUsage = new Map<string, { count: number; pvp: number; coste: number }>();
-            gastroOrdersCurrentYear.forEach(order => {
-                (order.items || []).forEach(item => {
-                    if (item.type === 'item') {
-                        const qty = item.quantity || 1;
-                        const existing = recipeUsage.get(item.id) || { count: 0, pvp: 0, coste: 0 };
-                        existing.count += qty;
-                        existing.pvp += (item.precioVenta || 0) * qty;
-                        existing.coste += (item.costeMateriaPrima || 0) * qty;
-                        recipeUsage.set(item.id, existing);
-                    }
-                });
-            });
-
-            const sortedRecipes = Array.from(recipeUsage.entries())
-                .sort(([, dataA], [, dataB]) => dataB.count - dataA.count)
-                .slice(0, 20)
-                .map(([recetaId, data]) => {
-                    const receta = storedRecetas.find(r => r.id === recetaId);
-                    return { nombre: receta?.nombre || 'Desconocido', ...data, margen: data.pvp - data.coste };
-                });
-            setTopUsedRecipes(sortedRecipes);
-
-            const elabUsage = new Map<string, { count: number; pvp: number; coste: number; unidad: string }>();
-            gastroOrdersCurrentYear.forEach(order => {
-                (order.items || []).forEach(item => {
-                    if (item.type === 'item') {
-                        const receta = storedRecetas.find(r => r.id === item.id);
-                        const orderQty = item.quantity || 1;
-                        if (receta) {
-                            receta.elaboraciones.forEach(elabEnReceta => {
-                                const elabId = elabEnReceta.elaboracionId;
-                                const elabData = storedElaboraciones.find(e => e.id === elabId);
-                                if (elabData) {
-                                    const qty = orderQty * elabEnReceta.cantidad;
-                                    const elabCoste = (elabData.costePorUnidad || 0) * qty;
-                                    const elabPvp = receta.precioVenta ? (receta.precioVenta * (elabCoste / (receta.costeMateriaPrima || 1))) : 0;
-
-                                    const existing = elabUsage.get(elabId) || { count: 0, pvp: 0, coste: 0, unidad: elabData.unidadProduccion };
-                                    existing.count += qty;
-                                    existing.coste += elabCoste;
-                                    existing.pvp += elabPvp;
-                                    elabUsage.set(elabId, existing);
-                                }
-                            });
-                        }
-                    }
-                });
-            });
-
-            const allSortedElabs = Array.from(elabUsage.entries())
-                .map(([elabId, data]) => {
-                    const elab = storedElaboraciones.find(e => e.id === elabId);
-                    return { nombre: elab?.nombre || 'Desconocido', ...data, margen: data.pvp - data.coste };
-                });
-
-            setMostUsedElaborationsByUnit(allSortedElabs.filter(e => e.unidad === 'UD').sort((a, b) => b.count - a.count).slice(0, 20));
-            setMostUsedElaborationsByWeight(allSortedElabs.filter(e => e.unidad === 'KG' || e.unidad === 'L').sort((a, b) => b.count - a.count).slice(0, 20));
-
-            setIsMounted(true);
-        };
-
-        loadData();
+        setIsMounted(true);
     }, []);
+
+    const stats = useMemo(() => ({
+        totalRecetas: storedRecetas.length,
+        totalElaboraciones: storedElaboraciones.length,
+        totalIngredientes: storedIngredientes.length,
+    }), [storedRecetas, storedElaboraciones, storedIngredientes]);
+
+    const { topUsedRecipes, mostUsedElaborationsByUnit, mostUsedElaborationsByWeight } = useMemo(() => {
+        const now = new Date();
+        const startOfCurrentYear = startOfYear(now);
+        const endOfCurrentYear = endOfYear(now);
+
+        const osIdsCurrentYear = new Set(
+            serviceOrders
+                .filter(os => {
+                    try {
+                        const osDate = new Date(os.startDate);
+                        return isWithinInterval(osDate, { start: startOfCurrentYear, end: endOfCurrentYear });
+                    } catch (e) { return false; }
+                })
+                .map(os => os.id)
+        );
+
+        const gastroOrdersCurrentYear = gastronomyOrders.filter(go => osIdsCurrentYear.has(go.osId));
+
+        const recipeUsage = new Map<string, { count: number; pvp: number; coste: number }>();
+        gastroOrdersCurrentYear.forEach(order => {
+            (order.items || []).forEach(item => {
+                if (item.type === 'item') {
+                    const qty = item.quantity || 1;
+                    const existing = recipeUsage.get(item.id) || { count: 0, pvp: 0, coste: 0 };
+                    existing.count += qty;
+                    existing.pvp += (item.precioVenta || 0) * qty;
+                    existing.coste += (item.costeMateriaPrima || 0) * qty;
+                    recipeUsage.set(item.id, existing);
+                }
+            });
+        });
+
+        const sortedRecipes = Array.from(recipeUsage.entries())
+            .sort(([, dataA], [, dataB]) => dataB.count - dataA.count)
+            .slice(0, 20)
+            .map(([recetaId, data]) => {
+                const receta = storedRecetas.find(r => r.id === recetaId);
+                return { nombre: receta?.nombre || 'Desconocido', ...data, margen: data.pvp - data.coste };
+            });
+
+        const elabUsage = new Map<string, { count: number; pvp: number; coste: number; unidad: string }>();
+        gastroOrdersCurrentYear.forEach(order => {
+            (order.items || []).forEach(item => {
+                if (item.type === 'item') {
+                    const receta = storedRecetas.find(r => r.id === item.id);
+                    const orderQty = item.quantity || 1;
+                    if (receta) {
+                        receta.elaboraciones.forEach(elabEnReceta => {
+                            const elabId = elabEnReceta.elaboracionId;
+                            const elabData = storedElaboraciones.find(e => e.id === elabId);
+                            if (elabData) {
+                                const qty = orderQty * elabEnReceta.cantidad;
+                                const elabCoste = (elabData.costePorUnidad || 0) * qty;
+                                const elabPvp = receta.precioVenta ? (receta.precioVenta * (elabCoste / (receta.costeMateriaPrima || 1))) : 0;
+
+                                const existing = elabUsage.get(elabId) || { count: 0, pvp: 0, coste: 0, unidad: elabData.unidadProduccion };
+                                existing.count += qty;
+                                existing.coste += elabCoste;
+                                existing.pvp += elabPvp;
+                                elabUsage.set(elabId, existing);
+                            }
+                        });
+                    }
+                }
+            });
+        });
+
+        const allSortedElabs = Array.from(elabUsage.entries())
+            .map(([elabId, data]) => {
+                const elab = storedElaboraciones.find(e => e.id === elabId);
+                return { nombre: elab?.nombre || 'Desconocido', ...data, margen: data.pvp - data.coste };
+            });
+
+        return {
+            topUsedRecipes: sortedRecipes,
+            mostUsedElaborationsByUnit: allSortedElabs.filter(e => e.unidad === 'UD').sort((a, b) => b.count - a.count).slice(0, 20),
+            mostUsedElaborationsByWeight: allSortedElabs.filter(e => e.unidad === 'KG' || e.unidad === 'L').sort((a, b) => b.count - a.count).slice(0, 20)
+        };
+    }, [storedRecetas, storedElaboraciones, serviceOrders, gastronomyOrders]);
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {

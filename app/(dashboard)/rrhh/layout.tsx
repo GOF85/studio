@@ -100,7 +100,7 @@ export default function RrhhLayout({ children }: { children: React.ReactNode }) 
                     </div>
                 </div>
             </div>
-             <div className="py-8 container mx-auto">
+             <div className="container mx-auto pt-0 pb-8">
                 {children}
             </div>
         </>

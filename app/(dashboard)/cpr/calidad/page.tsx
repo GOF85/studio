@@ -35,6 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { useCprOrdenesFabricacion, useUpdateCprOrdenFabricacion, useCprStockElaboraciones, useUpdateCprStockElaboracion, useCprElaboraciones } from '@/hooks/use-cpr-data';
 
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -48,10 +49,14 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
 
 
 export default function CalidadPage() {
-  const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
+  const { data: ordenes = [], isLoading: isLoadingOFs } = useCprOrdenesFabricacion();
+  const { data: allStock = {} } = useCprStockElaboraciones();
+  const { data: allElaboraciones = [] } = useCprElaboraciones();
+  
+  const updateOF = useUpdateCprOrdenFabricacion();
+  const updateStock = useUpdateCprStockElaboracion();
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
   const [ofForIncident, setOfForIncident] = useState<OrdenFabricacion | null>(null);
   const [incidentData, setIncidentData] = useState({ cantidadReal: 0, observaciones: '' });
   const [showAll, setShowAll] = useState(false);
@@ -60,69 +65,55 @@ export default function CalidadPage() {
     to: startOfToday(),
   });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
+  
   const router = useRouter();
   const { toast } = useToast();
   const { impersonatedUser } = useImpersonatedUser();
 
-  useEffect(() => {
-    let storedData = localStorage.getItem('ordenesFabricacion');
-    if (storedData) {
-        setOrdenes(JSON.parse(storedData));
-    }
-    const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-    setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
-
-    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    setElaboracionesMap(new Map(allElaboraciones.map(e => [e.id, e])));
-
-    setIsMounted(true);
-  }, []);
+  const elaboracionesMap = useMemo(() => new Map(allElaboraciones.map(e => [e.id, e])), [allElaboraciones]);
   
-  const handleValidate = (ofId: string) => {
+  const handleValidate = async (ofId: string) => {
     if (!impersonatedUser) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha podido identificar al usuario. Por favor, selecciona un usuario para simular.' });
         return;
     }
-    let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-    const index = allOFs.findIndex(of => of.id === ofId);
     
-    if (index > -1) {
-        const validatedOF = {
-            ...allOFs[index],
+    const of = ordenes.find(o => o.id === ofId);
+    if (!of) return;
+
+    try {
+        // 1. Update OF
+        await updateOF.mutateAsync({
+            id: ofId,
             okCalidad: true,
-            estado: 'Validado' as const,
+            estado: 'Validado',
             responsableCalidad: impersonatedUser.nombre,
             fechaValidacionCalidad: new Date().toISOString(),
-        };
-        allOFs[index] = validatedOF;
-        localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-        setOrdenes(allOFs);
+        });
+
+        // 2. Update Stock
+        const { elaboracionId, cantidadReal, unidad, cantidadTotal: ofCantidadTotal } = of;
+        const currentStock = allStock[elaboracionId] || { cantidadTotal: 0, unidad: unidad, lotes: [] };
         
-        // --- Add to Stock ---
-        let stock: Record<string, StockElaboracion> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
-        const { elaboracionId, cantidadReal, unidad } = validatedOF;
-        
-        if (!stock[elaboracionId]) {
-            stock[elaboracionId] = {
-                elaboracionId: elaboracionId,
-                cantidadTotal: 0,
-                unidad: unidad,
-                lotes: []
-            };
-        }
-        
-        stock[elaboracionId].cantidadTotal += cantidadReal || 0;
-        stock[elaboracionId].lotes.push({
-            ofId: validatedOF.id,
-            cantidad: cantidadReal || 0,
+        const qtyToAdd = cantidadReal || ofCantidadTotal || 0;
+        const newLotes = [...(currentStock.lotes || [])];
+        newLotes.push({
+            ofId: of.id,
+            cantidad: qtyToAdd,
             fechaCaducidad: addDays(new Date(), 7).toISOString(), // Default 7 days
         });
 
-        localStorage.setItem('stockElaboraciones', JSON.stringify(stock));
-        // --- End Add to Stock ---
+        await updateStock.mutateAsync({
+            elaboracionId,
+            cantidadTotal: currentStock.cantidadTotal + qtyToAdd,
+            unidad: unidad,
+            lotes: newLotes
+        });
 
         toast({ title: 'Lote Validado y Añadido al Stock', description: `La OF ${ofId} ha sido marcada como validada.` });
+    } catch (error) {
+        console.error('Error validating OF:', error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo validar la OF.' });
     }
   };
 
@@ -134,24 +125,23 @@ export default function CalidadPage() {
     });
   };
 
-  const handleSetIncident = () => {
+  const handleSetIncident = async () => {
     if (!ofForIncident) return;
     
-    let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-    const index = allOFs.findIndex(of => of.id === ofForIncident.id);
-
-    if (index > -1) {
-        allOFs[index] = {
-            ...allOFs[index],
+    try {
+        await updateOF.mutateAsync({
+            id: ofForIncident.id,
             estado: 'Incidencia',
             incidencia: true,
             cantidadReal: incidentData.cantidadReal,
             incidenciaObservaciones: incidentData.observaciones,
-        };
-        localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-        setOrdenes(allOFs);
+        });
+        
         toast({ title: 'Incidencia Registrada', description: `Se ha registrado una incidencia para la OF ${ofForIncident.id}.`});
         setOfForIncident(null);
+    } catch (error) {
+        console.error('Error setting incident:', error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo registrar la incidencia.' });
     }
   };
 
@@ -188,7 +178,7 @@ export default function CalidadPage() {
   };
 
 
-  if (!isMounted) {
+  if (isLoadingOFs) {
     return <LoadingSkeleton title="Cargando Control de Calidad..." />;
   }
 

@@ -33,10 +33,9 @@ type GroupedIncidencias = {
     incidencias: ReturnIncidencia[];
 }
 
+import { useReturnSheets, useEventos, useProveedores } from '@/hooks/use-data-queries';
+
 export default function IncidenciasRetornoPage() {
-    const [incidencias, setIncidencias] = useState<ReturnIncidencia[]>([]);
-    const [serviceOrdersMap, setServiceOrdersMap] = useState<Map<string, ServiceOrder>>(new Map());
-    const [proveedores, setProveedores] = useState<Proveedor[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [providerFilter, setProviderFilter] = useState('all');
@@ -44,14 +43,49 @@ export default function IncidenciasRetornoPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    useEffect(() => {
-        const loadedIncidencias = JSON.parse(localStorage.getItem('incidenciasRetorno') || '[]') as ReturnIncidencia[];
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+    const { data: allReturnSheets = [], isLoading: loadingSheets } = useReturnSheets();
+    const { data: allServiceOrders = [], isLoading: loadingOrders } = useEventos();
+    const { data: proveedores = [], isLoading: loadingProv } = useProveedores();
+
+    const serviceOrdersMap = useMemo(() => {
+        return new Map(allServiceOrders.map(os => [os.id, os]));
+    }, [allServiceOrders]);
+
+    const incidencias = useMemo(() => {
+        const loadedIncidencias: ReturnIncidencia[] = [];
         
-        setServiceOrdersMap(new Map(allServiceOrders.map(os => [os.id, os])));
-        setProveedores(allProveedores);
-        setIncidencias(loadedIncidencias.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+        allReturnSheets.forEach(sheet => {
+            if (sheet.itemStates) {
+                Object.entries(sheet.itemStates).forEach(([itemKey, state]) => {
+                    if (state.incidentComment) {
+                        const [orderId, itemCode] = itemKey.split('_');
+                        const item = sheet.items.find(i => i.itemCode === itemCode && (i as any).orderId === orderId);
+                        
+                        if (item) {
+                            const os = serviceOrdersMap.get(sheet.osId);
+                            loadedIncidencias.push({
+                                osId: sheet.osId,
+                                osServiceNumber: os?.serviceNumber || 'N/A',
+                                item: {
+                                    ...item,
+                                    sentQuantity: (item as any).sentQuantity || item.quantity,
+                                    returnedQuantity: state.returnedQuantity,
+                                    orderId: orderId,
+                                    type: (item as any).type
+                                } as ReturnSheetItem,
+                                comment: state.incidentComment,
+                                timestamp: new Date().toISOString() // We don't have a timestamp per incident in the state
+                            });
+                        }
+                    }
+                });
+            }
+        });
+        
+        return loadedIncidencias;
+    }, [allReturnSheets, serviceOrdersMap]);
+
+    useEffect(() => {
         setIsMounted(true);
     }, []);
 
@@ -73,7 +107,7 @@ export default function IncidenciasRetornoPage() {
                     osServiceNumber: inc.osServiceNumber,
                     cliente: os?.client || 'Desconocido',
                     espacio: os?.space || '-',
-                    fechaEvento: os?.startDate || '',
+                    fechaEvento: os?.startDate ? (os.startDate instanceof Date ? os.startDate.toISOString() : os.startDate) : '',
                     incidencias: []
                 };
             }
@@ -151,17 +185,11 @@ export default function IncidenciasRetornoPage() {
     }
 
     const handleDeleteReport = () => {
-        if (!osToDelete) return;
-        
-        const newIncidencias = incidencias.filter(inc => inc.osId !== osToDelete);
-        localStorage.setItem('incidenciasRetorno', JSON.stringify(newIncidencias));
-        setIncidencias(newIncidencias);
-        
-        toast({ title: "Informe Eliminado", description: `Todas las incidencias para la OS han sido eliminadas.` });
+        toast({ title: "Funcionalidad no disponible", description: "Para eliminar incidencias, edite el retorno correspondiente." });
         setOsToDelete(null);
     }
 
-    if (!isMounted) {
+    if (!isMounted || loadingSheets || loadingOrders || loadingProv) {
         return <LoadingSkeleton title="Cargando Incidencias de Retorno..." />;
     }
     

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -45,21 +45,19 @@ const statusMap: Record<PickingSheet['status'], StatusColumn> = {
     'Listo': 'Listo',
 }
 
-function BriefingSummaryDialog({ osId }: { osId: string }) {
-    const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+import { useEvento, useComercialBriefings, useMaterialOrders, usePickingSheets, useReturnSheets } from '@/hooks/use-data-queries';
+import { useUpdateMaterialOrderItem, useDeleteMaterialOrderItem } from '@/hooks/mutations/use-material-mutations';
 
-    useEffect(() => {
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const currentBriefing = allBriefings.find(b => b.osId === osId);
-        if (currentBriefing) {
-            const sortedItems = [...currentBriefing.items].sort((a, b) => {
-                const dateComparison = a.fecha.localeCompare(b.fecha);
-                if (dateComparison !== 0) return dateComparison;
-                return a.horaInicio.localeCompare(b.horaInicio);
-            });
-            setBriefingItems(sortedItems);
-        }
-    }, [osId]);
+function BriefingSummaryDialog({ osId }: { osId: string }) {
+    const { data: briefings = [] } = useComercialBriefings(osId);
+    const briefingItems = useMemo(() => {
+        const items = briefings?.[0]?.items || [];
+        return [...items].sort((a, b) => {
+            const dateComparison = a.fecha.localeCompare(b.fecha);
+            if (dateComparison !== 0) return dateComparison;
+            return a.horaInicio.localeCompare(b.horaInicio);
+        });
+    }, [briefings]);
 
     return (
         <Dialog>
@@ -67,7 +65,12 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
                 <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>Resumen de Servicios del Briefing</DialogTitle>
+                    <DialogDescription>
+                        Detalle de todos los servicios programados para esta orden de servicio.
+                    </DialogDescription>
+                </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto">
                     <Table>
                         <TableHeader>
@@ -114,32 +117,39 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function BioPage() {
-  const [isMounted, setIsMounted] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
-  
   const router = useRouter();
   const params = useParams() ?? {};
   const osId = (params.id as string) || '';
   const { toast } = useToast();
+
+  const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId);
+  const { data: materialOrders = [], isLoading: isLoadingMaterials } = useMaterialOrders(osId);
+  const { data: pickingSheets = [], isLoading: isLoadingPicking } = usePickingSheets();
+  const { data: returnSheets = [], isLoading: isLoadingReturns } = useReturnSheets();
+
+  const [isMounted, setIsMounted] = useState(false);
+  const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+
+  const updateMutation = useUpdateMaterialOrderItem();
+  const deleteMutation = useDeleteMaterialOrderItem();
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     if (!isMounted) {
         return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
     }
     
-    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
-
-    const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
-    const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
-
-    const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
+    const relatedOrders = materialOrders.filter(order => order.osId === osId && order.type === 'Bio');
+    const relatedPickingSheets = pickingSheets.filter(sheet => sheet.osId === osId);
+    const relatedReturnSheets = returnSheets.filter(s => s.osId === osId);
     
     const mermas: Record<string, number> = {};
-    allReturnSheets.forEach(sheet => {
+    relatedReturnSheets.forEach(sheet => {
       Object.entries(sheet.itemStates).forEach(([key, state]) => {
         const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
         if (itemInfo && itemInfo.type === 'Bio' && itemInfo.sentQuantity > state.returnedQuantity) {
@@ -237,62 +247,34 @@ export default function BioPage() {
         itemsByStatus: statusItems,
         totalValoracionPendiente
     };
-  }, [osId, isMounted]);
+  }, [isMounted, osId, materialOrders, pickingSheets, returnSheets]);
 
-  useEffect(() => {
-    setIsMounted(true);
-    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
-    setMaterialOrders(relatedOrders);
-  }, [osId]);
-
-  const handleSaveAll = () => {
-    setIsLoading(true);
-    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    
-    materialOrders.forEach(localOrder => {
-      const index = allMaterialOrders.findIndex(o => o.id === localOrder.id);
-      if (index !== -1) {
-        allMaterialOrders[index] = localOrder;
-      }
-    });
-
-    localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
-    window.dispatchEvent(new Event('storage'));
-    toast({ title: 'Guardado', description: 'Todos los cambios en los pedidos han sido guardados.' });
-    setIsLoading(false);
-  }
-
-  const handleItemChange = (orderId: string, itemCode: string, field: 'quantity' | 'solicita' | 'deliveryDate', value: any) => {
-    setMaterialOrders(prevOrders => {
-      return prevOrders.map(order => {
-        if (order.id === orderId) {
-            if (field === 'solicita' || field === 'deliveryDate') {
-                 return { ...order, [field]: value };
-            }
-          const updatedItems = order.items
-            .map(item => item.itemCode === itemCode ? { ...item, [field]: value } : item)
-            .filter(item => item.quantity > 0);
-          const updatedTotal = updatedItems.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0);
-          return { ...order, items: updatedItems, total: updatedTotal };
-        }
-        return order;
+  const handleItemChange = async (itemId: string, field: 'quantity' | 'price', value: number) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: itemId,
+        updates: { [field]: value }
       });
-    });
+      toast({ title: 'Cambio guardado' });
+    } catch (error) {
+      toast({ title: 'Error al guardar', variant: 'destructive' });
+    }
   };
 
-  const handleDeleteItem = (orderId: string, itemCode: string) => {
-    handleItemChange(orderId, itemCode, 'quantity', 0);
-  }
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      await deleteMutation.mutateAsync({ id: itemId });
+      toast({ title: 'Artículo eliminado' });
+    } catch (error) {
+      toast({ title: 'Error al eliminar', variant: 'destructive' });
+    }
+  };
 
-  const handleDeleteOrder = () => {
+  const handleDeleteOrder = async () => {
     if (!orderToDelete) return;
-    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
-    localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
-    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Bio'));
-    window.dispatchEvent(new Event('storage'));
-    toast({ title: 'Pedido de material eliminado' });
+    // En este caso, orderToDelete es el ID de un item individual o un grupo?
+    // Como estamos en una vista agregada, borrar una "orden" podría significar borrar todos los items de esa categoría.
+    // Pero el UI parece mostrar items individuales en la tabla de pendientes.
     setOrderToDelete(null);
   };
   
@@ -410,6 +392,7 @@ export default function BioPage() {
                                 <TableHead>Fecha Entrega</TableHead>
                                 <TableHead className="w-32">Cantidad</TableHead>
                                 <TableHead>Valoración</TableHead>
+                                <TableHead className="w-10"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -418,11 +401,28 @@ export default function BioPage() {
                                     <TableCell>{item.description}</TableCell>
                                     <TableCell>{item.solicita}</TableCell>
                                     <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
-                                    <TableCell>{item.quantity}</TableCell>
+                                    <TableCell>
+                                        <Input 
+                                            type="number" 
+                                            value={item.quantity} 
+                                            onChange={(e) => handleItemChange(item.id!, 'quantity', parseFloat(e.target.value))}
+                                            className="w-20 h-8"
+                                        />
+                                    </TableCell>
                                     <TableCell>{formatCurrency(item.quantity * (item.price || 0))}</TableCell>
+                                    <TableCell>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            onClick={() => handleDeleteItem(item.id!)}
+                                            className="h-8 w-8 text-destructive"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { PersonalExternoTurno, SolicitudPersonalCPR } from '@/types';
-import { usePersonal, usePersonalExterno, useCategoriasPersonal } from './use-data-queries';
+import { usePersonal, usePersonalExternoDB, useCategoriasPersonal } from './use-data-queries';
 
 type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
 type AssignableWorker = { label: string; value: string; id: string; };
@@ -14,7 +14,7 @@ export function useAssignablePersonal(turno: UnifiedTurno | null) {
 
   // Fetch data from Supabase
   const { data: allPersonalInterno = [], isLoading: isLoadingInterno } = usePersonal();
-  const { data: allPersonalExterno = [], isLoading: isLoadingExterno } = usePersonalExterno();
+  const { data: allPersonalExterno = [], isLoading: isLoadingExterno } = usePersonalExternoDB();
   const { data: allTiposPersonal = [], isLoading: isLoadingTipos } = useCategoriasPersonal();
 
   const isLoading = isLoadingInterno || isLoadingExterno || isLoadingTipos;

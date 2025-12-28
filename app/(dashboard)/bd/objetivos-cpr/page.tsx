@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -7,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Target, Save, Loader2, Percent, Menu, FileUp, FileDown } from 'lucide-react';
+import { Target, Save, Loader2, Percent, Menu, FileUp, FileDown, Calendar } from 'lucide-react';
 import Papa from 'papaparse';
 import { downloadCSVTemplate } from '@/lib/utils';
 import type { ObjetivoMensualCPR } from '@/types';
@@ -19,8 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { GASTO_LABELS } from '@/lib/constants';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
-
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { useObjetivosCPR, useUpsertObjetivoCPR } from '@/hooks/use-data-queries';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
     presupuestoVentas: z.coerce.number().default(0),
@@ -41,11 +41,12 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => i);
 
 export default function ObjetivosCprPage() {
     const [selectedDate, setSelectedDate] = useState(startOfMonth(new Date()));
-    const [isLoading, setIsLoading] = useState(false);
-    const [allObjectives, setAllObjectives] = useState<ObjetivoMensualCPR[]>([]);
     const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const { data: allObjectives = [], isLoading: isLoadingData } = useObjetivosCPR();
+    const upsertObjetivo = useUpsertObjetivoCPR();
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -58,12 +59,6 @@ export default function ObjetivosCprPage() {
             presupuestoOtrosGastos: 0,
         },
     });
-
-    const loadAllObjectives = useCallback(() => {
-        const storedData = JSON.parse(localStorage.getItem('objetivosCPR') || '[]') as ObjetivoMensualCPR[];
-        setAllObjectives(storedData);
-        return storedData;
-    }, []);
 
     const loadDataForMonth = useCallback((objectives: ObjetivoMensualCPR[]) => {
         const monthKey = format(selectedDate, 'yyyy-MM');
@@ -79,35 +74,22 @@ export default function ObjetivosCprPage() {
     }, [selectedDate, form]);
 
     useEffect(() => {
-        const objectives = loadAllObjectives();
-        loadDataForMonth(objectives);
-    }, [selectedDate, loadAllObjectives, loadDataForMonth]);
+        loadDataForMonth(allObjectives);
+    }, [selectedDate, allObjectives, loadDataForMonth]);
 
-    const onSubmit = (data: FormValues) => {
-        setIsLoading(true);
+    const onSubmit = async (data: FormValues) => {
         const monthKey = format(selectedDate, 'yyyy-MM');
-        let currentObjectives = [...allObjectives];
 
-        const newObjective: ObjetivoMensualCPR = {
-            mes: monthKey,
-            ...data,
-        };
-
-        const index = currentObjectives.findIndex(o => o.mes === monthKey);
-        if (index > -1) {
-            currentObjectives[index] = newObjective;
-        } else {
-            currentObjectives.push(newObjective);
-        }
-
-        localStorage.setItem('objetivosCPR', JSON.stringify(currentObjectives));
-        setAllObjectives(currentObjectives);
-
-        setTimeout(() => {
+        try {
+            await upsertObjetivo.mutateAsync({
+                mes: monthKey,
+                ...data,
+            });
             toast({ title: 'Objetivos guardados', description: `Se han actualizado los objetivos para ${format(selectedDate, 'MMMM yyyy', { locale: es })}.` });
-            setIsLoading(false);
-            form.reset(data); // Mark form as not dirty
-        }, 500);
+            form.reset(data);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error al guardar', description: 'No se pudieron guardar los objetivos.' });
+        }
     };
 
     const handleMonthChange = (month: string) => {
@@ -123,162 +105,307 @@ export default function ObjetivosCprPage() {
     };
 
     const handleExportCSV = () => {
-        if (allObjectives.length === 0) {
-            toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay objetivos para exportar.' });
-            return;
-        }
-        const csv = Papa.unparse(allObjectives, { columns: CSV_HEADERS });
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const csv = Papa.unparse({
+            fields: CSV_HEADERS,
+            data: allObjectives.map(o => [
+                o.mes,
+                o.presupuestoVentas,
+                o.presupuestoCesionPersonal,
+                o.presupuestoGastosMP,
+                o.presupuestoGastosPersonalMice,
+                o.presupuestoGastosPersonalExterno,
+                o.presupuestoOtrosGastos
+            ])
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'objetivos_cpr.csv');
-        link.style.visibility = 'hidden';
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', `objetivos_cpr_${new Date().toISOString()}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast({ title: 'Exportación completada' });
     };
 
-    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (!file) {
-            setIsImportAlertOpen(false);
-            return;
-        }
+        if (!file) return;
 
-        Papa.parse<any>(file, {
+        Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            delimiter,
-            complete: (results) => {
-                if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
-                    toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${CSV_HEADERS.join(', ')}` });
-                    setIsImportAlertOpen(false);
+            complete: async (results) => {
+                const { data, errors } = results;
+                if (errors.length > 0) {
+                    toast({ variant: 'destructive', title: 'Error al parsear CSV', description: errors[0].message });
                     return;
                 }
 
-                const importedData: ObjetivoMensualCPR[] = results.data.map(item => ({
-                    mes: item.mes,
-                    presupuestoVentas: parseFloat(item.presupuestoVentas) || 0,
-                    presupuestoCesionPersonal: parseFloat(item.presupuestoCesionPersonal) || 0,
-                    presupuestoGastosMP: parseFloat(item.presupuestoGastosMP) || 0,
-                    presupuestoGastosPersonalMice: parseFloat(item.presupuestoGastosPersonalMice) || 0,
-                    presupuestoGastosPersonalExterno: parseFloat(item.presupuestoGastosPersonalExterno) || 0,
-                    presupuestoOtrosGastos: parseFloat(item.presupuestoOtrosGastos) || 0,
-                }));
-
-                localStorage.setItem('objetivosCPR', JSON.stringify(importedData));
-                const reloadedObjectives = loadAllObjectives();
-                loadDataForMonth(reloadedObjectives);
-                toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-                setIsImportAlertOpen(false);
-            },
-            error: (error) => {
-                toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-                setIsImportAlertOpen(false);
+                try {
+                    for (const row of data as any[]) {
+                        await upsertObjetivo.mutateAsync({
+                            mes: row.mes,
+                            presupuestoVentas: parseFloat(row.presupuestoVentas) || 0,
+                            presupuestoCesionPersonal: parseFloat(row.presupuestoCesionPersonal) || 0,
+                            presupuestoGastosMP: parseFloat(row.presupuestoGastosMP) || 0,
+                            presupuestoGastosPersonalMice: parseFloat(row.presupuestoGastosPersonalMice) || 0,
+                            presupuestoGastosPersonalExterno: parseFloat(row.presupuestoGastosPersonalExterno) || 0,
+                            presupuestoOtrosGastos: parseFloat(row.presupuestoOtrosGastos) || 0,
+                        });
+                    }
+                    toast({ title: 'Importación completada', description: `Se han importado ${data.length} registros.` });
+                    setIsImportAlertOpen(false);
+                } catch (error: any) {
+                    toast({ variant: 'destructive', title: 'Error al importar', description: error.message });
+                }
             }
         });
-        if (event.target) event.target.value = '';
     };
 
-    const renderField = (name: keyof FormValues, label: string) => (
-        <FormField control={form.control} name={name} render={({ field }) => (
-            <FormItem>
-                <FormLabel>{label}</FormLabel>
-                <div className="flex items-center">
-                    <FormControl><Input type="number" step="0.1" {...field} className="rounded-r-none" /></FormControl>
-                    <span className="p-2 border border-l-0 rounded-r-md bg-muted text-muted-foreground"><Percent size={16} /></span>
-                </div>
-            </FormItem>
-        )} />
-    )
-
     return (
-        <main>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                    <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col h-full bg-background">
+            {/* Header Premium Sticky */}
+            <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border/40 px-6 py-4">
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <Target className="h-8 w-8 text-primary" />
+                            <div className="p-2 bg-primary/10 rounded-xl">
+                                <Target className="h-6 w-6 text-primary" />
+                            </div>
                             <div>
-                                <h1 className="text-3xl font-headline font-bold">Gestión de Objetivos Mensuales del CPR</h1>
-                                <p className="text-muted-foreground">Define los presupuestos como porcentajes sobre la facturación.</p>
+                                <h1 className="text-2xl font-bold tracking-tight">Objetivos CPR</h1>
+                                <p className="text-sm text-muted-foreground">
+                                    Presupuestos mensuales para el cálculo del CPR
+                                </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
-                                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                                <span className="ml-2">Guardar Objetivos</span>
-                            </Button>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="icon"><Menu /></Button>
+                                    <Button variant="outline" className="rounded-full border-primary/20 hover:bg-primary/5">
+                                        <Menu className="h-4 w-4 mr-2" />
+                                        Acciones
+                                    </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
-                                        <FileUp size={16} className="mr-2" />Importar CSV
+                                <DropdownMenuContent align="end" className="rounded-xl border-border/40 shadow-xl">
+                                    <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)} className="rounded-lg">
+                                        <FileUp className="h-4 w-4 mr-2" />
+                                        Importar CSV
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_objetivos_cpr.csv')}>
-                                        <FileDown size={16} className="mr-2" />Descargar Plantilla
+                                    <DropdownMenuItem onClick={handleExportCSV} className="rounded-lg">
+                                        <FileDown className="h-4 w-4 mr-2" />
+                                        Exportar CSV
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={handleExportCSV}>
-                                        <FileDown size={16} className="mr-2" />Exportar CSV
+                                    <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_objetivos_cpr.csv')} className="rounded-lg">
+                                        <FileDown className="h-4 w-4 mr-2" />
+                                        Descargar Plantilla
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
                     </div>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Selección del Periodo</CardTitle>
-                            <CardDescription>Elige el mes y año para definir los objetivos porcentuales.</CardDescription>
-                            <div className="flex gap-4 pt-2">
-                                <Select value={String(selectedDate.getFullYear())} onValueChange={handleYearChange}>
-                                    <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                                    <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <Select value={String(selectedDate.getMonth())} onValueChange={handleMonthChange}>
-                                    <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                                    <SelectContent>{MONTHS.map(m => <SelectItem key={m} value={String(m)}>{format(new Date(2000, m), 'MMMM', { locale: es })}</SelectItem>)}</SelectContent>
-                                </Select>
+                    <div className="flex flex-col sm:flex-row gap-3 items-center">
+                        <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-full border border-border/40">
+                            <Calendar className="h-4 w-4 ml-3 text-muted-foreground" />
+                            <Select value={selectedDate.getMonth().toString()} onValueChange={handleMonthChange}>
+                                <SelectTrigger className="w-[140px] border-none bg-transparent focus:ring-0">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                    {MONTHS.map(m => (
+                                        <SelectItem key={m} value={m.toString()} className="rounded-lg">
+                                            {format(new Date(2000, m, 1), 'MMMM', { locale: es })}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="w-px h-4 bg-border/40" />
+                            <Select value={selectedDate.getFullYear().toString()} onValueChange={handleYearChange}>
+                                <SelectTrigger className="w-[100px] border-none bg-transparent focus:ring-0">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                    {YEARS.map(y => (
+                                        <SelectItem key={y} value={y.toString()} className="rounded-lg">
+                                            {y}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="ml-auto">
+                            <Button 
+                                onClick={form.handleSubmit(onSubmit)}
+                                disabled={upsertObjetivo.isPending || !form.formState.isDirty}
+                                className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+                            >
+                                {upsertObjetivo.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                                Guardar Objetivos
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-auto p-6">
+                <div className="max-w-4xl mx-auto">
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Ventas y Cesión */}
+                                <Card className="rounded-[2rem] border-border/40 bg-card/50 backdrop-blur-sm shadow-xl overflow-hidden">
+                                    <CardHeader className="bg-primary/5 border-b border-border/40">
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <Percent className="h-5 w-5 text-primary" />
+                                            Ingresos y Cesión
+                                        </CardTitle>
+                                        <CardDescription>Presupuesto de ventas y cesión de personal</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="p-6 space-y-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="presupuestoVentas"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Presupuesto Ventas (€)</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="number" step="0.01" {...field} className="rounded-xl bg-muted/30 border-none focus-visible:ring-primary" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="presupuestoCesionPersonal"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Presupuesto Cesión Personal (€)</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="number" step="0.01" {...field} className="rounded-xl bg-muted/30 border-none focus-visible:ring-primary" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </CardContent>
+                                </Card>
+
+                                {/* Gastos Directos */}
+                                <Card className="rounded-[2rem] border-border/40 bg-card/50 backdrop-blur-sm shadow-xl overflow-hidden">
+                                    <CardHeader className="bg-primary/5 border-b border-border/40">
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <Target className="h-5 w-5 text-primary" />
+                                            Gastos Directos
+                                        </CardTitle>
+                                        <CardDescription>Presupuesto de materias primas y personal</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="p-6 space-y-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="presupuestoGastosMP"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Presupuesto Materias Primas (€)</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="number" step="0.01" {...field} className="rounded-xl bg-muted/30 border-none focus-visible:ring-primary" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="presupuestoGastosPersonalMice"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Presupuesto Personal MICE (€)</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="number" step="0.01" {...field} className="rounded-xl bg-muted/30 border-none focus-visible:ring-primary" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </CardContent>
+                                </Card>
+
+                                {/* Otros Gastos */}
+                                <Card className="rounded-[2rem] border-border/40 bg-card/50 backdrop-blur-sm shadow-xl overflow-hidden md:col-span-2">
+                                    <CardHeader className="bg-primary/5 border-b border-border/40">
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <Menu className="h-5 w-5 text-primary" />
+                                            Otros Gastos y Externos
+                                        </CardTitle>
+                                        <CardDescription>Presupuesto de personal externo y gastos generales</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="presupuestoGastosPersonalExterno"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Presupuesto Personal Externo (€)</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="number" step="0.01" {...field} className="rounded-xl bg-muted/30 border-none focus-visible:ring-primary" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="presupuestoOtrosGastos"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Presupuesto Otros Gastos (€)</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="number" step="0.01" {...field} className="rounded-xl bg-muted/30 border-none focus-visible:ring-primary" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </CardContent>
+                                </Card>
                             </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid md:grid-cols-2 gap-8">
-                                <div className="space-y-4">
-                                    <h3 className="font-semibold text-lg text-green-700">Ingresos (%)</h3>
-                                    {renderField("presupuestoVentas", "Venta Gastronomía a Eventos")}
-                                    {renderField("presupuestoCesionPersonal", "Cesión de Personal a otros Dptos.")}
-                                </div>
-                                <div className="space-y-4">
-                                    <h3 className="font-semibold text-lg text-red-700">Gastos (%)</h3>
-                                    {renderField("presupuestoGastosMP", GASTO_LABELS.gastronomia)}
-                                    {renderField("presupuestoGastosPersonalMice", GASTO_LABELS.personalMice)}
-                                    {renderField("presupuestoGastosPersonalExterno", GASTO_LABELS.personalExterno)}
-                                    {renderField("presupuestoOtrosGastos", "Otros Gastos (Fijos)")}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </form>
-            </Form>
+                        </form>
+                    </Form>
+                </div>
+            </div>
+
+            {/* Diálogos */}
             <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
-                <AlertDialogContent>
+                <AlertDialogContent className="rounded-[2rem] border-border/40 shadow-2xl">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                        <AlertDialogTitle>Importar Objetivos CPR</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+                            Selecciona un archivo CSV con los objetivos mensuales. El formato debe coincidir con la plantilla.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter className="!justify-center gap-4">
-                        <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
-                        <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-                        <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                    <div className="py-4">
+                        <Button 
+                            variant="outline"
+                            className="w-full rounded-xl h-12 border-primary/20 hover:bg-primary/5 justify-start"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <FileUp className="h-5 w-5 mr-3 text-primary" />
+                            Seleccionar Archivo CSV
+                        </Button>
+                    </div>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-full">Cancelar</AlertDialogCancel>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </main>
-    )
+
+            <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".csv"
+                onChange={handleImportCSV}
+            />
+        </div>
+    );
 }

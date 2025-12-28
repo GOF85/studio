@@ -23,10 +23,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
+import { usePickingSheet, useUpdatePickingSheet } from '@/hooks/use-data-queries';
 
 
 export default function PickingSheetPage() {
-    const [sheet, setSheet] = useState<PickingSheet | null>(null);
     const [itemStates, setItemStates] = useState<Map<string, PickingItemState>>(new Map());
     const [isMounted, setIsMounted] = useState(false);
     const router = useRouter();
@@ -35,21 +35,18 @@ export default function PickingSheetPage() {
     const { toast } = useToast();
     const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
 
-    const loadSheet = useCallback(() => {
-        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
-        let currentSheet = allSheets[sheetId];
-        
-        if (currentSheet) {
-             // Always try to load the OS data
-            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-            const osData = allServiceOrders.find(os => os.id === currentSheet.osId);
-            currentSheet.os = osData;
+    const { data: sheet, isLoading } = usePickingSheet(sheetId);
+    const updateMutation = useUpdatePickingSheet();
 
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
-            setSheet(currentSheet);
+    useEffect(() => {
+        if (sheet) {
             const initialStates = new Map<string, PickingItemState>();
-            currentSheet.items.forEach(item => {
-                const savedState = currentSheet.itemStates?.[item.itemCode];
+            sheet.items.forEach(item => {
+                const savedState = sheet.itemStates?.[item.itemCode];
                 initialStates.set(item.itemCode, {
                     itemCode: item.itemCode,
                     checked: savedState?.checked || false,
@@ -59,21 +56,12 @@ export default function PickingSheetPage() {
                 });
             });
             setItemStates(initialStates);
-        } else {
-            toast({ variant: "destructive", title: "Error", description: "Hoja de picking no encontrada."});
-            router.push('/almacen/picking');
         }
-        setIsMounted(true);
-    }, [sheetId, router, toast]);
-
-    useEffect(() => {
-        loadSheet();
-    }, [loadSheet]);
+    }, [sheet]);
     
-    const saveProgress = useCallback((newStates: Map<string, PickingItemState>, newStatus?: PickingSheet['status']) => {
+    const saveProgress = useCallback(async (newStates: Map<string, PickingItemState>, newStatus?: PickingSheet['status']) => {
         if(!sheet) return;
         
-        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
         const itemStatesForStorage: Record<string, Omit<PickingItemState, 'itemCode'>> = {};
         
         newStates.forEach((value, key) => {
@@ -96,26 +84,17 @@ export default function PickingSheetPage() {
             };
         });
 
-        const { os, ...sheetToSave } = sheet;
-
-        const updatedSheet: PickingSheet = {
-            ...sheetToSave,
-            itemStates: itemStatesForStorage,
-            status: newStatus || sheet.status,
-        };
-        allSheets[sheetId] = updatedSheet;
-        localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
+        try {
+            await updateMutation.mutateAsync({
+                id: sheetId,
+                itemStates: itemStatesForStorage,
+                status: newStatus || sheet.status,
+            });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el progreso" });
+        }
         
-        setSheet(prev => prev ? {...prev, ...updatedSheet} : updatedSheet);
-        
-        // Re-create map from the now-updated storage object to ensure consistency
-        const reloadedStates = new Map<string, PickingItemState>();
-        Object.entries(itemStatesForStorage).forEach(([key, value]) => {
-            reloadedStates.set(key, { itemCode: key, ...value });
-        });
-        setItemStates(reloadedStates);
-        
-    }, [sheet, sheetId]);
+    }, [sheet, sheetId, updateMutation, toast]);
 
     const updateItemState = (itemCode: string, updates: Partial<Omit<PickingItemState, 'itemCode'>>) => {
         setItemStates(prevStates => {
@@ -171,8 +150,18 @@ export default function PickingSheetPage() {
     }, [sheet]);
 
 
-    if (!isMounted || !sheet) {
+    if (!isMounted || isLoading) {
         return <LoadingSkeleton title="Cargando Hoja de Picking..." />;
+    }
+
+    if (!sheet) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                <AlertTriangle className="h-12 w-12 text-destructive" />
+                <h2 className="text-2xl font-bold">Hoja de Picking no encontrada</h2>
+                <Button onClick={() => router.push('/almacen/picking')}>Volver a Gestión de Picking</Button>
+            </div>
+        );
     }
 
     return (

@@ -1,27 +1,24 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, UserCog } from 'lucide-react';
-import type { CategoriaPersonal, Proveedor } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
+import { useUpsertTipoPersonal, useProveedores } from '@/hooks/use-data-queries';
 
 export const tipoPersonalSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   proveedorId: z.string().min(1, 'Debe seleccionar un proveedor.'),
-  nombreProveedor: z.string(),
+  nombreProveedor: z.string().optional(),
   categoria: z.string().min(1, 'El nombre de la categoría es obligatorio.'),
   precioHora: z.coerce.number().min(0, 'El precio debe ser un número positivo').default(0),
 });
@@ -30,14 +27,13 @@ export type TipoPersonalFormValues = z.infer<typeof tipoPersonalSchema>;
 
 export default function NuevoTipoPersonalPage() {
   const router = useRouter();
-  const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const { data: proveedores = [] } = useProveedores();
+  const upsertMutation = useUpsertTipoPersonal();
 
   const form = useForm<TipoPersonalFormValues>({
     resolver: zodResolver(tipoPersonalSchema),
     defaultValues: {
-      id: Date.now().toString(),
       proveedorId: '',
       nombreProveedor: '',
       categoria: '',
@@ -45,29 +41,20 @@ export default function NuevoTipoPersonalPage() {
     },
   });
 
-  useEffect(() => {
-    const allProveedores = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]);
-    setProveedores(allProveedores);
-  }, []);
-
   const handleProviderChange = (providerId: string) => {
     const proveedor = proveedores.find(p => p.id === providerId);
     form.setValue('proveedorId', providerId);
     form.setValue('nombreProveedor', proveedor?.nombreComercial || '');
   }
 
-  function onSubmit(data: TipoPersonalFormValues) {
-    setIsLoading(true);
-
-    let allItems = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
-    
-    allItems.push(data);
-    localStorage.setItem('tiposPersonal', JSON.stringify(allItems));
-    
-    toast({ description: 'Nueva categoría añadida correctamente.' });
-    router.push('/bd/tipos-personal');
-    setIsLoading(false);
+  async function onSubmit(data: TipoPersonalFormValues) {
+    try {
+      await upsertMutation.mutateAsync(data);
+      router.push('/bd/tipos-personal');
+    } catch (error) {}
   }
+
+  const isLoading = upsertMutation.isPending;
 
   return (
     <main>

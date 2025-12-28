@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Pencil, Trash2, Eye, MapPin, Download, Upload, ChevronDown } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, MapPin, Download, Upload, ChevronDown, Trash, Check, X, Menu, FileUp, FileDown, PlusCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getEspacios, deleteEspacio } from '@/services/espacios-service';
+import { getEspacios, deleteEspacio, deleteEspaciosBulk } from '@/services/espacios-service';
 import type { EspacioV2 } from '@/types/espacios';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -41,386 +42,310 @@ import { exportEspaciosToCSV, downloadCSVTemplate } from '@/lib/csv-utils';
 import { CSVImporter } from './components/csv/CSVImporter';
 import { QuickActions } from './components/QuickActions';
 import { calculateEspacioCompleteness, getCompletenessBadgeColor } from '@/lib/espacios-utils';
+import { cn } from '@/lib/utils';
+import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view';
 
-export default function EspaciosPage() {
+function EspaciosPageContent() {
   const router = useRouter();
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [showImportDialog, setShowImportDialog] = useState(false);
   const { toast } = useToast();
   const [espacios, setEspacios] = useState<EspacioV2[]>([]);
-  const [filteredEspacios, setFilteredEspacios] = useState<EspacioV2[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [ciudadFilter, setCiudadFilter] = useState('all');
-  const [tipoFilter, setTipoFilter] = useState('all');
-  const [relacionFilter, setRelacionFilter] = useState('all');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [espacioToDelete, setEspacioToDelete] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isBulkDeleteAlertOpen, setIsBulkDeleteAlertOpen] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
-  useEffect(() => {
-    loadEspacios();
-  }, []);
-
-  useEffect(() => {
-    filterEspacios();
-  }, [espacios, searchQuery, ciudadFilter, tipoFilter, relacionFilter]);
-
-  async function loadEspacios() {
-    setIsLoading(true);
+  const fetchEspacios = async () => {
     try {
+      setLoading(true);
       const data = await getEspacios();
       setEspacios(data);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'No se pudieron cargar los espacios: ' + error.message,
+        description: 'No se pudieron cargar los espacios',
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }
+  };
 
-  function filterEspacios() {
-    let filtered = [...espacios];
+  useEffect(() => {
+    fetchEspacios();
+  }, []);
 
-    // Búsqueda por texto
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (e) =>
-          e.nombre.toLowerCase().includes(query) ||
-          e.ciudad.toLowerCase().includes(query) ||
-          e.descripcionCorta?.toLowerCase().includes(query)
-      );
+  const filteredEspacios = useMemo(() => {
+    return espacios.filter((espacio) =>
+      espacio.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      espacio.calle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      espacio.ciudad?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [espacios, searchTerm]);
+
+  const handleToggleSelectAll = () => {
+    if (selectedIds.length === filteredEspacios.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredEspacios.map(e => e.id));
     }
+  };
 
-    // Filtro por ciudad
-    if (ciudadFilter !== 'all') {
-      filtered = filtered.filter((e) => e.ciudad === ciudadFilter);
-    }
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
 
-    // Filtro por tipo
-    if (tipoFilter !== 'all') {
-      filtered = filtered.filter((e) => e.tiposEspacio.includes(tipoFilter));
-    }
-
-    // Filtro por relación comercial
-    if (relacionFilter !== 'all') {
-      filtered = filtered.filter((e) => e.relacionComercial === relacionFilter);
-    }
-
-    setFilteredEspacios(filtered);
-  }
-
-  async function handleDelete(id: string) {
+  const handleDelete = async (id: string) => {
     try {
       await deleteEspacio(id);
-      toast({ description: 'Espacio eliminado correctamente.' });
-      loadEspacios();
-    } catch (error: any) {
+      toast({ title: 'Espacio eliminado' });
+      fetchEspacios();
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'No se pudo eliminar el espacio: ' + error.message,
+        description: 'No se pudo eliminar el espacio',
       });
     } finally {
-      setDeleteDialogOpen(false);
-      setEspacioToDelete(null);
+      setDeleteId(null);
     }
-  }
+  };
 
-  function openDeleteDialog(id: string) {
-    setEspacioToDelete(id);
-    setDeleteDialogOpen(true);
-  }
+  const handleBulkDelete = async () => {
+    try {
+      await deleteEspaciosBulk(selectedIds);
+      toast({ title: `${selectedIds.length} espacios eliminados` });
+      setSelectedIds([]);
+      setIsBulkDeleteAlertOpen(false);
+      fetchEspacios();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudieron eliminar los espacios',
+      });
+    }
+  };
 
-  // Obtener ciudades únicas
-  const ciudades = Array.from(new Set(espacios.map((e) => e.ciudad))).sort();
-
-  // Obtener tipos únicos
-  const tipos = Array.from(new Set(espacios.flatMap((e) => e.tiposEspacio))).sort();
-
-  const relacionOptions = [
-    'Exclusividad',
-    'Homologado Preferente',
-    'Homologado',
-    'Puntual',
-    'Sin Relación',
+  const mobileColumns: MobileTableColumn<EspacioV2>[] = [
+    {
+      key: 'nombre',
+      label: 'Nombre',
+      isTitle: true,
+      format: (value) => (
+        <div className="font-medium text-foreground">{value}</div>
+      )
+    },
+    {
+      key: 'calle',
+      label: 'Dirección',
+      format: (value, item) => (
+        <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+          {value || item.ciudad || 'Sin dirección'}
+        </div>
+      )
+    }
   ];
 
-  function getRelacionColor(relacion: string) {
-    switch (relacion) {
-      case 'Exclusividad':
-        return 'bg-purple-100 text-purple-800';
-      case 'Homologado Preferente':
-        return 'bg-blue-100 text-blue-800';
-      case 'Homologado':
-        return 'bg-green-100 text-green-800';
-      case 'Puntual':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  }
+  if (loading) return <LoadingSkeleton />;
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nombre, ciudad o descripción..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportar/Importar
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => exportEspaciosToCSV(filteredEspacios, `espacios_${new Date().toISOString().split('T')[0]}.csv`)}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportar Espacios Filtrados ({filteredEspacios.length})
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportEspaciosToCSV(espacios, `espacios_completo_${new Date().toISOString().split('T')[0]}.csv`)}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportar Todos ({espacios.length})
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={downloadCSVTemplate}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Descargar Plantilla CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Importar CSV
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button onClick={() => router.push('/bd/espacios/nuevo')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Espacio
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-4 items-center">
-          <div className="w-[200px]">
-            <Select value={ciudadFilter} onValueChange={setCiudadFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Ciudad" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las ciudades</SelectItem>
-                {ciudades.map((ciudad) => (
-                  <SelectItem key={ciudad} value={ciudad}>
-                    {ciudad}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-[200px]">
-            <Select value={tipoFilter} onValueChange={setTipoFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo de Espacio" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los tipos</SelectItem>
-                {tipos.map((tipo) => (
-                  <SelectItem key={tipo} value={tipo}>
-                    {tipo}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-[200px]">
-            <Select value={relacionFilter} onValueChange={setRelacionFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Relación Comercial" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las relaciones</SelectItem>
-                {relacionOptions.map((rel) => (
-                  <SelectItem key={rel} value={rel}>
-                    {rel}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <div className="flex flex-col h-full bg-background">
+      {/* Header Premium Sticky */}
+      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border/40 px-6 py-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-xl">
+                <MapPin className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">Espacios</h1>
+                <p className="text-sm text-muted-foreground">
+                  Gestiona los recintos y espacios para eventos
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="rounded-full border-primary/20 hover:bg-primary/5">
+                    <Menu className="h-4 w-4 mr-2" />
+                    Acciones
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-xl border-border/40 shadow-xl">
+                  <DropdownMenuItem onClick={() => setShowImportDialog(true)} className="rounded-lg">
+                    <FileUp className="h-4 w-4 mr-2" />
+                    Importar CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportEspaciosToCSV(espacios as any)} className="rounded-lg">
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Exportar CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => downloadCSVTemplate(['nombre', 'direccion', 'ciudad', 'provincia', 'pais', 'codigo_postal', 'telefono', 'email', 'web', 'notas'], 'plantilla_espacios.csv')} className="rounded-lg">
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Descargar Plantilla
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button 
+                onClick={() => router.push('/bd/espacios/nuevo')}
+                className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+              >
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Nuevo Espacio
+              </Button>
+            </div>
           </div>
 
-          {(searchQuery || ciudadFilter !== 'all' || tipoFilter !== 'all' || relacionFilter !== 'all') && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSearchQuery('');
-                setCiudadFilter('all');
-                setTipoFilter('all');
-                setRelacionFilter('all');
-              }}
-              className="ml-auto"
-            >
-              Limpiar filtros
-            </Button>
-          )}
+          <div className="flex flex-col sm:flex-row gap-3 items-center">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nombre o dirección..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 rounded-full bg-muted/50 border-none focus-visible:ring-primary w-full"
+              />
+            </div>
+            {selectedIds.length > 0 && (
+              <Button 
+                variant="destructive" 
+                onClick={() => setIsBulkDeleteAlertOpen(true)}
+                className="rounded-full shadow-lg animate-in fade-in slide-in-from-right-2"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar ({selectedIds.length})
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
-      {isLoading ? (
-        <LoadingSkeleton title="Cargando Espacios..." />
-      ) : (
-      <Card>
-        <CardContent className="p-0">
-          {filteredEspacios.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">
-                {espacios.length === 0
-                  ? 'No hay espacios registrados.'
-                  : 'No se encontraron espacios con los filtros aplicados.'}
-              </p>
-              {espacios.length === 0 && (
-                <Button onClick={() => router.push('/bd/espacios/nuevo')}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Crear Primer Espacio
-                </Button>
-              )}
-            </div>
-          ) : (
+      <div className="flex-1 overflow-auto p-6">
+        <div className="rounded-[2rem] border border-border/40 bg-card/50 backdrop-blur-md shadow-xl overflow-hidden">
+          <div className="hidden md:block">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>
-                    <MapPin className="w-4 h-4 inline mr-1" />
-                    Ubicación
+                <TableRow className="hover:bg-transparent border-b border-border/40">
+                  <TableHead className="w-12">
+                    <Checkbox 
+                      checked={selectedIds.length === filteredEspacios.length && filteredEspacios.length > 0}
+                      onCheckedChange={handleToggleSelectAll}
+                      className="rounded-md border-primary/50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                    />
                   </TableHead>
-                  <TableHead className="text-center">Completado</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-center">Aforo Cocktail</TableHead>
-                  <TableHead className="text-center">Aforo Banquete</TableHead>
-                  <TableHead>Relación</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="font-semibold">Nombre</TableHead>
+                  <TableHead className="font-semibold">Dirección</TableHead>
+                  <TableHead className="font-semibold">Completitud</TableHead>
+                  <TableHead className="w-24 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEspacios.map((espacio) => (
-                  <TableRow key={espacio.id} className="group hover:bg-muted/50">
-                    <TableCell className="font-medium">
-                      <div>
-                        <div>{espacio.nombre}</div>
-                        {espacio.descripcionCorta && (
-                          <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                            {espacio.descripcionCorta}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>{espacio.ciudad}</div>
-                        <div className="text-muted-foreground">{espacio.provincia}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        variant="secondary"
-                        className={getCompletenessBadgeColor(calculateEspacioCompleteness(espacio))}
-                      >
-                        {calculateEspacioCompleteness(espacio)}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {espacio.tiposEspacio.slice(0, 2).map((tipo) => (
-                          <Badge key={tipo} variant="outline" className="text-xs">
-                            {tipo}
-                          </Badge>
-                        ))}
-                        {espacio.tiposEspacio.length > 2 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{espacio.tiposEspacio.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {espacio.aforoMaxCocktail || '-'}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {espacio.aforoMaxBanquete || '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={getRelacionColor(espacio.relacionComercial)}
-                      >
-                        {espacio.relacionComercial}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => router.push(`/bd/espacios/${espacio.id}`)}
-                          title="Ver detalles"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => router.push(`/bd/espacios/${espacio.id}/editar`)}
-                          title="Editar"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openDeleteDialog(espacio.id)}
-                          className="text-destructive hover:text-destructive"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredEspacios.map((espacio) => {
+                  const completeness = calculateEspacioCompleteness(espacio as any);
+                  return (
+                    <TableRow key={espacio.id} className="hover:bg-primary/5 transition-colors border-b border-border/40 last:border-0">
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedIds.includes(espacio.id)}
+                          onCheckedChange={() => handleToggleSelect(espacio.id)}
+                          className="rounded-md border-primary/50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{espacio.nombre}</TableCell>
+                      <TableCell className="text-muted-foreground">{espacio.calle || espacio.ciudad || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge className={cn("rounded-full", getCompletenessBadgeColor(completeness))}>
+                          {completeness}%
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => router.push(`/bd/espacios/${espacio.id}`)}
+                            className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteId(espacio.id)}
+                            className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
-      )}
+          </div>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+          <div className="md:hidden">
+            <MobileTableView
+              data={filteredEspacios}
+              columns={mobileColumns}
+              renderActions={(item) => (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => router.push(`/bd/espacios/${item.id}`)}
+                    className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDeleteId(item.id)}
+                    className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Diálogos */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="rounded-[2rem] border-border/40 shadow-2xl max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Importar Espacios</DialogTitle>
+          </DialogHeader>
+          <CSVImporter onImportComplete={() => {
+            setShowImportDialog(false);
+            fetchEspacios();
+          }} />
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent className="rounded-[2rem] border-border/40 shadow-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. El espacio será eliminado permanentemente de la
-              base de datos junto con todas sus salas y contactos.
+              Esta acción no se puede deshacer. Se eliminará el espacio seleccionado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-full">Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => espacioToDelete && handleDelete(espacioToDelete)}
-              className="bg-destructive hover:bg-destructive/90"
+              onClick={() => deleteId && handleDelete(deleteId)}
+              className="rounded-full bg-destructive hover:bg-destructive/90"
             >
               Eliminar
             </AlertDialogAction>
@@ -428,20 +353,33 @@ export default function EspaciosPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Importar Espacios desde CSV</DialogTitle>
-          </DialogHeader>
-          <CSVImporter
-            onClose={() => setShowImportDialog(false)}
-            onSuccess={() => {
-              setShowImportDialog(false);
-              loadEspacios(); // Recargar lista
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={isBulkDeleteAlertOpen} onOpenChange={setIsBulkDeleteAlertOpen}>
+        <AlertDialogContent className="rounded-[2rem] border-border/40 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selectedIds.length} espacios?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente los espacios seleccionados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-full">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="rounded-full bg-destructive hover:bg-destructive/90"
+            >
+              Eliminar todos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+export default function EspaciosPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton />}>
+      <EspaciosPageContent />
+    </Suspense>
   );
 }

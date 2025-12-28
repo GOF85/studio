@@ -3,15 +3,15 @@
 
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Save, Truck, Calendar as CalendarIcon, X } from 'lucide-react';
-import type { ServiceOrder, TipoTransporte, TransporteOrder } from '@/types';
+import type { TransporteOrder } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,11 +21,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
+import { useEvento, useTransporteOrders, useTiposTransporte } from '@/hooks/use-data-queries';
+import { useCreateTransporteOrder, useUpdateTransporteOrder } from '@/hooks/mutations/use-transporte-mutations';
 
 const statusOptions: TransporteOrder['status'][] = ['Pendiente', 'Confirmado', 'En Ruta', 'Entregado'];
 
 const transporteOrderSchema = z.object({
-  id: z.string(),
   fecha: z.date({ required_error: 'La fecha es obligatoria.' }),
   proveedorId: z.string().min(1, 'Debes seleccionar un proveedor'),
   lugarRecogida: z.string().min(1, 'El lugar de recogida es obligatorio'),
@@ -41,15 +42,17 @@ type TransporteOrderFormValues = z.infer<typeof transporteOrderSchema>;
 function PedidoTransportePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
-  const osId = searchParams.get('osId');
+  const osId = searchParams.get('osId') || '';
   const orderId = searchParams.get('orderId');
   const isEditing = !!orderId;
 
-  const [isMounted, setIsMounted] = useState(false);
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [proveedores, setProveedores] = useState<TipoTransporte[]>([]);
+  const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId);
+  const { data: allTransporteOrders = [], isLoading: isLoadingOrders } = useTransporteOrders(osId);
+  const { data: allTiposTransporte = [], isLoading: isLoadingTipos } = useTiposTransporte();
+  const { mutateAsync: createTransporte, isPending: isCreating } = useCreateTransporteOrder();
+  const { mutateAsync: updateTransporte, isPending: isUpdating } = useUpdateTransporteOrder();
+
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  
   const { toast } = useToast();
 
   const form = useForm<TransporteOrderFormValues>({
@@ -63,60 +66,52 @@ function PedidoTransportePageInner() {
   });
 
   useEffect(() => {
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    setServiceOrder(currentOS || null);
-
-    const allProveedores = (JSON.parse(localStorage.getItem('tiposTransporte') || '[]') as TipoTransporte[])
-        .filter(p => p.tipo === 'Catering');
-    setProveedores(allProveedores);
-
-    if (isEditing) {
-      const allOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-      const order = allOrders.find(o => o.id === orderId);
+    if (isEditing && allTransporteOrders.length > 0) {
+      const order = allTransporteOrders.find(o => o.id === orderId);
       if (order) {
         form.reset({
-          ...order,
-          observaciones: order.observaciones || '',
           fecha: new Date(order.fecha),
+          proveedorId: order.proveedorId,
+          lugarRecogida: order.lugarRecogida,
+          horaRecogida: order.horaRecogida,
+          lugarEntrega: order.lugarEntrega,
+          horaEntrega: order.horaEntrega,
+          observaciones: order.observaciones || '',
+          status: order.status,
         });
       }
-    } else {
+    } else if (!isEditing && serviceOrder) {
       form.reset({
-        id: Date.now().toString(),
-        fecha: currentOS?.startDate ? new Date(currentOS.startDate) : new Date(),
+        fecha: serviceOrder.startDate ? new Date(serviceOrder.startDate) : new Date(),
         proveedorId: '',
         lugarRecogida: 'Avda. de la Industria, 38, 28108 Alcobendas, Madrid',
         horaRecogida: '09:00',
-        lugarEntrega: currentOS?.spaceAddress || currentOS?.space || '',
-        horaEntrega: currentOS?.deliveryTime || '10:00',
+        lugarEntrega: serviceOrder.spaceAddress || serviceOrder.space || '',
+        horaEntrega: serviceOrder.deliveryTime || '10:00',
         observaciones: '',
         status: 'Pendiente',
       })
     }
-    
-    setIsMounted(true);
-  }, [osId, orderId, form, isEditing]);
+  }, [isEditing, allTransporteOrders, orderId, serviceOrder, form]);
 
   const selectedProviderId = form.watch('proveedorId');
   const selectedProvider = useMemo(() => {
-    return proveedores.find(p => p.id === selectedProviderId);
-  }, [selectedProviderId, proveedores]);
+    return allTiposTransporte.find(p => p.id === selectedProviderId);
+  }, [selectedProviderId, allTiposTransporte]);
 
-  const onSubmit = (data: TransporteOrderFormValues) => {
+  const onSubmit = async (data: TransporteOrderFormValues) => {
     if (!osId || !selectedProvider) {
       toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para crear el pedido.' });
       return;
     }
 
-    const allOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-    
-    const finalOrder: Omit<TransporteOrder, 'id' | 'osId'> = {
+    const finalOrder = {
+      osId,
       fecha: format(data.fecha, 'yyyy-MM-dd'),
       proveedorId: selectedProvider.id,
-      proveedorNombre: selectedProvider.nombreProveedor,
-      tipoTransporte: selectedProvider.tipoTransporte,
-      precio: selectedProvider.precio,
+      proveedorNombre: selectedProvider.nombre,
+      tipoTransporte: selectedProvider.nombre,
+      precio: selectedProvider.precio_base || 0,
       lugarRecogida: data.lugarRecogida,
       horaRecogida: data.horaRecogida,
       lugarEntrega: data.lugarEntrega,
@@ -125,23 +120,26 @@ function PedidoTransportePageInner() {
       status: data.status,
     };
 
-    if (isEditing) {
-      const index = allOrders.findIndex(o => o.id === orderId);
-      if (index !== -1) {
-        allOrders[index] = { ...allOrders[index], ...finalOrder };
+    try {
+      if (isEditing && orderId) {
+        await updateTransporte({ id: orderId, updates: finalOrder });
         toast({ title: "Pedido actualizado" });
+      } else {
+        await createTransporte(finalOrder as any);
+        toast({ title: "Pedido de transporte creado" });
       }
-    } else {
-      allOrders.push({ id: data.id, osId, ...finalOrder });
-      toast({ title: "Pedido de transporte creado" });
+      router.push(`/os/${osId}/transporte`);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el pedido.' });
     }
-
-    localStorage.setItem('transporteOrders', JSON.stringify(allOrders));
-    router.push(`/os/${osId}/transporte`);
   };
 
-  if (!isMounted || !serviceOrder) {
+  if (isLoadingOS || isLoadingOrders || isLoadingTipos) {
     return <LoadingSkeleton title="Cargando Pedido de Transporte..." />;
+  }
+
+  if (!serviceOrder) {
+      return <div className="p-8 text-center">No se encontró la Orden de Servicio</div>;
   }
 
   return (
@@ -163,7 +161,10 @@ function PedidoTransportePageInner() {
                             <X className="mr-2 h-4 w-4" />
                             Cancelar
                         </Button>
-                        <Button type="submit"><Save className="mr-2" /> Guardar Pedido</Button>
+                        <Button type="submit" disabled={isCreating || isUpdating}>
+                            <Save className="mr-2" /> 
+                            {isCreating || isUpdating ? 'Guardando...' : 'Guardar Pedido'}
+                        </Button>
                     </div>
                 </div>
 
@@ -194,20 +195,20 @@ function PedidoTransportePageInner() {
                             )} />
                              <FormField control={form.control} name="proveedorId" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Proveedor y Tipo de Transporte</FormLabel>
+                                    <FormLabel>Tipo de Transporte</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                         <SelectContent>
-                                            {proveedores.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreProveedor} - {p.tipoTransporte}</SelectItem>)}
+                                            {allTiposTransporte.map(p => <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
                                 </FormItem>
                             )} />
                              <FormItem>
-                                <FormLabel>Precio</FormLabel>
+                                <FormLabel>Precio Base</FormLabel>
                                 <FormControl>
-                                    <Input value={selectedProvider ? selectedProvider.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'N/A'} readOnly />
+                                    <Input value={selectedProvider ? (selectedProvider.precio_base || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'N/A'} readOnly />
                                 </FormControl>
                             </FormItem>
                         </div>
@@ -271,9 +272,9 @@ function PedidoTransportePageInner() {
 }
 
 export default function PedidoTransportePage() {
-  return (
-    <Suspense fallback={<div>Cargando ...</div>}>
-      <PedidoTransportePageInner />
-    </Suspense>
-  );
+    return (
+        <Suspense fallback={<div>Cargando ...</div>}>
+            <PedidoTransportePageInner />
+        </Suspense>
+    );
 }

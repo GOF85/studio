@@ -15,7 +15,7 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Package, Users, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Package, Users, Clock, Calendar as CalendarIcon, Plus } from 'lucide-react';
 import type { Entrega, EntregaHito } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useEntregas, usePedidosEntrega } from '@/hooks/use-data-queries';
 
 type CalendarEvent = {
   date: Date;
@@ -64,17 +65,21 @@ export default function CalendarioEntregasPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
+  const { data: allEntregasData, isLoading: loadingEntregas } = useEntregas();
+  const { data: allPedidosData, isLoading: loadingPedidos } = usePedidosEntrega();
 
   useEffect(() => {
-    const serviceOrders: Entrega[] = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]);
-    const allPedidos = (JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as {osId: string, hitos: EntregaHito[]}[]);
+    if (loadingEntregas || loadingPedidos || !allEntregasData || !allPedidosData) return;
+
+    const serviceOrders = allEntregasData;
+    const allPedidos = allPedidosData;
     
     const allEvents: CalendarEvent[] = [];
     
     serviceOrders.forEach(os => {
         const pedido = allPedidos.find(p => p.osId === os.id);
         if (pedido && pedido.hitos) {
-            pedido.hitos.forEach(hito => {
+            pedido.hitos.forEach((hito: any) => {
                  allEvents.push({
                     date: new Date(hito.fecha),
                     osId: os.id,
@@ -91,7 +96,7 @@ export default function CalendarioEntregasPage() {
 
     setEvents(allEvents);
     setIsMounted(true);
-  }, []);
+  }, [allEntregasData, allPedidosData, loadingEntregas, loadingPedidos]);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -116,91 +121,153 @@ export default function CalendarioEntregasPage() {
   const nextMonth = () => setCurrentDate(add(currentDate, { months: 1 }));
   const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
 
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Calendario de Entregas..." />;
+  if (!isMounted || loadingEntregas || loadingPedidos) {
+    return <LoadingSkeleton title="Calendario de Entregas" />;
   }
 
   return (
     <TooltipProvider delayDuration={100}>
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-              <Package />
-              Calendario de Entregas
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={prevMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-xl font-semibold w-40 text-center capitalize">
-              {format(currentDate, 'MMMM yyyy', { locale: es })}
-            </h2>
-            <Button variant="outline" size="icon" onClick={nextMonth}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="border rounded-lg">
-          <div className="grid grid-cols-7 border-b">
-            {WEEKDAYS.map(day => (
-              <div key={day} className="text-center font-bold p-3 text-muted-foreground">
-                {day}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 auto-rows-fr">
-            {calendarDays.map((day) => {
-              const dayKey = format(day, 'yyyy-MM-dd');
-              const dayEvents = eventsByDay[dayKey] || [];
-              const isCurrentMonth = isSameMonth(day, currentDate);
-              const isToday = isSameDay(day, new Date());
-
-              return (
-                <div
-                  key={day.toString()}
-                  className={cn(
-                    'h-40 border-r border-b p-2 flex flex-col',
-                    !isCurrentMonth && 'bg-muted/50 text-muted-foreground',
-                    'last:border-r-0'
-                  )}
-                >
-                  <span className={cn('font-semibold', isToday && 'text-primary font-bold flex items-center justify-center h-7 w-7 rounded-full bg-primary/20')}>
-                    {format(day, 'd')}
-                  </span>
-                  <div className="flex-grow overflow-y-auto mt-1 space-y-1">
-                      {dayEvents.slice(0, 3).map((event, index) => {
-                         return (
-                            <Tooltip key={`${event.osId}-${index}`}>
-                                <TooltipTrigger asChild>
-                                <Link href={`/entregas/pedido/${event.osId}`}>
-                                    <Badge variant={statusVariant[event.status]} className="w-full justify-start truncate cursor-pointer">
-                                    {event.serviceNumber} - {event.horaInicio}
-                                    </Badge>
-                                </Link>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                    <div className="space-y-2">
-                                        <p className="font-bold">{event.finalClient}</p>
-                                        <p className="text-sm text-muted-foreground">{event.space}</p>
-                                        <p className="flex items-center gap-1 text-muted-foreground text-sm"><Users className="h-3 w-3"/>{event.asistentes} asistentes</p>
-                                    </div>
-                                </TooltipContent>
-                          </Tooltip>
-                         )
-                      })}
-                      {dayEvents.length > 3 && (
-                         <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setDayDetails({ day, events: dayEvents })}>
-                            ... y {dayEvents.length - 3} más
-                        </Button>
-                      )}
-                  </div>
+      <main className="min-h-screen bg-background/30 pb-20">
+        {/* Header Premium Sticky */}
+        <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
+            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
+                <div className="flex items-center">
+                    <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                        <CalendarIcon className="h-5 w-5 text-amber-500" />
+                    </div>
                 </div>
-              );
-            })}
-          </div>
+
+                <div className="flex-1" />
+
+                <div className="flex items-center gap-4">
+                <div className="flex items-center bg-background/50 border border-border/40 rounded-lg p-0.5">
+                    <Button variant="ghost" size="icon" onClick={prevMonth} className="h-7 w-7 hover:bg-amber-500/10 hover:text-amber-600">
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <h2 className="text-[11px] font-black uppercase tracking-widest px-4 min-w-[140px] text-center">
+                        {format(currentDate, 'MMMM yyyy', { locale: es })}
+                    </h2>
+                    <Button variant="ghost" size="icon" onClick={nextMonth} className="h-7 w-7 hover:bg-amber-500/10 hover:text-amber-600">
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+
+                <div className="h-4 w-[1px] bg-border/40 mx-1" />
+
+                <Button size="sm" asChild className="h-8 rounded-lg font-black px-4 bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-500/20 transition-all active:scale-95 text-[10px] uppercase tracking-widest">
+                    <Link href="/entregas/pedido/nuevo">
+                        <Plus className="w-3.5 h-3.5 mr-1.5" />
+                        Nuevo Pedido
+                    </Link>
+                </Button>
+            </div>
+        </div>
+    </div>
+
+        <div className="max-w-[1600px] mx-auto px-4">
+            <div className="bg-background/40 backdrop-blur-sm border border-border/40 rounded-xl overflow-hidden shadow-sm">
+                <div className="grid grid-cols-7 border-b border-border/40 bg-muted/30">
+                    {WEEKDAYS.map(day => (
+                    <div key={day} className="text-center font-black p-3 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">
+                        {day}
+                    </div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-7 auto-rows-fr">
+                    {calendarDays.map((day) => {
+                    const dayKey = format(day, 'yyyy-MM-dd');
+                    const dayEvents = eventsByDay[dayKey] || [];
+                    const isCurrentMonth = isSameMonth(day, currentDate);
+                    const isToday = isSameDay(day, new Date());
+
+                    return (
+                        <div
+                        key={day.toString()}
+                        className={cn(
+                            'h-44 border-r border-b border-border/40 p-2 flex flex-col transition-colors hover:bg-amber-500/[0.02]',
+                            !isCurrentMonth && 'bg-muted/20 text-muted-foreground/40',
+                            'last:border-r-0'
+                        )}
+                        >
+                        <div className="flex justify-between items-start mb-2">
+                            <span className={cn(
+                                'text-[11px] font-black p-1.5 rounded-lg min-w-[28px] text-center', 
+                                isToday ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-muted-foreground'
+                            )}>
+                                {format(day, 'd')}
+                            </span>
+                            {dayEvents.length > 0 && (
+                                <Badge variant="outline" className="h-4 px-1 text-[9px] font-black border-amber-500/20 bg-amber-500/5 text-amber-600">
+                                    {dayEvents.length}
+                                </Badge>
+                            )}
+                        </div>
+                        <div className="flex-grow overflow-y-auto space-y-1 custom-scrollbar">
+                            {dayEvents.slice(0, 4).map((event, index) => {
+                                return (
+                                    <Tooltip key={`${event.osId}-${index}`}>
+                                        <TooltipTrigger asChild>
+                                        <Link href={`/entregas/pedido/${event.osId}`}>
+                                            <div className={cn(
+                                                "group relative flex flex-col p-1.5 rounded-lg border border-border/40 bg-background/50 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all cursor-pointer",
+                                                event.status === 'Anulado' && "opacity-50 grayscale"
+                                            )}>
+                                                <div className="flex items-center justify-between mb-0.5">
+                                                    <span className="text-[9px] font-black uppercase tracking-tighter truncate max-w-[70%]">
+                                                        {event.serviceNumber}
+                                                    </span>
+                                                    <span className="text-[8px] font-medium text-muted-foreground">
+                                                        {event.horaInicio}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[8px] text-muted-foreground truncate group-hover:text-amber-700">
+                                                    {event.finalClient}
+                                                </span>
+                                            </div>
+                                        </Link>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="p-3 rounded-xl border-border/40 shadow-2xl backdrop-blur-xl bg-background/95">
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <p className="text-[11px] font-black uppercase tracking-widest">{event.serviceNumber}</p>
+                                                    <Badge variant={statusVariant[event.status]} className="text-[8px] font-black uppercase px-1.5 h-4">
+                                                        {event.status}
+                                                    </Badge>
+                                                </div>
+                                                <p className="text-[10px] font-bold text-amber-600">{event.finalClient}</p>
+                                                <div className="h-[1px] bg-border/40" />
+                                                <p className="text-[9px] text-muted-foreground leading-relaxed">{event.space}</p>
+                                                <div className="flex items-center gap-3 pt-1">
+                                                    <p className="flex items-center gap-1 text-muted-foreground text-[9px] font-medium">
+                                                        <Clock className="h-3 w-3 text-amber-500"/>
+                                                        {event.horaInicio}
+                                                    </p>
+                                                    <p className="flex items-center gap-1 text-muted-foreground text-[9px] font-medium">
+                                                        <Users className="h-3 w-3 text-amber-500"/>
+                                                        {event.asistentes}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </TooltipContent>
+                                </Tooltip>
+                                )
+                            })}
+                            {dayEvents.length > 4 && (
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="w-full h-6 text-[9px] font-black uppercase tracking-widest text-amber-600 hover:bg-amber-500/10" 
+                                    onClick={() => setDayDetails({ day, events: dayEvents })}
+                                >
+                                    + {dayEvents.length - 4} más
+                                </Button>
+                            )}
+                        </div>
+                        </div>
+                    );
+                    })}
+                </div>
+            </div>
         </div>
       </main>
 

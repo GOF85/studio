@@ -1,17 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Database, Save } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect, useMemo } from 'react';
+import { Database, Save, Loader2, Search } from 'lucide-react';
 import { TIPO_PROVEEDOR_OPCIONES } from '@/types';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { useProveedores, useProveedoresTiposServicio, useUpsertProveedoresTiposServicio } from '@/hooks/use-data-queries';
 
 type ProveedorTipo = {
-    id: string;
     proveedor_id: string;
     id_erp: string;
     nombre_comercial: string;
@@ -19,137 +18,149 @@ type ProveedorTipo = {
 };
 
 export default function ProveedoresTiposPage() {
+    const { data: proveedores = [], isLoading: isLoadingProv } = useProveedores();
+    const { data: tiposServicio = [], isLoading: isLoadingTipos } = useProveedoresTiposServicio();
+    const upsertMutation = useUpsertProveedoresTiposServicio();
+
     const [items, setItems] = useState<ProveedorTipo[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const { toast } = useToast();
+    const [searchTerm, setSearchTerm] = useState('');
 
     const tiposOptions = TIPO_PROVEEDOR_OPCIONES.map(t => ({ label: t, value: t }));
 
+    // Memoize the combined data from queries
+    const combinedData = useMemo(() => {
+        if (proveedores.length === 0) return [];
+        const tiposMap = new Map(tiposServicio?.map(t => [t.proveedor_id, t.tipos]) || []);
+        
+        return proveedores.map(p => ({
+            proveedor_id: p.id,
+            id_erp: p.IdERP || '',
+            nombre_comercial: p.nombreComercial,
+            tipos: tiposMap.get(p.id) || []
+        }));
+    }, [proveedores, tiposServicio]);
+
+    // Sync items state with combinedData only when combinedData actually changes
     useEffect(() => {
-        loadData();
-    }, []);
-
-    async function loadData() {
-        try {
-            // Get all providers
-            const { data: proveedores, error: provError } = await supabase
-                .from('proveedores')
-                .select('id, id_erp, nombre_comercial')
-                .order('nombre_comercial');
-
-            if (provError) throw provError;
-
-            // Get all service types
-            const { data: tipos, error: tiposError } = await supabase
-                .from('proveedores_tipos_servicio')
-                .select('*');
-
-            if (tiposError) throw tiposError;
-
-            // Create a map for quick lookup
-            const tiposMap = new Map(tipos?.map(t => [t.proveedor_id, t.tipos]) || []);
-
-            // Combine data
-            const combined = (proveedores || []).map(p => ({
-                id: '',
-                proveedor_id: p.id,
-                id_erp: p.id_erp || '',
-                nombre_comercial: p.nombre_comercial,
-                tipos: tiposMap.get(p.id) || []
-            }));
-
-            setItems(combined);
-        } catch (error) {
-            console.error('Error loading data:', error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Error al cargar los datos.' });
-        } finally {
-            setIsLoading(false);
+        if (combinedData.length > 0) {
+            setItems(combinedData);
         }
-    }
+    }, [combinedData]);
+
+    const filteredItems = useMemo(() => {
+        return items.filter(item => 
+            item.nombre_comercial.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.id_erp.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [items, searchTerm]);
 
     async function handleTiposChange(proveedorId: string, newTipos: string[]) {
-        // Update local state immediately
-        setItems(items.map(item =>
+        setItems(prev => prev.map(item =>
             item.proveedor_id === proveedorId ? { ...item, tipos: newTipos } : item
         ));
     }
 
     async function handleSaveAll() {
-        setIsSaving(true);
-        try {
-            // Upsert all records
-            const records = items.map(item => ({
-                proveedor_id: item.proveedor_id,
-                tipos: item.tipos
-            }));
-
-            const { error } = await supabase
-                .from('proveedores_tipos_servicio')
-                .upsert(records, { onConflict: 'proveedor_id' });
-
-            if (error) throw error;
-
-            toast({ title: 'Guardado', description: 'Tipos de servicio actualizados correctamente.' });
-        } catch (error) {
-            console.error('Error saving:', error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Error al guardar los cambios.' });
-        } finally {
-            setIsSaving(false);
-        }
+        const records = items.map(item => ({
+            proveedor_id: item.proveedor_id,
+            tipos: item.tipos
+        }));
+        
+        await upsertMutation.mutateAsync(records);
     }
 
-    if (isLoading) {
+    if (isLoadingProv || isLoadingTipos) {
         return <LoadingSkeleton title="Cargando Tipos de Servicio..." />;
     }
 
-    return (
-        <>
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <Database className="h-8 w-8" />
-                    <h1 className="text-3xl font-headline font-bold">Tipos de Servicio por Proveedor</h1>
-                </div>
-                <Button onClick={handleSaveAll} disabled={isSaving}>
-                    {isSaving ? 'Guardando...' : <><Save className="mr-2" /> Guardar Todos</>}
-                </Button>
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      {/* Premium Header Section */}
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-card/40 backdrop-blur-md border border-border/40 p-8 shadow-2xl">
+        <div className="absolute top-0 right-0 -mt-24 -mr-24 w-96 h-96 bg-primary/10 rounded-full blur-[100px]" />
+        
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="p-4 rounded-[2rem] bg-primary/10 text-primary shadow-inner">
+              <Database className="h-8 w-8" />
             </div>
+            <div>
+              <h1 className="text-3xl font-black tracking-tighter text-foreground">Tipos de Servicio</h1>
+              <p className="text-sm font-medium text-muted-foreground/70">Asignación de categorías de servicio por proveedor</p>
+            </div>
+          </div>
 
-            <div className="border rounded-lg">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="p-2">ID ERP</TableHead>
-                            <TableHead className="p-2">Nombre Comercial</TableHead>
-                            <TableHead className="p-2">Tipos de Servicio</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {items.length > 0 ? (
-                            items.map(item => (
-                                <TableRow key={item.proveedor_id}>
-                                    <TableCell className="p-2 font-mono text-xs">{item.id_erp}</TableCell>
-                                    <TableCell className="p-2 font-medium">{item.nombre_comercial}</TableCell>
-                                    <TableCell className="p-2">
-                                        <MultiSelect
-                                            options={tiposOptions}
-                                            selected={item.tipos}
-                                            onChange={(newTipos) => handleTiposChange(item.proveedor_id, newTipos)}
-                                            placeholder="Seleccionar tipos..."
-                                        />
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={3} className="h-24 text-center">
-                                    No hay proveedores.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+          <div className="flex items-center gap-3">
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 group-focus-within:text-primary transition-colors" />
+              <Input
+                placeholder="Buscar proveedor..."
+                className="pl-9 h-12 w-64 bg-background/50 border-border/40 rounded-2xl focus:ring-primary/20 transition-all"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-        </>
-    );
+            <Button 
+              onClick={handleSaveAll} 
+              disabled={upsertMutation.isPending}
+              className="rounded-2xl font-black px-6 h-12 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95"
+            >
+              {upsertMutation.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+              {upsertMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Vista Escritorio: Tabla Premium */}
+      <div className="rounded-[2rem] border border-border/40 bg-card/40 backdrop-blur-md overflow-hidden shadow-2xl">
+        <Table>
+          <TableHeader className="bg-muted/30">
+            <TableRow className="hover:bg-transparent border-border/40 h-16">
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 pl-8">ID ERP</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Nombre Comercial</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 pr-8">Tipos de Servicio</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredItems.length > 0 ? (
+              filteredItems.map((item) => (
+                <TableRow
+                  key={item.proveedor_id}
+                  className="group transition-all duration-300 border-border/40 h-20 hover:bg-primary/[0.03]"
+                >
+                  <TableCell className="pl-8">
+                    <span className="font-mono text-xs font-bold bg-primary/5 text-primary px-3 py-1.5 rounded-lg border border-primary/10">
+                      {item.id_erp}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-black text-sm tracking-tight group-hover:text-primary transition-colors">{item.nombre_comercial}</span>
+                  </TableCell>
+                  <TableCell className="pr-8">
+                    <MultiSelect
+                      options={tiposOptions}
+                      selected={item.tipos}
+                      onChange={(newTipos) => handleTiposChange(item.proveedor_id, newTipos)}
+                      placeholder="Seleccionar tipos..."
+                      className="rounded-xl border-border/40 bg-background/40"
+                    />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={3} className="h-64 text-center">
+                  <div className="flex flex-col items-center justify-center text-muted-foreground/30">
+                    <Database className="h-16 w-16 mb-4 opacity-10" />
+                    <p className="text-lg font-black uppercase tracking-widest">No se encontraron proveedores</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
 }

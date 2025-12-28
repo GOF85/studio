@@ -20,6 +20,9 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/comp
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils';
 
+import { useCprSolicitudesPersonal } from '@/hooks/use-cpr-data';
+import { useCategoriasPersonal, useProveedores } from '@/hooks/use-data-queries';
+
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' } = {
   'Solicitado': 'secondary',
   'Aprobada': 'outline',
@@ -60,7 +63,6 @@ function CommentModal({ comment, trigger }: { comment: string, trigger: React.Re
 
 function DetallePersonalApoyoCprPageInner() {
     const [isMounted, setIsMounted] = useState(false);
-    const [detalles, setDetalles] = useState<DetallePersonalApoyo[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('all');
 
@@ -68,27 +70,27 @@ function DetallePersonalApoyoCprPageInner() {
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
-    useEffect(() => {
-        if (!from || !to) {
-            setIsMounted(true);
-            return;
-        }
+    const { data: allSolicitudes = [] } = useCprSolicitudesPersonal();
+    const { data: categoriasPersonal = [] } = useCategoriasPersonal();
+    const { data: proveedores = [] } = useProveedores();
+
+    const detalles = useMemo(() => {
+        if (!from || !to || !allSolicitudes.length) return [];
 
         const rangeStart = new Date(from);
         const rangeEnd = new Date(to);
 
-        const allSolicitudes = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[])
-            .filter(s => {
-                try {
-                    const fechaServicio = new Date(s.fechaServicio);
-                    return isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
-                } catch (e) { return false; }
-            });
+        const filteredSolicitudes = allSolicitudes.filter(s => {
+            try {
+                const fechaServicio = new Date(s.fechaServicio);
+                return isWithinInterval(fechaServicio, { start: rangeStart, end: rangeEnd });
+            } catch (e) { return false; }
+        });
 
-        const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
-        const proveedoresMap = new Map((JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]).map(p => [p.id, p]));
+        const tiposPersonalMap = new Map(categoriasPersonal.map(t => [t.id, t]));
+        const proveedoresMap = new Map(proveedores.map(p => [p.id, p]));
 
-        const detallesCalculados: DetallePersonalApoyo[] = allSolicitudes.map(s => {
+        const detallesCalculados: DetallePersonalApoyo[] = filteredSolicitudes.map(s => {
             const tipo = tiposPersonalMap.get(s.proveedorId || '');
             const proveedor = tipo ? proveedoresMap.get(tipo.proveedorId) : null;
             const precioHora = tipo?.precioHora || 0;
@@ -110,9 +112,12 @@ function DetallePersonalApoyoCprPageInner() {
             };
         });
 
-        setDetalles(detallesCalculados.sort((a, b) => new Date(a.fechaServicio).getTime() - new Date(b.fechaServicio).getTime()));
+        return detallesCalculados.sort((a, b) => new Date(a.fechaServicio).getTime() - new Date(b.fechaServicio).getTime());
+    }, [from, to, allSolicitudes, categoriasPersonal, proveedores]);
+
+    useEffect(() => {
         setIsMounted(true);
-    }, [from, to]);
+    }, []);
     
     const dateRangeDisplay = useMemo(() => {
         if (!from || !to) return "Rango de fechas no especificado";

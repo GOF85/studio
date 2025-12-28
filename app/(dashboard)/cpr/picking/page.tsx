@@ -30,6 +30,8 @@ import { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { useEventos, useComercialBriefings, useGastronomyOrders, useRecetas } from '@/hooks/use-data-queries';
+import { useCprPickingStates, useCprOrdenesFabricacion } from '@/hooks/use-cpr-data';
 
 
 const ITEMS_PER_PAGE = 20;
@@ -41,31 +43,29 @@ type HitoDePicking = ComercialBriefingItem & {
 };
 
 export default function PickingPage() {
-  const [allHitos, setAllHitos] = useState<HitoDePicking[]>([]);
-  const [pickingStates, setPickingStates] = useState<Record<string, PickingState>>({});
-  const [isMounted, setIsMounted] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
   const { toast } = useToast();
 
-  const loadData = useCallback(() => {
-    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas');
-    const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
-    const allPickingStatesData = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
+  const { data: serviceOrders = [], isLoading: isLoadingOS } = useEventos();
+  const { data: briefings = [], isLoading: isLoadingBriefings } = useComercialBriefings();
+  const { data: pickingStates = {} as Record<string, PickingState>, isLoading: isLoadingPicking } = useCprPickingStates();
+  const { data: gastronomyOrders = [], isLoading: isLoadingGastro } = useGastronomyOrders();
+  const { data: recetas = [], isLoading: isLoadingRecetas } = useRecetas();
+  const { data: ordenesFabricacion = [], isLoading: isLoadingOFs } = useCprOrdenesFabricacion();
 
-    setPickingStates(allPickingStatesData);
-    
-    const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const allHitos = useMemo(() => {
+    const osMap = new Map(serviceOrders.filter(os => os.vertical !== 'Entregas').map(os => [os.id, os]));
     const hitosDePicking: HitoDePicking[] = [];
 
-    allBriefings.forEach(briefing => {
+    briefings.forEach(briefing => {
         const serviceOrder = osMap.get(briefing.osId);
         if (serviceOrder && briefing.items) {
             briefing.items.forEach((hito, index) => {
-                // Correctly find the picking state by hito ID, not OS ID
-                const pickingState = allPickingStatesData[hito.id];
+                const pickingState = pickingStates[hito.id];
                 hitosDePicking.push({
                     ...hito,
                     serviceOrder,
@@ -76,40 +76,23 @@ export default function PickingPage() {
         }
     });
       
-    setAllHitos(hitosDePicking.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
-    setIsMounted(true);
-  }, []);
+    return hitosDePicking.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+  }, [serviceOrders, briefings, pickingStates]);
 
-  useEffect(() => {
-    loadData();
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'pickingStates' || e.key === 'comercialBriefings' || e.key === 'gastronomyOrders') {
-        loadData();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [loadData]);
-  
   const progressMap = useMemo(() => {
     const newProgressMap = new Map<string, { checked: number; total: number; percentage: number; isComplete: boolean; }>();
-    if (!isMounted) return newProgressMap;
-
-    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
-    const ofsMap = new Map(allOFs.map(of => [of.id, of]));
+    const ofsMap = new Map(ordenesFabricacion.map(of => [of.id, of]));
 
     allHitos.forEach(hito => {
       let progress = { checked: 0, total: 0, percentage: 100, isComplete: true };
       
       if (hito.conGastronomia) {
-          const gastroOrder = allGastroOrders.find(go => go.id === hito.id);
+          const gastroOrder = gastronomyOrders.find(go => go.id === hito.id);
           const gastroItems = gastroOrder?.items?.filter(item => item.type === 'item') || [];
 
           const elaboracionesNecesarias = new Set<string>();
           gastroItems.forEach(item => {
-              const receta = allRecetas.find(r => r.id === item.id);
+              const receta = recetas.find(r => r.id === item.id);
               if (receta) {
                   (receta.elaboraciones || []).forEach(elab => {
                       elaboracionesNecesarias.add(elab.elaboracionId);
@@ -149,7 +132,7 @@ export default function PickingPage() {
     });
 
     return newProgressMap;
-  }, [allHitos, pickingStates, isMounted]);
+  }, [allHitos, pickingStates, gastronomyOrders, recetas, ordenesFabricacion]);
 
   const filteredHitos = useMemo(() => {
     return allHitos.filter(hito => {
@@ -198,11 +181,10 @@ export default function PickingPage() {
   const totalPages = Math.ceil(incompleteHitos.length / ITEMS_PER_PAGE);
 
   const handleRefresh = () => {
-    loadData();
     toast({ title: "Datos actualizados", description: "El estado de todos los pickings ha sido recalculado." });
   };
 
-  if (!isMounted) {
+  if (isLoadingOS || isLoadingBriefings || isLoadingPicking || isLoadingGastro || isLoadingRecetas || isLoadingOFs) {
     return <LoadingSkeleton title="Cargando Picking y Logística..." />;
   }
 

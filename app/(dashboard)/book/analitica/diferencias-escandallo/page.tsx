@@ -149,29 +149,23 @@ function DiferenciasEscandalloPageInner() {
       <AnalyticsLoader isLoading={isLoading} message={loadingMessage} />
 
       {/* HEADER + CONTROLS */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b shadow-sm">
+      <div className="sticky top-12 z-30 bg-background/95 backdrop-blur border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-6">
             
-            {/* Título */}
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            {/* Icono */}
+            <div className="flex items-center">
                 <div className="p-2 bg-emerald-100 rounded-lg text-emerald-700 shadow-sm">
                     <BarChart3 className="w-5 h-5" />
                 </div>
-                <div className="flex flex-col">
-                    <h1 className="text-lg font-bold tracking-tight text-foreground leading-none">
-                        Análisis de Costes
-                    </h1>
-                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
-                        Evolución e Impacto
-                    </span>
-                </div>
             </div>
 
+            <div className="flex-1" />
+
             {/* Selector de Fechas y Acciones */}
-            <div className="flex items-center gap-2 w-full md:w-auto flex-wrap md:flex-nowrap">
-                <div className="flex-1 md:w-auto">
+            <div className="flex items-center gap-2">
+                <div className="w-auto">
                     <DatePickerWithRange date={dateRange} setDate={handleDateRangeChange} />
                 </div>
                 <Button variant="outline" size="icon" onClick={handleExport} disabled={data.length === 0} title="Exportar CSV">

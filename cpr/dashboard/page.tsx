@@ -77,33 +77,34 @@ function WorkflowSection({ title, modules }: { title: string, modules: (typeof c
     )
 }
 
+import { useCprOrdenesFabricacion, useCprSolicitudesPersonal } from '@/hooks/use-cpr-data';
+
 export default function CprDashboardPage() {
     const [isMounted, setIsMounted] = useState(false);
-    const [kpiData, setKpiData] = useState({
-        pendientes: 0,
-        enProceso: 0,
-        finalizadasHoy: 0,
-        incidencias: 0,
-        turnosPorValidar: 0,
-    });
+
+    const { data: ordenesFabricacion = [], isLoading: loadingOFs } = useCprOrdenesFabricacion();
+    const { data: solicitudesPersonal = [], isLoading: loadingSolicitudes } = useCprSolicitudesPersonal();
+
+    const isLoaded = !loadingOFs && !loadingSolicitudes;
+
+    const kpiData = useMemo(() => {
+        if (!isLoaded) return { pendientes: 0, enProceso: 0, finalizadasHoy: 0, incidencias: 0, turnosPorValidar: 0 };
+
+        const pendientes = ordenesFabricacion.filter(of => of.estado === 'Pendiente' || of.estado === 'Asignada').length;
+        const enProceso = ordenesFabricacion.filter(of => of.estado === 'En Proceso').length;
+        const finalizadasHoy = ordenesFabricacion.filter(of => of.fechaFinalizacion && isToday(parseISO(of.fechaFinalizacion))).length;
+        const incidencias = ordenesFabricacion.filter(of => of.estado === 'Incidencia').length;
+
+        const turnosPorValidar = solicitudesPersonal.filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada').length;
+
+        return { pendientes, enProceso, finalizadasHoy, incidencias, turnosPorValidar };
+    }, [isLoaded, ordenesFabricacion, solicitudesPersonal]);
 
     useEffect(() => {
-        const storedOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const today = new Date();
-        
-        const pendientes = storedOFs.filter(of => of.estado === 'Pendiente' || of.estado === 'Asignada').length;
-        const enProceso = storedOFs.filter(of => of.estado === 'En Proceso').length;
-        const finalizadasHoy = storedOFs.filter(of => of.fechaFinalizacion && isToday(parseISO(of.fechaFinalizacion))).length;
-        const incidencias = storedOFs.filter(of => of.estado === 'Incidencia').length;
-
-        const storedSolicitudes = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[])
-            .filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada');
-        
-        setKpiData({ pendientes, enProceso, finalizadasHoy, incidencias, turnosPorValidar: storedSolicitudes.length });
         setIsMounted(true);
     }, []);
 
-    if (!isMounted) {
+    if (!isMounted || !isLoaded) {
         return <LoadingSkeleton title="Cargando Panel de control de Producción..." />;
     }
     

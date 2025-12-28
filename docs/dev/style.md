@@ -76,7 +76,11 @@ Primary: Acciones principales.
 
 Muted/Foreground: Textos secundarios y metadatos (fechas, autores).
 
-Acentos (Amber/Orange): Usados para estados de "Atención", "Revisión" o "Pendiente". El color ámbar (amber-100 bg, amber-600 text) es la firma para las tareas pendientes.
+Acentos & Estados:
+- Amber/Orange: "Atención", "Revisión" o "Pendiente". El color ámbar (`amber-100 bg`, `amber-600 text`) es la firma para tareas pendientes.
+- Emerald: "Confirmado", "Éxito" o módulos de Previsión (PES).
+- Blue: Información técnica, conteo de PAX o metadatos de sistema.
+- Orange (Gastronomía): Específico para servicios de comida y métricas de cocina.
 
 Componentes Clave
 Tarjetas Interactivas:
@@ -89,9 +93,48 @@ Uso de group en Tailwind para animar hijos al hacer hover en el padre.
 
 Badges: Usados para contadores en pestañas. Estilo sutil (variant="secondary").
 
-Sticky Headers: Las barras de herramientas o pestañas deben pegarse arriba (sticky top-0) con un backdrop-blur para mantener el contexto al hacer scroll.
+Sticky Headers & Toolbars: Las barras de herramientas o pestañas deben pegarse arriba (`sticky top-12`) para alinearse con el Breadcrumb global. Usar `backdrop-blur-md` y `bg-background/60` para mantener el contexto.
 
-5. Buenas Prácticas de Código
+Alineación y Contenedores (Regla de Oro): La cabecera PREMIUM jamás debe exceder el ancho de la cabecera principal. Todo el contenido debe estar envuelto en la clase `container` o `max-w-7xl mx-auto px-4` de Tailwind para asegurar una alineación vertical perfecta con el logo y los elementos de la navegación superior. No usar márgenes negativos (`-mx-4`) en el contenedor de contenido de la cabecera.
+
+Patrón de Cabecera Minimalista (Standard):
+Para maximizar el foco y reducir ruido visual, las cabeceras deben seguir este esquema:
+- Icono Identificativo: A la izquierda, dentro de un contenedor con estilo "pill" o caja suave.
+- Sin Títulos Redundantes: Si el breadcrumb ya indica la sección, omitimos el H1 y subtítulos.
+- Spotlight Expandido: El buscador (`GlobalSearch`) debe ocupar todo el espacio central (`flex-1`) para darle máximo protagonismo.
+- Acciones a la Derecha: Botones de acción principal (ej. "+ Nuevo") alineados a la derecha.
+- Sin Badges Innecesarios: Evitar contadores o badges que no aporten valor crítico inmediato.
+
+Alineación Global: El cuerpo de las páginas debe usar `pt-0` cuando existe un Breadcrumb pegajoso, asegurando que el contenido comience inmediatamente debajo de la navegación. Para toolbars de ancho completo, el fondo puede ser `w-full`, pero el contenido debe ser `container mx-auto`.
+
+5. Identidad Visual Premium (Glassmorphism & Micro-interacciones)
+Para interfaces de alto nivel (Dashboards, Paneles de Control), aplicamos una capa de sofisticación visual:
+
+Glassmorphism:
+- Fondo: `bg-card/60` o `bg-background/60`.
+- Efecto: `backdrop-blur-md` para profundidad.
+- Bordes: `border-border/40` (bordes más suaves y semitransparentes).
+
+Jerarquía y Elevación:
+- Sombras Base: `shadow-[0_8px_30px_rgb(0,0,0,0.04)]` (suaves y amplias).
+- Sombras Hover: `hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)]`.
+- Sección "Pills": Los encabezados de sección usan un estilo de píldora: `inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/5 border border-primary/10`.
+
+Tablas Premium (Alta Densidad):
+- Cabeceras: `bg-muted/30` o `bg-background/60` con `backdrop-blur`. Texto en `font-black text-[10px] uppercase tracking-[0.2em]`.
+- Filas: Altura generosa (`h-20` o `py-4`), transiciones suaves (`duration-300`) y estados de selección con bordes laterales (`border-l-4 border-l-primary`).
+- Celdas: Uso de `font-mono` para códigos de referencia y `font-bold` para métricas principales.
+
+Micro-interacciones (Feedback Táctil):
+- Elevación: `hover:-translate-y-1` con `transition-all duration-500`.
+- Escala: `active:scale-[0.98]` para clics.
+- Iconos Dinámicos: Uso de `group-hover` para animar iconos (ej. `group-hover:scale-110 group-hover:rotate-3`).
+- Glow Effects: Gradientes radiales sutiles en hover para guiar la vista.
+
+Fondos de Página:
+- Usar gradientes radiales suaves: `bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background`.
+
+6. Buenas Prácticas de Código
 Tipado de Props: Siempre definir interfaces para los props de los componentes, incluso los locales.
 
 Navegación Programática: Para elementos complejos (como una tarjeta entera clickeable), usar onClick={() => router.push(...)} en lugar de envolver todo en un Link, para mantener el HTML válido y controlar mejor el área de click.
@@ -100,7 +143,7 @@ Extracción de Lógica: La página no debe saber cómo se obtienen los datos, so
 
 Manejo de Fechas: Usar Intl.DateTimeFormat para formateo local consistente ('es-ES').
 
-6. Checklist de Calidad antes de un Commit
+7. Checklist de Calidad antes de un Commit
 ¿La URL refleja el estado actual (tabs/filtros)?
 
 ¿He eliminado títulos redundantes que ya están en el Breadcrumb?
@@ -109,6 +152,10 @@ Manejo de Fechas: Usar Intl.DateTimeFormat para formateo local consistente ('es-
 
 ¿Tengo un estado de "Cargando" y un estado de "Vacío" (Empty State)?
 
+¿He verificado la alineación `top-12` para elementos sticky y `pt-0` para el cuerpo de la página?
+
 ¿Los componentes locales están tipados?
+
+¿He aplicado Glassmorphism y micro-interacciones en elementos clave?
 
 Filosofía Final: El código debe ser tan limpio como una cocina profesional. Cada utensilio (función) en su lugar, superficies (UI) despejadas, y preparado para servir (renderizar) rápidamente.

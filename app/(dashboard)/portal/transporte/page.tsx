@@ -39,14 +39,20 @@ const statusRowClass: Record<string, string> = {
 };
 
 
+import { useTransporteOrders, useEventos, useEntregas, usePedidosEntrega, useProveedores } from '@/hooks/use-data-queries';
+import { useToast } from '@/hooks/use-toast';
+import { useUpdateTransporteOrder } from '@/hooks/mutations/use-transporte-mutations';
+import { supabase } from '@/lib/supabase';
+
 export default function TransportePortalPage() {
-    const [orders, setOrders] = useState<OrderWithDetails[]>([]);
+    const { toast } = useToast();
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [showCompleted, setShowCompleted] = useState(false);
     const router = useRouter();
     const { user, profile, effectiveRole, hasRole } = useAuth();
-    const [proveedorNombre, setProveedorNombre] = useState('');
+    
+    const updateTransporte = useUpdateTransporteOrder();
 
     const isAdminOrComercial = useMemo(() => {
         return effectiveRole === 'ADMIN' || effectiveRole === 'COMERCIAL';
@@ -59,33 +65,30 @@ export default function TransportePortalPage() {
 
     const proveedorId = useMemo(() => profile?.proveedor_id, [profile]);
 
-    useEffect(() => {
-        const partnerShouldBeDefined = hasRole('PARTNER_TRANSPORTE');
-        if (partnerShouldBeDefined && !proveedorId) {
-            setOrders([]);
-            setIsMounted(true);
-            return;
-        }
+    const { data: allTransportOrders = [], isLoading: loadingTransport, refetch: refetchTransport } = useTransporteOrders();
+    const { data: allServiceOrders = [], isLoading: loadingOrders } = useEventos();
+    const { data: allEntregas = [], isLoading: loadingEntregas } = useEntregas();
+    const { data: allPedidosEntrega = [], isLoading: loadingPedidos } = usePedidosEntrega();
+    const { data: allProveedores = [], isLoading: loadingProveedores } = useProveedores();
 
-        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        if (proveedorId) {
-            const proveedor = allProveedores.find(p => p.id === proveedorId);
-            setProveedorNombre(proveedor?.nombreComercial || '');
-        }
+    const isLoaded = !loadingTransport && !loadingOrders && !loadingEntregas && !loadingPedidos && !loadingProveedores;
 
+    const proveedorNombre = useMemo(() => {
+        if (!proveedorId) return '';
+        const proveedor = allProveedores.find(p => p.id === proveedorId);
+        return proveedor?.nombreComercial || '';
+    }, [proveedorId, allProveedores]);
 
-        const allTransportOrders = (JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[])
-            .filter(o => isAdminOrComercial || o.proveedorId === proveedorId);
+    const orders = useMemo(() => {
+        if (!isLoaded) return [];
 
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
-        const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
+        const filteredTransport = allTransportOrders.filter(o => isAdminOrComercial || o.proveedorId === proveedorId);
 
         const serviceOrderMap = new Map(allServiceOrders.map(os => [os.id, os]));
         const entregasMap = new Map(allEntregas.map(e => [e.id, e]));
         const pedidosEntregaMap = new Map(allPedidosEntrega.map(p => [p.osId, p]));
 
-        const ordersWithDetails = allTransportOrders.map(order => {
+        return filteredTransport.map(order => {
             const os = serviceOrderMap.get(order.osId) || entregasMap.get(order.osId);
             const pedidoEntrega = pedidosEntregaMap.get(order.osId);
 
@@ -102,10 +105,11 @@ export default function TransportePortalPage() {
                 hitos: hitosDetails,
             };
         });
+    }, [isLoaded, allTransportOrders, allServiceOrders, allEntregas, allPedidosEntrega, isAdminOrComercial, proveedorId]);
 
-        setOrders(ordersWithDetails);
+    useEffect(() => {
         setIsMounted(true);
-    }, [proveedorId, hasRole, isAdminOrComercial]);
+    }, []);
 
     useEffect(() => {
         if (user) {
@@ -141,29 +145,38 @@ export default function TransportePortalPage() {
         return Object.entries(grouped).sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime());
     }, [filteredOrders]);
 
-    const handleStatusChange = (orderId: string, newStatus: TransporteOrder['status']) => {
+    const handleStatusChange = async (orderId: string, newStatus: TransporteOrder['status']) => {
         if (!user) return;
-        const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-        const orderIndex = allTransportOrders.findIndex(o => o.id === orderId);
+        
+        try {
+            await updateTransporte.mutateAsync({
+                id: orderId,
+                updates: { status: newStatus }
+            });
+            
+            toast({
+                title: 'Estado actualizado',
+                description: `El pedido ha sido marcado como ${newStatus}.`,
+            });
 
-        if (orderIndex !== -1) {
-            allTransportOrders[orderIndex].status = newStatus;
-            localStorage.setItem('transporteOrders', JSON.stringify(allTransportOrders));
-
-            const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
-            setOrders(updatedOrders);
-
-            const activityUser = {
-                id: user.id,
-                nombre: profile?.nombre_completo || user.email || 'Usuario',
-                email: user.email || '',
-                roles: [effectiveRole || '']
-            };
-            logActivity(activityUser as any, `Actualización de Estado`, `El estado del transporte ${orderId} cambió a ${newStatus}.`, orderId);
+            logActivity({
+                userId: user.id,
+                userName: user.email || 'Usuario Portal',
+                action: `Cambio de estado transporte: ${newStatus}`,
+                details: `Pedido ID: ${orderId}`,
+                entity: 'Transporte'
+            });
+        } catch (error) {
+            console.error('Error updating status:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'No se pudo actualizar el estado del pedido.',
+            });
         }
-    }
+    };
 
-    if (!isMounted) {
+    if (!isLoaded) {
         return <LoadingSkeleton title="Cargando Portal de Transporte..." />;
     }
 

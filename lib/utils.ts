@@ -100,3 +100,13 @@ export function getSupabaseImageUrl(url: string | null | undefined, bucket: stri
     // Construir la URL pública de Supabase Storage
     return `${supabaseUrl}/storage/v1/object/public/${bucket}/${cleanPath}`;
 }
+
+export function normalizeCategoria(cat: string | null | undefined) {
+    const upper = (cat || '').toUpperCase();
+    if (upper === 'ALMACEN' || upper === 'ALMACÉN') return 'Almacén';
+    if (upper === 'BODEGA' || upper === 'BEBIDA' || upper === 'BEBIDAS') return 'Bebida';
+    if (upper === 'GASTRONOMIA' || upper === 'GASTRONOMÍA') return 'Gastronomía';
+    if (upper === 'BIO') return 'Bio';
+    if (upper === 'ALQUILER') return 'Alquiler';
+    return cat || '';
+}

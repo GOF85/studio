@@ -53,6 +53,15 @@ import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Combobox } from '@/components/ui/combobox';
 
+import {
+  useComercialBriefings,
+  useUpdateComercialBriefing,
+  useComercialAjustes,
+  useUpdateComercialAjustes,
+  useUpdateEventoFinancials,
+  useEvento
+} from '@/hooks/use-data-queries';
+
 const briefingItemSchema = z.object({
   id: z.string(),
   fecha: z.string().min(1, "La fecha es obligatoria"),
@@ -109,9 +118,21 @@ function FinancialCalculator({ totalFacturacion, onNetChange }: { totalFacturaci
 }
 
 export default function ComercialPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
-  const [ajustes, setAjustes] = useState<ComercialAjuste[]>([]);
+  const params = useParams() ?? {};
+  const osId = (params.id as string) || '';
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId);
+  const { data: briefings, isLoading: isLoadingBriefings } = useComercialBriefings(osId);
+  const { data: ajustes = [], isLoading: isLoadingAjustes } = useComercialAjustes(osId);
+
+  const updateBriefingMutation = useUpdateComercialBriefing();
+  const updateAjustesMutation = useUpdateComercialAjustes();
+  const updateFinancialsMutation = useUpdateEventoFinancials();
+
+  const briefing = useMemo(() => briefings?.[0] || { osId, items: [] }, [briefings, osId]);
+
   const [isMounted, setIsMounted] = useState(false);
   const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -119,11 +140,6 @@ export default function ComercialPage() {
 
   const nuevoAjusteConceptoRef = useRef<HTMLInputElement>(null);
   const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
-
-  const router = useRouter();
-  const params = useParams() ?? {};
-  const osId = (params.id as string) || '';
-  const { toast } = useToast();
 
   const totalBriefing = useMemo(() => {
     return briefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
@@ -145,6 +161,17 @@ export default function ComercialPage() {
     }
   });
 
+  useEffect(() => {
+    if (serviceOrder) {
+      financialForm.reset({
+        agencyPercentage: serviceOrder.agencyPercentage || 0,
+        spacePercentage: serviceOrder.spacePercentage || 0,
+        agencyCommissionValue: serviceOrder.agencyCommissionValue || 0,
+        spaceCommissionValue: serviceOrder.spaceCommissionValue || 0,
+      });
+    }
+  }, [serviceOrder, financialForm]);
+
   const watchedAgencyPercentage = financialForm.watch('agencyPercentage');
   const watchedSpacePercentage = financialForm.watch('spacePercentage');
   const watchedAgencyValue = financialForm.watch('agencyCommissionValue');
@@ -157,18 +184,16 @@ export default function ComercialPage() {
   }, [facturacionFinal, watchedAgencyPercentage, watchedSpacePercentage, watchedAgencyValue, watchedSpaceValue]);
 
 
-  const saveFinancials = useCallback(() => {
+  const saveFinancials = useCallback(async () => {
     if (!serviceOrder) return;
 
     const data = financialForm.getValues();
     const agencyCommission = (facturacionFinal * (data.agencyPercentage || 0) / 100) + (data.agencyCommissionValue || 0);
     const spaceCommission = (facturacionFinal * (data.spacePercentage || 0) / 100) + (data.spaceCommissionValue || 0);
 
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const index = allServiceOrders.findIndex(os => os.id === osId);
-    if (index !== -1) {
-      allServiceOrders[index] = {
-        ...allServiceOrders[index],
+    try {
+      await updateFinancialsMutation.mutateAsync({
+        id: osId,
         facturacion: facturacionFinal,
         agencyPercentage: data.agencyPercentage,
         spacePercentage: data.spacePercentage,
@@ -176,11 +201,11 @@ export default function ComercialPage() {
         spaceCommissionValue: data.spaceCommissionValue,
         comisionesAgencia: agencyCommission,
         comisionesCanon: spaceCommission,
-      };
-      localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
-      setServiceOrder(allServiceOrders[index]);
+      });
+    } catch (error) {
+      console.error('Error saving financials:', error);
     }
-  }, [serviceOrder, osId, facturacionFinal, financialForm]);
+  }, [serviceOrder, osId, facturacionFinal, financialForm, updateFinancialsMutation]);
 
   useEffect(() => {
     const loadTiposServicio = async () => {
@@ -198,32 +223,8 @@ export default function ComercialPage() {
       }
     };
     loadTiposServicio();
-
-    const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}') as { [key: string]: ComercialAjuste[] };
-
-    if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      if (currentOS) {
-        setServiceOrder(currentOS);
-        financialForm.reset({
-          agencyPercentage: currentOS.agencyPercentage || 0,
-          spacePercentage: currentOS.spacePercentage || 0,
-          agencyCommissionValue: currentOS.agencyCommissionValue || 0,
-          spaceCommissionValue: currentOS.spaceCommissionValue || 0,
-        });
-      } else {
-        router.push('/pes');
-      }
-
-      const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-      const currentBriefing = allBriefings.find(b => b.osId === osId);
-      setBriefing(currentBriefing || { osId, items: [] });
-
-      setAjustes(allAjustes[osId] || []);
-    }
     setIsMounted(true);
-  }, [osId, router, financialForm]);
+  }, []);
 
   useEffect(() => {
     if (serviceOrder && facturacionFinal !== serviceOrder.facturacion) {
@@ -240,16 +241,13 @@ export default function ComercialPage() {
     });
   }, [briefing]);
 
-  const saveBriefing = (newBriefing: ComercialBriefing) => {
-    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-    const index = allBriefings.findIndex(b => b.osId === osId);
-    if (index !== -1) {
-      allBriefings[index] = newBriefing;
-    } else {
-      allBriefings.push(newBriefing);
+  const saveBriefing = async (newBriefing: ComercialBriefing) => {
+    try {
+      await updateBriefingMutation.mutateAsync(newBriefing);
+    } catch (error) {
+      console.error('Error saving briefing:', error);
+      toast({ variant: 'destructive', title: 'Error al guardar el briefing' });
     }
-    localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
-    setBriefing(newBriefing);
   };
 
   const handleSaveFinancials = (data: FinancialFormValues) => {
@@ -267,26 +265,26 @@ export default function ComercialPage() {
     setIsDialogOpen(true);
   };
 
-  const handleSaveItem = (data: BriefingItemFormValues) => {
+  const handleSaveItem = async (data: BriefingItemFormValues) => {
     if (!briefing) return false;
     let newItems;
     if (editingItem) {
       newItems = briefing.items.map(item => item.id === editingItem.id ? data : item);
-      toast({ title: 'Hito actualizado' });
+      toast({ title: 'Servicio actualizado' });
     } else {
       newItems = [...briefing.items, { ...data, id: Date.now().toString() }];
-      toast({ title: 'Hito añadido' });
+      toast({ title: 'Servicio añadido' });
     }
-    saveBriefing({ ...briefing, items: newItems });
+    await saveBriefing({ ...briefing, items: newItems });
     setEditingItem(null);
     return true; // Indicate success to close dialog
   };
 
-  const handleDeleteItem = (itemId: string) => {
+  const handleDeleteItem = async (itemId: string) => {
     if (!briefing) return;
     const newItems = briefing.items.filter(item => item.id !== itemId);
-    saveBriefing({ ...briefing, items: newItems });
-    toast({ title: 'Hito eliminado' });
+    await saveBriefing({ ...briefing, items: newItems });
+    toast({ title: 'Servicio eliminado' });
   };
 
   const calculateDuration = (start: string, end: string) => {
@@ -303,15 +301,17 @@ export default function ComercialPage() {
     }
   };
 
-  const saveAjustes = (newAjustes: ComercialAjuste[]) => {
+  const saveAjustes = async (newAjustes: ComercialAjuste[]) => {
     if (!osId) return;
-    const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}');
-    allAjustes[osId] = newAjustes;
-    localStorage.setItem('comercialAjustes', JSON.stringify(allAjustes));
-    setAjustes(newAjustes);
+    try {
+      await updateAjustesMutation.mutateAsync({ osId, ajustes: newAjustes });
+    } catch (error) {
+      console.error('Error saving ajustes:', error);
+      toast({ variant: 'destructive', title: 'Error al guardar los ajustes' });
+    }
   };
 
-  const handleAddAjuste = () => {
+  const handleAddAjuste = async () => {
     const concepto = nuevoAjusteConceptoRef.current?.value;
     const importe = nuevoAjusteImporteRef.current?.value;
 
@@ -320,37 +320,41 @@ export default function ComercialPage() {
       return;
     }
     const newAjustes = [...ajustes, { id: Date.now().toString(), concepto, importe: parseFloat(importe) }];
-    saveAjustes(newAjustes);
+    await saveAjustes(newAjustes);
 
     if (nuevoAjusteConceptoRef.current) nuevoAjusteConceptoRef.current.value = '';
     if (nuevoAjusteImporteRef.current) nuevoAjusteImporteRef.current.value = '';
   };
 
-  const handleDeleteAjuste = (id: string) => {
+  const handleDeleteAjuste = async (id: string) => {
     const newAjustes = ajustes.filter(a => a.id !== id);
-    saveAjustes(newAjustes);
+    await saveAjustes(newAjustes);
   }
 
-  const handleAddLocation = (newLocation: string) => {
+  const handleAddLocation = async (newLocation: string) => {
     if (!serviceOrder) return;
 
-    const updatedOS = {
-      ...serviceOrder,
-      deliveryLocations: [...(serviceOrder.deliveryLocations || []), newLocation]
-    };
+    const updatedLocations = [...(serviceOrder.deliveryLocations || []), newLocation];
 
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const osIndex = allServiceOrders.findIndex(os => os.id === serviceOrder.id);
+    try {
+      const { error } = await supabase
+        .from('eventos')
+        .update({ delivery_locations: updatedLocations })
+        .eq('id', osId);
 
-    if (osIndex !== -1) {
-      allServiceOrders[osIndex] = updatedOS;
-      localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
-      setServiceOrder(updatedOS);
-      toast({ title: 'Localización añadida', description: `Se ha guardado "${newLocation}" en la Orden de Servicio.` })
+      if (error) throw error;
+      toast({ title: 'Localización añadida', description: `Se ha guardado "${newLocation}" en la Orden de Servicio.` });
+    } catch (error) {
+      console.error('Error adding location:', error);
+      toast({ variant: 'destructive', title: 'Error al añadir localización' });
     }
   }
 
-  const BriefingItemDialog = ({ open, onOpenChange, item, onSave, serviceOrder, onAddLocation }: { open: boolean, onOpenChange: (open: boolean) => void, item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => boolean, serviceOrder: ServiceOrder | null, onAddLocation: (location: string) => void }) => {
+  if (isLoadingOS || isLoadingBriefings || isLoadingAjustes) {
+    return <LoadingSkeleton />;
+  }
+
+  const GenericBriefingItemDialog = ({ open, onOpenChange, item, onSave, serviceOrder, onAddLocation }: { open: boolean, onOpenChange: (open: boolean) => void, item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => Promise<boolean>, serviceOrder: any | null, onAddLocation: (location: string) => void }) => {
     const form = useForm<BriefingItemFormValues>({
       resolver: zodResolver(briefingItemSchema),
       defaultValues: {
@@ -391,19 +395,19 @@ export default function ComercialPage() {
     const total = useMemo(() => (asistentes * precioUnitario) + (importeFijo || 0), [asistentes, precioUnitario, importeFijo]);
 
     const locationOptions = useMemo(() => {
-      return serviceOrder?.deliveryLocations?.map(loc => ({ label: loc, value: loc })) || [];
+      return (serviceOrder?.deliveryLocations || []).map((loc: string) => ({ label: loc, value: loc }));
     }, [serviceOrder]);
 
     const handleLocationChange = (value: string) => {
-      const isNew = !locationOptions.some(opt => opt.value === value);
+      const isNew = !locationOptions.some((opt: any) => opt.value === value);
       if (isNew && value) {
         onAddLocation(value);
       }
       form.setValue('sala', value, { shouldDirty: true });
-    }
+    };
 
-    const onSubmit = (data: BriefingItemFormValues) => {
-      if (onSave(data)) {
+    const onSubmit = async (data: BriefingItemFormValues) => {
+      if (await onSave(data)) {
         onOpenChange(false);
         form.reset();
       }
@@ -413,7 +417,7 @@ export default function ComercialPage() {
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
-            <DialogTitle>{item ? 'Editar' : 'Nuevo'} Hito del Briefing</DialogTitle>
+            <DialogTitle>{item ? 'Editar' : 'Nuevo'} Servicio del Briefing</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -429,7 +433,6 @@ export default function ComercialPage() {
                       value={field.value || ''}
                       onChange={handleLocationChange}
                       placeholder="Busca o crea una sala..."
-                      searchPlaceholder="Buscar sala..."
                     />
                     <FormMessage />
                   </FormItem>
@@ -589,7 +592,7 @@ export default function ComercialPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Briefing del Contrato</CardTitle>
-          <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
+          <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Servicio</Button>
         </CardHeader>
         <CardContent>
           <div className="border rounded-lg overflow-x-auto">
@@ -637,7 +640,7 @@ export default function ComercialPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={13} className="h-24 text-center">
-                      No hay hitos en el briefing. Añade uno para empezar.
+                      No hay servicios en el briefing. Añade uno para empezar.
                     </TableCell>
                   </TableRow>
                 )}
@@ -646,7 +649,7 @@ export default function ComercialPage() {
           </div>
         </CardContent>
       </Card>
-      <BriefingItemDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} item={editingItem} onSave={handleSaveItem} serviceOrder={serviceOrder} onAddLocation={handleAddLocation} />
+      <GenericBriefingItemDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} item={editingItem} onSave={handleSaveItem} serviceOrder={serviceOrder} onAddLocation={handleAddLocation} />
     </>
   );
 }

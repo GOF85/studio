@@ -26,6 +26,8 @@ import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
+import { useEventos, useComercialBriefings, useGastronomyOrders, useRecetas, useIngredientesInternos, useArticulosERP } from '@/hooks/use-data-queries';
+import { useCprOrdenesFabricacion, useCprElaboraciones, useCprPickingStates, useUpdateCprPickingState } from '@/hooks/use-cpr-data';
 
 type LoteDisponible = {
     ofId: string;
@@ -346,25 +348,45 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
 }
 
 function PickingPageContent() {
-    const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
-    const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
-    const [isMounted, setIsMounted] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    
     const router = useRouter();
     const params = useParams() ?? {};
     const id = (params.id as string) || '';
-    const osId = id; // Use the dynamic [id] as osId
+    const osId = id;
     const { toast } = useToast();
 
+    // --- HOOKS DE DATOS ---
+    const { data: eventos = [] } = useEventos();
+    const { data: briefings = [] } = useComercialBriefings();
+    const { data: allGastroOrders = [] } = useGastronomyOrders();
+    const { data: allRecetas = [] } = useRecetas();
+    const { data: allElaboraciones = [] } = useCprElaboraciones();
+    const { data: allOFs = [] } = useCprOrdenesFabricacion();
+    const { data: allPickingStates = [] } = useCprPickingStates();
+    const updatePickingState = useUpdateCprPickingState();
+
+    // --- DERIVACIONES ---
+    const serviceOrder = useMemo(() => eventos.find(e => e.id === osId), [eventos, osId]);
+    
+    const hitosConNecesidades = useMemo(() => {
+        const currentBriefing = briefings.find(b => b.osId === osId);
+        return currentBriefing?.items.filter(i => i.conGastronomia) || [];
+    }, [briefings, osId]);
+
+    const pickingState = useMemo(() => {
+        return allPickingStates.find(ps => ps.osId === osId) || { 
+            osId, 
+            status: 'Pendiente' as PickingStatus, 
+            assignedContainers: [], 
+            itemStates: [] 
+        };
+    }, [allPickingStates, osId]);
+
     const getRecetaForElaboracion = useCallback((elaboracionId: string, osId: string): string => {
-        const gastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(o => o.osId === osId);
-        const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        const gastroOrders = allGastroOrders.filter(o => o.osId === osId);
         for (const order of gastroOrders) {
             for (const item of (order.items || [])) {
                 if(item.type === 'item') {
-                    const receta = recetas.find(r => r.id === item.id);
+                    const receta = allRecetas.find(r => r.id === item.id);
                     if(receta && receta.elaboraciones.some(e => e.elaboracionId === elaboracionId)) {
                         return receta.nombre;
                     }
@@ -372,71 +394,36 @@ function PickingPageContent() {
             }
         }
         return 'Directa';
-    }, []);
-
-    const savePickingState = useCallback((newState: Partial<PickingState>) => {
-        if (!osId) return;
-        const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
-        const currentState = allPickingStates[osId] || { osId, status: 'Pendiente', assignedContainers: [], itemStates: [] };
-        const updatedState = { ...currentState, ...newState };
-        allPickingStates[osId] = updatedState;
-        localStorage.setItem('pickingStates', JSON.stringify(allPickingStates));
-        setPickingState(updatedState);
-    }, [osId]);
+    }, [allGastroOrders, allRecetas]);
 
     const handleStatusChange = (newStatus: PickingStatus) => {
-        savePickingState({ status: newStatus });
+        updatePickingState.mutate({
+            osId,
+            status: newStatus
+        });
         toast({title: "Estado Actualizado", description: `El estado del picking es ahora: ${newStatus}`});
     }
 
     const allValidatedOFs = useMemo(() => {
-        if (!isMounted) return [];
-        const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
         return allOFs.filter(of => of.estado === 'Validado');
-    }, [isMounted]);
+    }, [allOFs]);
 
     const allAssignedQuantities = useMemo(() => {
-        if (!isMounted) return {};
-        const allStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
         const assigned: Record<string, number> = {};
-        Object.values(allStates).forEach(state => {
+        allPickingStates.forEach(state => {
             (state.itemStates || []).forEach(alloc => {
                 assigned[alloc.ofId] = (assigned[alloc.ofId] || 0) + alloc.quantity;
             });
         });
         return assigned;
-    }, [isMounted]);
-
-    useEffect(() => {
-        if (osId) {
-            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-            const currentOS = allServiceOrders.find(os => os.id === osId);
-            setServiceOrder(currentOS || null);
-
-            
-            const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
-            const currentBriefing = allBriefings.find(b => b.osId === osId);
-            const gastronomicHitos = currentBriefing?.items.filter(i => i.conGastronomia) || [];
-            setHitosConNecesidades(gastronomicHitos);
-            
-            const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
-            const savedState = allPickingStates[osId];
-            if (savedState) {
-                setPickingState(savedState);
-            }
-        }
-        setIsMounted(true);
-    }, [osId, savePickingState]); 
+    }, [allPickingStates]);
 
     const { lotesPendientesPorHito, isPickingComplete, elabMap, lotesNecesarios } = useMemo(() => {
-        if (!isMounted || !hitosConNecesidades.length) {
+        if (!hitosConNecesidades.length) {
             return { lotesPendientesPorHito: new Map(), isPickingComplete: true, elabMap: new Map(), lotesNecesarios: [] };
         }
       
-        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
         const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
-        const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
       
         let allComplete = true;
         const lotesPorHito = new Map<string, LoteNecesario[]>();
@@ -522,23 +509,34 @@ function PickingPageContent() {
         
         return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete, elabMap, lotesNecesarios: Array.from(lotes.values()) };
   
-      }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, allValidatedOFs, allAssignedQuantities]);
+      }, [osId, hitosConNecesidades, pickingState.itemStates, allValidatedOFs, allAssignedQuantities, allRecetas, allElaboraciones, allGastroOrders]);
     
     const addContainer = (tipo: keyof typeof expeditionTypeMap, hitoId: string): string => {
+      const newContainerId = `cont-${Date.now()}`;
       const newContainer: ContenedorDinamico = {
-        id: `cont-${Date.now()}`,
+        id: newContainerId,
         hitoId: hitoId,
         tipo: tipo,
         numero: (pickingState.assignedContainers.filter(c => c.hitoId === hitoId && c.tipo === tipo).length) + 1
       }
-      savePickingState({ assignedContainers: [...pickingState.assignedContainers, newContainer] });
-      return newContainer.id;
+      
+      updatePickingState.mutate({
+        osId,
+        assignedContainers: [...pickingState.assignedContainers, newContainer]
+      });
+      
+      return newContainerId;
     }
 
     const removeContainer = (containerId: string) => {
       const newItems = pickingState.itemStates.filter(item => item.containerId !== containerId);
       const newContainers = pickingState.assignedContainers.filter(c => c.id !== containerId);
-      savePickingState({ itemStates: newItems, assignedContainers: newContainers });
+      
+      updatePickingState.mutate({
+        osId,
+        itemStates: newItems,
+        assignedContainers: newContainers
+      });
     }
 
     const allocateLote = (allocations: { ofId: string, quantity: number }[], containerId: string, hitoId: string) => {
@@ -551,22 +549,36 @@ function PickingPageContent() {
         }));
 
         const newItemStates = [...pickingState.itemStates, ...newAllocations];
-        savePickingState({ itemStates: newItemStates });
+        
+        updatePickingState.mutate({
+            osId,
+            itemStates: newItemStates
+        });
+        
         toast({ title: 'Lote Asignado', description: `${formatNumber(newAllocations.reduce((s, a) => s + a.quantity, 0), 2)} unidades asignadas al contenedor.`});
     }
     
     const deallocateLote = (allocationId: string) => {
         const newItemStates = pickingState.itemStates.filter(a => a.allocationId !== allocationId);
-        savePickingState({ itemStates: newItemStates });
+        updatePickingState.mutate({
+            osId,
+            itemStates: newItemStates
+        });
     }
     
-     const handleDeletePicking = () => {
-        savePickingState({ status: 'Pendiente', assignedContainers: [], itemStates: [] });
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const handleDeletePicking = () => {
+        updatePickingState.mutate({
+            osId,
+            status: 'Pendiente',
+            assignedContainers: [],
+            itemStates: []
+        });
         toast({ title: "Picking Reiniciado", description: "Se han desasignado todos los lotes y contenedores."});
         setShowDeleteConfirm(false);
     }
 
-    if (!isMounted || !serviceOrder) {
+    if (!serviceOrder) {
         return <LoadingSkeleton title="Cargando Picking..." />;
     }
     

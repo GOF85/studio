@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Especifica el root para outputFileTracing y elimina el warning de lockfiles
+  outputFileTracingRoot: __dirname,
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,

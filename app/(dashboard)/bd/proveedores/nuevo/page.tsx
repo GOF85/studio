@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Building2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import type { Proveedor } from '@/types';
 import { TIPO_PROVEEDOR_OPCIONES } from '@/types';
 
@@ -16,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useLoadingStore } from '@/hooks/use-loading-store';
+import { useUpsertProveedor } from '@/hooks/use-data-queries';
 import { MultiSelect } from '@/components/ui/multi-select';
 
 export const proveedorSchema = z.object({
@@ -41,8 +40,8 @@ export type ProveedorFormValues = z.infer<typeof proveedorSchema>;
 
 export default function NuevoProveedorPage() {
   const router = useRouter();
-  const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
+  const upsertProveedor = useUpsertProveedor();
 
   const form = useForm<ProveedorFormValues>({
     resolver: zodResolver(proveedorSchema),
@@ -66,52 +65,13 @@ export default function NuevoProveedorPage() {
   });
 
   async function onSubmit(data: ProveedorFormValues) {
-    setIsLoading(true);
-
     try {
-      // Check for existing provider with same CIF in Supabase
-      // We can't easily check all without fetching, but we can rely on the store or just check DB
-      // For now, let's trust the DB constraint or check via query if needed.
-      // But since we are migrating, let's just insert.
-
-      const { id, ...rest } = data;
-
-      const { error } = await supabase
-        .from('proveedores')
-        .insert({
-          nombre_comercial: data.nombreComercial,
-          nombre_fiscal: data.nombreFiscal,
-          cif: data.cif,
-          id_erp: data.IdERP,
-          direccion_facturacion: data.direccionFacturacion,
-          codigo_postal: data.codigoPostal,
-          ciudad: data.ciudad,
-          provincia: data.provincia,
-          pais: data.pais,
-          email_contacto: data.emailContacto,
-          telefono_contacto: data.telefonoContacto,
-          contacto: data.contacto,
-          iban: data.iban,
-          forma_de_pago_habitual: data.formaDePagoHabitual,
-        });
-
-      if (error) throw error;
-
+      await upsertProveedor.mutateAsync(data);
       toast({ description: 'Nuevo proveedor añadido correctamente.' });
-
-      // Refresh the store to get the new data
-      // We need to import useDataStore. Since we are in a component, we can use the hook, 
-      // but refreshData is on the store.
-      // We can just call window.location.reload() or let the store handle it.
-      // Better to trigger a refresh.
-      // For now, let's just redirect. The list page might need to trigger a refresh.
-
       router.push('/bd/proveedores');
     } catch (error: any) {
       console.error('Error creating provider:', error);
       toast({ variant: 'destructive', title: 'Error', description: 'Error al guardar el proveedor: ' + error.message });
-    } finally {
-      setIsLoading(false);
     }
   }
 
@@ -128,8 +88,8 @@ export default function NuevoProveedorPage() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" type="button" onClick={() => router.push('/bd/proveedores')}> <X className="mr-2" /> Cancelar</Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+              <Button type="submit" disabled={upsertProveedor.isPending}>
+                {upsertProveedor.isPending ? <Loader2 className="animate-spin" /> : <Save />}
                 <span className="ml-2">Guardar Proveedor</span>
               </Button>
             </div>

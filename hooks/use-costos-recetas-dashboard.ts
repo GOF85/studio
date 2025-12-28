@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
 export interface RecetaCostoAlert {
@@ -43,16 +44,9 @@ export interface UseCostosRecetasDashboardReturn {
 export function useCostosRecetasDashboard(
   autoRefreshMs: number = 30000
 ): UseCostosRecetasDashboardReturn {
-  const [recetas, setRecetas] = useState<RecetaCostoDashboard[]>([]);
-  const [alertas, setAlertas] = useState<RecetaCostoAlert[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchCostosData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['costosRecetasDashboard'],
+    queryFn: async () => {
       // 1. Get recipes with current costs
       const { data: recetasData, error: recetasError } = await supabase
         .from('recetas')
@@ -154,28 +148,19 @@ export function useCostosRecetasDashboard(
         }
       }
 
-      setRecetas(Array.from(recetasMap.values()));
-      setAlertas(newAlertas);
+      return {
+        recetas: Array.from(recetasMap.values()),
+        alertas: newAlertas
+      };
+    },
+    refetchInterval: autoRefreshMs > 0 ? autoRefreshMs : false,
+  });
 
-    } catch (e) {
-      console.error('Error in useCostosRecetasDashboard:', e);
-      setError(e instanceof Error ? e.message : 'Unknown error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Auto-refresh
-  useEffect(() => {
-    fetchCostosData();
-    if (autoRefreshMs > 0) {
-      const interval = setInterval(fetchCostosData, autoRefreshMs);
-      return () => clearInterval(interval);
-    }
-  }, [fetchCostosData, autoRefreshMs]);
+  const recetas = data?.recetas || [];
+  const alertas = data?.alertas || [];
 
   // Calculate statistics
-  const { totalAlertas, alertasCriticas, margenPromedio, costoPromedio } = useMemo(() => {
+  const stats = useMemo(() => {
     return {
       totalAlertas: alertas.length,
       alertasCriticas: alertas.filter((a) => a.severidad === 'critico').length,
@@ -192,11 +177,8 @@ export function useCostosRecetasDashboard(
     recetas,
     alertas,
     isLoading,
-    error,
-    totalAlertas,
-    alertasCriticas,
-    margenPromedio,
-    costoPromedio,
-    refetch: fetchCostosData,
+    error: error ? (error as Error).message : null,
+    ...stats,
+    refetch,
   };
 }

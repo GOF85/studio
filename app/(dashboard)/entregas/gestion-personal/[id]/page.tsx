@@ -35,6 +35,14 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Label } from '@/components/ui/label';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+    useEntrega, 
+    usePedidosEntrega, 
+    usePersonalEntrega, 
+    useCategoriasPersonal, 
+    useProveedores 
+} from '@/hooks/use-data-queries';
+import { usePersonalEntregaMutations } from '@/hooks/mutations/use-personal-entrega-mutations';
 
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -219,15 +227,9 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
 }
 
 export default function GestionPersonalEntregaPage() {
-  const [entrega, setEntrega] = useState<Entrega | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
-  const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
-  const [deliveryHitos, setDeliveryHitos] = useState<EntregaHito[]>([]);
-  const [personalEntrega, setPersonalEntrega] = useState<PersonalEntrega | null>(null);
-  const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [nextAction, setNextAction] = useState<(() => void) | null>(null);
   
@@ -235,6 +237,21 @@ export default function GestionPersonalEntregaPage() {
   const params = useParams() ?? {};
   const osId = (params.id as string) || '';
   const { toast } = useToast();
+
+  const { data: entrega, isLoading: loadingEntrega } = useEntrega(osId);
+  const { data: allPedidos, isLoading: loadingPedidos } = usePedidosEntrega();
+  const { data: allPersonal, isLoading: loadingPersonal } = usePersonalEntrega();
+  const { data: categoriasPersonal, isLoading: loadingCategorias } = useCategoriasPersonal();
+  const { data: proveedores, isLoading: loadingProveedores } = useProveedores();
+  const { updatePersonalEntrega } = usePersonalEntregaMutations();
+
+  const proveedoresDB = useMemo(() => (categoriasPersonal || []) as CategoriaPersonal[], [categoriasPersonal]);
+  const currentPedido = useMemo(() => allPedidos?.find(p => p.osId === osId), [allPedidos, osId]);
+  const deliveryHitos = useMemo(() => currentPedido?.hitos || [], [currentPedido]);
+  const personalEntrega = useMemo(() => allPersonal?.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' as EstadoPersonalEntrega, data: { ajustes: [] } }, [allPersonal, osId]);
+  const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
+  
+  const proveedoresMap = useMemo(() => new Map(proveedores?.map(p => [p.id, p.nombreComercial]) || []), [proveedores]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -248,56 +265,29 @@ export default function GestionPersonalEntregaPage() {
     name: "turnos",
   });
   
-  const loadData = useCallback(() => {
-    try {
-        const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
-        const currentEntrega = allEntregas.find(os => os.id === osId);
-        setEntrega(currentEntrega || null);
-        
-        const allPedidos = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-        const currentPedido = allPedidos.find(p => p.osId === osId);
-        setDeliveryHitos(currentPedido?.hitos || []);
-
-        const allTurnos = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
-        const turnosDelPedido = allTurnos.find(p => p.osId === osId);
-        setPersonalEntrega(turnosDelPedido || { osId, turnos: [], status: 'Pendiente' });
-        
-        if(turnosDelPedido) {
-            form.reset({ 
-                turnos: turnosDelPedido.turnos.map(t => ({
-                    ...t,
-                    fecha: new Date(t.fecha),
-                    asignaciones: (t.asignaciones || []).map(a => ({
-                        ...a,
-                        horaEntradaReal: a.horaEntradaReal || '',
-                        horaSalidaReal: a.horaSalidaReal || '',
-                    }))
-                })),
-                observacionesGenerales: turnosDelPedido.observacionesGenerales || ''
-            });
-        }
-        
-        const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
-        setAjustes(storedAjustes[osId] || []);
-        
-        const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
-        setProveedoresDB(dbProveedores);
-        
-        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        setProveedoresMap(new Map(allProveedores.map(p => [p.id, p.nombreComercial])));
-
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
-    } finally {
-        setIsMounted(true);
-    }
-  }, [osId, toast, form]);
-
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (loadingPersonal || !allPersonal) return;
+    
+    const turnosDelPedido = allPersonal.find(p => p.osId === osId);
+    if(turnosDelPedido) {
+        form.reset({ 
+            turnos: turnosDelPedido.turnos.map((t: any) => ({
+                ...t,
+                fecha: new Date(t.fecha),
+                asignaciones: (t.asignaciones || []).map((a: any) => ({
+                    ...a,
+                    horaEntradaReal: a.horaEntradaReal || '',
+                    horaSalidaReal: a.horaSalidaReal || '',
+                }))
+            })),
+            observacionesGenerales: turnosDelPedido.observacionesGenerales || ''
+        });
+        setAjustes((turnosDelPedido as any).data?.ajustes || []);
+    }
+    setIsMounted(true);
+  }, [allPersonal, loadingPersonal, osId, form]);
   
-  const handleFinalSave = (newStatus?: EstadoPersonalEntrega) => {
+  const handleFinalSave = useCallback(async (newStatus?: EstadoPersonalEntrega) => {
     setIsLoading(true);
     const data = form.getValues();
 
@@ -307,39 +297,28 @@ export default function GestionPersonalEntregaPage() {
       return;
     }
     
-    const allTurnos = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
-    const index = allTurnos.findIndex(p => p.osId === osId);
-    
     const currentStatus = personalEntrega?.status || 'Pendiente';
+    const statusToSave = newStatus || currentStatus;
     
-    const newPersonalData: PersonalEntrega = {
-        osId,
-        turnos: data.turnos.map(t => ({
-            ...t, 
-            fecha: format(t.fecha, 'yyyy-MM-dd'),
-            statusPartner: t.statusPartner || 'Pendiente Asignación',
-            requiereActualizacion: false,
-            asignaciones: (t.asignaciones || []).map(a => ({
-                ...a,
-                horaEntradaReal: a.horaEntradaReal || '',
-                horaSalidaReal: a.horaSalidaReal || '',
+    try {
+        await updatePersonalEntrega.mutateAsync({
+            osId,
+            turnos: data.turnos.map(t => ({
+                ...t, 
+                fecha: format(t.fecha, 'yyyy-MM-dd'),
+                statusPartner: t.statusPartner || 'Pendiente Asignación',
+                requiereActualizacion: false,
+                asignaciones: (t.asignaciones || []).map(a => ({
+                    ...a,
+                    horaEntradaReal: a.horaEntradaReal || '',
+                    horaSalidaReal: a.horaSalidaReal || '',
+                })),
             })),
-        })),
-        status: newStatus || currentStatus,
-        observacionesGenerales: data.observacionesGenerales,
-    }
-    
-    if (index > -1) {
-        allTurnos[index] = newPersonalData;
-    } else {
-        allTurnos.push(newPersonalData);
-    }
+            status: statusToSave,
+            observacionesGenerales: data.observacionesGenerales,
+            ajustes: ajustes,
+        });
 
-    localStorage.setItem('personalEntrega', JSON.stringify(allTurnos));
-    
-    setPersonalEntrega(newPersonalData); // Update local state immediately
-
-    setTimeout(() => {
         toast({ title: 'Guardado', description: 'Los cambios se han guardado.' });
         setIsLoading(false);
         form.reset(data); // Mark as not dirty
@@ -347,8 +326,11 @@ export default function GestionPersonalEntregaPage() {
             nextAction();
             setNextAction(null);
         }
-    }, 500);
-  };
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar los cambios.' });
+        setIsLoading(false);
+    }
+  }, [osId, form, personalEntrega, updatePersonalEntrega, ajustes, nextAction, toast]);
   
   const onSubmit = () => {
     if (personalEntrega?.status === 'Asignado') {
@@ -439,17 +421,9 @@ export default function GestionPersonalEntregaPage() {
     }
   };
   
-  const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
-      if (!osId) return;
-      const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-      allAjustes[osId] = newAjustes;
-      localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
-  }
-
   const addAjusteRow = () => {
       const newAjustes = [...ajustes, { id: Date.now().toString(), concepto: '', importe: 0, proveedorId: '' }];
       setAjustes(newAjustes);
-      saveAjustes(newAjustes);
   };
 
   const updateAjuste = (index: number, field: 'concepto' | 'importe', value: string | number) => {
@@ -460,13 +434,11 @@ export default function GestionPersonalEntregaPage() {
           newAjustes[index][field] = value as string;
       }
       setAjustes(newAjustes);
-      saveAjustes(newAjustes);
   };
 
   const removeAjusteRow = (index: number) => {
       const newAjustes = ajustes.filter((_, i) => i !== index);
       setAjustes(newAjustes);
-      saveAjustes(newAjustes);
   };
 
   const providerOptions = useMemo(() => {
@@ -478,8 +450,8 @@ export default function GestionPersonalEntregaPage() {
 const hitosConPersonal = useMemo(() => {
     if (!deliveryHitos || !entrega) return [];
     return deliveryHitos
-        .map((hito, index) => ({...hito, expedicionNumero: `${entrega.serviceNumber}.${(index + 1).toString().padStart(2, '0')}`}))
-        .filter(h => h.horasCamarero && h.horasCamarero > 0)
+        .map((hito: any, index: number) => ({...hito, expedicionNumero: `${entrega.serviceNumber}.${(index + 1).toString().padStart(2, '0')}`}))
+        .filter((h: any) => h.horasCamarero && h.horasCamarero > 0)
 }, [deliveryHitos, entrega]);
 
 const turnosAprobados = useMemo(() => {
@@ -487,7 +459,7 @@ const turnosAprobados = useMemo(() => {
 }, [watchedFields]);
 
 
-  if (!isMounted || !entrega) {
+  if (!isMounted || loadingEntrega || loadingPedidos || loadingPersonal || loadingCategorias || loadingProveedores || !entrega) {
     return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
   }
   
@@ -547,7 +519,7 @@ const turnosAprobados = useMemo(() => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {hitosConPersonal.map(hito => (
+                                        {hitosConPersonal.map((hito: any) => (
                                             <TableRow key={hito.id}>
                                                 <TableCell className="py-1 px-2 font-mono"><Badge>{hito.expedicionNumero}</Badge></TableCell>
                                                 <TableCell className="py-1 px-2 font-medium">{hito.lugarEntrega} {hito.localizacion && `(${hito.localizacion})`}</TableCell>

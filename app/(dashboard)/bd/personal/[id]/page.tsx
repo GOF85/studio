@@ -10,7 +10,7 @@ import { Loader2, Save, X, UserCog, Trash2 } from 'lucide-react';
 import type { Personal } from '@/types';
 import { DEPARTAMENTOS_PERSONAL } from '@/types';
 import { personalFormSchema } from '@/app/(dashboard)/bd/personal/nuevo/page';
-import { supabase } from '@/lib/supabase';
+import { usePersonalItem, useUpsertPersonal, useDeletePersonal } from '@/hooks/use-data-queries';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type PersonalFormValues = z.infer<typeof personalFormSchema>;
 
@@ -40,7 +41,10 @@ export default function EditarPersonalPage() {
   const params = useParams() ?? {};
   const id = (params.id as string) || '';
 
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: personal, isLoading: isLoadingPersonal } = usePersonalItem(id);
+  const upsertPersonal = useUpsertPersonal();
+  const deletePersonal = useDeletePersonal();
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
 
@@ -50,83 +54,59 @@ export default function EditarPersonalPage() {
   });
 
   useEffect(() => {
-    const fetchPersonal = async () => {
-      const { data, error } = await supabase
-        .from('personal')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el empleado.' });
-        router.push('/bd/personal');
-      } else if (data) {
-        form.reset({
-          ...defaultFormValues,
-          id: data.id,
-          nombre: data.nombre,
-          apellido1: data.apellido1,
-          apellido2: data.apellido2 || '',
-          telefono: data.telefono || '',
-          email: data.email || '',
-          iniciales: data.iniciales || '',
-          precioHora: data.precio_hora || 0,
-          departamento: data.departamento,
-          categoria: data.categoria,
-        });
-      }
-    };
-
-    fetchPersonal();
-  }, [id, form, router, toast]);
+    if (personal) {
+      form.reset({
+        ...defaultFormValues,
+        id: personal.id,
+        nombre: personal.nombre,
+        apellido1: personal.apellido1,
+        apellido2: personal.apellido2 || '',
+        telefono: personal.telefono || '',
+        email: personal.email || '',
+        iniciales: personal.iniciales || '',
+        precioHora: personal.precioHora || 0,
+        departamento: personal.departamento,
+        categoria: personal.categoria,
+      });
+    }
+  }, [personal, form]);
 
   async function onSubmit(data: PersonalFormValues) {
-    setIsLoading(true);
+    try {
+      const nombreCompleto = `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim();
+      const nombreCompacto = `${data.nombre} ${data.apellido1}`.trim();
+      const iniciales = `${data.nombre[0] || ''}${data.apellido1[0] || ''}`.toUpperCase();
 
-    const nombreCompleto = `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim();
-    const nombreCompacto = `${data.nombre} ${data.apellido1}`.trim();
-    const iniciales = `${data.nombre[0] || ''}${data.apellido1[0] || ''}`.toUpperCase();
+      await upsertPersonal.mutateAsync({
+        ...data,
+        nombreCompleto,
+        nombreCompacto,
+        iniciales,
+        activo: true
+      });
 
-    const { error } = await supabase
-      .from('personal')
-      .update({
-        nombre: data.nombre,
-        apellido1: data.apellido1,
-        apellido2: data.apellido2,
-        nombre_completo: nombreCompleto,
-        nombre_compacto: nombreCompacto,
-        iniciales: iniciales,
-        departamento: data.departamento,
-        categoria: data.categoria,
-        telefono: data.telefono,
-        email: data.email,
-        precio_hora: data.precioHora,
-      })
-      .eq('id', id);
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar el empleado: ' + error.message });
-    } else {
       toast({ description: 'Empleado actualizado correctamente.' });
       router.push('/bd/personal');
+    } catch (error: any) {
+      console.error('Error updating personal:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar el empleado: ' + error.message });
     }
-
-    setIsLoading(false);
   }
 
   const handleDelete = async () => {
-    const { error } = await supabase
-      .from('personal')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el empleado.' });
-    } else {
+    try {
+      await deletePersonal.mutateAsync(id);
       toast({ title: 'Empleado eliminado' });
       router.push('/bd/personal');
+    } catch (error: any) {
+      console.error('Error deleting personal:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el empleado.' });
     }
   };
+
+  if (isLoadingPersonal) {
+    return <LoadingSkeleton title="Cargando Empleado..." />;
+  }
 
   return (
     <>
@@ -141,8 +121,8 @@ export default function EditarPersonalPage() {
               <div className="flex gap-2">
                 <Button variant="outline" type="button" onClick={() => router.push('/bd/personal')}> <X className="mr-2" /> Cancelar</Button>
                 <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2" /> Borrar</Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                <Button type="submit" disabled={upsertPersonal.isPending}>
+                  {upsertPersonal.isPending ? <Loader2 className="animate-spin" /> : <Save />}
                   <span className="ml-2">Guardar Cambios</span>
                 </Button>
               </div>

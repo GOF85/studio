@@ -90,7 +90,7 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
                 </div>
             </div>
              <div className="container mx-auto">
-                <div className="py-8">
+                <div className="pt-0 pb-8">
                     {children}
                 </div>
             </div>

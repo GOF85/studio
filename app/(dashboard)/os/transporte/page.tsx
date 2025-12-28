@@ -38,6 +38,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
+import { useEvento, useEspacios, useTransporteOrders } from '@/hooks/use-data-queries';
 
 const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   Pendiente: 'secondary',
@@ -47,66 +48,56 @@ const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondar
 };
 
 export default function TransportePage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [spaceAddress, setSpaceAddress] = useState<string>('');
-  const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-
   const router = useRouter();
   const params = useParams() ?? {};
   const osId = (params.id as string) || '';
   const { toast } = useToast();
   const deleteTransporte = useDeleteTransporteOrder();
 
+  const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId);
+  const { data: allEspacios = [] } = useEspacios();
+  const { data: transporteOrders = [], isLoading: isLoadingOrders } = useTransporteOrders(osId);
+
+  const [isMounted, setIsMounted] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!osId) return;
-
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-
-    if (!currentOS) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
-      router.push('/pes');
-      return;
-    }
-
-    setServiceOrder(currentOS);
-
-    if (currentOS?.space) {
-      const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-      const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-      setSpaceAddress(currentSpace?.identificacion?.calle || '');
-    }
-
-    const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-    const relatedOrders = allTransporteOrders.filter(order => order.osId === osId);
-    setTransporteOrders(relatedOrders);
-
     setIsMounted(true);
-  }, [osId, router, toast]);
+  }, []);
+
+  const spaceAddress = useMemo(() => {
+    if (!serviceOrder?.space) return '';
+    const currentSpace = allEspacios.find(e => e.nombre === serviceOrder.space);
+    return currentSpace?.calle || '';
+  }, [serviceOrder, allEspacios]);
 
   const totalAmount = useMemo(() => {
     return transporteOrders.reduce((sum, order) => sum + order.precio, 0);
   }, [transporteOrders]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!orderToDelete) return;
 
-    deleteTransporte.mutate(orderToDelete, {
-      onSuccess: () => {
-        setTransporteOrders(prev => prev.filter(o => o.id !== orderToDelete));
+    try {
+        await deleteTransporte.mutateAsync(orderToDelete);
         toast({ title: 'Pedido de transporte eliminado' });
         setOrderToDelete(null);
-      },
-      onError: () => {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el pedido' });
-      }
-    });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el pedido.' });
+    }
   };
 
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted || isLoadingOS || isLoadingOrders) {
     return <LoadingSkeleton title="Cargando Módulo de Transporte..." />;
+  }
+
+  if (!serviceOrder) {
+    return (
+        <div className="container mx-auto px-4 py-8 text-center">
+            <h2 className="text-2xl font-bold">Orden de Servicio no encontrada</h2>
+            <Button onClick={() => router.push('/os')} className="mt-4">Volver a la lista</Button>
+        </div>
+    );
   }
 
   return (

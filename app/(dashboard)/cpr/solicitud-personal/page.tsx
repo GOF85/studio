@@ -19,6 +19,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { calculateHours, formatNumber } from '@/lib/utils';
+import { useCprSolicitudesPersonal, useUpdateCprSolicitudPersonal, useDeleteCprSolicitudPersonal } from '@/hooks/use-cpr-data';
+import { useProveedores } from '@/hooks/use-data-queries';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   'Solicitado': 'secondary',
@@ -31,25 +33,21 @@ const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'sec
 };
 
 export default function SolicitudPersonalCprPage() {
-  const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
-  const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
-  const [isMounted, setIsMounted] = useState(false);
+  const { data: solicitudes = [] } = useCprSolicitudesPersonal();
+  const { data: proveedores = [] } = useProveedores();
+  const updateSolicitud = useUpdateCprSolicitudPersonal();
+  const deleteSolicitud = useDeleteCprSolicitudPersonal();
+
+  const proveedoresMap = useMemo(() => {
+    return new Map(proveedores.map(p => [p.id, p.nombreComercial]));
+  }, [proveedores]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
   const [managementAction, setManagementAction] = useState<'delete' | 'cancel' | null>(null);
   const router = useRouter();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const storedData = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-    setSolicitudes(storedData);
-    
-    const storedProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-    setProveedoresMap(new Map(storedProveedores.map(p => [p.id, p.nombreComercial])));
-
-    setIsMounted(true);
-  }, []);
 
   const filteredSolicitudes = useMemo(() => {
     return solicitudes.filter(s => {
@@ -73,29 +71,19 @@ export default function SolicitudPersonalCprPage() {
   const confirmAction = () => {
     if (!solicitudToManage || !managementAction) return;
 
-    let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-
     if (managementAction === 'delete') {
-        const updatedRequests = allRequests.filter(r => r.id !== solicitudToManage.id);
-        localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(updatedRequests));
-        setSolicitudes(updatedRequests);
+        deleteSolicitud.mutate(solicitudToManage.id);
         toast({ title: 'Solicitud Eliminada' });
     } else if (managementAction === 'cancel') {
-        const index = allRequests.findIndex(r => r.id === solicitudToManage.id);
-        if (index > -1) {
-            allRequests[index].estado = 'Solicitada Cancelacion';
-            localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-            setSolicitudes(allRequests);
-            toast({ title: 'Cancelación Solicitada', description: 'RRHH ha sido notificado para confirmar la cancelación.' });
-        }
+        updateSolicitud.mutate({
+            id: solicitudToManage.id,
+            estado: 'Solicitada Cancelacion'
+        });
+        toast({ title: 'Cancelación Solicitada', description: 'RRHH ha sido notificado para confirmar la cancelación.' });
     }
     setSolicitudToManage(null);
     setManagementAction(null);
   };
-
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Solicitudes de Personal..." />;
-  }
 
   return (
     <div>

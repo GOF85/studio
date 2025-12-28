@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import type { IngredienteInterno, ArticuloERP, Elaboracion } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatUnit } from '@/lib/utils';
@@ -105,7 +105,12 @@ export function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, a
 
     return (
         <DialogContent className="max-w-4xl">
-            <DialogHeader><DialogTitle>Seleccionar Componente</DialogTitle></DialogHeader>
+            <DialogHeader>
+                <DialogTitle>Seleccionar Componente</DialogTitle>
+                <DialogDescription>
+                    Busca y selecciona ingredientes o elaboraciones para añadir a la receta.
+                </DialogDescription>
+            </DialogHeader>
             <Tabs defaultValue="ingredientes">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="ingredientes">Ingredientes</TabsTrigger>

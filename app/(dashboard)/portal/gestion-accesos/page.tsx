@@ -35,29 +35,31 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
+import { usePerfiles, useDeletePerfil, useProveedores } from '@/hooks/use-data-queries';
 
 export default function GestionAccesosPage() {
-  const [users, setUsers] = useState<PortalUser[]>([]);
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [userToDelete, setUserToDelete] = useState<string | null>(null);
-
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    let storedUsers = localStorage.getItem('portalUsers');
-    setUsers(storedUsers ? JSON.parse(storedUsers) : []);
-    
-    let storedProveedores = localStorage.getItem('proveedores');
-    setProveedores(storedProveedores ? JSON.parse(storedProveedores) : []);
+  const { data: perfiles = [], isLoading: loadingPerfiles } = usePerfiles();
+  const { data: proveedores = [], isLoading: loadingProveedores } = useProveedores();
+  const deletePerfil = useDeletePerfil();
 
-    setIsMounted(true);
-  }, []);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+
+  const users: PortalUser[] = useMemo(() => {
+    return perfiles.map((p: any) => ({
+        id: p.id,
+        nombre: p.nombre_completo,
+        email: p.email || '',
+        roles: [p.rol],
+        proveedorId: p.proveedor_id
+    }));
+  }, [perfiles]);
   
   const proveedorMap = useMemo(() => {
-    return new Map(proveedores.map(p => [p.id, p.nombreComercial]));
+    return new Map(proveedores.map((p: any) => [p.id, p.nombre_comercial || p.nombre]));
   }, [proveedores]);
 
   const filteredItems = useMemo(() => {
@@ -69,16 +71,13 @@ export default function GestionAccesosPage() {
     );
   }, [users, searchTerm, proveedorMap]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!userToDelete) return;
-    const updatedData = users.filter(u => u.id !== userToDelete);
-    localStorage.setItem('portalUsers', JSON.stringify(updatedData));
-    setUsers(updatedData);
-    toast({ title: 'Usuario eliminado', description: 'El usuario del portal ha sido eliminado.' });
+    await deletePerfil.mutateAsync(userToDelete);
     setUserToDelete(null);
   };
   
-  if (!isMounted) {
+  if (loadingPerfiles || loadingProveedores) {
     return <LoadingSkeleton title="Cargando Gestión de Accesos..." />;
   }
 

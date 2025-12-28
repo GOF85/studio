@@ -29,6 +29,22 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from '@/component
 import { formatNumber, formatUnit } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { 
+    useCprOrdenFabricacion, 
+    useUpdateCprOrdenFabricacion, 
+    useCreateCprOrdenFabricacion, 
+    useDeleteCprOrdenFabricacion,
+    useCprElaboraciones
+} from '@/hooks/use-cpr-data';
+import { 
+    useEventos, 
+    useGastronomyOrders, 
+    useComercialBriefings, 
+    useRecetas, 
+    usePersonal, 
+    useIngredientesInternos, 
+    useArticulosERP 
+} from '@/hooks/use-data-queries';
 
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -72,19 +88,29 @@ type FormData = {
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
 export default function OfDetailPage() {
-    const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
-    const [elaboracion, setElaboracion] = useState<Elaboracion | null>(null);
-    const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
-    const [dbElaboraciones, setDbElaboraciones] = useState<Elaboracion[]>([]);
-    const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
-    const [detallesNecesidad, setDetallesNecesidad] = useState<DetalleNecesidad[]>([]);
-    const [isMounted, setIsMounted] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const router = useRouter();
     const params = useParams() ?? {};
     const { toast } = useToast();
     const id = (params.id as string) || '';
-    const isEditing = id !== 'nuevo';
+    const isEditing = id !== 'nuevo' && id !== '';
+
+    // Hooks
+    const { data: orden, isLoading: isLoadingOF } = useCprOrdenFabricacion(isEditing ? id : '');
+    const { data: allElaboraciones = [] } = useCprElaboraciones();
+    const { data: allPersonal = [] } = usePersonal();
+    const { data: allServiceOrders = [] } = useEventos();
+    const { data: allGastroOrders = [] } = useGastronomyOrders();
+    const { data: allBriefings = [] } = useComercialBriefings();
+    const { data: allRecetas = [] } = useRecetas();
+    const { data: allIngredientes = [] } = useIngredientesInternos();
+    const { data: allErp = [] } = useArticulosERP();
+
+    const updateOF = useUpdateCprOrdenFabricacion();
+    const createOF = useCreateCprOrdenFabricacion();
+    const deleteOF = useDeleteCprOrdenFabricacion();
+
+    const [detallesNecesidad, setDetallesNecesidad] = useState<DetalleNecesidad[]>([]);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const form = useForm<FormData>({
         defaultValues: {
@@ -118,14 +144,19 @@ export default function OfDetailPage() {
       setValue('cantidadReal', totalDesglose);
     }, [totalDesglose, setValue]);
 
+    const personalCPR = useMemo(() => allPersonal.filter(p => p.departamento === 'CPR'), [allPersonal]);
+    const dbElaboraciones = allElaboraciones;
     const selectedElaboracion = useMemo(() => dbElaboraciones.find(e => e.id === watchedElaboracionId), [dbElaboraciones, watchedElaboracionId]);
+    const elaboracion = useMemo(() => allElaboraciones.find(e => e.id === orden?.elaboracionId), [allElaboraciones, orden]);
+
+    const ingredientesData = useMemo(() => {
+        const erpMap = new Map(allErp.map(i => [i.idreferenciaerp, i]));
+        const combined = allIngredientes.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
+        return new Map(combined.map(i => [i.id, i]));
+    }, [allIngredientes, allErp]);
 
     const loadNecesidades = useCallback((of: OrdenFabricacion | null) => {
         if (!of) return;
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
 
         const necesidades: DetalleNecesidad[] = [];
         
@@ -175,139 +206,113 @@ export default function OfDetailPage() {
         }));
         setValue('desgloseProduccion', initialDesglose);
         
-    }, [setValue]);
+    }, [allServiceOrders, allBriefings, allGastroOrders, allRecetas, setValue]);
 
 
     useEffect(() => {
-        const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
-
-        const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-        setDbElaboraciones(allElaboraciones);
-        
-        const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-        const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
-        const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
-        setIngredientesData(new Map(combined.map(i => [i.id, i])));
-        
-        if (isEditing) {
-            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-            const currentOF = allOFs.find(of => of.id === id);
-            setOrden(currentOF || null);
-            
-            if (currentOF) {
-                form.reset({
-                    elaboracionId: currentOF.elaboracionId,
-                    cantidadTotal: currentOF.cantidadTotal,
-                    fechaProduccionPrevista: new Date(currentOF.fechaProduccionPrevista),
-                    responsable: currentOF.responsable,
-                    cantidadReal: currentOF.cantidadReal ?? null,
-                    incidenciaObservaciones: currentOF.incidenciaObservaciones || '',
-                    desgloseProduccion: [],
-                });
-                const elabData = allElaboraciones.find(e => e.id === currentOF.elaboracionId);
-                setElaboracion(elabData || null);
-                loadNecesidades(currentOF);
-            }
+        if (isEditing && orden) {
+            form.reset({
+                elaboracionId: orden.elaboracionId,
+                cantidadTotal: orden.cantidadTotal,
+                fechaProduccionPrevista: new Date(orden.fechaProduccionPrevista),
+                responsable: orden.responsable,
+                cantidadReal: orden.cantidadReal ?? null,
+                incidenciaObservaciones: orden.incidenciaObservaciones || '',
+                desgloseProduccion: [],
+            });
+            loadNecesidades(orden);
         }
-        setIsMounted(true);
-    }, [id, form, isEditing, loadNecesidades]);
+    }, [id, form, isEditing, orden, loadNecesidades]);
 
     const ratioProduccion = useMemo(() => {
         if (!isEditing || !orden || !elaboracion || !elaboracion.produccionTotal) return 1;
         return orden.cantidadTotal / elaboracion.produccionTotal;
     }, [orden, elaboracion, isEditing]);
     
-    const handleSave = (newStatus?: OrdenFabricacion['estado'], newResponsable?: string) => {
+    const handleSave = async (newStatus?: OrdenFabricacion['estado'], newResponsable?: string) => {
         if (!isEditing || !orden) return;
 
         const formData = getValues();
-        let updatedOF: OrdenFabricacion = { ...orden };
+        const updates: any = { id: orden.id };
 
         if (newStatus) {
-            updatedOF.estado = newStatus;
+            updates.estado = newStatus;
             if (newStatus === 'Asignada' && newResponsable) {
-                updatedOF.responsable = newResponsable;
-                updatedOF.fechaAsignacion = new Date().toISOString();
+                updates.responsable = newResponsable;
+                updates.fechaAsignacion = new Date().toISOString();
             }
             if (newStatus === 'En Proceso') {
-                if (!updatedOF.responsable) updatedOF.responsable = formData.responsable || 'Sin asignar';
-                updatedOF.fechaInicioProduccion = new Date().toISOString();
+                if (!orden.responsable) updates.responsable = formData.responsable || 'Sin asignar';
+                updates.fechaInicioProduccion = new Date().toISOString();
             }
             if (newStatus === 'Finalizado') {
-                updatedOF.cantidadReal = formData.cantidadReal || updatedOF.cantidadTotal;
-                updatedOF.fechaFinalizacion = new Date().toISOString();
+                updates.cantidadReal = formData.cantidadReal || orden.cantidadTotal;
+                updates.fechaFinalizacion = new Date().toISOString();
             }
             if (newStatus === 'Incidencia') {
-                updatedOF.incidenciaObservaciones = formData.incidenciaObservaciones;
+                updates.incidenciaObservaciones = formData.incidenciaObservaciones;
+                updates.incidencia = true;
             }
         } else { // Generic save
-             updatedOF = {
-                ...orden,
-                responsable: formData.responsable,
-                cantidadReal: formData.cantidadReal ?? undefined,
-                incidenciaObservaciones: formData.incidenciaObservaciones,
-             };
+            updates.responsable = formData.responsable;
+            updates.cantidadReal = formData.cantidadReal ?? undefined;
+            updates.incidenciaObservaciones = formData.incidenciaObservaciones;
         }
 
-        const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const index = allOFs.findIndex(of => of.id === orden.id);
-        if (index !== -1) {
-            allOFs[index] = updatedOF;
-            localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-            setOrden(updatedOF);
-            form.reset({ ...getValues(), responsable: updatedOF.responsable, cantidadReal: updatedOF.cantidadReal, incidenciaObservaciones: updatedOF.incidenciaObservaciones || '' });
+        try {
+            await updateOF.mutateAsync(updates);
             toast({ title: 'Guardado', description: `La Orden de Fabricación ha sido actualizada.` });
+        } catch (error) {
+            console.error('Error saving OF:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la OF.' });
         }
     };
 
-    const handleCreate = (data: FormData) => {
+    const handleCreate = async (data: FormData) => {
         if (!selectedElaboracion) {
             toast({ variant: 'destructive', title: 'Error', description: 'Debe seleccionar una elaboración.' });
             return;
         }
 
-        const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const lastIdNumber = allOFs.reduce((max, of) => {
-            const numPart = of.id.split('-')[2];
-            const num = numPart ? parseInt(numPart) : 0;
-            return isNaN(num) ? max : Math.max(max, num);
-        }, 0);
-
-        const newOF: OrdenFabricacion = {
-            id: `OF-${new Date().getFullYear()}-${(lastIdNumber + 1).toString().padStart(3, '0')}`,
-            fechaCreacion: new Date().toISOString(),
-            fechaProduccionPrevista: data.fechaProduccionPrevista.toISOString(),
-            elaboracionId: selectedElaboracion.id,
-            elaboracionNombre: selectedElaboracion.nombre,
-            cantidadTotal: data.cantidadTotal,
-            unidad: selectedElaboracion.unidadProduccion,
-            partidaAsignada: selectedElaboracion.partidaProduccion,
-            tipoExpedicion: selectedElaboracion.tipoExpedicion,
-            estado: 'Pendiente',
-            osIDs: [],
-            incidencia: false,
-            okCalidad: false,
-        };
-        
-        allOFs.push(newOF);
-        localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-        toast({ title: 'OF Manual Creada', description: `Se ha creado la Orden de Fabricación ${newOF.id}.`});
-        router.push('/cpr/of');
+        try {
+            const newOF: Partial<OrdenFabricacion> = {
+                fechaCreacion: new Date().toISOString(),
+                fechaProduccionPrevista: data.fechaProduccionPrevista.toISOString(),
+                elaboracionId: selectedElaboracion.id,
+                elaboracionNombre: selectedElaboracion.nombre,
+                cantidadTotal: data.cantidadTotal,
+                unidad: selectedElaboracion.unidadProduccion,
+                partidaAsignada: selectedElaboracion.partidaProduccion,
+                tipoExpedicion: selectedElaboracion.tipoExpedicion,
+                estado: 'Pendiente',
+                osIDs: [],
+                incidencia: false,
+                okCalidad: false,
+            };
+            
+            await createOF.mutateAsync(newOF);
+            toast({ title: 'OF Manual Creada', description: `Se ha creado la Orden de Fabricación.`});
+            router.push('/cpr/of');
+        } catch (error) {
+            console.error('Error creating OF:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear la OF.' });
+        }
     }
     
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!orden) return;
-        let allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const updatedOFs = allOFs.filter(of => of.id !== orden.id);
-        localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
-        toast({ title: 'Orden Eliminada', description: `La OF ${orden.id} ha sido eliminada.`});
-        router.push('/cpr/of');
+        try {
+            await deleteOF.mutateAsync(orden.id);
+            toast({ title: 'Orden Eliminada', description: `La OF ${orden.id} ha sido eliminada.`});
+            router.push('/cpr/of');
+        } catch (error) {
+            console.error('Error deleting OF:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la OF.' });
+        }
     }
 
 
-    if (!isMounted) {
+    if (isLoadingOF && isEditing) {
         return <LoadingSkeleton title="Cargando Orden de Fabricación..." />;
     }
 

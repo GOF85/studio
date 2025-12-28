@@ -20,7 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Star, GripVertical, Maximize2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { ImagenReceta } from '@/types/index';
 import { cn } from '@/lib/utils';
 
@@ -71,6 +71,10 @@ function SortableImage({ imagen, onDelete, onSetPrincipal }: SortableImageProps)
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-black/90 border-none">
+                        <DialogTitle className="sr-only">Vista de imagen</DialogTitle>
+                        <DialogDescription className="sr-only">
+                            Visualización a tamaño completo de la imagen seleccionada.
+                        </DialogDescription>
                         <img
                             src={imagen.url}
                             alt={imagen.descripcion || 'Vista completa'}

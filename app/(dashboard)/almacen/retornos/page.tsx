@@ -22,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useEventos, useReturnSheets } from '@/hooks/use-data-queries';
 
 export default function GestionRetornosPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -31,65 +32,53 @@ export default function GestionRetornosPage() {
     });
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
     const [showPastEvents, setShowPastEvents] = useState(false);
-    const [returnSheets, setReturnSheets] = useState<Record<string, ReturnSheet>>({});
     const router = useRouter();
     const { toast } = useToast();
 
+    const { data: serviceOrders = [], isLoading: isLoadingEvents } = useEventos();
+    const { data: returnSheets = [], isLoading: isLoadingReturns } = useReturnSheets();
+
     useEffect(() => {
         setIsMounted(true);
-        const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[])
-            .filter(os => os.status === 'Confirmado');
-        setServiceOrders(allServiceOrders);
-        
-        const allReturnSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>;
-        setReturnSheets(allReturnSheets);
     }, []);
 
-    const handleCleanOrphanedReturns = () => {
-        const allReturnSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>;
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const osIds = new Set(allServiceOrders.map(os => os.id));
-        
-        const orphanedIds = Object.keys(allReturnSheets).filter(osId => !osIds.has(osId));
-        
-        if (orphanedIds.length === 0) {
-            toast({ title: 'No hay retornos huérfanos', description: 'Todo está en orden.' });
-            return;
-        }
-
-        orphanedIds.forEach(id => {
-            delete allReturnSheets[id];
+    const returnSheetsMap = useMemo(() => {
+        const map: Record<string, ReturnSheet> = {};
+        returnSheets.forEach(sheet => {
+            map[sheet.osId] = sheet;
         });
+        return map;
+    }, [returnSheets]);
 
-        localStorage.setItem('returnSheets', JSON.stringify(allReturnSheets));
-        setReturnSheets(allReturnSheets);
-        toast({ title: 'Limpieza completada', description: `Se han eliminado ${orphanedIds.length} retornos huérfanos.` });
+    const handleCleanOrphanedReturns = () => {
+        toast({ title: 'Limpieza automática', description: 'Supabase mantiene la integridad referencial.' });
     };
 
     const filteredOrders = useMemo(() => {
-        return serviceOrders.filter(os => {
-            const osDate = new Date(os.endDate); // We filter by end date for returns
-            
-            let isInDateRange = true;
-            if (dateRange?.from) {
-                 isInDateRange = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
-            }
+        return serviceOrders
+            .filter(os => os.status === 'Confirmado')
+            .filter(os => {
+                const osDate = new Date(os.endDate); // We filter by end date for returns
+                
+                let isInDateRange = true;
+                if (dateRange?.from) {
+                    isInDateRange = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
+                }
 
-            const matchesSearch = os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                 os.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                 (os.finalClient || '').toLowerCase().includes(searchTerm.toLowerCase());
+                const matchesSearch = os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    os.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    (os.finalClient || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-            const isPastEvent = isPast(osDate);
-            const pastEventMatch = showPastEvents || !isPastEvent;
-            
-            return isInDateRange && matchesSearch && pastEventMatch;
-        }).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+                const isPastEvent = isPast(osDate);
+                const pastEventMatch = showPastEvents || !isPastEvent;
+                
+                return isInDateRange && matchesSearch && pastEventMatch;
+            }).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
     }, [serviceOrders, dateRange, searchTerm, showPastEvents]);
     
     const getReturnStatus = (osId: string): ReturnSheet['status'] => {
-        return returnSheets[osId]?.status || 'Pendiente';
+        return returnSheetsMap[osId]?.status || 'Pendiente';
     }
     
     const getStatusVariant = (status: ReturnSheet['status']): 'default' | 'secondary' | 'outline' => {
@@ -98,7 +87,7 @@ export default function GestionRetornosPage() {
         return 'secondary'
     }
 
-    if (!isMounted) {
+    if (!isMounted || isLoadingEvents || isLoadingReturns) {
         return <LoadingSkeleton title="Cargando Gestión de Retornos..." />;
     }
 

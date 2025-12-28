@@ -10,14 +10,14 @@ export function useCreateAtipicoOrder() {
     return useMutation({
         mutationFn: async (order: Partial<AtipicoOrder>) => {
             const { data, error } = await supabase
-                .from('pedidos_atipicos')
+                .from('atipico_orders')
                 .insert({
-                    evento_id: order.osId,
+                    os_id: order.osId,
                     concepto: order.concepto,
                     precio: order.precio,
                     observaciones: order.observaciones,
                     fecha: order.fecha,
-                    estado: order.status || 'Pendiente',
+                    status: order.status || 'Pendiente',
                 })
                 .select()
                 .single();
@@ -26,7 +26,7 @@ export function useCreateAtipicoOrder() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['atipicos'] });
+            queryClient.invalidateQueries({ queryKey: ['atipicoOrders'] });
         }
     });
 }
@@ -37,13 +37,13 @@ export function useUpdateAtipicoOrder() {
     return useMutation({
         mutationFn: async ({ id, updates }: { id: string; updates: Partial<AtipicoOrder> }) => {
             const { data, error } = await supabase
-                .from('pedidos_atipicos')
+                .from('atipico_orders')
                 .update({
                     concepto: updates.concepto,
                     precio: updates.precio,
                     observaciones: updates.observaciones,
                     fecha: updates.fecha,
-                    estado: updates.status,
+                    status: updates.status,
                 })
                 .eq('id', id)
                 .select()
@@ -53,7 +53,7 @@ export function useUpdateAtipicoOrder() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['atipicos'] });
+            queryClient.invalidateQueries({ queryKey: ['atipicoOrders'] });
         }
     });
 }
@@ -64,14 +64,14 @@ export function useDeleteAtipicoOrder() {
     return useMutation({
         mutationFn: async (id: string) => {
             const { error } = await supabase
-                .from('pedidos_atipicos')
+                .from('atipico_orders')
                 .delete()
                 .eq('id', id);
 
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['atipicos'] });
+            queryClient.invalidateQueries({ queryKey: ['atipicoOrders'] });
         }
     });
 }
@@ -82,8 +82,8 @@ export function useUpdateAtipicoStatus() {
     return useMutation({
         mutationFn: async ({ id, status }: { id: string; status: string }) => {
             const { data, error } = await supabase
-                .from('pedidos_atipicos')
-                .update({ estado: status })
+                .from('atipico_orders')
+                .update({ status: status })
                 .eq('id', id)
                 .select()
                 .single();
@@ -92,7 +92,7 @@ export function useUpdateAtipicoStatus() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['atipicos'] });
+            queryClient.invalidateQueries({ queryKey: ['atipicoOrders'] });
         }
     });
 }

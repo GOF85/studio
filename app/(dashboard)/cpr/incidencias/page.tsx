@@ -25,24 +25,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { useCprOrdenesFabricacion } from '@/hooks/use-cpr-data';
 
 const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
 
 export default function IncidenciasPage() {
-  const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
+  const { data: allOFs = [] } = useCprOrdenesFabricacion();
   const [searchTerm, setSearchTerm] = useState('');
   const [partidaFilter, setPartidaFilter] = useState('all');
   const router = useRouter();
 
-  useEffect(() => {
-    let storedData = localStorage.getItem('ordenesFabricacion');
-    if (storedData) {
-        const allOFs = JSON.parse(storedData) as OrdenFabricacion[];
-        setOrdenes(allOFs.filter(of => of.estado === 'Incidencia'));
-    }
-    setIsMounted(true);
-  }, []);
+  const ordenes = useMemo(() => {
+    return allOFs.filter(of => of.estado === 'Incidencia');
+  }, [allOFs]);
 
   const filteredItems = useMemo(() => {
     return ordenes.filter(item => {
@@ -54,10 +49,6 @@ export default function IncidenciasPage() {
       return searchMatch && partidaMatch;
     });
   }, [ordenes, searchTerm, partidaFilter]);
-
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Informe de Incidencias..." />;
-  }
 
   return (
     <div>

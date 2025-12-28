@@ -44,6 +44,10 @@ export function ItemHistoryModal({ isOpen, onClose, item, calculateHistory }: It
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogTitle className="sr-only">Histórico de {item.nombre}</DialogTitle>
+        <DialogDescription className="sr-only">
+          Consulta el histórico de precios y cambios del ítem seleccionado.
+        </DialogDescription>
         
         {/* HEADER FIJO */}
         <DialogHeader className="px-6 py-4 border-b bg-background z-10">

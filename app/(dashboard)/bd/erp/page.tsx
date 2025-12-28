@@ -509,40 +509,61 @@ function ArticulosERPPageContent() {
                 }
                 // --- End Smart Snapshot Logic ---
 
+                // Fetch familias from Supabase
+                const { data: familiasData } = await supabase.from('familias_erp').select('*');
+                const familiasMap = new Map((familiasData || []).map(f => [f.familia_categoria, { tipo: f.familia, categoriaMice: f.categoria }]));
 
-                const allFamilias = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
-                const familiasMap = new Map(allFamilias.map(f => [f.familiaCategoria, { tipo: f.Familia, categoriaMice: f.Categoria }]));
-
-                const importedData: ArticuloERP[] = results.data.map((item: any) => {
+                const dataToUpsert = results.data.map((item: any) => {
                     const familiaInfo = familiasMap.get(item.familiaCategoria || '');
                     const precioCalculado = calculatePrice(item);
                     return {
-                        id: item.id || Date.now().toString() + Math.random(),
-                        idreferenciaerp: item.idreferenciaerp || '',
-                        idProveedor: item.idProveedor || '',
-                        nombreProductoERP: item.nombreProductoERP || '',
-                        referenciaProveedor: item.referenciaProveedor || '',
-                        nombreProveedor: proveedoresMap.get(item.idProveedor || '') || item.nombreProveedor || 'Proveedor no identificado',
-                        familiaCategoria: item.familiaCategoria || '',
-                        precioCompra: parseCurrency(item.precioCompra),
+                        erp_id: item.idreferenciaerp || '',
+                        proveedor_id: item.idProveedor || '',
+                        nombre_proveedor: proveedoresMap.get(item.idProveedor || '') || item.nombreProveedor || 'Proveedor no identificado',
+                        nombre: item.nombreProductoERP || '',
+                        referencia_proveedor: item.referenciaProveedor || '',
+                        familia_categoria: item.familiaCategoria || '',
+                        precio_compra: parseCurrency(item.precioCompra),
                         descuento: parseCurrency(item.descuento),
-                        unidadConversion: parseCurrency(item.unidadConversion) || 1,
+                        unidad_conversion: parseCurrency(item.unidadConversion) || 1,
                         precio: precioCalculado,
-                        precioAlquiler: parseCurrency(item.precioAlquiler),
-                        unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UD',
+                        precio_alquiler: parseCurrency(item.precioAlquiler),
+                        unidad_medida: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UD',
                         tipo: familiaInfo?.tipo || item.tipo || '',
-                        categoriaMice: familiaInfo?.categoriaMice || item.categoriaMice || '',
+                        categoria_mice: familiaInfo?.categoriaMice || item.categoriaMice || '',
                         alquiler: parseBoolean(item.alquiler),
                         observaciones: item.observaciones || ''
-                    }
+                    };
                 });
 
-                localStorage.setItem('articulosERP', JSON.stringify(importedData));
-                setItems(importedData);
-                toast({
-                    title: 'Importación completada',
-                    description: `Se han cargado ${importedData.length} registros. ${newPriceHistoryEntries.length} cambios de precio registrados.`
-                });
+                // Upsert in chunks to avoid payload limits
+                const chunkSize = 100;
+                let hasError = false;
+                for (let i = 0; i < dataToUpsert.length; i += chunkSize) {
+                    const chunk = dataToUpsert.slice(i, i + chunkSize);
+                    const { error: upsertError } = await supabase
+                        .from('articulos_erp')
+                        .upsert(chunk, { onConflict: 'erp_id' });
+                    
+                    if (upsertError) {
+                        console.error('Error upserting chunk:', upsertError);
+                        hasError = true;
+                    }
+                }
+
+                if (!hasError) {
+                    toast({
+                        title: 'Importación completada',
+                        description: `Se han cargado ${dataToUpsert.length} registros en Supabase. ${newPriceHistoryEntries.length} cambios de precio registrados.`
+                    });
+                    loadPage('init');
+                } else {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Error parcial',
+                        description: 'Algunos registros no pudieron ser guardados en Supabase.'
+                    });
+                }
                 setIsImportAlertOpen(false);
             },
             error: (error) => {

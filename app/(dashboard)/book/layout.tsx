@@ -20,7 +20,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
         <div className="flex flex-col min-h-screen bg-background">
             
             {/* BARRA DE NAVEGACIÓN SUPERIOR (BREADCRUMBS) */}
-            <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <header className="sticky top-12 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 {/* Alineación corregida: max-w-7xl igual que el contenido de las páginas */}
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex h-12 items-center">
                     

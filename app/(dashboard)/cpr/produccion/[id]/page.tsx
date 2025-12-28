@@ -22,6 +22,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatNumber, formatUnit } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { useCprOrdenFabricacion, useUpdateCprOrdenFabricacion, useCprElaboraciones } from '@/hooks/use-cpr-data';
+import { useIngredientesInternos, useArticulosERP } from '@/hooks/use-data-queries';
 
 
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
@@ -32,51 +34,46 @@ type ConsumoReal = {
 }
 
 export default function ProduccionDetallePage() {
-    const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
-    const [elaboracion, setElaboracion] = useState<Elaboracion | null>(null);
-    const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
-    const [isMounted, setIsMounted] = useState(false);
-    const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
-    const [cantidadReal, setCantidadReal] = useState<number | string>('');
-    const [elapsedTime, setElapsedTime] = useState<string | null>(null);
-    const [consumosReales, setConsumosReales] = useState<ConsumoReal[]>([]);
-
-
     const router = useRouter();
     const params = useParams() ?? {};
     const id = (params.id as string) || '';
     const { toast } = useToast();
 
+    const { data: orden, isLoading: isLoadingOF } = useCprOrdenFabricacion(id);
+    const { data: elaboraciones = [], isLoading: isLoadingElabs } = useCprElaboraciones();
+    const { data: ingredientesInternos = [], isLoading: isLoadingIngs } = useIngredientesInternos();
+    const { data: articulosERP = [], isLoading: isLoadingERP } = useArticulosERP();
+    const updateOF = useUpdateCprOrdenFabricacion();
+
+    const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
+    const [cantidadReal, setCantidadReal] = useState<number | string>('');
+    const [elapsedTime, setElapsedTime] = useState<string | null>(null);
+    const [consumosReales, setConsumosReales] = useState<ConsumoReal[]>([]);
+
+    const elaboracion = useMemo(() => 
+        elaboraciones.find(e => e.id === orden?.elaboracionId), 
+    [elaboraciones, orden]);
+
+    const ingredientesData = useMemo(() => {
+        const erpMap = new Map(articulosERP.map(i => [i.idreferenciaerp, i]));
+        const combined = ingredientesInternos.map(ing => ({ 
+            ...ing, 
+            erp: erpMap.get(ing.productoERPlinkId) 
+        }));
+        return new Map(combined.map(i => [i.id, i]));
+    }, [ingredientesInternos, articulosERP]);
+
     useEffect(() => {
-        const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const currentOF = allOFs.find(of => of.id === id);
-        setOrden(currentOF || null);
-        
-        if (currentOF) {
-            const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-            const currentElab = allElaboraciones.find(e => e.id === currentOF.elaboracionId);
-            setElaboracion(currentElab || null);
-
-            const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-            const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-            const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
-            const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
-            setIngredientesData(new Map(combinedIngredientes.map(i => [i.id, i])));
-
-            // Load saved consumosReales
-            if(currentOF.consumosReales) {
-                setConsumosReales(currentOF.consumosReales);
-            } else if (currentElab) {
-                 // Initialize with theoretical values if not present
-                const initialConsumos = currentElab.componentes.map(comp => ({
-                    componenteId: comp.id,
-                    cantidadReal: comp.cantidad * (currentOF.cantidadTotal / currentElab.produccionTotal),
-                }));
-                setConsumosReales(initialConsumos);
-            }
+        if (orden?.consumosReales) {
+            setConsumosReales(orden.consumosReales);
+        } else if (elaboracion && orden) {
+            const initialConsumos = elaboracion.componentes.map(comp => ({
+                componenteId: comp.id,
+                cantidadReal: comp.cantidad * (orden.cantidadTotal / (elaboracion.produccionTotal || 1)),
+            }));
+            setConsumosReales(initialConsumos);
         }
-        setIsMounted(true);
-    }, [id]);
+    }, [orden, elaboracion]);
 
     useEffect(() => {
         let timer: NodeJS.Timeout | null = null;
@@ -103,32 +100,37 @@ export default function ProduccionDetallePage() {
     const handleUpdateStatus = (newStatus: 'En Proceso' | 'Finalizado') => {
         if (!orden) return;
         
-        const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const index = allOFs.findIndex(of => of.id === id);
-
-        if (index > -1) {
-            let updatedOF = { ...allOFs[index], estado: newStatus };
-            if (newStatus === 'En Proceso') {
-                updatedOF.fechaInicioProduccion = new Date().toISOString();
-                toast({ title: 'Producción Iniciada', description: 'El cronómetro ha comenzado.' });
-                 setOrden(updatedOF); // Optimistically update state to show timer
-            }
-            if (newStatus === 'Finalizado') {
-                const finalQuantity = typeof cantidadReal === 'string' ? parseFloat(cantidadReal) : cantidadReal;
-                if (!finalQuantity || finalQuantity <= 0) {
-                    toast({ variant: 'destructive', title: 'Error', description: 'La cantidad real producida debe ser mayor que cero.' });
-                    return;
+        if (newStatus === 'En Proceso') {
+            updateOF.mutate({
+                id: orden.id,
+                estado: 'En Proceso',
+                fechaInicioProduccion: new Date().toISOString()
+            }, {
+                onSuccess: () => {
+                    toast({ title: 'Producción Iniciada', description: 'El cronómetro ha comenzado.' });
                 }
-                updatedOF.fechaFinalizacion = new Date().toISOString();
-                updatedOF.cantidadReal = finalQuantity;
-                updatedOF.consumosReales = consumosReales;
-                setShowFinalizeDialog(false);
-                router.push('/cpr/produccion');
+            });
+        }
+        
+        if (newStatus === 'Finalizado') {
+            const finalQuantity = typeof cantidadReal === 'string' ? parseFloat(cantidadReal) : cantidadReal;
+            if (!finalQuantity || finalQuantity <= 0) {
+                toast({ variant: 'destructive', title: 'Error', description: 'La cantidad real producida debe ser mayor que cero.' });
+                return;
             }
-
-            allOFs[index] = updatedOF;
-            localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-            setOrden(updatedOF);
+            
+            updateOF.mutate({
+                id: orden.id,
+                estado: 'Finalizado',
+                fechaFinalizacion: new Date().toISOString(),
+                cantidadReal: finalQuantity,
+                consumosReales: consumosReales
+            }, {
+                onSuccess: () => {
+                    setShowFinalizeDialog(false);
+                    router.push('/cpr/produccion');
+                }
+            });
         }
     };
     
@@ -153,13 +155,6 @@ export default function ProduccionDetallePage() {
             const newConsumos = prev.map(c => 
                 c.componenteId === componenteId ? { ...c, cantidadReal: cantidad } : c
             );
-            // Auto-save to localStorage
-            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-            const index = allOFs.findIndex(of => of.id === id);
-            if (index > -1) {
-                allOFs[index].consumosReales = newConsumos;
-                localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-            }
             return newConsumos;
         });
     }
@@ -170,8 +165,17 @@ export default function ProduccionDetallePage() {
     }
 
 
-    if (!isMounted || !orden) {
+    if (isLoadingOF || isLoadingElabs || isLoadingIngs || isLoadingERP) {
         return <LoadingSkeleton title="Cargando Orden de Fabricación..." />;
+    }
+
+    if (!orden) {
+        return (
+            <div className="p-8 text-center">
+                <h2 className="text-2xl font-bold">Orden no encontrada</h2>
+                <Button onClick={() => router.push('/cpr/produccion')} className="mt-4">Volver a Producción</Button>
+            </div>
+        );
     }
 
     return (

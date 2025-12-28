@@ -138,6 +138,15 @@ export async function deleteEspacio(id: string) {
     if (error) throw error;
 }
 
+export async function deleteEspaciosBulk(ids: string[]) {
+    const { error } = await supabase
+        .from('espacios_v2')
+        .delete()
+        .in('id', ids);
+
+    if (error) throw error;
+}
+
 // Mappers
 function mapEspacioFromDB(row: any): EspacioV2 {
     return {

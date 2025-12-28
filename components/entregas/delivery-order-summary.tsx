@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -16,6 +14,7 @@ import { useFormContext } from 'react-hook-form';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { cn } from '@/lib/utils';
+import { useRecetas } from '@/hooks/use-data-queries';
 
 interface DeliveryOrderSummaryProps {
   entrega: Entrega;
@@ -26,14 +25,8 @@ interface DeliveryOrderSummaryProps {
 
 export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }: DeliveryOrderSummaryProps) {
   const { toast } = useToast();
-  const [recetas, setRecetas] = useState<Receta[]>([]);
-  const recetasMap = useMemo(() => new Map(recetas.map(r => [r.id, r])), [recetas]);
-
-
-  useEffect(() => {
-    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    setRecetas(allRecetas);
-  }, []);
+  const { data: allRecetas = [] } = useRecetas();
+  const recetasMap = useMemo(() => new Map(allRecetas.map(r => [r.id, r])), [allRecetas]);
 
   const onUpdateQuantity = (itemId: string, quantity: number) => {
     let newItems: PedidoEntregaItem[];
@@ -67,6 +60,7 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
     let coste = 0;
     let pvp = 0;
     
+
     hito.items.forEach(item => {
         coste += (item.coste || 0) * (item.quantity || 0);
         pvp += (item.pvp || 0) * (item.quantity || 0);
@@ -85,7 +79,7 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
       return acc;
     }, {} as Record<string, PedidoEntregaItem[]>);
   }, [hito.items]);
-  
+
   const costePorte = entrega.tarifa === 'IFEMA' ? 95 : 30;
   const totalPortes = (hito.portes || 0) * costePorte;
   

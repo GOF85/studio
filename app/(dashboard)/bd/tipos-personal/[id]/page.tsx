@@ -1,12 +1,11 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Save, X, UserCog, Trash2 } from 'lucide-react';
-import type { CategoriaPersonal, Proveedor } from '@/types';
 import { tipoPersonalSchema, type TipoPersonalFormValues } from '../nuevo/page';
 
 import { Button } from '@/components/ui/button';
@@ -14,19 +13,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useLoadingStore } from '@/hooks/use-loading-store';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useTipoPersonalItem, useUpsertTipoPersonal, useDeleteTipoPersonal, useProveedores } from '@/hooks/use-data-queries';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 export default function EditarTipoPersonalPage() {
   const router = useRouter();
   const params = useParams() ?? {};
   const id = (params.id as string) || '';
 
-  const { isLoading, setIsLoading } = useLoadingStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  
+  const { data: item, isLoading: isLoadingItem } = useTipoPersonalItem(id);
+  const { data: proveedores = [], isLoading: isLoadingProveedores } = useProveedores();
+  const upsertMutation = useUpsertTipoPersonal();
+  const deleteMutation = useDeleteTipoPersonal();
 
   const form = useForm<TipoPersonalFormValues>({
     resolver: zodResolver(tipoPersonalSchema),
@@ -36,21 +39,16 @@ export default function EditarTipoPersonalPage() {
   });
 
   useEffect(() => {
-    const allProveedores = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]);
-    setProveedores(allProveedores);
-    
-    const allItems = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
-    const item = allItems.find(p => p.id === id);
     if (item) {
       form.reset({
-        ...item,
-        precioHora: item.precioHora || 0 // Ensure it's a number
+        id: item.id,
+        proveedorId: item.proveedorId,
+        nombreProveedor: item.nombreProveedor,
+        categoria: item.categoria,
+        precioHora: item.precioHora || 0
       });
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la categoría de personal.' });
-      router.push('/bd/tipos-personal');
     }
-  }, [id, form, router, toast]);
+  }, [item, form]);
   
   const handleProviderChange = (providerId: string) => {
     const proveedor = proveedores.find(p => p.id === providerId);
@@ -58,29 +56,36 @@ export default function EditarTipoPersonalPage() {
     form.setValue('nombreProveedor', proveedor?.nombreComercial || '', { shouldDirty: true });
   }
 
-  function onSubmit(data: TipoPersonalFormValues) {
-    setIsLoading(true);
-
-    let allItems = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
-    const index = allItems.findIndex(p => p.id === id);
-
-    if (index !== -1) {
-      allItems[index] = data;
-      localStorage.setItem('tiposPersonal', JSON.stringify(allItems));
-      toast({ description: 'Categoría actualizada correctamente.' });
+  async function onSubmit(data: TipoPersonalFormValues) {
+    try {
+      await upsertMutation.mutateAsync({ ...data, id });
+      router.push('/bd/tipos-personal');
+    } catch (error) {
+      // Error handled by mutation
     }
-    
-    router.push('/bd/tipos-personal');
-    setIsLoading(false);
   }
   
-  const handleDelete = () => {
-    let allItems = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
-    const updatedItems = allItems.filter(p => p.id !== id);
-    localStorage.setItem('tiposPersonal', JSON.stringify(updatedItems));
-    toast({ title: 'Categoría eliminada' });
-    router.push('/bd/tipos-personal');
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(id);
+      router.push('/bd/tipos-personal');
+    } catch (error) {
+      // Error handled by mutation
+    }
   };
+
+  if (isLoadingItem || isLoadingProveedores) {
+    return <LoadingSkeleton />;
+  }
+
+  if (!item) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+        <p className="text-muted-foreground">No se encontró la categoría de personal.</p>
+        <Button onClick={() => router.push('/bd/tipos-personal')}>Volver al listado</Button>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -94,9 +99,9 @@ export default function EditarTipoPersonalPage() {
               </div>
               <div className="flex gap-2">
                  <Button variant="outline" type="button" onClick={() => router.push('/bd/tipos-personal')}> <X className="mr-2"/> Cancelar</Button>
-                 <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/> Borrar</Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                 <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)} disabled={deleteMutation.isPending}><Trash2 className="mr-2"/> Borrar</Button>
+                <Button type="submit" disabled={upsertMutation.isPending}>
+                  {upsertMutation.isPending ? <Loader2 className="animate-spin" /> : <Save />}
                   <span className="ml-2">Guardar Cambios</span>
                 </Button>
               </div>
@@ -130,7 +135,7 @@ export default function EditarTipoPersonalPage() {
                     <FormItem><FormLabel>Nombre de la Categoría</FormLabel><FormControl><Input {...field} placeholder="Ej: Camarero de Sala" /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="precioHora" render={({ field }) => (
-                    <FormItem><FormLabel>Precio por Hora</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Precio por Hora</FormLabel><FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
               </CardContent>
@@ -148,7 +153,9 @@ export default function EditarTipoPersonalPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Eliminar
+                    </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

@@ -14,7 +14,7 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useRecetas, useElaboraciones } from '@/hooks/use-data-queries';
 import { cn } from '@/lib/utils';
@@ -65,6 +65,9 @@ export function GlobalSearch() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="p-0 overflow-hidden sm:max-w-4xl h-[60vh] flex flex-col shadow-2xl">
             <DialogTitle className="sr-only">Buscador Global</DialogTitle>
+            <DialogDescription className="sr-only">
+                Busca recetas, elaboraciones y artículos en todo el sistema.
+            </DialogDescription>
             
             <Command className="w-full h-full [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
                 <CommandInput 

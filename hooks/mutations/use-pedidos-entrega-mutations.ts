@@ -95,3 +95,107 @@ export function useUpdatePedidoEntregaStatus() {
         }
     });
 }
+
+export function useSyncPedidosEntrega() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ osId, hitos }: { osId: string; hitos: any[] }) => {
+            const { data, error } = await supabase
+                .from('pedidos_entrega')
+                .upsert({
+                    evento_id: osId,
+                    data: { hitos },
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'evento_id' })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['pedidos-entrega'] });
+        }
+    });
+}
+
+export function useUpdateHitoPickingState() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ osId, hitoId, pickingState }: { osId: string; hitoId: string; pickingState: any }) => {
+            const { data: pedido, error: fetchError } = await supabase
+                .from('pedidos_entrega')
+                .select('*')
+                .eq('evento_id', osId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            const hitos = pedido.data?.hitos || [];
+            const updatedHitos = hitos.map((h: any) => {
+                if (h.id === hitoId) {
+                    return { ...h, pickingState };
+                }
+                return h;
+            });
+
+            const { data, error: updateError } = await supabase
+                .from('pedidos_entrega')
+                .update({ data: { ...pedido.data, hitos: updatedHitos } })
+                .eq('id', pedido.id)
+                .select()
+                .single();
+
+            if (updateError) throw updateError;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['pedidosEntrega'] });
+        }
+    });
+}
+
+export function useUpdatePartnerStatus() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ osId, hitoId, articuloId, status, comentarios }: { osId: string; hitoId: string; articuloId: string; status: string; comentarios?: string }) => {
+            const { data: pedido, error: fetchError } = await supabase
+                .from('pedidos_entrega')
+                .select('*')
+                .eq('evento_id', osId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            const hitos = pedido.data?.hitos || [];
+            const updatedHitos = hitos.map((h: any) => {
+                if (h.id === hitoId) {
+                    const updatedArticulos = (h.articulos || []).map((a: any) => {
+                        if (a.id === articuloId) {
+                            return { ...a, statusPartner: status, comentariosPartner: comentarios };
+                        }
+                        return a;
+                    });
+                    return { ...h, articulos: updatedArticulos };
+                }
+                return h;
+            });
+
+            const { data, error: updateError } = await supabase
+                .from('pedidos_entrega')
+                .update({ data: { ...pedido.data, hitos: updatedHitos } })
+                .eq('id', pedido.id)
+                .select()
+                .single();
+
+            if (updateError) throw updateError;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['pedidosEntrega'] });
+        }
+    });
+}

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -21,62 +21,58 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Package, User, Printer, MapPin, Phone, Building, Loader2, Clock } from 'lucide-react';
 
+import { useTransporteOrders, usePedidosEntrega, useEvento } from '@/hooks/use-data-queries';
+import { useUpdateTransporteOrder } from '@/hooks/mutations/use-transporte-mutations';
+
 export default function AlbaranPage() {
-    const [order, setOrder] = useState<TransporteOrder | null>(null);
+    const params = useParams() ?? {};
+    const id = (params.id as string) || '';
+    const { toast } = useToast();
+    const router = useRouter();
+
+    const { data: allTransportOrders = [], isLoading: loadingTransport } = useTransporteOrders();
+    const order = useMemo(() => allTransportOrders.find(o => o.id === id), [allTransportOrders, id]);
+    
+    const { data: evento, isLoading: loadingEvento } = useEvento(order?.osId || '');
+    const { data: allPedidosEntrega = [], isLoading: loadingPedidos } = usePedidosEntrega(order?.osId || '');
+    
+    const updateTransporte = useUpdateTransporteOrder();
+
     const [deliveryItems, setDeliveryItems] = useState<PedidoEntrega['hitos'][0]['items']>([]);
-    const [entrega, setEntrega] = useState<Entrega | null>(null);
     const [expedicionNumero, setExpedicionNumero] = useState('');
-    const [isMounted, setIsMounted] = useState(false);
     const [signedBy, setSignedBy] = useState('');
     const [dni, setDni] = useState('');
     const sigCanvas = useRef<any>(null);
-    const { toast } = useToast();
-    const router = useRouter();
-    const params = useParams() ?? {};
-    const id = (params.id as string) || '';
     const [isPrinting, setIsPrinting] = useState(false);
-    const [SignatureCanvasComponent, setSignatureCanvasComponent] = useState<typeof SignatureCanvas | null>(null);
+    const [SignatureCanvasComponent, setSignatureCanvasComponent] = useState<any>(null);
 
     useEffect(() => {
-        // Load SignatureCanvas component on mount
         import('react-signature-canvas').then((mod) => {
             setSignatureCanvasComponent(() => mod.default);
         });
     }, []);
 
     useEffect(() => {
-        const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-        const currentOrder = allTransportOrders.find(o => o.id === id);
-        setOrder(currentOrder || null);
-        
-        if (currentOrder) {
-            const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
-            const currentEntrega = allEntregas.find(e => e.id === currentOrder.osId);
-            setEntrega(currentEntrega || null);
-
-            const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-            const currentPedido = allPedidosEntrega.find(p => p.osId === currentOrder.osId);
-            
-            const hitoId = currentOrder.hitosIds?.[0]; // Assuming one hito per transport for now
-            const hito = currentPedido?.hitos.find(h => h.id === hitoId);
+        if (order && allPedidosEntrega.length > 0 && evento) {
+            const currentPedido = allPedidosEntrega.find(p => p.osId === order.osId);
+            const hitoId = order.hitosIds?.[0];
+            const hito = currentPedido?.hitos.find((h: any) => h.id === hitoId);
             
             if (hito) {
                 setDeliveryItems(hito.items || []);
-                const hitoIndex = currentPedido?.hitos.findIndex(h => h.id === hitoId) ?? -1;
-                if (hitoIndex !== -1 && currentEntrega) {
-                    setExpedicionNumero(`${currentEntrega.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
+                const hitoIndex = currentPedido?.hitos.findIndex((h: any) => h.id === hitoId) ?? -1;
+                if (hitoIndex !== -1) {
+                    setExpedicionNumero(`${evento.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
                 }
             }
         }
-
-        setIsMounted(true);
-    }, [id]);
+    }, [order, allPedidosEntrega, evento]);
 
     const clearSignature = () => {
         sigCanvas.current?.clear();
     };
 
-    const handleSaveSignature = () => {
+    const handleSaveSignature = async () => {
         if (!order || sigCanvas.current?.isEmpty() || !signedBy) {
             toast({
                 variant: 'destructive',
@@ -88,26 +84,35 @@ export default function AlbaranPage() {
 
         const signatureDataUrl = sigCanvas.current.toDataURL();
         
-        const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-        const orderIndex = allTransportOrders.findIndex(o => o.id === id);
+        try {
+            await updateTransporte.mutateAsync({
+                id: order.id,
+                updates: {
+                    ...order,
+                    firmaUrl: signatureDataUrl,
+                    firmadoPor: signedBy,
+                    dniReceptor: dni,
+                    status: 'Entregado',
+                    fechaFirma: new Date().toISOString()
+                }
+            });
 
-        if (orderIndex !== -1) {
-            allTransportOrders[orderIndex] = {
-                ...allTransportOrders[orderIndex],
-                firmaUrl: signatureDataUrl,
-                firmadoPor: signedBy,
-                dniReceptor: dni,
-                status: 'Entregado',
-                fechaFirma: new Date().toISOString(),
-            };
-            localStorage.setItem('transporteOrders', JSON.stringify(allTransportOrders));
-            setOrder(allTransportOrders[orderIndex]);
-            toast({ title: 'Entrega Confirmada', description: 'El albarán ha sido firmado y guardado.' });
+            toast({
+                title: 'Albarán firmado',
+                description: 'La entrega ha sido confirmada correctamente.',
+            });
+            router.push('/portal/transporte');
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: error.message || 'No se pudo guardar la firma.',
+            });
         }
     };
     
    const handlePrintSigned = async () => {
-        if (!order || !order.firmaUrl || !entrega) return;
+        if (!order || !order.firmaUrl || !evento) return;
         setIsPrinting(true);
         try {
             const { jsPDF } = await loadPDFLibs();
@@ -143,7 +148,7 @@ export default function AlbaranPage() {
             // --- Información de Entrega ---
             autoTableFn(doc, {
                 body: [
-                    [T.client, entrega.client],
+                    [T.client, evento.client],
                     ['Lugar Entrega', order.lugarEntrega],
                     ['Hora Entrega', order.horaEntrega],
                 ],
@@ -205,8 +210,17 @@ export default function AlbaranPage() {
     };
 
 
-    if (!isMounted || !order) {
+    if (loadingTransport || loadingEvento || loadingPedidos) {
         return <LoadingSkeleton title="Cargando Albarán..." />;
+    }
+
+    if (!order || !evento) {
+        return (
+            <div className="container mx-auto px-4 py-8 text-center">
+                <h2 className="text-2xl font-bold">Albarán no encontrado</h2>
+                <Button onClick={() => router.push('/portal/transporte')} className="mt-4">Volver al portal</Button>
+            </div>
+        );
     }
 
     const isDelivered = order.status === 'Entregado';
@@ -229,7 +243,7 @@ export default function AlbaranPage() {
                      <div className="grid md:grid-cols-2 gap-4 text-sm mb-6">
                         <div className="space-y-1">
                             <h3 className="font-bold mb-1 flex items-center gap-2"><Building className="h-4 w-4"/>Información de Entrega</h3>
-                            <p className="font-semibold text-base">{entrega?.client || ''}</p>
+                            <p className="font-semibold text-base">{evento.client}</p>
                             <p className="flex items-center gap-2"><MapPin className="h-4 w-4"/>{order.lugarEntrega}</p>
                             <p className="flex items-center gap-2"><Clock className="h-4 w-4"/>Hora de entrega: {order.horaEntrega}</p>
                         </div>
@@ -289,7 +303,7 @@ export default function AlbaranPage() {
                                 <Label>Firma del Cliente</Label>
                                 <div className="border rounded-md bg-white">
                                     {SignatureCanvasComponent && (
-                                        <SignatureCanvasComponent ref={(ref) => { sigCanvas.current = ref; }} penColor='black' canvasProps={{className: 'w-full h-32'}} />
+                                        <SignatureCanvasComponent ref={(ref: any) => { sigCanvas.current = ref; }} penColor='black' canvasProps={{className: 'w-full h-32'}} />
                                     )}
                                 </div>
                             </div>

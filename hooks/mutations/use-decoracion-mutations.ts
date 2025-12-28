@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';;
+import { supabase } from '@/lib/supabase';
 import type { DecoracionOrder } from '@/types';
 
 
@@ -28,7 +28,7 @@ export function useCreateDecoracionOrder() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['decoracion'] });
+            queryClient.invalidateQueries({ queryKey: ['decoracionOrders'] });
         }
     });
 }
@@ -54,7 +54,7 @@ export function useUpdateDecoracionOrder() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['decoracion'] });
+            queryClient.invalidateQueries({ queryKey: ['decoracionOrders'] });
         }
     });
 }
@@ -72,7 +72,7 @@ export function useDeleteDecoracionOrder() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['decoracion'] });
+            queryClient.invalidateQueries({ queryKey: ['decoracionOrders'] });
         }
     });
 }
@@ -82,9 +82,12 @@ export function useUpdateDecoracionStatus() {
 
     return useMutation({
         mutationFn: async ({ id, status }: { id: string; status: string }) => {
+            // If the table doesn't have an 'estado' column, we might want to store it in 'data' jsonb
             const { data, error } = await supabase
                 .from('pedidos_decoracion')
-                .update({ estado: status })
+                .update({ 
+                    data: { status } // Assuming there is a 'data' jsonb column as seen in useCreateDecoracionOrder
+                })
                 .eq('id', id)
                 .select()
                 .single();
@@ -93,7 +96,7 @@ export function useUpdateDecoracionStatus() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['decoracion'] });
+            queryClient.invalidateQueries({ queryKey: ['decoracionOrders'] });
         }
     });
 }

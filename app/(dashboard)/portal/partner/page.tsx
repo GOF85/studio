@@ -30,6 +30,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/providers/auth-provider';
 import { logActivity } from '../activity-log/utils';
+import { useEntregas, usePedidosEntrega, useArticulos } from '@/hooks/use-data-queries';
+import { useUpdatePartnerStatus } from '@/hooks/mutations/use-pedidos-entrega-mutations';
 
 
 type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
@@ -111,7 +113,14 @@ export default function PartnerPortalPage() {
 
     const proveedorId = useMemo(() => profile?.proveedor_id, [profile]);
 
+    const { data: allEntregasData, isLoading: loadingEntregas } = useEntregas();
+    const { data: allPedidosData, isLoading: loadingPedidos } = usePedidosEntrega();
+    const { data: allArticulosData, isLoading: loadingArticulos } = useArticulos();
+    const { mutateAsync: updatePartnerStatus } = useUpdatePartnerStatus();
+
     const loadData = useCallback(() => {
+        if (loadingEntregas || loadingPedidos || loadingArticulos || !allEntregasData || !allPedidosData || !allArticulosData) return;
+
         const partnerShouldBeDefined = hasRole('PARTNER_GASTRONOMIA');
         if (partnerShouldBeDefined && !proveedorId) {
             setPedidos([]);
@@ -119,13 +128,12 @@ export default function PartnerPortalPage() {
             return;
         }
 
-        const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
-        const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-        const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
+        const allEntregas = allEntregasData.filter(os => os.status === 'Confirmado');
+        const allPedidosEntrega = allPedidosData;
+        const allProductosVenta = allArticulosData;
 
         const osMap = new Map(allEntregas.map(os => [os.id, os]));
         const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
-        const partnerStatusData = JSON.parse(localStorage.getItem('partnerPedidosStatus') || '{}') as Record<string, { status: SimplifiedPedidoPartnerStatus; comentarios?: string }>;
 
         const partnerPedidos: PedidoPartnerConEstado[] = [];
 
@@ -133,14 +141,13 @@ export default function PartnerPortalPage() {
             const os = osMap.get(pedido.osId);
             if (!os) return;
 
-            (pedido.hitos || []).forEach((hito, hitoIndex) => {
-                (hito.items || []).forEach(item => {
+            (pedido.hitos || []).forEach((hito: any, hitoIndex: number) => {
+                (hito.articulos || []).forEach((item: any) => {
                     const producto = productosMap.get(item.id);
                     const shouldInclude = producto && producto.producidoPorPartner && (!proveedorId || producto.partnerId === proveedorId);
 
                     if (shouldInclude) {
                         const id = `${hito.id}-${item.id}`;
-                        const statusInfo = partnerStatusData[id] || { status: 'Pendiente' };
                         const expedicionNumero = `${os.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
                         partnerPedidos.push({
                             id,
@@ -152,11 +159,13 @@ export default function PartnerPortalPage() {
                             horaEntrega: hito.hora,
                             elaboracionId: producto.id,
                             elaboracionNombre: producto.nombre,
-                            cantidad: item.quantity,
+                            cantidad: item.cantidad,
                             unidad: 'UD',
-                            status: statusInfo.status,
-                            comentarios: statusInfo.comentarios,
-                        });
+                            status: (item.statusPartner || 'Pendiente') as SimplifiedPedidoPartnerStatus,
+                            comentarios: item.comentariosPartner || '',
+                            hitoId: hito.id,
+                            articuloId: item.id
+                        } as any);
                     }
                 });
             });
@@ -164,7 +173,7 @@ export default function PartnerPortalPage() {
 
         setPedidos(partnerPedidos);
         setIsMounted(true);
-    }, [proveedorId, hasRole]);
+    }, [proveedorId, hasRole, allEntregasData, allPedidosData, allArticulosData, loadingEntregas, loadingPedidos, loadingArticulos]);
 
     useEffect(() => {
         if (user) {
@@ -179,36 +188,45 @@ export default function PartnerPortalPage() {
         loadData();
     }, [loadData]);
 
-    const handleAccept = (pedido: PedidoPartnerConEstado) => {
+    const handleAccept = async (pedido: PedidoPartnerConEstado) => {
         if (!user) return;
-        const partnerStatusData = JSON.parse(localStorage.getItem('partnerPedidosStatus') || '{}');
-        if (!partnerStatusData[pedido.id]) {
-            partnerStatusData[pedido.id] = {};
-        }
-        partnerStatusData[pedido.id].status = 'Aceptado';
-        localStorage.setItem('partnerPedidosStatus', JSON.stringify(partnerStatusData));
+        
+        try {
+            await updatePartnerStatus({
+                osId: pedido.osId,
+                hitoId: (pedido as any).hitoId,
+                articuloId: (pedido as any).articuloId,
+                status: 'Aceptado',
+                comentarios: pedido.comentarios
+            });
 
-        const activityUser = {
-            id: user.id,
-            nombre: profile?.nombre_completo || user.email || 'Usuario',
-            email: user.email || '',
-            roles: [effectiveRole || '']
-        };
-        logActivity(activityUser as any, 'Aceptar Pedido', `Aceptado: ${pedido.cantidad} x ${pedido.elaboracionNombre}`, pedido.expedicionNumero);
-        loadData();
-        toast({ title: 'Pedido Aceptado', description: `El pedido ha sido marcado como "Aceptado".` });
+            const activityUser = {
+                id: user.id,
+                nombre: profile?.nombre_completo || user.email || 'Usuario',
+                email: user.email || '',
+                roles: [effectiveRole || '']
+            };
+            logActivity(activityUser as any, 'Aceptar Pedido', `Aceptado: ${pedido.cantidad} x ${pedido.elaboracionNombre}`, pedido.expedicionNumero);
+            toast({ title: 'Pedido Aceptado', description: `El pedido ha sido marcado como "Aceptado".` });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo aceptar el pedido.' });
+        }
     };
 
-    const handleSaveComment = (pedidoId: string, comment: string) => {
+    const handleSaveComment = async (pedidoId: string, comment: string) => {
         if (!user) return;
-        const partnerStatusData = JSON.parse(localStorage.getItem('partnerPedidosStatus') || '{}');
-        if (!partnerStatusData[pedidoId]) {
-            partnerStatusData[pedidoId] = { status: 'Pendiente' };
-        }
-        partnerStatusData[pedidoId].comentarios = comment;
-        localStorage.setItem('partnerPedidosStatus', JSON.stringify(partnerStatusData));
         const pedido = pedidos.find(p => p.id === pedidoId);
-        if (pedido) {
+        if (!pedido) return;
+
+        try {
+            await updatePartnerStatus({
+                osId: pedido.osId,
+                hitoId: (pedido as any).hitoId,
+                articuloId: (pedido as any).articuloId,
+                status: pedido.status,
+                comentarios: comment
+            });
+
             const activityUser = {
                 id: user.id,
                 nombre: profile?.nombre_completo || user.email || 'Usuario',
@@ -216,9 +234,10 @@ export default function PartnerPortalPage() {
                 roles: [effectiveRole || '']
             };
             logActivity(activityUser as any, 'Añadir Comentario', `Comentario en ${pedido.elaboracionNombre}: "${comment}"`, pedido.expedicionNumero);
+            toast({ title: 'Comentario guardado' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el comentario.' });
         }
-        loadData();
-        toast({ title: 'Comentario guardado' });
     };
 
     const filteredPedidos = useMemo(() => {

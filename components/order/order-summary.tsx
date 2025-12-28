@@ -36,6 +36,7 @@ export type ExistingOrderData = {
     days: number;
     contractNumber: string;
     deliveryDate?: string;
+    deliveryTime?: string;
     deliverySpace?: string;
     deliveryLocation?: string;
     solicita?: 'Sala' | 'Cocina';
@@ -44,7 +45,17 @@ interface OrderSummaryProps {
   items: OrderItem[];
   onUpdateQuantity: (itemCode: string, quantity: number) => void;
   onRemoveItem: (itemCode: string) => void;
-  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber: string, deliveryDate?: string, deliverySpace?: string, deliveryLocation?: string, solicita?: 'Sala' | 'Cocina' }) => void;
+  onSubmitOrder: (finalOrder: { 
+    items: OrderItem[], 
+    days: number, 
+    total: number, 
+    contractNumber: string, 
+    deliveryDate?: string, 
+    deliveryTime?: string,
+    deliverySpace?: string, 
+    deliveryLocation?: string, 
+    solicita?: 'Sala' | 'Cocina' 
+  }) => void;
   onClearOrder: () => void;
   isEditing?: boolean;
   serviceOrder: ServiceOrder | null;
@@ -66,21 +77,24 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
+  const [deliveryTime, setDeliveryTime] = useState('');
   const [deliverySpace, setDeliverySpace] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
-  const [solicita, setSolicita] = useState<'Sala' | 'Cocina' | undefined>();
+  const [solicita, setSolicita] = useState<'Sala' | 'Cocina' | undefined>(undefined);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { toast } = useToast();
 
   const isRental = orderType === 'Alquiler';
+  const isHielo = orderType === 'Hielo';
 
   useEffect(() => {
     if (isEditing && existingOrderData) {
         setRentalDays(existingOrderData.days || 1);
         setDeliveryDate(existingOrderData.deliveryDate ? new Date(existingOrderData.deliveryDate) : new Date());
+        setDeliveryTime(existingOrderData.deliveryTime || '');
         setDeliverySpace(existingOrderData.deliverySpace || '');
         setDeliveryLocation(existingOrderData.deliveryLocation || '');
-        setSolicita(existingOrderData.solicita);
+        setSolicita(existingOrderData.solicita || undefined);
     } else if (serviceOrder) {
       setDeliverySpace(serviceOrder.space || '');
       if (serviceOrder.startDate) {
@@ -95,7 +109,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
 
 
   const subtotal = useMemo(() => {
-    return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    return items.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0);
   }, [items]);
 
   const itemsTotal = subtotal * (isRental ? rentalDays : 1);
@@ -132,6 +146,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
       total,
       contractNumber: serviceOrder.serviceNumber,
       deliveryDate: deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : undefined,
+      deliveryTime: isHielo ? deliveryTime : undefined,
       deliverySpace,
       deliveryLocation,
       solicita,
@@ -161,20 +176,24 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
           ) : (
               <ul className="space-y-4">
                 {items.map((item) => {
-                  const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : `https://picsum.photos/seed/${item.itemCode}/400/300`;
+                  const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : null;
                   const handleStepClick = (step: number) => {
                       const newQuantity = item.quantity + (step * (item.unidadVenta || 1));
                       onUpdateQuantity(item.itemCode, Math.max(0, newQuantity));
                   }
                   return (
                   <li key={item.itemCode} className="flex items-center gap-4">
-                    <div className="relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0">
-                      <Image src={imageUrl} alt={item.description} fill className="object-cover" data-ai-hint={item.imageHint}/>
+                    <div className="relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-muted flex items-center justify-center">
+                      {imageUrl ? (
+                        <Image src={imageUrl} alt={item.description} fill className="object-cover" data-ai-hint={item.imageHint}/>
+                      ) : (
+                        <div className="text-[10px] text-muted-foreground font-bold text-center px-1">SIN FOTO</div>
+                      )}
                     </div>
                     <div className="flex-grow">
                       <p className="font-medium leading-tight">{item.description}</p>
                       <p className="text-sm text-muted-foreground">
-                        {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                        {(item.price || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                         { item.unidadVenta && ` / ${item.unidadVenta} uds.`}
                         </p>
                     </div>
@@ -237,33 +256,54 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
           </DialogTrigger>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
-              <DialogTitle>{isEditing ? 'Actualizar Pedido de Material' : 'Guardar Pedido de Material'}</DialogTitle>
+              <DialogTitle>
+                {isEditing 
+                  ? `Actualizar Pedido de ${orderType === 'Hielo' ? 'Hielo' : 'Material'}` 
+                  : `Guardar Pedido de ${orderType === 'Hielo' ? 'Hielo' : 'Material'}`}
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Revisa los detalles del pedido antes de confirmar.
+              </DialogDescription>
             </DialogHeader>
              <div className="grid grid-cols-2 gap-x-8 gap-y-4 py-4">
                 <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="delivery-date-dialog" className="font-bold">Fecha de Entrega</Label>
-                      <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            id="delivery-date-dialog"
-                            variant={"outline"}
-                            className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {deliveryDate ? format(deliveryDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={deliveryDate}
-                            onSelect={(date) => { setDeliveryDate(date); setIsCalendarOpen(false); }}
-                            initialFocus
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <div className="flex gap-2">
+                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              id="delivery-date-dialog"
+                              variant={"outline"}
+                              className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {deliveryDate ? format(deliveryDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={deliveryDate}
+                              onSelect={(date) => { setDeliveryDate(date); setIsCalendarOpen(false); }}
+                              initialFocus
+                              locale={es}
+                            />
+                          </PopoverContent>
+                        </Popover>
+
+                        {isHielo && (
+                          <div className="w-32">
+                            <Input
+                              type="time"
+                              value={deliveryTime}
+                              onChange={(e) => setDeliveryTime(e.target.value)}
+                              className="w-full"
+                              placeholder="Hora"
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="delivery-space-dialog">Lugar de Entrega</Label>
@@ -299,7 +339,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                             {items.map(item => (
                                 <li key={item.itemCode} className="flex justify-between items-center text-sm">
                                     <span>{item.quantity} x {item.description}</span>
-                                    <span>{(item.quantity * item.price).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                                    <span>{(item.quantity * (item.price || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
                                 </li>
                             ))}
                         </ul>

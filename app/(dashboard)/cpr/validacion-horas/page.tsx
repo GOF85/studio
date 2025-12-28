@@ -24,6 +24,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '@/app/(dashboard)/portal/activity-log/utils';
+import { useCprSolicitudesPersonal, useUpdateCprSolicitudPersonal } from '@/hooks/use-cpr-data';
+import { usePersonal, usePersonalExternoDB } from '@/hooks/use-data-queries';
 
 const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' } = {
     'Solicitado': 'secondary',
@@ -36,36 +38,37 @@ const statusVariant: { [key in SolicitudPersonalCPR['estado']]: 'default' | 'sec
 };
 
 export default function ValidacionHorasPage() {
-    const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
-    const [personalExternoDB, setPersonalExternoDB] = useState<Map<string, { nombre: string }>>(new Map());
-    const [personalInternoDB, setPersonalInternoDB] = useState<Map<string, { nombre: string }>>(new Map());
-    const [isMounted, setIsMounted] = useState(false);
+    const { data: allSolicitudes = [] } = useCprSolicitudesPersonal();
+    const { data: personalInterno = [] } = usePersonal();
+    const { data: personalExterno = [] } = usePersonalExternoDB();
+    const updateSolicitud = useUpdateCprSolicitudPersonal();
+
+    const solicitudes = useMemo(() => {
+        return allSolicitudes.filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada' || s.estado === 'Cerrado');
+    }, [allSolicitudes]);
+
+    const personalExternoDB = useMemo(() => {
+        const arr = Array.isArray(personalExterno) ? personalExterno : [];
+        return new Map(arr.map(p => [p.id, { nombre: p.nombreCompleto }]));
+    }, [personalExterno]);
+
+    const personalInternoDB = useMemo(() => {
+        return new Map(personalInterno.map(p => [p.id, { nombre: `${p.nombre} ${p.apellido1}` }]));
+    }, [personalInterno]);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
     const [showClosed, setShowClosed] = useState(false);
     const [solicitudToManage, setSolicitudToManage] = useState<SolicitudPersonalCPR | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const router = useRouter();
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
-
-    const loadData = useCallback(() => {
-        const storedData = (JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[])
-            .filter(s => s.estado === 'Confirmado' || s.estado === 'Asignada' || s.estado === 'Cerrado');
-        setSolicitudes(storedData);
-
-        const storedPersonalExterno = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
-        setPersonalExternoDB(new Map(storedPersonalExterno.map(p => [p.id, { nombre: p.nombreCompleto }])));
-
-        const storedPersonalInterno = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        setPersonalInternoDB(new Map(storedPersonalInterno.map(p => [p.id, { nombre: `${p.nombre} ${p.apellido1}` }])))
-
-    }, []);
-
-    useEffect(() => {
-        loadData();
-        setIsMounted(true);
-    }, [loadData]);
 
     const filteredSolicitudes = useMemo(() => {
         return solicitudes.filter(s => {
@@ -89,32 +92,43 @@ export default function ValidacionHorasPage() {
     const handleSaveFeedback = (solicitud: SolicitudPersonalCPR, feedback: { rating: number; comment: string, horaEntradaReal?: string, horaSalidaReal?: string }) => {
         if (!solicitud || !impersonatedUser) return;
 
-        const allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-        const reqIndex = allRequests.findIndex(r => r.id === solicitud.id);
-        if (reqIndex === -1) return;
-
-        const asignacion = allRequests[reqIndex].personalAsignado?.[0];
+        const asignacion = solicitud.personalAsignado?.[0];
         if (!asignacion) return;
 
-        const originalState = allRequests[reqIndex].estado;
+        const originalState = solicitud.estado;
 
-        allRequests[reqIndex].personalAsignado![0].rating = feedback.rating;
-        allRequests[reqIndex].personalAsignado![0].comentariosMice = feedback.comment;
+        const updatedAsignacion = { ...asignacion };
+        updatedAsignacion.rating = feedback.rating;
+        updatedAsignacion.comentariosMice = feedback.comment;
+
+        let newState = originalState;
 
         if (feedback.horaEntradaReal && feedback.horaSalidaReal) {
             const originalHours = {
-                entrada: allRequests[reqIndex].personalAsignado![0].horaEntradaReal,
-                salida: allRequests[reqIndex].personalAsignado![0].horaSalidaReal
+                entrada: asignacion.horaEntradaReal,
+                salida: asignacion.horaSalidaReal
             };
-            allRequests[reqIndex].personalAsignado![0].horaEntradaReal = feedback.horaEntradaReal;
-            allRequests[reqIndex].personalAsignado![0].horaSalidaReal = feedback.horaSalidaReal;
+            updatedAsignacion.horaEntradaReal = feedback.horaEntradaReal;
+            updatedAsignacion.horaSalidaReal = feedback.horaSalidaReal;
 
             if (originalState !== 'Cerrado') {
-                allRequests[reqIndex].estado = 'Cerrado';
-                logActivity(impersonatedUser, 'Cerrar Turno CPR', `Turno de ${asignacion.nombre} cerrado con horas ${feedback.horaEntradaReal}-${feedback.horaSalidaReal}.`, solicitud.id);
+                newState = 'Cerrado';
+                logActivity({
+                    userId: impersonatedUser.id,
+                    userName: impersonatedUser.nombre,
+                    action: 'CERRAR_TURNO_CPR',
+                    details: `Turno de ${asignacion.nombre} cerrado con horas ${feedback.horaEntradaReal}-${feedback.horaSalidaReal}.`,
+                    severity: 'info'
+                });
             } else {
                 if (originalHours.entrada !== feedback.horaEntradaReal || originalHours.salida !== feedback.horaSalidaReal) {
-                    logActivity(impersonatedUser, 'Modificar Horas (Cerrado)', `Horas de ${asignacion.nombre} cambiadas a ${feedback.horaEntradaReal}-${feedback.horaSalidaReal}.`, solicitud.id);
+                    logActivity({
+                        userId: impersonatedUser.id,
+                        userName: impersonatedUser.nombre,
+                        action: 'MODIFICAR_HORAS_CPR',
+                        details: `Horas de ${asignacion.nombre} cambiadas a ${feedback.horaEntradaReal}-${feedback.horaSalidaReal}.`,
+                        severity: 'info'
+                    });
                 }
             }
         } else if (originalState !== 'Cerrado') {
@@ -122,8 +136,12 @@ export default function ValidacionHorasPage() {
             return;
         }
 
-        localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-        loadData();
+        updateSolicitud.mutate({
+            id: solicitud.id,
+            estado: newState,
+            personalAsignado: [updatedAsignacion]
+        });
+
         toast({ title: 'Valoración guardada', description: `La valoración para ${asignacion.nombre} ha sido guardada.` });
         setSolicitudToManage(null);
     };

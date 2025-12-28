@@ -37,6 +37,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
+import { useEvento, useAtipicoOrders } from '@/hooks/use-data-queries';
+import { useDeleteAtipicoOrder } from '@/hooks/mutations/use-atipicos-mutations';
 
 const statusVariant: { [key in AtipicoOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
   Pendiente: 'secondary',
@@ -45,50 +47,49 @@ const statusVariant: { [key in AtipicoOrder['status']]: 'default' | 'secondary' 
 };
 
 export default function AtipicosPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [atipicoOrders, setAtipicoOrders] = useState<AtipicoOrder[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  
   const router = useRouter();
   const params = useParams() ?? {};
   const osId = (params.id as string) || '';
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
+  const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId);
+  const { data: atipicoOrders = [], isLoading: isLoadingOrders } = useAtipicoOrders(osId);
+  const deleteAtipico = useDeleteAtipicoOrder();
 
-      const allAtipicoOrders = JSON.parse(localStorage.getItem('atipicoOrders') || '[]') as AtipicoOrder[];
-      const relatedOrders = allAtipicoOrders.filter(order => order.osId === osId);
-      setAtipicoOrders(relatedOrders);
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
-        router.push('/pes');
-    }
+  const [isMounted, setIsMounted] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+
+  useEffect(() => {
     setIsMounted(true);
-  }, [osId, router, toast]);
+  }, []);
 
   const totalAmount = useMemo(() => {
     return atipicoOrders.reduce((sum, order) => sum + order.precio, 0);
   }, [atipicoOrders]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!orderToDelete) return;
 
-    let allOrders = JSON.parse(localStorage.getItem('atipicoOrders') || '[]') as AtipicoOrder[];
-    const updatedOrders = allOrders.filter((o: AtipicoOrder) => o.id !== orderToDelete);
-    localStorage.setItem('atipicoOrders', JSON.stringify(updatedOrders));
-    setAtipicoOrders(updatedOrders.filter((o: AtipicoOrder) => o.osId === osId));
-    
-    toast({ title: 'Gasto atípico eliminado' });
-    setOrderToDelete(null);
+    try {
+        await deleteAtipico.mutateAsync(orderToDelete);
+        toast({ title: 'Gasto atípico eliminado' });
+        setOrderToDelete(null);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el gasto.' });
+    }
   };
-  
-  if (!isMounted || !serviceOrder) {
+
+  if (!isMounted || isLoadingOS || isLoadingOrders) {
     return <LoadingSkeleton title="Cargando Módulo de Atípicos..." />;
+  }
+
+  if (!serviceOrder) {
+    return (
+        <div className="container mx-auto px-4 py-8 text-center">
+            <h2 className="text-2xl font-bold">Orden de Servicio no encontrada</h2>
+            <Button onClick={() => router.push('/os')} className="mt-4">Volver a la lista</Button>
+        </div>
+    );
   }
 
   return (

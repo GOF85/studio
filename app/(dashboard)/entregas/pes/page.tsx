@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Package, ClipboardList } from 'lucide-react';
+import { PlusCircle, Package, ClipboardList, Search, Filter, Eye, EyeOff, Plus } from 'lucide-react';
 import type { Entrega } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,9 +25,12 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+
+import { useEntregas } from '@/hooks/use-data-queries';
 
 export default function PrevisionEntregasPage() {
-  const [entregas, setEntregas] = useState<Entrega[]>([]);
+  const { data: entregasData, isLoading } = useEntregas();
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -36,20 +39,23 @@ export default function PrevisionEntregasPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const storedOrders = localStorage.getItem('entregas');
-    const allOrders: Entrega[] = storedOrders ? JSON.parse(storedOrders) : [];
-    setEntregas(allOrders.filter(os => os.vertical === 'Entregas'));
     setIsMounted(true);
   }, []);
+
+  const entregas = useMemo(() => {
+    return (entregasData || []) as any[];
+  }, [entregasData]);
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
     entregas.forEach(os => {
       try {
-        const month = format(new Date(os.startDate), 'yyyy-MM');
+        const date = os.fecha_inicio || os.startDate;
+        if (!date) return;
+        const month = format(new Date(date), 'yyyy-MM');
         months.add(month);
       } catch (e) {
-        console.error(`Invalid start date for OS ${os.serviceNumber}: ${os.startDate}`);
+        console.error(`Invalid start date for OS ${os.numero_expediente || os.serviceNumber}: ${os.fecha_inicio || os.startDate}`);
       }
     });
     return Array.from(months).sort().reverse();
@@ -58,12 +64,15 @@ export default function PrevisionEntregasPage() {
   const filteredAndSortedOrders = useMemo(() => {
     const today = startOfToday();
     const filtered = entregas.filter(os => {
-      const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
+      const serviceNumber = os.numero_expediente || os.serviceNumber || '';
+      const client = os.cliente_id ? `Cliente ID ${os.cliente_id}` : (os.client || '');
+      const searchMatch = searchTerm.trim() === '' || serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || client.toLowerCase().includes(searchTerm.toLowerCase());
       
       let monthMatch = true;
       if (selectedMonth !== 'all') {
         try {
-          const osMonth = format(new Date(os.startDate), 'yyyy-MM');
+          const date = os.fecha_inicio || os.startDate;
+          const osMonth = date ? format(new Date(date), 'yyyy-MM') : '';
           monthMatch = osMonth === selectedMonth;
         } catch (e) {
           monthMatch = false;
@@ -73,18 +82,24 @@ export default function PrevisionEntregasPage() {
       let pastEventMatch = true;
       if (!showPastEvents) {
           try {
-              pastEventMatch = !isBefore(new Date(os.endDate), today);
+              const date = os.fecha_fin || os.endDate;
+              pastEventMatch = date ? !isBefore(new Date(date), today) : true;
           } catch (e) {
               pastEventMatch = true;
           }
       }
 
-      const statusMatch = statusFilter === 'all' || os.status === statusFilter;
+      const status = os.estado || os.status;
+      const statusMatch = statusFilter === 'all' || status === statusFilter;
 
       return searchMatch && monthMatch && pastEventMatch && statusMatch;
     });
 
-    return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    return filtered.sort((a, b) => {
+        const dateA = a.fecha_inicio || a.startDate;
+        const dateB = b.fecha_inicio || b.startDate;
+        return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
 
   }, [entregas, searchTerm, selectedMonth, showPastEvents, statusFilter]);
   
@@ -95,61 +110,96 @@ export default function PrevisionEntregasPage() {
     Anulado: 'destructive'
   };
 
-  if (!isMounted) {
+  if (!isMounted || isLoading) {
     return <LoadingSkeleton title="Cargando Previsión de Entregas..." />;
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><ClipboardList />Previsión de Entregas</h1>
-        <Button asChild>
-          <Link href="/entregas/pedido/nuevo">
-            <PlusCircle className="mr-2" />
-            Nuevo Pedido
-          </Link>
-        </Button>
+    <main className="min-h-screen bg-background/30 pb-20">
+      {/* Header Premium Sticky */}
+      <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
+              <div className="flex items-center">
+                  <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                      <ClipboardList className="h-5 w-5 text-amber-500" />
+                  </div>
+              </div>
+
+              <div className="flex-1 hidden md:block">
+                  <div className="relative group">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-amber-500 transition-colors" />
+                      <Input
+                          placeholder="Buscar pedido o cliente..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="h-8 pl-9 text-[11px] bg-background/50 border-border/40 rounded-lg focus-visible:ring-amber-500/20 w-full"
+                      />
+                  </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                      <SelectTrigger className="h-8 w-[180px] text-[10px] font-black uppercase tracking-widest border-border/40 bg-background/50">
+                        <SelectValue placeholder="Mes" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/40 shadow-2xl backdrop-blur-xl bg-background/80">
+                        <SelectItem value="all" className="text-[10px] font-bold uppercase">Todos los meses</SelectItem>
+                        {availableMonths.map(month => (
+                            <SelectItem key={month} value={month} className="text-[10px] font-bold uppercase">
+                            {format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
+                            </SelectItem>
+                        ))}
+                      </SelectContent>
+                  </Select>
+
+                  <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPastEvents(!showPastEvents)}
+                      className={cn(
+                          "h-8 text-[10px] font-black uppercase tracking-widest border-border/40 bg-background/50",
+                          showPastEvents ? "border-amber-500/50 bg-amber-500/5 text-amber-700" : "text-muted-foreground"
+                      )}
+                  >
+                      {showPastEvents ? <Eye className="w-3.5 h-3.5 mr-2" /> : <EyeOff className="w-3.5 h-3.5 mr-2" />}
+                      {showPastEvents ? "Finalizados" : "Ver finalizados"}
+                  </Button>
+
+                  <div className="h-4 w-[1px] bg-border/40 mx-1" />
+
+                  <Button size="sm" asChild className="h-8 rounded-lg font-black px-4 bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-500/20 transition-all active:scale-95 text-[10px] uppercase tracking-widest">
+                      <Link href="/entregas/pedido/nuevo">
+                          <Plus className="w-3.5 h-3.5 mr-1.5" />
+                          Nuevo Pedido
+                      </Link>
+                  </Button>
+              </div>
+          </div>
       </div>
 
-       <div className="space-y-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-                <Input
-                    placeholder="Buscar por Nº Pedido o Cliente..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                />
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger className="w-full sm:w-[240px]">
-                    <SelectValue placeholder="Filtrar por mes" />
-                    </SelectTrigger>
-                    <SelectContent>
-                    <SelectItem value="all">Todos los meses</SelectItem>
-                    {availableMonths.map(month => (
-                        <SelectItem key={month} value={month}>
-                        {format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
-                        </SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                <div className="flex items-center space-x-2 pt-2 sm:pt-0">
-                    <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
-                    <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        Mostrar eventos finalizados
-                    </label>
-            </div>
-            </div>
-             <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium">Estado:</span>
-                <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
-                <Button size="sm" variant={statusFilter === 'Borrador' ? 'default' : 'outline'} onClick={() => setStatusFilter('Borrador')}>Borrador</Button>
-                <Button size="sm" variant={statusFilter === 'Confirmado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Confirmado')}>Confirmado</Button>
-                <Button size="sm" variant={statusFilter === 'Enviado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Enviado')}>Enviado</Button>
-                <Button size="sm" variant={statusFilter === 'Entregado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Entregado')}>Entregado</Button>
-            </div>
-      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mr-2">Filtrar Estado:</span>
+            {['all', 'Borrador', 'Confirmado', 'Enviado', 'Entregado'].map((status) => (
+                <Button 
+                    key={status}
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => setStatusFilter(status)}
+                    className={cn(
+                        "h-7 px-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all",
+                        statusFilter === status 
+                            ? "bg-amber-600 text-white shadow-sm" 
+                            : "text-muted-foreground hover:bg-amber-500/10 hover:text-amber-700"
+                    )}
+                >
+                    {status === 'all' ? 'Todos' : status}
+                </Button>
+            ))}
+        </div>
 
-       <div className="border rounded-lg">
+        <div className="bg-background/40 backdrop-blur-sm border border-border/40 rounded-xl overflow-hidden">
           <Table>
               <TableHeader>
               <TableRow>
@@ -161,18 +211,26 @@ export default function PrevisionEntregasPage() {
               </TableHeader>
               <TableBody>
               {filteredAndSortedOrders.length > 0 ? (
-                  filteredAndSortedOrders.map(os => (
-                  <TableRow key={os.id} onClick={() => router.push(`/entregas/pedido/${os.id}`)} className="cursor-pointer">
-                      <TableCell className="font-medium">{os.serviceNumber}</TableCell>
-                      <TableCell>{os.client}</TableCell>
-                      <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')} {os.deliveryTime || ''}</TableCell>
-                      <TableCell>
-                      <Badge variant={statusVariant[os.status]}>
-                          {os.status}
-                      </Badge>
-                      </TableCell>
-                  </TableRow>
-                  ))
+                  filteredAndSortedOrders.map(os => {
+                      const serviceNumber = os.numero_expediente || os.serviceNumber;
+                      const client = os.cliente_id ? `Cliente ID ${os.cliente_id}` : os.client;
+                      const startDate = os.fecha_inicio || os.startDate;
+                      const status = os.estado || os.status;
+                      const deliveryTime = os.deliveryTime || '';
+
+                      return (
+                        <TableRow key={os.id} onClick={() => router.push(`/entregas/pedido/${os.id}`)} className="cursor-pointer">
+                            <TableCell className="font-medium">{serviceNumber}</TableCell>
+                            <TableCell>{client}</TableCell>
+                            <TableCell>{startDate ? format(new Date(startDate), 'dd/MM/yyyy') : ''} {deliveryTime}</TableCell>
+                            <TableCell>
+                            <Badge variant={statusVariant[status as keyof typeof statusVariant] || 'default'}>
+                                {status}
+                            </Badge>
+                            </TableCell>
+                        </TableRow>
+                      );
+                  })
               ) : (
                   <TableRow>
                   <TableCell colSpan={4} className="h-24 text-center">
@@ -183,6 +241,7 @@ export default function PrevisionEntregasPage() {
               </TableBody>
           </Table>
         </div>
+      </div>
     </main>
   );
 }

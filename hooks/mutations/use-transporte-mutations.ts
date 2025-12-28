@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';;
+import { supabase, resolveOsId } from '@/lib/supabase';
 import type { TransporteOrder } from '@/types';
 
 
@@ -12,10 +12,11 @@ export function useCreateTransporteOrder() {
 
     return useMutation({
         mutationFn: async (order: Partial<TransporteOrder> & { contactoRecogida?: string; contactoEntrega?: string }) => {
+            const targetId = await resolveOsId(order.osId || '');
             const { data, error } = await supabase
                 .from('pedidos_transporte')
                 .insert({
-                    evento_id: order.osId,
+                    evento_id: targetId,
                     tipo_transporte: order.tipoTransporte,
                     fecha: order.fecha,
                     hora_recogida: order.horaRecogida,
@@ -40,7 +41,7 @@ export function useCreateTransporteOrder() {
         },
         onSuccess: () => {
             // Invalidate and refetch transport orders
-            queryClient.invalidateQueries({ queryKey: ['transporte'] });
+            queryClient.invalidateQueries({ queryKey: ['transporteOrders'] });
         }
     });
 }
@@ -69,6 +70,10 @@ export function useUpdateTransporteOrder() {
                         lugarEntrega: updates.lugarEntrega,
                         contactoRecogida: updates.contactoRecogida,
                         contactoEntrega: updates.contactoEntrega,
+                        firmaUrl: updates.firmaUrl,
+                        firmadoPor: updates.firmadoPor,
+                        dniReceptor: updates.dniReceptor,
+                        fechaFirma: updates.fechaFirma,
                     }
                 })
                 .eq('id', id)
@@ -79,7 +84,7 @@ export function useUpdateTransporteOrder() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['transporte'] });
+            queryClient.invalidateQueries({ queryKey: ['transporteOrders'] });
         }
     });
 }
@@ -100,7 +105,56 @@ export function useDeleteTransporteOrder() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['transporte'] });
+            queryClient.invalidateQueries({ queryKey: ['transporteOrders'] });
+        }
+    });
+}
+
+/**
+ * Hook to sync all transport orders for an OS
+ */
+export function useSyncTransporteOrders() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ osId, orders }: { osId: string; orders: any[] }) => {
+            // 1. Delete existing orders for this OS
+            const { error: deleteError } = await supabase
+                .from('pedidos_transporte')
+                .delete()
+                .eq('evento_id', osId);
+
+            if (deleteError) throw deleteError;
+
+            if (orders.length === 0) return [];
+
+            // 2. Insert new orders
+            const { data, error: insertError } = await supabase
+                .from('pedidos_transporte')
+                .insert(orders.map(order => ({
+                    evento_id: osId,
+                    tipo_transporte: order.tipoTransporte,
+                    fecha: order.fecha,
+                    hora_recogida: order.horaRecogida,
+                    hora_entrega: order.horaEntrega,
+                    proveedor_id: order.proveedorId,
+                    precio: order.precio,
+                    observaciones: order.observaciones,
+                    estado: order.status || 'Pendiente',
+                    data: {
+                        lugarRecogida: order.lugarRecogida,
+                        lugarEntrega: order.lugarEntrega,
+                        contactoRecogida: order.contactoRecogida,
+                        contactoEntrega: order.contactoEntrega,
+                    }
+                })))
+                .select();
+
+            if (insertError) throw insertError;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['transporteOrders'] });
         }
     });
 }

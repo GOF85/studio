@@ -26,8 +26,8 @@ function AlergenosPageInner() {
   const searchParams = useSearchParams();
   
   // Datos
-  const { data: recetas = [], isLoading: isLoadingRecetas } = useRecetas();
-  const { data: categorias = [], isLoading: isLoadingCategorias } = useCategoriasRecetas();
+  const { data: recetas, isLoading: isLoadingRecetas } = useRecetas();
+  const { data: categorias, isLoading: isLoadingCategorias } = useCategoriasRecetas();
 
   // --- LÓGICA DE INICIALIZACIÓN ---
   // Detectamos si venimos del botón "Intolerantes" (?filter=clean)
@@ -46,7 +46,8 @@ function AlergenosPageInner() {
 
   // Filtrado optimizado
   const filteredRecetas = useMemo(() => {
-    return recetas.filter(receta => {
+    const safeRecetas = recetas || [];
+    return safeRecetas.filter(receta => {
       const matchesCategory = selectedCategory === 'all' || receta.categoria === selectedCategory;
       const matchesSearch = receta.nombre.toLowerCase().includes(searchTerm.toLowerCase());
       
@@ -89,7 +90,7 @@ function AlergenosPageInner() {
       <main className="pb-24 bg-background min-h-screen">
         
         {/* --- HEADER STICKY (SOLO FILTROS) --- */}
-        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
+        <div className="sticky top-12 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
           {/* Contenedor alineado con el Breadcrumb (max-w-7xl) */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             
@@ -113,7 +114,7 @@ function AlergenosPageInner() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas las Categorías</SelectItem>
-                    {categorias.map((c: any) => (
+                    {(categorias || []).map((c: any) => (
                       <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>
                     ))}
                   </SelectContent>

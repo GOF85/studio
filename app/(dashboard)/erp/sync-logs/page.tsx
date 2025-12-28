@@ -227,7 +227,7 @@ function SyncLogsPageInner() {
   return (
     <main className="min-h-screen bg-background pb-10">
       {/* LAYOUT: SIDEBAR + MAIN CONTENT */}
-      <div className="flex gap-6 px-4 sm:px-6 lg:px-8 py-6 items-start">
+      <div className="flex gap-6 px-4 sm:px-6 lg:px-8 pt-0 pb-6 items-start">
         
         {/* ==================== SIDEBAR (280px fixed on desktop) ==================== */}
         <aside className="hidden lg:block w-80 flex-shrink-0">

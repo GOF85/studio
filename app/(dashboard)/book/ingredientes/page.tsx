@@ -611,9 +611,9 @@ function IngredientesPageContent() {
     return (
         <main className="min-h-screen bg-background pb-20">
             {/* Header Fijo */}
-            <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4 justify-between">
-                    <div className="relative flex-1 max-w-lg">
+            <div className="sticky top-12 z-30 bg-background/95 backdrop-blur border-b shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
+                    <div className="relative flex-1">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder="Buscar ingrediente..." 
@@ -623,7 +623,7 @@ function IngredientesPageContent() {
                         />
                     </div>
                     
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                          <Button 
                             variant={showOnlyPending ? "destructive" : "outline"} 
                             size="sm"

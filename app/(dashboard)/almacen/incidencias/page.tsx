@@ -36,21 +36,25 @@ type CatalogItem = {
     price: number;
 };
 
+import { usePickingSheets, useArticulos, useMaterialOrders } from '@/hooks/use-data-queries';
+import { supabase } from '@/lib/supabase';
+
 export default function IncidenciasPickingPage() {
-    const [incidencias, setIncidencias] = useState<Incidencia[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [resolvingIncident, setResolvingIncident] = useState<Incidencia | null>(null);
     const [replacementItem, setReplacementItem] = useState<{itemCode: string, quantity: number} | null>(null);
-    const [catalog, setCatalog] = useState<CatalogItem[]>([]);
-    const { toast } = useToast();
     
-    useEffect(() => {
-        // Cargar incidencias
-        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
+    const { toast } = useToast();
+
+    const { data: allSheets = [], isLoading: loadingSheets, refetch: refetchSheets } = usePickingSheets();
+    const { data: allArticulos = [], isLoading: loadingArticulos } = useArticulos();
+    const { data: allMaterialOrders = [], isLoading: loadingOrders, refetch: refetchOrders } = useMaterialOrders();
+
+    const incidencias = useMemo(() => {
         const loadedIncidencias: Incidencia[] = [];
         
-        Object.values(allSheets).forEach(sheet => {
+        allSheets.forEach(sheet => {
             if (sheet.itemStates) {
                 Object.entries(sheet.itemStates).forEach(([itemCode, state]) => {
                     const item = sheet.items.find(i => i.itemCode === itemCode);
@@ -62,7 +66,7 @@ export default function IncidenciasPickingPage() {
                             item: {
                                 ...item,
                                 solicita: sheet.solicita,
-                                orderId: item.orderId, // Ensure the original MaterialOrder ID is preserved
+                                orderId: item.orderId,
                             },
                             comment: state.incidentComment,
                             requiredQty: item.quantity,
@@ -73,84 +77,92 @@ export default function IncidenciasPickingPage() {
             }
         });
         
-        setIncidencias(loadedIncidencias.sort((a,b) => new Date(a.fechaNecesidad).getTime() - new Date(b.fechaNecesidad).getTime()));
-        
-        // Cargar catálogos para reemplazo
-        const allArticulos = (JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[]).map(a => ({
+        return loadedIncidencias.sort((a,b) => new Date(a.fechaNecesidad).getTime() - new Date(b.fechaNecesidad).getTime());
+    }, [allSheets]);
+
+    const catalog = useMemo(() => {
+        return allArticulos.map(a => ({
             value: a.id,
             label: a.nombre,
             category: a.categoria,
             price: typeof a.precioAlquiler === 'number' && a.precioAlquiler > 0 ? a.precioAlquiler : (typeof a.precioVenta === 'number' ? a.precioVenta : 0)
         }));
+    }, [allArticulos]);
 
-        setCatalog(allArticulos);
-
+    useEffect(() => {
         setIsMounted(true);
     }, []);
     
-   const handleAcceptDeviation = () => {
+   const handleAcceptDeviation = async () => {
         if (!resolvingIncident) return;
 
         const { item, pickedQty, sheetId, comment } = resolvingIncident;
         const deviation = pickedQty - item.quantity;
-        let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
         
-        const orderIndex = allMaterialOrders.findIndex(o => o.id === item.orderId);
+        const order = allMaterialOrders.find(o => o.id === item.orderId);
 
-        if (orderIndex !== -1) {
-            const orderToUpdate = { ...allMaterialOrders[orderIndex] };
-            const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === item.itemCode);
+        if (order) {
+            try {
+                const orderToUpdate = { ...order };
+                const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === item.itemCode);
 
-            if (itemIndex !== -1) {
-                // 1. Update quantity and add traceability record
-                const originalItem = orderToUpdate.items[itemIndex];
-                const newQuantity = pickedQty;
-                
-                if (!originalItem.ajustes) {
-                    originalItem.ajustes = [];
+                if (itemIndex !== -1) {
+                    const originalItem = { ...orderToUpdate.items[itemIndex] };
+                    const newQuantity = pickedQty;
+                    
+                    if (!originalItem.ajustes) {
+                        originalItem.ajustes = [];
+                    }
+                    originalItem.ajustes.push({
+                        tipo: deviation > 0 ? 'exceso' : 'merma',
+                        cantidad: deviation,
+                        fecha: new Date().toISOString(),
+                        comentario: `Incidencia en picking: ${comment}`
+                    });
+
+                    orderToUpdate.items[itemIndex] = { ...originalItem, quantity: newQuantity };
+                    orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + ((current.price || 0) * current.quantity), 0);
+                    
+                    // 1. Update Material Order in Supabase
+                    const { error: orderError } = await supabase
+                        .from('material_orders')
+                        .update({
+                            items: orderToUpdate.items,
+                            total: orderToUpdate.total
+                        })
+                        .eq('id', order.id);
+
+                    if (orderError) throw orderError;
+
+                    // 2. Mark incidence as resolved in the picking sheet
+                    const sheet = allSheets.find(s => s.id === sheetId);
+                    if (sheet && sheet.itemStates[item.itemCode]) {
+                        const newItemStates = { ...sheet.itemStates };
+                        newItemStates[item.itemCode] = { ...newItemStates[item.itemCode], resolved: true };
+                        
+                        const { error: sheetError } = await supabase
+                            .from('picking_sheets')
+                            .update({ item_states: newItemStates })
+                            .eq('id', sheetId);
+                        
+                        if (sheetError) throw sheetError;
+                    }
+                    
+                    await Promise.all([refetchSheets(), refetchOrders()]);
+                    setResolvingIncident(null);
+                    toast({ title: "Incidencia Resuelta", description: "El pedido original ha sido ajustado y la incidencia marcada como resuelta." });
+                } else {
+                    toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el artículo en el pedido original.' });
                 }
-                originalItem.ajustes.push({
-                    tipo: deviation > 0 ? 'exceso' : 'merma',
-                    cantidad: deviation,
-                    fecha: new Date().toISOString(),
-                    comentario: `Incidencia en picking: ${comment}`
-                });
-
-                orderToUpdate.items[itemIndex] = { ...originalItem, quantity: newQuantity };
-
-                // 2. Recalculate total for the order
-                orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + ((current.price || 0) * current.quantity), 0);
-                
-                // 3. Save updated MaterialOrders array
-                allMaterialOrders[orderIndex] = orderToUpdate;
-                localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
-
-                // 4. Mark incidence as resolved in the picking sheet
-                const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
-                const sheet = allSheets[sheetId];
-                if (sheet && sheet.itemStates[item.itemCode]) {
-                    sheet.itemStates[item.itemCode].resolved = true;
-                    localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
-                }
-                
-                // 5. Notify other parts of the app about the change
-                window.dispatchEvent(new Event('storage'));
-
-                // 6. Update UI
-                setIncidencias(prev => prev.filter(inc => !(inc.sheetId === sheetId && inc.item.itemCode === item.itemCode)));
-                setResolvingIncident(null);
-                
-                toast({ title: "Incidencia Resuelta", description: "El pedido original ha sido ajustado y la incidencia marcada como resuelta." });
-
-            } else {
-                toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el artículo en el pedido original.' });
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: 'Error', description: error.message });
             }
         } else {
              toast({ variant: 'destructive', title: 'Error', description: `No se pudo encontrar el pedido original con ID: ${item.orderId}` });
         }
     };
     
-    const handleCreateReplacementOrder = () => {
+    const handleCreateReplacementOrder = async () => {
         if (!resolvingIncident || !replacementItem?.itemCode) return;
         
         const selectedCatalogItem = catalog.find(c => c.value === replacementItem.itemCode);
@@ -159,44 +171,55 @@ export default function IncidenciasPickingPage() {
             return;
         }
 
-        const newOrder: MaterialOrder = {
-            id: `SUST-${Date.now()}`,
-            osId: resolvingIncident.osId,
-            type: selectedCatalogItem.category as any, // Asumimos que la categoría coincide
-            status: 'Asignado',
-            items: [{
-                itemCode: selectedCatalogItem.value,
-                description: selectedCatalogItem.label,
-                quantity: replacementItem.quantity,
-                price: selectedCatalogItem.price,
-                stock: 0,
-                imageUrl: '',
-                imageHint: '',
-                category: selectedCatalogItem.category,
-            }],
-            days: 1, 
-            total: selectedCatalogItem.price * replacementItem.quantity,
-            contractNumber: `SUST-${resolvingIncident.sheetId}`,
-            solicita: resolvingIncident.item.solicita
-        };
+        try {
+            const newOrder = {
+                os_id: resolvingIncident.osId,
+                type: selectedCatalogItem.category,
+                status: 'Asignado',
+                items: [{
+                    itemCode: selectedCatalogItem.value,
+                    description: selectedCatalogItem.label,
+                    quantity: replacementItem.quantity,
+                    price: selectedCatalogItem.price,
+                    stock: 0,
+                    imageUrl: '',
+                    imageHint: '',
+                    category: selectedCatalogItem.category,
+                }],
+                days: 1, 
+                total: selectedCatalogItem.price * replacementItem.quantity,
+                contract_number: `SUST-${resolvingIncident.sheetId}`,
+                solicita: resolvingIncident.item.solicita
+            };
 
-        const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-        allMaterialOrders.push(newOrder);
-        localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+            // 1. Create new Material Order
+            const { error: orderError } = await supabase
+                .from('material_orders')
+                .insert(newOrder);
 
-        // Marcar la incidencia original como resuelta
-         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
-        const sheet = allSheets[resolvingIncident.sheetId];
-        if (sheet && sheet.itemStates[resolvingIncident.item.itemCode]) {
-            sheet.itemStates[resolvingIncident.item.itemCode].resolved = true;
-            localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
+            if (orderError) throw orderError;
+
+            // 2. Mark the original incidence as resolved
+            const sheet = allSheets.find(s => s.id === resolvingIncident.sheetId);
+            if (sheet && sheet.itemStates[resolvingIncident.item.itemCode]) {
+                const newItemStates = { ...sheet.itemStates };
+                newItemStates[resolvingIncident.item.itemCode] = { ...newItemStates[resolvingIncident.item.itemCode], resolved: true };
+                
+                const { error: sheetError } = await supabase
+                    .from('picking_sheets')
+                    .update({ item_states: newItemStates })
+                    .eq('id', resolvingIncident.sheetId);
+                
+                if (sheetError) throw sheetError;
+            }
+
+            await Promise.all([refetchSheets(), refetchOrders()]);
+            setResolvingIncident(null);
+            setReplacementItem(null);
+            toast({ title: "Pedido de Sustitución Creado", description: "Una nueva necesidad ha sido creada y aparecerá en Planificación de Almacén." });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
         }
-
-        setIncidencias(prev => prev.filter(inc => !(inc.sheetId === resolvingIncident.sheetId && inc.item.itemCode === resolvingIncident.item.itemCode)));
-        setResolvingIncident(null);
-        setReplacementItem(null);
-
-        toast({ title: "Pedido de Sustitución Creado", description: "Una nueva necesidad ha sido creada y aparecerá en Planificación de Almacén." });
     };
     
     const filteredCatalog = useMemo(() => {
@@ -213,7 +236,7 @@ export default function IncidenciasPickingPage() {
     }, [incidencias, searchTerm]);
 
 
-    if (!isMounted) {
+    if (!isMounted || loadingSheets || loadingArticulos || loadingOrders) {
         return <LoadingSkeleton title="Cargando Incidencias de Picking..." />;
     }
 

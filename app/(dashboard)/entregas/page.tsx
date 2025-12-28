@@ -6,156 +6,96 @@ import { Button } from '@/components/ui/button';
 import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight, BarChart3, Truck, LifeBuoy, Factory, ListChecks, Users } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 export default function EntregasDashboardPage() {
     return (
         <TooltipProvider>
-            <main className="container mx-auto px-4 py-8">
-                <div className="text-center mb-10">
-                    <h1 className="text-4xl font-headline font-bold tracking-tight">Entregas MICE</h1>
+            <main className="min-h-screen bg-background/30 pb-20">
+                {/* Header Premium Sticky */}
+                <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
+                    <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
+                        <div className="flex items-center">
+                            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                                <Package className="h-5 w-5 text-amber-500" />
+                            </div>
+                        </div>
+                        <div className="flex-1" />
+                    </div>
                 </div>
 
-                <section className="mb-12 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Link href="/entregas/pes">
-                            <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
-                                <CardHeader className="flex-row items-center gap-3 p-4">
-                                    <ClipboardList className="w-8 h-8 text-primary flex-shrink-0" />
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
+                    <section className="space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Link href="/entregas/pes">
+                                <Card className="bg-background/40 backdrop-blur-sm border-border/40 hover:border-amber-500/50 hover:shadow-lg transition-all h-full group">
+                                    <CardHeader className="flex-row items-center gap-4 p-5">
+                                        <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                                            <ClipboardList className="w-6 h-6 flex-shrink-0" />
+                                        </div>
+                                        <div>
+                                            <CardTitle className="text-sm font-black uppercase tracking-widest">Previsión de Entregas</CardTitle>
+                                            <p className="text-muted-foreground text-[11px] font-medium mt-1">Consulta y busca todos los pedidos de entrega.</p>
+                                        </div>
+                                    </CardHeader>
+                                </Card>
+                            </Link>
+                            <Link href="/entregas/calendario">
+                                <Card className="bg-background/40 backdrop-blur-sm border-border/40 hover:border-amber-500/50 hover:shadow-lg transition-all h-full group">
+                                    <CardHeader className="flex-row items-center gap-4 p-5">
+                                        <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                                            <Calendar className="w-6 h-6 flex-shrink-0" />
+                                        </div>
+                                        <div>
+                                            <CardTitle className="text-sm font-black uppercase tracking-widest">Calendario de Entregas</CardTitle>
+                                            <p className="text-muted-foreground text-[11px] font-medium mt-1">Visualiza las entregas en una vista mensual.</p>
+                                        </div>
+                                    </CardHeader>
+                                </Card>
+                            </Link>
+                        </div>
+
+                        <Separator className="bg-border/40" />
+
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            {[
+                                { href: '/cpr', icon: Factory, title: 'Producción CPR' },
+                                { href: '/entregas/picking', icon: ListChecks, title: 'Picking Almacén' },
+                                { href: '/entregas/gestion-transporte', icon: Truck, title: 'Transporte' },
+                                { href: '/entregas/gestion-personal', icon: Users, title: 'Gestión de Personal' }
+                            ].map((item) => (
+                                <Link href={item.href} key={item.href}>
+                                    <Card className="bg-background/40 backdrop-blur-sm border-border/40 hover:border-amber-500/50 hover:shadow-lg transition-all h-full group">
+                                        <CardHeader className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 rounded-lg bg-amber-500/5 text-amber-600 group-hover:bg-amber-500/10 transition-colors">
+                                                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                                                </div>
+                                                <CardTitle className="text-[11px] font-black uppercase tracking-widest leading-none">{item.title}</CardTitle>
+                                            </div>
+                                        </CardHeader>
+                                    </Card>
+                                </Link>
+                            ))}
+                        </div>
+
+                        <Separator className="bg-border/40" />
+
+                        <Link href="/analitica/entregas">
+                            <Card className="bg-background/40 backdrop-blur-sm border-border/40 hover:border-amber-500/50 hover:shadow-lg transition-all h-full group">
+                                <CardHeader className="flex-row items-center gap-4 p-5">
+                                    <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                                        <BarChart3 className="w-6 h-6 flex-shrink-0" />
+                                    </div>
                                     <div>
-                                        <CardTitle className="text-xl">Previsión de Entregas</CardTitle>
-                                        <p className="text-muted-foreground text-sm mt-1">Consulta y busca todos los pedidos de entrega.</p>
+                                        <CardTitle className="text-sm font-black uppercase tracking-widest">Analítica de Entregas</CardTitle>
+                                        <p className="text-muted-foreground text-[11px] font-medium mt-1">Analiza costes y márgenes de tus entregas.</p>
                                     </div>
                                 </CardHeader>
                             </Card>
                         </Link>
-                        <Link href="/entregas/calendario">
-                            <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
-                                <CardHeader className="flex-row items-center gap-3 p-4">
-                                    <Calendar className="w-8 h-8 text-primary flex-shrink-0" />
-                                    <div>
-                                        <CardTitle className="text-xl">Calendario de Entregas</CardTitle>
-                                        <p className="text-muted-foreground text-sm mt-1">Visualiza las entregas en una vista mensual.</p>
-                                    </div>
-                                </CardHeader>
-                            </Card>
-                        </Link>
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <Link href="/cpr">
-                            <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
-                                <CardHeader className="p-3">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Factory className="w-5 h-5 text-primary flex-shrink-0" />
-                                        <CardTitle className="text-sm font-medium leading-none">Producción CPR</CardTitle>
-                                    </div>
-                                </CardHeader>
-                            </Card>
-                        </Link>
-                        <Link href="/entregas/picking">
-                            <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
-                                <CardHeader className="p-3">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <ListChecks className="w-5 h-5 text-primary flex-shrink-0" />
-                                        <CardTitle className="text-sm font-medium leading-none">Picking Almacén</CardTitle>
-                                    </div>
-                                </CardHeader>
-                            </Card>
-                        </Link>
-                        <Link href="/entregas/gestion-transporte">
-                            <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
-                                <CardHeader className="p-3">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Truck className="w-5 h-5 text-primary flex-shrink-0" />
-                                        <CardTitle className="text-sm font-medium leading-none">Transporte</CardTitle>
-                                    </div>
-                                </CardHeader>
-                            </Card>
-                        </Link>
-                        <Link href="/entregas/gestion-personal">
-                            <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
-                                <CardHeader className="p-3">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Users className="w-5 h-5 text-primary flex-shrink-0" />
-                                        <CardTitle className="text-sm font-medium leading-none">Gestión de Personal</CardTitle>
-                                    </div>
-                                </CardHeader>
-                            </Card>
-                        </Link>
-                    </div>
-
-                    <Separator />
-
-                    <Link href="/analitica/entregas">
-                        <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
-                            <CardHeader className="flex-row items-center gap-3 p-4">
-                                <BarChart3 className="w-8 h-8 text-primary flex-shrink-0" />
-                                <div>
-                                    <CardTitle className="text-xl">Analítica</CardTitle>
-                                    <p className="text-muted-foreground text-sm mt-1">Analiza costes y márgenes de tus entregas.</p>
-                                </div>
-                            </CardHeader>
-                        </Card>
-                    </Link>
-                </section>
-
-                <section>
-                    <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4 text-center">Configuración, Portales y Ayuda</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-                        <Link href="/entregas/productos-venta">
-                            <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-3"><Package />Productos de Venta</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm text-muted-foreground">Gestiona los productos, packs y sus componentes.</p>
-                                </CardContent>
-                            </Card>
-                        </Link>
-                        <Link href="/portal/partner">
-                            <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-3"><Factory />Portal del Partner</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm text-muted-foreground">Vista de producción para partners de gastronomía.</p>
-                                </CardContent>
-                            </Card>
-                        </Link>
-                        <Link href="/portal/transporte">
-                            <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-3"><Truck />Portal de Transporte</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm text-muted-foreground">Consulta tus rutas de entrega y gestiona albaranes.</p>
-                                </CardContent>
-                            </Card>
-                        </Link>
-                        <Link href="/portal/personal">
-                            <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-3"><Users />Portal de Personal</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm text-muted-foreground">Gestiona los turnos de personal de ETTs.</p>
-                                </CardContent>
-                            </Card>
-                        </Link>
-                        <Link href="/docs/entregas-manual">
-                            <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-3"><LifeBuoy />Documentación</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm text-muted-foreground">Manual de usuario para la vertical de Entregas MICE.</p>
-                                </CardContent>
-                            </Card>
-                        </Link>
-                    </div>
-                </section>
+                    </section>
+                </div>
             </main>
         </TooltipProvider>
     );

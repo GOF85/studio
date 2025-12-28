@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
+import { useCprOrdenesFabricacion } from '@/hooks/use-cpr-data';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -26,19 +27,17 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
 
 export default function TrazabilidadPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [allOFs, setAllOFs] = useState<OrdenFabricacion[]>([]);
+  const { data: storedOFs = [] } = useCprOrdenesFabricacion();
   const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
   
-  useEffect(() => {
-    const storedOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]');
-    const sortedOFs = storedOFs.sort((a, b) => {
+  const allOFs = useMemo(() => {
+    return [...storedOFs].sort((a, b) => {
         const dateA = new Date(a.fechaFinalizacion || a.fechaCreacion);
         const dateB = new Date(b.fechaFinalizacion || b.fechaCreacion);
         return dateB.getTime() - dateA.getTime();
     });
-    setAllOFs(sortedOFs);
-  }, []);
+  }, [storedOFs]);
 
   const filteredItems = useMemo(() => {
     return allOFs.filter(item => {

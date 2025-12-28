@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { isBefore, parseISO, endOfDay, eachDayOfInterval, format } from 'date-fns';
 
@@ -69,12 +70,6 @@ export function useEscandalloAnalyticsNew(
   dateFrom: string,
   dateTo: string
 ): UseEscandalloAnalyticsReturn {
-  const [data, setData] = useState<VariacionItem[]>([]);
-  const [snapshots, setSnapshots] = useState<EscandalloSnapshot[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
   // Inicialización directa
   const rawDataRef = useRef<RawDataStore>({ 
       articulosErp: [], 
@@ -93,16 +88,11 @@ export function useEscandalloAnalyticsNew(
     } catch { return false; }
   }, [dateFrom, dateTo]);
 
-  const fetchAndCalculate = useCallback(async () => {
-    if (!isValidRange) return;
+  const { data: queryData, isLoading, error } = useQuery({
+    queryKey: ['escandalloAnalytics', activeTab, dateFrom, dateTo],
+    queryFn: async () => {
+      if (!isValidRange) return { results: [], snapshots: [] };
 
-    setIsLoading(true);
-    setLoadingMessage('Conectando con base de datos...');
-    setError(null);
-    setData([]);
-    setSnapshots([]);
-
-    try {
       // 1. CARGA MASIVA
       const [erpRes, histRes, ingRes, elabRes, compRes, recRes] = await Promise.all([
         supabase.from('articulos_erp').select('id, erp_id, nombre, precio_compra, precio, familia_categoria, nombre_proveedor'),
@@ -118,30 +108,20 @@ export function useEscandalloAnalyticsNew(
 
       if (erpRes.error) throw erpRes.error;
 
-      // GUARDADO SEGURO EN REF
-      // Usamos una variable local para evitar accesos a 'current' undefined si el componente se desmonta rápido
       const store = rawDataRef.current; 
-      
       store.articulosErp = erpRes.data || [];
       store.historicoErp = histRes.data || [];
       store.ingredientes = ingRes.data || [];
       store.elaboraciones = elabRes.data || [];
       store.componentes = compRes.data || [];
       store.recetas = recRes.data || [];
-      
-      // Limpiar mapa antes de reconstruir
       store.historyMap.clear();
 
-      setLoadingMessage(`Procesando ${store.historicoErp.length} registros...`);
-      await new Promise(resolve => setTimeout(resolve, 10)); 
-
-      // 2. CONSTRUCCIÓN DEL MAPA (SAFE ACCESS)
       store.historicoErp.forEach((h: any) => {
           if (!store.historyMap.has(h.articulo_erp_id)) store.historyMap.set(h.articulo_erp_id, []);
           store.historyMap.get(h.articulo_erp_id)?.push(h);
       });
 
-      // Crear alias para ERP_ID cortos
       store.articulosErp.forEach((art: any) => {
           const historyByUuid = store.historyMap.get(art.id);
           if (historyByUuid && art.erp_id) {
@@ -149,7 +129,6 @@ export function useEscandalloAnalyticsNew(
           }
       });
 
-      // Mapas auxiliares para cálculo rápido
       const currentPriceMap = new Map<string, number>();
       const erpInfoMap = new Map<string, any>();
       
@@ -163,228 +142,160 @@ export function useEscandalloAnalyticsNew(
           if (art.erp_id) erpInfoMap.set(String(art.erp_id), info);
       });
 
-      // --- HELPER PRECIO ---
       const getErpPriceAtDate = (linkId: string | null, targetDate: string): number => {
           if (!linkId) return 0;
           const linkStr = String(linkId);
-
-          // Buscar en mapa histórico
           let history = store.historyMap.get(linkStr);
-
-          // Fallback: Si no hay histórico en el mapa, puede que el ID de enlace no sea el que tiene histórico
           if (!history) {
-              // Intentar encontrar el artículo para probar el otro ID (UUID vs ERP_ID)
               const art = store.articulosErp.find((a: any) => a.id === linkStr || String(a.erp_id) === linkStr);
               if (art) {
-                  // Si buscamos por UUID y no estaba, probamos erp_id, y viceversa
                   const altId = art.id === linkStr ? String(art.erp_id) : art.id;
                   if (altId) history = store.historyMap.get(altId);
               }
           }
-
-          // Si sigue sin haber histórico, precio actual
-          if (!history || history.length === 0) {
-              return currentPriceMap.get(linkStr) || 0;
-          }
-
+          if (!history || history.length === 0) return currentPriceMap.get(linkStr) || 0;
           const targetTime = endOfDay(parseISO(targetDate)).getTime();
-          
           for (let i = history.length - 1; i >= 0; i--) {
-              if (parseISO(history[i].fecha).getTime() <= targetTime) {
-                  return safeFloat(history[i].precio_calculado);
-              }
+              if (parseISO(history[i].fecha).getTime() <= targetTime) return safeFloat(history[i].precio_calculado);
           }
           return safeFloat(history[0].precio_calculado);
       };
 
-      // ----------------------------
-      // LÓGICA DE CÁLCULO
-      // ----------------------------
       const ingCostStart = new Map<string, number>();
       const ingCostEnd = new Map<string, number>();
       const results: VariacionItem[] = [];
 
-      // Chunking Helper
-      const processInChunks = async <T>(items: T[], processFn: (item: T) => void, label: string) => {
-          const CHUNK_SIZE = 500;
-          for (let i = 0; i < items.length; i += CHUNK_SIZE) {
-              const chunk = items.slice(i, i + CHUNK_SIZE);
-              chunk.forEach(processFn);
-              setLoadingMessage(`${label}: ${Math.min(i + CHUNK_SIZE, items.length)} / ${items.length}`);
-              await new Promise(resolve => setTimeout(resolve, 0));
-          }
-      };
-
-      // 1. INGREDIENTES
-      await processInChunks(
-          store.ingredientes,
-          (ing: any) => {
-              const start = getErpPriceAtDate(ing.producto_erp_link_id, dateFrom);
-              const end = getErpPriceAtDate(ing.producto_erp_link_id, dateTo);
-              
-              ingCostStart.set(ing.id, start);
-              ingCostEnd.set(ing.id, end);
-
-              if (activeTab === 'ingredientes') {
-                  const info = erpInfoMap.get(String(ing.producto_erp_link_id)) || {};
-                  if (start > 0 || end > 0) {
-                      results.push({
-                          id: ing.id,
-                          nombre: ing.nombre_ingrediente,
-                          tipo: 'ingrediente',
-                          startPrice: start,
-                          endPrice: end,
-                          diff: end - start,
-                          percent: start > 0 ? ((end - start)/start)*100 : 0,
-                          proveedor: info.proveedor
-                      });
-                  }
+      store.ingredientes.forEach((ing: any) => {
+          const start = getErpPriceAtDate(ing.producto_erp_link_id, dateFrom);
+          const end = getErpPriceAtDate(ing.producto_erp_link_id, dateTo);
+          ingCostStart.set(ing.id, start);
+          ingCostEnd.set(ing.id, end);
+          if (activeTab === 'ingredientes') {
+              const info = erpInfoMap.get(String(ing.producto_erp_link_id)) || {};
+              if (start > 0 || end > 0) {
+                  results.push({
+                      id: ing.id,
+                      nombre: ing.nombre_ingrediente,
+                      tipo: 'ingrediente',
+                      startPrice: start,
+                      endPrice: end,
+                      diff: end - start,
+                      percent: start > 0 ? ((end - start)/start)*100 : 0,
+                      proveedor: info.proveedor
+                  });
               }
-          },
-          "Analizando Ingredientes"
-      );
+          }
+      });
 
-      // 2. ELABORACIONES
       const elabCostStart = new Map<string, number>();
       const elabCostEnd = new Map<string, number>();
 
       if (activeTab !== 'ingredientes' && activeTab !== 'articulos') {
-          await processInChunks(
-              store.elaboraciones,
-              (elab: any) => {
-                  const comps = store.componentes.filter((c: any) => c.elaboracion_padre_id === elab.id);
-                  let totalStart = 0;
-                  let totalEnd = 0;
-
-                  comps.forEach((c: any) => {
-                      const pS = ingCostStart.get(c.componente_id) || 0;
-                      const pE = ingCostEnd.get(c.componente_id) || 0;
-                      const q = safeFloat(c.cantidad_neta);
-                      totalStart += pS * q;
-                      totalEnd += pE * q;
+          store.elaboraciones.forEach((elab: any) => {
+              const comps = store.componentes.filter((c: any) => c.elaboracion_padre_id === elab.id);
+              let totalStart = 0;
+              let totalEnd = 0;
+              comps.forEach((c: any) => {
+                  const pS = ingCostStart.get(c.componente_id) || 0;
+                  const pE = ingCostEnd.get(c.componente_id) || 0;
+                  const q = safeFloat(c.cantidad_neta);
+                  totalStart += pS * q;
+                  totalEnd += pE * q;
+              });
+              const divisor = safeFloat(elab.produccion_total) || 1;
+              const uStart = totalStart / divisor;
+              const uEnd = totalEnd / divisor;
+              elabCostStart.set(elab.id, uStart);
+              elabCostEnd.set(elab.id, uEnd);
+              if (activeTab === 'elaboraciones') {
+                  results.push({
+                      id: elab.id,
+                      nombre: elab.nombre,
+                      tipo: 'elaboracion',
+                      startPrice: uStart,
+                      endPrice: uEnd,
+                      diff: uEnd - uStart,
+                      percent: uStart > 0 ? ((uEnd - uStart)/uStart)*100 : 0
                   });
-
-                  const divisor = safeFloat(elab.produccion_total) || 1;
-                  const uStart = totalStart / divisor;
-                  const uEnd = totalEnd / divisor;
-
-                  elabCostStart.set(elab.id, uStart);
-                  elabCostEnd.set(elab.id, uEnd);
-
-                  if (activeTab === 'elaboraciones') {
-                      results.push({
-                          id: elab.id,
-                          nombre: elab.nombre,
-                          tipo: 'elaboracion',
-                          startPrice: uStart,
-                          endPrice: uEnd,
-                          diff: uEnd - uStart,
-                          percent: uStart > 0 ? ((uEnd - uStart)/uStart)*100 : 0
-                      });
-                  }
-              },
-              "Analizando Elaboraciones"
-          );
+              }
+          });
       }
 
-      // 3. RECETAS
       if (activeTab === 'recetas') {
-          await processInChunks(
-              store.recetas,
-              (receta: any) => {
-                  let totalStart = 0;
-                  let totalEnd = 0;
-                  let elabs: any[] = [];
-                  
-                  if (typeof receta.elaboraciones === 'string') try { elabs = JSON.parse(receta.elaboraciones); } catch {}
-                  else if (Array.isArray(receta.elaboraciones)) elabs = receta.elaboraciones;
-
-                  elabs.forEach((item: any) => {
-                      let id = typeof item === 'string' ? item : (item.elaboracionId || item.elaboracion_id || item.id);
-                      if (id && id.length > 36) id = id.substring(0, 36);
-                      const qty = typeof item === 'object' ? (safeFloat(item.cantidad) || 1) : 1;
-                      
-                      // Buscar ID exacto o por prefijo
-                      const elabId = elabCostStart.has(id) ? id : [...elabCostStart.keys()].find(k => k.startsWith(id));
-
-                      if (elabId) {
-                          totalStart += (elabCostStart.get(elabId) || 0) * qty;
-                          totalEnd += (elabCostEnd.get(elabId) || 0) * qty;
-                      }
+          store.recetas.forEach((receta: any) => {
+              let totalStart = 0;
+              let totalEnd = 0;
+              let elabs: any[] = [];
+              if (typeof receta.elaboraciones === 'string') try { elabs = JSON.parse(receta.elaboraciones); } catch {}
+              else if (Array.isArray(receta.elaboraciones)) elabs = receta.elaboraciones;
+              elabs.forEach((item: any) => {
+                  let id = typeof item === 'string' ? item : (item.elaboracionId || item.elaboracion_id || item.id);
+                  if (id && id.length > 36) id = id.substring(0, 36);
+                  const qty = typeof item === 'object' ? (safeFloat(item.cantidad) || 1) : 1;
+                  const elabId = elabCostStart.has(id) ? id : [...elabCostStart.keys()].find(k => k.startsWith(id));
+                  if (elabId) {
+                      totalStart += (elabCostStart.get(elabId) || 0) * qty;
+                      totalEnd += (elabCostEnd.get(elabId) || 0) * qty;
+                  }
+              });
+              const margen = safeFloat(receta.porcentaje_coste_produccion);
+              const pStart = totalStart * (1 + margen/100);
+              const pEnd = totalEnd * (1 + margen/100);
+              if (pStart > 0 || pEnd > 0) {
+                  results.push({
+                      id: receta.id,
+                      nombre: receta.nombre,
+                      tipo: 'receta',
+                      categoria: receta.categoria,
+                      startPrice: pStart,
+                      endPrice: pEnd,
+                      diff: pEnd - pStart,
+                      percent: pStart > 0 ? ((pEnd - pStart)/pStart)*100 : 0
                   });
-
-                  const margen = safeFloat(receta.porcentaje_coste_produccion);
-                  const pStart = totalStart * (1 + margen/100);
-                  const pEnd = totalEnd * (1 + margen/100);
-
-                  if (pStart > 0 || pEnd > 0) {
-                      results.push({
-                          id: receta.id,
-                          nombre: receta.nombre,
-                          tipo: 'receta',
-                          categoria: receta.categoria,
-                          startPrice: pStart,
-                          endPrice: pEnd,
-                          diff: pEnd - pStart,
-                          percent: pStart > 0 ? ((pEnd - pStart)/pStart)*100 : 0
-                      });
-                  }
-              },
-              "Analizando Recetas"
-          );
+              }
+          });
       }
 
-      // 4. ARTICULOS ERP
       if (activeTab === 'articulos') {
-          await processInChunks(
-              store.articulosErp,
-              (art: any) => {
-                  const start = getErpPriceAtDate(art.id, dateFrom);
-                  const end = getErpPriceAtDate(art.id, dateTo);
-
-                  if (start > 0 || end > 0) {
-                      results.push({
-                          id: art.id,
-                          nombre: art.nombre,
-                          tipo: 'articulo_erp',
-                          categoria: art.familia_categoria,
-                          proveedor: art.nombre_proveedor,
-                          startPrice: start,
-                          endPrice: end,
-                          diff: end - start,
-                          percent: start > 0 ? ((end - start)/start)*100 : 0
-                      });
-                  }
-              },
-              "Analizando Artículos ERP"
-          );
+          store.articulosErp.forEach((art: any) => {
+              const start = getErpPriceAtDate(art.id, dateFrom);
+              const end = getErpPriceAtDate(art.id, dateTo);
+              if (start > 0 || end > 0) {
+                  results.push({
+                      id: art.id,
+                      nombre: art.nombre,
+                      tipo: 'articulo_erp',
+                      categoria: art.familia_categoria,
+                      proveedor: art.nombre_proveedor,
+                      startPrice: start,
+                      endPrice: end,
+                      diff: end - start,
+                      percent: start > 0 ? ((end - start)/start)*100 : 0
+                  });
+              }
+          });
       }
 
-      setLoadingMessage('Finalizando...');
       results.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
-      setData(results);
-
+      
+      let snapshots: EscandalloSnapshot[] = [];
       if (results.length > 0) {
           const avgS = results.reduce((s, i) => s + i.startPrice, 0) / results.length;
           const avgE = results.reduce((s, i) => s + i.endPrice, 0) / results.length;
-          setSnapshots([
+          snapshots = [
               { fecha: dateFrom, precio: avgS, cantidad: results.length },
               { fecha: dateTo, precio: avgE, cantidad: results.length }
-          ]);
-      } else {
-          setSnapshots([]);
+          ];
       }
 
-    } catch (e: any) {
-      console.error(e);
-      setError(e.message);
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
-    }
-  }, [activeTab, dateFrom, dateTo]);
+      return { results, snapshots };
+    },
+    enabled: isValidRange,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  useEffect(() => { if(isValidRange) fetchAndCalculate(); }, [isValidRange, fetchAndCalculate]);
+  const data = queryData?.results || [];
+  const snapshots = queryData?.snapshots || [];
 
   // --- CALCULO ON-DEMAND ---
   const calculateHistory = useCallback((item: VariacionItem): EscandalloSnapshot[] => {
@@ -394,7 +305,6 @@ export function useEscandalloAnalyticsNew(
       const getPrice = (linkId: string, d: Date) => {
           if (!linkId) return 0;
           const ls = String(linkId);
-          
           let history = store.historyMap.get(ls);
           if (!history) {
               const art = store.articulosErp.find((a:any) => a.id === ls || String(a.erp_id) === ls);
@@ -403,12 +313,10 @@ export function useEscandalloAnalyticsNew(
                   if (altId) history = store.historyMap.get(altId);
               }
           }
-
           if (!history || !history.length) {
               const art = store.articulosErp.find((a:any) => a.id === ls || String(a.erp_id) === ls);
               return art ? (safeFloat(art.precio_compra) || safeFloat(art.precio)) : 0;
           }
-
           const t = endOfDay(d).getTime();
           for(let i=history.length-1; i>=0; i--) {
               if (parseISO(history[i].fecha).getTime() <= t) return safeFloat(history[i].precio_calculado);
@@ -418,12 +326,10 @@ export function useEscandalloAnalyticsNew(
 
       const calcCost = (objId: string, type: string, d: Date): number => {
           if (type === 'articulo_erp') return getPrice(objId, d);
-          
           if (type === 'ingrediente') {
               const ing = store.ingredientes.find((x:any) => x.id === objId);
               return ing ? getPrice(ing.producto_erp_link_id, d) : 0;
           }
-          
           if (type === 'elaboracion') {
               const elab = store.elaboraciones.find((x:any) => x.id === objId);
               if (!elab) return 0;
@@ -434,14 +340,12 @@ export function useEscandalloAnalyticsNew(
               });
               return tot / (safeFloat(elab.produccion_total) || 1);
           }
-
           if (type === 'receta') {
               const rec = store.recetas.find((x:any) => x.id === objId);
               if (!rec) return 0;
               let elabs: any[] = [];
               if (typeof rec.elaboraciones === 'string') try { elabs = JSON.parse(rec.elaboraciones); } catch {}
               else if (Array.isArray(rec.elaboraciones)) elabs = rec.elaboraciones;
-              
               let tot = 0;
               elabs.forEach((e:any) => {
                   let eid = typeof e === 'string' ? e : (e.elaboracionId || e.id);
@@ -458,7 +362,6 @@ export function useEscandalloAnalyticsNew(
       const days = eachDayOfInterval({ start: parseISO(dateFrom), end: parseISO(dateTo) });
       const points: EscandalloSnapshot[] = [];
       const step = days.length > 90 ? Math.ceil(days.length / 60) : 1;
-
       for (let i=0; i<days.length; i+=step) {
           points.push({
               fecha: format(days[i], 'yyyy-MM-dd'),
@@ -467,8 +370,14 @@ export function useEscandalloAnalyticsNew(
           });
       }
       return points;
-
   }, [dateFrom, dateTo]);
 
-  return { data, snapshots, isLoading, loadingMessage, error, calculateHistory };
+  return { 
+    data, 
+    snapshots, 
+    isLoading, 
+    loadingMessage: isLoading ? 'Calculando variaciones...' : '', 
+    error: error ? (error as Error).message : null, 
+    calculateHistory 
+  };
 }

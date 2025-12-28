@@ -2,18 +2,17 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useEvento } from '@/hooks/use-data-queries';
 
 export default function PersonalMiceIdRedirectPage({ params }: { params: { id: string } }) {
     const router = useRouter();
+    const { data: serviceOrder, isLoading } = useEvento(params.id);
+
     useEffect(() => {
-        try {
-            const all = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
-            const current = all.find((o: any) => o.id === params.id);
-            const serviceNumber = current?.serviceNumber;
+        if (!isLoading && params.id) {
+            const serviceNumber = serviceOrder?.serviceNumber;
             router.replace(`/os/${serviceNumber || params.id}/personal-mice`);
-        } catch (e) {
-            router.replace(`/os/${params.id}/personal-mice`);
         }
-    }, [router, params.id]);
+    }, [router, params.id, serviceOrder, isLoading]);
     return null;
 }

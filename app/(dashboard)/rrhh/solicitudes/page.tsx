@@ -59,10 +59,11 @@ function CommentModal({ comment, trigger }: { comment: string, trigger: React.Re
     )
 }
 
+import { useCprSolicitudesPersonal } from '@/hooks/use-cpr-data';
+import { useProveedores, useTiposPersonal } from '@/hooks/use-data-queries';
+import { supabase } from '@/lib/supabase';
+
 export default function SolicitudesCprPage() {
-  const [solicitudes, setSolicitudes] = useState<SolicitudPersonalCPR[]>([]);
-  const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
-  const [tiposPersonal, setTiposPersonal] = useState<CategoriaPersonal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
@@ -74,16 +75,17 @@ export default function SolicitudesCprPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const storedData = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-    setSolicitudes(storedData);
-    
-    const storedProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-    setProveedoresMap(new Map(storedProveedores.map(p => [p.id, p.nombreComercial])));
-    
-    const storedTiposPersonal = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
-    setTiposPersonal(storedTiposPersonal);
+  const { data: solicitudes = [], isLoading: loadingSolicitudes, refetch: refetchSolicitudes } = useCprSolicitudesPersonal();
+  const { data: allProveedores = [], isLoading: loadingProveedores } = useProveedores();
+  const { data: tiposPersonal = [], isLoading: loadingTipos } = useTiposPersonal();
 
+  const isLoaded = !loadingSolicitudes && !loadingProveedores && !loadingTipos;
+
+  const proveedoresMap = useMemo(() => {
+    return new Map(allProveedores.map(p => [p.id, p.nombreComercial]));
+  }, [allProveedores]);
+
+  useEffect(() => {
     setIsMounted(true);
   }, []);
 
@@ -105,48 +107,54 @@ export default function SolicitudesCprPage() {
     setSolicitudToManage(solicitud);
   };
   
-  const handleAction = (action: 'aprobar' | 'rechazar' | 'asignar' | 'delete' | 'cancel', data?: any) => {
+  const handleAction = async (action: 'aprobar' | 'rechazar' | 'asignar' | 'delete' | 'cancel', data?: any) => {
     if(!solicitudToManage) return;
 
-    let allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-    const index = allRequests.findIndex(r => r.id === solicitudToManage.id);
+    try {
+        switch(action) {
+            case 'aprobar':
+                await supabase.from('cpr_solicitudes_personal').update({ estado: 'Aprobada' }).eq('id', solicitudToManage.id);
+                toast({ title: 'Solicitud Aprobada' });
+                break;
+            case 'rechazar':
+                await supabase.from('cpr_solicitudes_personal').update({ 
+                    estado: 'Rechazada',
+                    observaciones_rrhh: data.reason
+                }).eq('id', solicitudToManage.id);
+                toast({ title: 'Solicitud Rechazada' });
+                break;
+            case 'asignar':
+                const tipoPersonal = tiposPersonal.find(tp => tp.id === data.proveedorId);
+                const coste = calculateHours(solicitudToManage.horaInicio, solicitudToManage.horaFin) * (tipoPersonal?.precioHora || 0);
+                await supabase.from('cpr_solicitudes_personal').update({ 
+                    estado: 'Asignada',
+                    proveedor_id: data.proveedorId,
+                    coste_imputado: coste
+                }).eq('id', solicitudToManage.id);
+                toast({ title: 'Proveedor Asignado' });
+                break;
+            case 'delete':
+                await supabase.from('cpr_solicitudes_personal').delete().eq('id', solicitudToManage.id);
+                toast({ title: 'Solicitud Eliminada' });
+                break;
+            case 'cancel':
+                await supabase.from('cpr_solicitudes_personal').update({ estado: 'Solicitada Cancelacion' }).eq('id', solicitudToManage.id);
+                toast({ title: 'Cancelación Solicitada' });
+                break;
+        }
 
-    if(index === -1) return;
-
-    switch(action) {
-        case 'aprobar':
-            allRequests[index].estado = 'Aprobada';
-            toast({ title: 'Solicitud Aprobada' });
-            break;
-        case 'rechazar':
-            allRequests[index].estado = 'Rechazada';
-            allRequests[index].observacionesRRHH = data.reason;
-            toast({ title: 'Solicitud Rechazada' });
-            break;
-        case 'asignar':
-            const tipoPersonal = tiposPersonal.find(tp => tp.id === data.proveedorId);
-            const coste = calculateHours(solicitudToManage.horaInicio, solicitudToManage.horaFin) * (tipoPersonal?.precioHora || 0);
-            allRequests[index].estado = 'Asignada';
-            allRequests[index].proveedorId = data.proveedorId;
-            allRequests[index].costeImputado = coste;
-            toast({ title: 'Proveedor Asignado' });
-            break;
-        case 'delete':
-            allRequests = allRequests.filter(r => r.id !== solicitudToManage.id);
-            toast({ title: 'Solicitud Eliminada' });
-            break;
-        case 'cancel':
-            allRequests[index].estado = 'Solicitada Cancelacion';
-            toast({ title: 'Cancelación Solicitada' });
-            break;
+        refetchSolicitudes();
+        setSolicitudToManage(null);
+        setManagementAction(null);
+        setIsRejectionModalOpen(false);
+        setRejectionReason('');
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message
+        });
     }
-
-    localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-    setSolicitudes(allRequests);
-    setSolicitudToManage(null);
-    setManagementAction(null);
-    setIsRejectionModalOpen(false);
-    setRejectionReason('');
   };
 
   if (!isMounted) {

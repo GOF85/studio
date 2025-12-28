@@ -75,3 +75,57 @@ export function useDeletePersonalEntrega() {
         }
     });
 }
+
+export function usePersonalEntregaMutations() {
+    const queryClient = useQueryClient();
+
+    const updatePersonalEntrega = useMutation({
+        mutationFn: async (personal: Partial<PersonalEntrega>) => {
+            // Primero verificamos si existe
+            const { data: existing } = await supabase
+                .from('personal_entrega')
+                .select('id')
+                .eq('entrega_id', personal.osId)
+                .single();
+
+            if (existing) {
+                const { data, error } = await supabase
+                    .from('personal_entrega')
+                    .update({
+                        turnos: personal.turnos,
+                        data: {
+                            status: personal.status,
+                            observacionesGenerales: personal.observacionesGenerales,
+                            ajustes: personal.ajustes || [],
+                        }
+                    })
+                    .eq('entrega_id', personal.osId)
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            } else {
+                const { data, error } = await supabase
+                    .from('personal_entrega')
+                    .insert({
+                        entrega_id: personal.osId,
+                        turnos: personal.turnos,
+                        data: {
+                            status: personal.status,
+                            observacionesGenerales: personal.observacionesGenerales,
+                            ajustes: personal.ajustes || [],
+                        }
+                    })
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['personalEntrega'] });
+        }
+    });
+
+    return { updatePersonalEntrega };
+}

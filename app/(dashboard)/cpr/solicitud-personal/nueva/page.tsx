@@ -22,6 +22,7 @@ import type { SolicitudPersonalCPR } from '@/types';
 import { PARTIDAS_PRODUCCION } from '@/types';
 import { Save, ArrowLeft, Calendar as CalendarIcon, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCreateCprSolicitudPersonal } from '@/hooks/use-cpr-data';
 
 const formSchema = z.object({
   fechaServicio: z.date({ required_error: "La fecha es obligatoria." }),
@@ -42,6 +43,7 @@ export default function NuevaSolicitudPersonalPage() {
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+    const createSolicitud = useCreateCprSolicitudPersonal();
     
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -54,31 +56,29 @@ export default function NuevaSolicitudPersonalPage() {
         }
     });
 
-    const onSubmit = (data: FormValues) => {
+    const onSubmit = async (data: FormValues) => {
         if (!impersonatedUser) {
             toast({ variant: 'destructive', title: 'Error', description: 'No se puede crear la solicitud sin un usuario identificado.' });
             return;
         }
 
-        const allRequests = JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]') as SolicitudPersonalCPR[];
-        
-        for (let i = 0; i < data.cantidad; i++) {
-            const newRequest: SolicitudPersonalCPR = {
-                id: `REQ-CPR-${Date.now()}-${i}`,
-                fechaSolicitud: new Date().toISOString(),
-                solicitadoPor: impersonatedUser.nombre,
-                ...data,
-                cantidad: 1, // Each request is for 1 person
-                fechaServicio: format(data.fechaServicio, 'yyyy-MM-dd'),
-                estado: 'Solicitado',
-            };
-            allRequests.push(newRequest);
+        try {
+            for (let i = 0; i < data.cantidad; i++) {
+                await createSolicitud.mutateAsync({
+                    fechaSolicitud: new Date().toISOString(),
+                    solicitadoPor: impersonatedUser.nombre,
+                    ...data,
+                    cantidad: 1, // Each request is for 1 person
+                    fechaServicio: format(data.fechaServicio, 'yyyy-MM-dd'),
+                    estado: 'Solicitado',
+                });
+            }
+
+            toast({ title: "Solicitud Enviada", description: `${data.cantidad} solicitud(es) de personal han sido enviadas a RRHH.`});
+            router.push('/cpr/solicitud-personal');
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear la solicitud.' });
         }
-
-        localStorage.setItem('solicitudesPersonalCPR', JSON.stringify(allRequests));
-
-        toast({ title: "Solicitud Enviada", description: `${data.cantidad} solicitud(es) de personal han sido enviadas a RRHH.`});
-        router.push('/cpr/solicitud-personal');
     };
 
     return (

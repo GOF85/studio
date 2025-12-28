@@ -22,6 +22,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useEventos, useComercialBriefings, useGastronomyOrders, useRecetas } from '@/hooks/use-data-queries';
+import { useCprPickingStates, useCprOrdenesFabricacion } from '@/hooks/use-cpr-data';
 
 type PickingReportItem = {
     os: ServiceOrder;
@@ -29,25 +31,32 @@ type PickingReportItem = {
 }
 
 export default function InformePickingPage() {
-  const [reportItems, setReportItems] = useState<PickingReportItem[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
+  const { data: allServiceOrders = [] } = useEventos();
+  const { data: allPickingStates = [] } = useCprPickingStates();
+  const { data: allBriefings = [] } = useComercialBriefings();
+  const { data: allOFs = [] } = useCprOrdenesFabricacion();
+  const { data: allGastroOrders = [] } = useGastronomyOrders();
+  const { data: allRecetas = [] } = useRecetas();
+
   const [searchTerm, setSearchTerm] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
-    
-    const items: PickingReportItem[] = allServiceOrders
-        .filter(os => allPickingStates[os.id] && allPickingStates[os.id].itemStates.length > 0)
-        .map(os => ({
-            os,
-            state: allPickingStates[os.id]
-        }));
-        
-    setReportItems(items);
     setIsMounted(true);
   }, []);
+
+  const reportItems = useMemo(() => {
+    return allServiceOrders
+        .filter(os => {
+            const state = allPickingStates.find(ps => ps.osId === os.id);
+            return state && state.itemStates.length > 0;
+        })
+        .map(os => ({
+            os,
+            state: allPickingStates.find(ps => ps.osId === os.id)!
+        }));
+  }, [allServiceOrders, allPickingStates]);
 
   const filteredItems = useMemo(() => {
     return reportItems.filter(item => 
@@ -58,10 +67,6 @@ export default function InformePickingPage() {
   
   const handlePrint = (item: PickingReportItem) => {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    const allBriefings: ComercialBriefing[] = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-    const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-    const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-    const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     
     const getRecetaForElaboracion = (elaboracionId: string, osId: string): string => {
         const gastroOrders = allGastroOrders.filter(o => o.osId === osId);
@@ -205,7 +210,7 @@ export default function InformePickingPage() {
                 >
                   <TableCell className="font-medium"><Badge variant="secondary">{item.os.serviceNumber}</Badge></TableCell>
                   <TableCell>{item.os.client}</TableCell>
-                  <TableCell>{format(new Date(item.os.startDate), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>{item.os.startDate ? format(new Date(item.os.startDate), 'dd/MM/yyyy') : '—'}</TableCell>
                   <TableCell>{item.state.assignedContainers.length}</TableCell>
                   <TableCell>{item.state.itemStates.length}</TableCell>
                   <TableCell className="text-right">

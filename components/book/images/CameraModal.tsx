@@ -2,7 +2,7 @@
 
 import React, { useCallback, useRef, useState } from 'react';
 import Webcam from 'react-webcam';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Camera, RotateCcw, X, Check } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -65,6 +65,9 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
                             <X className="w-5 h-5" />
                         </Button>
                     </DialogTitle>
+                    <DialogDescription className="sr-only">
+                        Captura una foto usando la cámara de tu dispositivo.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="relative aspect-[3/4] sm:aspect-video bg-black flex items-center justify-center">

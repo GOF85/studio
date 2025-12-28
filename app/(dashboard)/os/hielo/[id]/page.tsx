@@ -3,17 +3,17 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
+import { useEvento } from '@/hooks/use-data-queries';
+
 export default function HieloIdRedirectPage({ params }: { params: { id: string } }) {
     const router = useRouter();
+    const { data: evento, isLoading } = useEvento(params.id);
+
     useEffect(() => {
-        try {
-            const all = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
-            const current = all.find((o: any) => o.id === params.id);
-            const serviceNumber = current?.serviceNumber;
-            router.replace(`/os/${serviceNumber || params.id}/hielo`);
-        } catch (e) {
-            router.replace(`/os/${params.id}/hielo`);
-        }
-    }, [router, params.id]);
+        if (isLoading) return;
+        
+        const serviceNumber = evento?.serviceNumber;
+        router.replace(`/os/${serviceNumber || params.id}/hielo`);
+    }, [router, params.id, evento, isLoading]);
     return null;
 }

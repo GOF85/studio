@@ -20,10 +20,12 @@ export const articuloMicecateringSchema = z.object({
     precioAlquiler: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
     precioReposicion: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
     erpId: z.string().optional(),
+    partnerId: z.string().optional(),
     producidoPorPartner: z.boolean(),
     stockSeguridad: z.coerce.number().min(0, 'El stock debe ser mayor o igual a 0'),
     unidadVenta: z.coerce.number().min(1, 'La unidad de venta debe ser al menos 1'),
     loc: z.string().optional(),
+    subcategoria: z.string().optional(),
     alergenos: z.array(z.object({
         nombre: z.string(),
         tipo: z.enum(['presente', 'trazas'])
@@ -37,6 +39,14 @@ export const articuloMicecateringSchema = z.object({
         orden: z.number(),
         descripcion: z.string().optional()
     })).default([]),
+}).refine((data) => {
+    if ((data.categoria === 'Almacén' || data.categoria === 'Alquiler') && (data.precioAlquiler === undefined || data.precioAlquiler <= 0)) {
+        return false;
+    }
+    return true;
+}, {
+    message: "El precio de alquiler es obligatorio para Almacén o Alquiler",
+    path: ["precioAlquiler"]
 });
 
 export type ArticuloMicecateringFormValues = z.infer<typeof articuloMicecateringSchema>;

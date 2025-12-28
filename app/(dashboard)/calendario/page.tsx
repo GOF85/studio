@@ -1,8 +1,8 @@
 'use client';
 
 // 1. IMPORTS
-import { useState, useMemo, useCallback, memo, Suspense } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useState, useEffect, useMemo, useCallback, memo, Suspense } from 'react';
+import { useRouter, useSearchParams, usePathname, useParams } from 'next/navigation';
 import {
   format,
   startOfMonth,
@@ -15,32 +15,49 @@ import {
   startOfWeek,
   endOfWeek,
   parse,
+  parseISO,
   isValid
 } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Calendar as CalendarIcon, 
-  Users, 
-  Clock, 
-  List, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Users,
+  Clock,
+  List,
   Grid,
   AlertCircle
 } from 'lucide-react';
 
 import type { ServiceOrder } from '@/types';
-import { useEventos } from '@/hooks/use-data-queries';
+import { useEventos, useComercialBriefings } from '@/hooks/use-data-queries';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import SplashScreen from '@/components/layout/splash-screen';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DayExpandedBottomSheet } from '@/components/calendar/day-expanded-bottom-sheet';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
-// 2. TYPES & INTERFACES
+// 2. UTILS
+const formatSafeTime = (time: any) => {
+  if (!time) return '--:--';
+  if (typeof time !== 'string') return '--:--';
+  // Si ya es formato HH:mm o HH:mm:ss
+  if (/^\d{2}:\d{2}/.test(time)) return time.substring(0, 5);
+  try {
+    const d = new Date(time);
+    if (isNaN(d.getTime())) return time;
+    return format(d, 'HH:mm');
+  } catch {
+    return time;
+  }
+};
+
+// 3. TYPES & INTERFACES
 type CalendarStatus = 'BORRADOR' | 'PENDIENTE' | 'CONFIRMADO' | 'EJECUTADO' | 'CANCELADO';
 
 interface CalendarEvent {
@@ -48,10 +65,15 @@ interface CalendarEvent {
   osId: string;
   serviceNumber: string;
   horaInicio: string;
+  horaFin: string;
   space: string;
+  client: string;
   finalClient: string;
   asistentes: number;
   status: CalendarStatus | string;
+  briefingItems?: any[];
+  gastronomyCount?: number;
+  gastronomyPaxTotal?: number;
   respMetre?: string;
   respPase?: string;
   respProjectManager?: string;
@@ -95,58 +117,62 @@ const getHeatmapClass = (totalPax: number) => {
 // 4. SUB-COMPONENTES LOCALES
 
 // Celda individual del Grid
-const DayGridCell = memo(function DayGridCell({ 
-  day, 
-  dayOsEvents, 
-  currentDate, 
+const DayGridCell = memo(function DayGridCell({
+  day,
+  dayOsEvents,
+  currentDate,
   onViewDetails,
-  router
+  router,
+  viewMode
 }: {
   day: Date;
   dayOsEvents: { [osId: string]: CalendarEvent[] };
   currentDate: Date;
   onViewDetails: (day: Date) => void;
   router: any;
+  viewMode: 'grid' | 'agenda' | 'week';
 }) {
   const osIds = Object.keys(dayOsEvents);
-  const isCurrentMonth = isSameMonth(day, currentDate);
+  const isCurrentMonth = viewMode === 'week' ? true : isSameMonth(day, currentDate);
   const isToday = isSameDay(day, new Date());
-  
+
   const dailyTotalPax = useMemo(
     () => Object.values(dayOsEvents).flat().reduce((acc, ev) => acc + ev.asistentes, 0),
     [dayOsEvents]
   );
-  
+
   const loadClass = isCurrentMonth ? getHeatmapClass(dailyTotalPax) : '';
+  const maxEvents = viewMode === 'week' ? 8 : 4;
 
   return (
     <div
       onClick={() => Object.keys(dayOsEvents).length > 0 && onViewDetails(day)}
       className={cn(
-        'min-h-[140px] p-2 flex flex-col transition-colors duration-200 relative group border-b border-r last:border-r-0',
-        Object.keys(dayOsEvents).length > 0 && 'cursor-pointer hover:shadow-md',
+        'min-h-[140px] p-2 flex flex-col transition-all duration-500 relative group border-b border-r last:border-r-0',
+        Object.keys(dayOsEvents).length > 0 && 'cursor-pointer hover:bg-primary/[0.02] hover:shadow-[0_10px_40px_rgba(0,0,0,0.04)]',
         loadClass,
-        !isCurrentMonth && 'bg-muted/10 text-muted-foreground/40'
+        !isCurrentMonth && 'bg-muted/5 text-muted-foreground/20',
+        viewMode === 'week' && 'min-h-[400px] p-4'
       )}
     >
       {/* Header del día */}
       <div className="flex justify-between items-start mb-2">
         <span className={cn(
-            'text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-all', 
-            isToday ? 'bg-primary text-primary-foreground shadow-md scale-110' : 'text-muted-foreground'
+          'text-sm font-bold w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-500',
+          isToday ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-110' : 'text-muted-foreground group-hover:text-foreground'
         )}>
-            {format(day, 'd')}
+          {format(day, 'd')}
         </span>
         {dailyTotalPax > 0 && isCurrentMonth && (
-            <Badge variant="secondary" className="text-[10px] px-1 h-5 font-mono">
-                {dailyTotalPax}p
-            </Badge>
+          <Badge variant="secondary" className="text-[10px] px-2 h-5 font-black bg-background/80 backdrop-blur-sm border-border/40">
+            {dailyTotalPax}p
+          </Badge>
         )}
       </div>
 
-      {/* Lista de eventos (Máx 4) */}
+      {/* Lista de eventos */}
       <div className="flex-grow space-y-1.5 overflow-hidden">
-        {osIds.slice(0, 4).map(osId => {
+        {osIds.slice(0, maxEvents).map(osId => {
           const osEvents = dayOsEvents[osId];
           const firstEvent = osEvents[0];
           const styles = getStatusStyles(firstEvent.status);
@@ -154,64 +180,114 @@ const DayGridCell = memo(function DayGridCell({
           return (
             <Tooltip key={osId}>
               <TooltipTrigger asChild>
-                <div 
-                  onClick={(e) => { e.stopPropagation(); router.push(`/os/${firstEvent.serviceNumber}`); }}
+                <div
+                  onClick={(e) => { e.stopPropagation(); router.push(`/os/${firstEvent.osId}`); }}
                   className={cn(
-                    "cursor-pointer text-[10px] px-1.5 py-1 rounded border truncate flex items-center gap-1.5 transition-all hover:scale-[1.02] hover:shadow-sm",
+                    "cursor-pointer text-[9px] px-1.5 py-1 rounded-md border truncate flex flex-col gap-0.5 transition-all duration-300 hover:translate-x-1 hover:shadow-md active:scale-[0.98]",
                     styles.bg,
-                    styles.border === 'border-dashed border-muted-foreground/40' ? styles.border : `border-l-2 ${styles.border}`
+                    styles.border === 'border-dashed border-muted-foreground/40' ? styles.border : `border-l-2 ${styles.border}`,
+                    viewMode === 'week' && "py-2 text-[10px]"
                   )}
                 >
-                  <span className="font-semibold truncate flex-1">{firstEvent.finalClient}</span>
-                  <span className="opacity-70 font-mono tracking-tighter shrink-0">{firstEvent.horaInicio}</span>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-black truncate flex-1 tracking-tight uppercase">{firstEvent.space}</span>
+                    <span className="font-mono font-bold text-[8px] opacity-70 shrink-0">{firstEvent.horaInicio}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1 opacity-60">
+                    <span className="truncate text-[8px] font-medium">{firstEvent.finalClient}</span>
+                    <span className="font-black text-[8px] shrink-0">{firstEvent.asistentes}p</span>
+                  </div>
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="right" className="p-0 border-none shadow-xl z-50">
-                 {/* Mini Card Preview */}
-                <Card className="w-64 border-0">
-                    <CardHeader className={cn("py-3 px-4", styles.bg)}>
-                        <CardTitle className="text-sm font-bold flex justify-between items-center">
-                            <span>{firstEvent.serviceNumber}</span>
-                            <Badge variant={styles.badge as any} className="text-[10px] h-5">
-                                {firstEvent.status}
-                            </Badge>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 space-y-3 text-sm bg-background">
-                        <div>
-                            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Cliente</p>
-                            <p className="font-medium">{firstEvent.finalClient}</p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Espacio</p>
-                            <p className="font-medium">{firstEvent.space}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-                            <div>
-                                <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="h-3 w-3" /> Pax</p>
-                                <p className="font-mono font-bold">{firstEvent.asistentes}</p>
+              <TooltipContent side="right" className="p-0 border-none shadow-2xl z-50">
+                {/* Mini Card Preview */}
+                <Card className="w-72 border-0 overflow-hidden rounded-2xl">
+                  <CardHeader className={cn("py-3 px-4", styles.bg)}>
+                    <CardTitle className="text-sm font-black flex justify-between items-center tracking-tight">
+                      <div className="flex flex-col">
+                        <span className="uppercase">{firstEvent.space}</span>
+                        <span className="text-[10px] opacity-70 font-mono">OS-{firstEvent.serviceNumber}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {firstEvent.gastronomyCount !== undefined && firstEvent.gastronomyCount > 0 && (
+                          <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-black bg-orange-50 text-orange-700 border-orange-200">
+                            🍴 {firstEvent.gastronomyCount}
+                          </Badge>
+                        )}
+                        <Badge variant={styles.badge as any} className="text-[9px] h-4 px-1.5 font-black uppercase tracking-tighter">
+                          {firstEvent.status}
+                        </Badge>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-4 text-sm bg-background/95 backdrop-blur-md">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] mb-1 opacity-70">Cliente</p>
+                        <p className="font-bold text-foreground truncate">{firstEvent.client}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] mb-1 opacity-70">Cliente Final</p>
+                        <p className="font-bold text-foreground truncate">{firstEvent.finalClient}</p>
+                      </div>
+                    </div>
+
+                    {/* Briefing Items with Times */}
+                    {firstEvent.briefingItems && firstEvent.briefingItems.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-border/40">
+                        <p className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] mb-1 opacity-70">Servicios del Día</p>
+                        <div className="space-y-1.5">
+                          {firstEvent.briefingItems.map((item: any, idx: number) => (
+                            <div key={idx} className="flex flex-col gap-0.5 bg-muted/30 p-2 rounded-lg border border-border/20">
+                              <div className="flex justify-between items-center">
+                                <span className="font-black text-[10px] truncate pr-2 uppercase">{item.descripcion || 'Servicio'}</span>
+                                <span className="font-mono font-bold text-[9px] text-indigo-600">
+                                  {formatSafeTime(item.horaInicio)} - {formatSafeTime(item.horaFin)}
+                                </span>
+                              </div>
+                              {item.comentarios && (
+                                <p className="text-[9px] text-muted-foreground line-clamp-1 italic">"{item.comentarios}"</p>
+                              )}
+                              <div className="flex justify-between items-center mt-1">
+                                <span className="text-[8px] font-bold opacity-60 uppercase tracking-tighter">
+                                  {item.conGastronomia ? '🍴 Gastronomía' : '⚙️ Operativa'}
+                                </span>
+                                <div className="flex items-center gap-1 font-black text-[10px]">
+                                  {item.asistentes} <Users className="h-3 w-3 text-muted-foreground" />
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Hora</p>
-                                <p className="font-mono font-bold">{firstEvent.horaInicio}</p>
-                            </div>
+                          ))}
                         </div>
-                    </CardContent>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4 pt-3 border-t border-border/40">
+                      <div className="space-y-0.5">
+                        <p className="text-[9px] text-muted-foreground flex items-center gap-1 font-black uppercase tracking-wider"><Users className="h-3 w-3" /> Total Pax</p>
+                        <p className="font-mono font-black text-lg tracking-tighter">{firstEvent.asistentes}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[9px] text-muted-foreground flex items-center gap-1 font-black uppercase tracking-wider"><Clock className="h-3 w-3" /> Horario OS</p>
+                        <p className="font-mono font-black text-sm tracking-tighter">{firstEvent.horaInicio} - {firstEvent.horaFin}</p>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               </TooltipContent>
             </Tooltip>
           )
         })}
-        
+
         {/* Ver más... */}
-        {osIds.length > 4 && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full h-5 text-[10px] text-muted-foreground hover:text-primary p-0" 
+        {osIds.length > maxEvents && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full h-5 text-[10px] text-muted-foreground hover:text-primary p-0"
             onClick={() => onViewDetails(day)}
           >
-            + {osIds.length - 4} más
+            + {osIds.length - maxEvents} más
           </Button>
         )}
       </div>
@@ -246,7 +322,7 @@ const AgendaView = memo(function AgendaView({
         if (!dayData) return null;
 
         const isToday = isSameDay(day, new Date());
-        
+
         // Calcular pax total del día
         const dailyPax = Object.values(dayData).flat().reduce((acc, ev) => acc + ev.asistentes, 0);
 
@@ -258,43 +334,63 @@ const AgendaView = memo(function AgendaView({
               isToday ? "text-primary border-primary bg-primary/5" : "text-foreground group-hover:bg-muted/30"
             )}>
               <span className="capitalize">{format(day, 'EEEE d MMM', { locale: es })}</span>
-              {dailyPax > 0 && <span className="text-xs text-muted-foreground font-mono">{dailyPax} pax</span>}
+              {dailyPax > 0 && (
+                <span className="text-xs text-muted-foreground font-mono flex items-center gap-1">
+                  {dailyPax} <Users className="h-3 w-3" />
+                </span>
+              )}
             </div>
 
             {/* Event List */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-card">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-transparent">
               {Object.entries(dayData).map(([osId, osEvents]) => {
                 const firstEvent = osEvents[0];
                 const styles = getStatusStyles(firstEvent.status);
 
                 return (
-                  <div 
-                    key={osId} 
-                    onClick={() => router.push(`/os/${firstEvent.serviceNumber}`)}
+                  <div
+                    key={osId}
+                    onClick={() => router.push(`/os/${firstEvent.osId}`)}
                     className={cn(
-                        "relative rounded-lg p-3 border shadow-sm transition-all hover:shadow-md cursor-pointer group/card",
-                        styles.bg,
-                        styles.border !== 'border-dashed border-muted-foreground/40' && `border-l-4 ${styles.border}`
+                      "relative rounded-xl p-3 border border-border/40 bg-card/60 backdrop-blur-md shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer group/card active:scale-[0.98]",
+                      styles.bg,
+                      styles.border !== 'border-dashed border-muted-foreground/40' && `border-l-4 ${styles.border}`
                     )}
                   >
-                     <div className="flex justify-between items-start mb-2">
-                        <p className="font-bold text-sm truncate pr-2">{firstEvent.finalClient}</p>
-                        <Badge variant={styles.badge as any} className="text-[10px] h-5 px-1.5 shrink-0">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex flex-col min-w-0">
+                        <p className="font-black text-xs truncate tracking-tight text-foreground uppercase">{firstEvent.space}</p>
+                        <p className="text-[10px] font-bold text-indigo-600/80 hover:underline">
+                          OS-{firstEvent.serviceNumber}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {firstEvent.gastronomyCount !== undefined && firstEvent.gastronomyCount > 0 && (
+                          <Badge variant="secondary" className="text-[8px] h-3.5 px-1 font-black bg-orange-50 text-orange-700 border-orange-100">
+                            🍴 {firstEvent.gastronomyCount}
+                          </Badge>
+                        )}
+                        <Badge variant={styles.badge as any} className="text-[8px] h-3.5 px-1 font-black uppercase tracking-tighter">
                           {firstEvent.status}
                         </Badge>
-                     </div>
-                     
-                     <div className="text-xs text-muted-foreground space-y-1">
-                        <p className="flex items-center gap-1.5">
-                            <Clock className="h-3 w-3" /> 
-                            <span className="font-mono text-foreground">{firstEvent.horaInicio}</span>
-                        </p>
-                        <p className="truncate">{firstEvent.space}</p>
-                        <p className="flex items-center gap-1.5 font-medium text-foreground">
-                            <Users className="h-3 w-3" /> 
-                            {firstEvent.asistentes} pax
-                        </p>
-                     </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <div className="flex items-center gap-1.5 font-mono font-bold text-foreground/70">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span>{firstEvent.horaInicio} - {firstEvent.horaFin}</span>
+                        </div>
+                        <div className="flex items-center gap-1 font-black text-foreground">
+                          {firstEvent.asistentes} <Users className="h-3 w-3 text-muted-foreground" />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-border/10 pt-1.5">
+                        <p className="truncate text-[10px] font-medium opacity-60">{firstEvent.client}</p>
+                        <p className="truncate text-[10px] font-bold opacity-80">{firstEvent.finalClient}</p>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -311,18 +407,23 @@ function CalendarioServiciosPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const params = useParams();
 
   // --- STATE & URL SYNC ---
   // Leemos estado de la URL, fallback a valores por defecto
   const viewParam = searchParams?.get('view');
   const dateParam = searchParams?.get('date');
 
-  const viewMode = (viewParam === 'agenda' ? 'agenda' : 'grid') as 'grid' | 'agenda';
-  
+  const viewMode = (viewParam === 'agenda' ? 'agenda' : viewParam === 'week' ? 'week' : 'grid') as 'grid' | 'agenda' | 'week';
+
   const currentDate = useMemo(() => {
     if (dateParam) {
       const parsed = parse(dateParam, 'yyyy-MM', new Date());
       if (isValid(parsed)) return parsed;
+
+      // Intentar parsear como fecha completa para vista semanal
+      const parsedFull = parse(dateParam, 'yyyy-MM-dd', new Date());
+      if (isValid(parsedFull)) return parsedFull;
     }
     return new Date();
   }, [dateParam]);
@@ -330,27 +431,77 @@ function CalendarioServiciosPageInner() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   // --- DATA FETCHING ---
-  const { data: serviceOrders = [], isLoading } = useEventos();
+  const { data: serviceOrders = [], isLoading: isLoadingEventos } = useEventos();
+  const { data: briefings = [], isLoading: isLoadingBriefings } = useComercialBriefings();
+
+  const isLoading = isLoadingEventos || isLoadingBriefings;
 
   // --- LOGIC ---
-  
+
   // Transformación de datos (Memoized)
   const events = useMemo(() => {
     const allEvents: CalendarEvent[] = [];
+
     serviceOrders.forEach((os: ServiceOrder) => {
       const statusNormalized = os.status?.toUpperCase() || 'BORRADOR';
-      if (statusNormalized !== 'CANCELADO' && os.startDate) {
-        const eventDate = new Date(os.startDate);
+      if (statusNormalized === 'CANCELADO') return;
+
+      const briefing = briefings.find(b => b.osId === os.id || (b as any).os_id === os.id);
+      const dates = new Set<string>();
+
+      if (briefing && briefing.items && briefing.items.length > 0) {
+        briefing.items.forEach(item => {
+          if (item.fecha) {
+            dates.add(item.fecha);
+          }
+        });
+      }
+
+      // Si no hay servicios con fecha, usamos la fecha de inicio de la OS
+      if (dates.size === 0) {
+        const dateKey = os.startDate ? format(new Date(os.startDate), 'yyyy-MM-dd') : null;
+        if (dateKey) dates.add(dateKey);
+      }
+
+      dates.forEach(dateKey => {
+        const eventDate = parseISO(dateKey);
+        const itemsForThisDate = briefing?.items?.filter(i => i.fecha === dateKey) || [];
+
+        // Extraer hora de inicio específica (la más temprana del día)
+        let horaInicio = os.startDate ? format(new Date(os.startDate), 'HH:mm') : '00:00';
+        let horaFin = os.endDate ? format(new Date(os.endDate), 'HH:mm') : '00:00';
+        
+        if (itemsForThisDate.length > 0) {
+          const sortedItems = [...itemsForThisDate].sort((a, b) => (a.horaInicio || '').localeCompare(b.horaInicio || ''));
+          if (sortedItems[0].horaInicio) {
+            horaInicio = sortedItems[0].horaInicio;
+          }
+          
+          const sortedByEnd = [...itemsForThisDate].sort((a, b) => (b.horaFin || '').localeCompare(a.horaFin || ''));
+          if (sortedByEnd[0].horaFin) {
+            horaFin = sortedByEnd[0].horaFin;
+          }
+        }
+
+        const gastronomyCount = itemsForThisDate.filter(i => i.conGastronomia).length;
+        const gastronomyPaxTotal = itemsForThisDate
+          .filter(i => i.conGastronomia)
+          .reduce((sum, item) => sum + (Number(item.asistentes) || 0), 0);
+
         allEvents.push({
           date: eventDate,
           osId: os.id,
           serviceNumber: os.serviceNumber || 'S/N',
-          horaInicio: format(eventDate, 'HH:mm'), 
+          horaInicio,
+          horaFin,
           space: os.space || 'Por definir',
+          client: os.client || 'Empresa',
           finalClient: os.finalClient || 'Cliente',
-          asistentes: os.asistentes || 0,
+          asistentes: gastronomyPaxTotal > 0 ? gastronomyPaxTotal : (os.asistentes || 0),
           status: statusNormalized,
-          // NUEVOS CAMPOS - RESPONSABLES
+          briefingItems: itemsForThisDate,
+          gastronomyCount,
+          gastronomyPaxTotal,
           respMetre: os.respMetre || undefined,
           respPase: os.respPase || undefined,
           respProjectManager: os.respProjectManager || undefined,
@@ -361,20 +512,26 @@ function CalendarioServiciosPageInner() {
           respPaseMail: os.respPaseMail || undefined,
           respProjectManagerMail: os.respProjectManagerMail || undefined,
         });
-      }
+      });
     });
+
     return allEvents;
-  }, [serviceOrders]);
+  }, [serviceOrders, briefings]);
 
   // Cálculos de Calendario
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  
-  const calendarDays = useMemo(() => 
-    eachDayOfInterval({ start: startDate, end: endDate }), 
-  [startDate, endDate]);
+  const calendarDays = useMemo(() => {
+    if (viewMode === 'week') {
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+      return eachDayOfInterval({ start: weekStart, end: weekEnd });
+    }
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+    return eachDayOfInterval({ start: startDate, end: endDate });
+  }, [currentDate, viewMode]);
 
   // Agrupación
   const eventsByDay = useMemo(() => {
@@ -388,14 +545,14 @@ function CalendarioServiciosPageInner() {
     return grouped;
   }, [events]);
 
-  // Días con eventos (Solo mes actual)
+  // Días con eventos (Solo mes actual o semana actual)
   const daysWithEventsCurrentMonth = useMemo(() => {
     return calendarDays.filter(day => {
-      if (!isSameMonth(day, currentDate)) return false;
+      if (viewMode !== 'week' && !isSameMonth(day, currentDate)) return false;
       const dayKey = format(day, 'yyyy-MM-dd');
       return eventsByDay[dayKey] && Object.keys(eventsByDay[dayKey]).length > 0;
     });
-  }, [calendarDays, eventsByDay, currentDate]);
+  }, [calendarDays, eventsByDay, currentDate, viewMode]);
 
   // --- HANDLERS ---
 
@@ -404,21 +561,23 @@ function CalendarioServiciosPageInner() {
     const params = new URLSearchParams(searchParams?.toString() ?? '');
     if (newParams.view) params.set('view', newParams.view);
     if (newParams.date) params.set('date', newParams.date);
-    
+
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [searchParams, router, pathname]);
 
-  const setViewMode = (mode: 'grid' | 'agenda') => updateParams({ view: mode });
-  
+  const setViewMode = (mode: 'grid' | 'agenda' | 'week') => updateParams({ view: mode });
+
   const handleMonthChange = (direction: 'next' | 'prev') => {
-    const newDate = direction === 'next' 
-      ? add(currentDate, { months: 1 }) 
-      : sub(currentDate, { months: 1 });
-    
-    updateParams({ date: format(newDate, 'yyyy-MM') });
-    
+    const amount = viewMode === 'week' ? { weeks: 1 } : { months: 1 };
+    const newDate = direction === 'next'
+      ? add(currentDate, amount)
+      : sub(currentDate, amount);
+
+    const formatStr = viewMode === 'week' ? 'yyyy-MM-dd' : 'yyyy-MM';
+    updateParams({ date: format(newDate, formatStr) });
+
     // Scroll Reset Effect
-    window.scrollTo({ top: 0, behavior: 'instant' }); 
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handleDayClick = useCallback((day: Date) => {
@@ -435,96 +594,113 @@ function CalendarioServiciosPageInner() {
   }, [router, handleCloseDayDetails]);
 
   // --- RENDER ---
-  
+
   if (isLoading) {
-    return <LoadingSkeleton title="Cargando Calendario..." />;
+    return <SplashScreen />;
   }
 
   return (
     <TooltipProvider delayDuration={100}>
-      <main className="container mx-auto px-4 py-8 flex flex-col min-h-screen">
-        
-        {/* HEADER TOOLBAR */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8 sticky top-0 z-20 bg-background/80 backdrop-blur-sm py-4 border-b">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3 text-foreground tracking-tight">
-              <CalendarIcon className="h-8 w-8 text-primary" />
-              Calendario Operativo
-            </h1>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-             {/* Navegación Mes */}
-             <div className="flex items-center bg-card rounded-md shadow-sm border p-1 order-2 sm:order-1 flex-1 sm:flex-none justify-between sm:justify-center">
-                <Button variant="ghost" size="icon" onClick={() => handleMonthChange('prev')}>
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <h2 className="text-sm font-bold min-w-[140px] text-center capitalize">
-                  {format(currentDate, 'MMMM yyyy', { locale: es })}
-                </h2>
-                <Button variant="ghost" size="icon" onClick={() => handleMonthChange('next')}>
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
+      <main className="flex-1 w-full bg-background/30 min-h-screen flex flex-col">
+        {/* Header Premium Sticky */}
+        <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
+            <div className="flex items-center">
+              <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                <CalendarIcon className="h-5 w-5 text-indigo-500" />
+              </div>
             </div>
+
+            <div className="flex-1" />
+
+            <div className="flex items-center gap-3">
+            {/* Navegación Mes/Semana */}
+            <div className="flex items-center bg-muted/50 border border-border/40 rounded-lg p-0.5">
+              <Button variant="ghost" size="icon" onClick={() => handleMonthChange('prev')} className="h-7 w-7 hover:bg-indigo-500/10 rounded-md">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <h2 className="text-[10px] font-black min-w-[120px] text-center uppercase tracking-widest">
+                {viewMode === 'week'
+                  ? `Sem. ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'd')} - ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMM', { locale: es })}`
+                  : format(currentDate, 'MMMM yyyy', { locale: es })
+                }
+              </h2>
+              <Button variant="ghost" size="icon" onClick={() => handleMonthChange('next')} className="h-7 w-7 hover:bg-indigo-500/10 rounded-md">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="h-4 w-[1px] bg-border/40 mx-1" />
 
             {/* Selector Vistas */}
-            <div className="flex bg-muted/20 p-1 rounded-lg border order-1 sm:order-2">
-              <Button 
-                variant={viewMode === 'agenda' ? 'secondary' : 'ghost'} 
+            <div className="flex bg-muted/50 p-1 rounded-lg border border-border/40">
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => setViewMode('agenda')}
-                className="flex-1 sm:flex-none gap-2"
+                className={cn(
+                  "h-6 px-3 rounded-md text-[9px] font-black uppercase tracking-widest transition-all",
+                  viewMode === 'agenda' ? "bg-indigo-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
               >
-                <List className="h-4 w-4" /> Agenda
+                Agenda
               </Button>
-              <Button 
-                variant={viewMode === 'grid' ? 'secondary' : 'ghost'} 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="flex-1 sm:flex-none gap-2"
+                className={cn(
+                  "h-6 px-3 rounded-md text-[9px] font-black uppercase tracking-widest transition-all",
+                  viewMode === 'grid' ? "bg-indigo-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
               >
-                <Grid className="h-4 w-4" /> Grid
+                Mes
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('week')}
+                className={cn(
+                  "h-6 px-3 rounded-md text-[9px] font-black uppercase tracking-widest transition-all",
+                  viewMode === 'week' ? "bg-indigo-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Semana
               </Button>
             </div>
-            
-             {/* Acción Externa */}
-             <Button 
-                variant="outline" 
-                className="border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100 font-semibold order-3"
-                onClick={() => router.push('/pes')}
-              >
-                PES Previsión
-             </Button>
           </div>
         </div>
+      </div>
 
-        {/* CONTENT AREA */}
-        <div className="flex-1 flex flex-col relative">
-          
-          {/* VISTA AGENDA */}
-          {viewMode === 'agenda' && (
-            <AgendaView 
-              daysWithEvents={daysWithEventsCurrentMonth}
-              eventsByDay={eventsByDay}
-              router={router}
-            />
-          )}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-0 pb-6 sm:pb-8 w-full flex-grow space-y-6">
+          <div className="flex-1 flex flex-col relative">
+            {/* VISTA AGENDA */}
+            {viewMode === 'agenda' && (
+              <AgendaView
+                daysWithEvents={daysWithEventsCurrentMonth}
+                eventsByDay={eventsByDay}
+                router={router}
+              />
+            )}
 
-          {/* VISTA GRID */}
-          {viewMode === 'grid' && (
-            <div className="border rounded-xl shadow-sm bg-card overflow-hidden flex flex-col flex-1 min-h-[700px]">
-              {/* Grid Header */}
-              <div className="grid grid-cols-7 border-b bg-muted/40 divide-x">
-                {WEEKDAYS.map(day => (
-                  <div key={day} className="text-center text-[11px] font-bold uppercase tracking-wider py-2.5 text-muted-foreground">
-                    {day}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Grid Body */}
-              <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y flex-1 bg-background">
-                {calendarDays.map((day) => (
+            {/* VISTA GRID (MES O SEMANA) */}
+            {(viewMode === 'grid' || viewMode === 'week') && (
+              <div className={cn(
+                "border border-border/40 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-card/40 backdrop-blur-md overflow-hidden flex flex-col flex-1 transition-all duration-500",
+                viewMode === 'week' ? "min-h-[800px]" : "min-h-[700px]"
+              )}>
+                {/* Grid Header */}
+                <div className="grid grid-cols-7 border-b border-border/40 bg-muted/30 divide-x divide-border/40">
+                  {WEEKDAYS.map(day => (
+                    <div key={day} className="text-center text-[10px] font-black uppercase tracking-[0.2em] py-3 text-muted-foreground/70">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Grid Body */}
+                <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-border/40 flex-1 bg-transparent">
+                  {calendarDays.map((day) => (
                     <DayGridCell
                       key={day.toISOString()}
                       day={day}
@@ -532,26 +708,30 @@ function CalendarioServiciosPageInner() {
                       currentDate={currentDate}
                       onViewDetails={handleDayClick}
                       router={router}
+                      viewMode={viewMode}
                     />
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </main>
 
       {/* DAY EXPANDED BOTTOM SHEET */}
-      {selectedDay && (
-        <DayExpandedBottomSheet
-          day={selectedDay}
-          osEvents={eventsByDay[format(selectedDay, 'yyyy-MM-dd')] || {}}
-          isOpen={!!selectedDay}
-          onClose={handleCloseDayDetails}
-          onEventClick={handleEventClick}
-          router={router}
-        />
-      )}
-    </TooltipProvider>
+      {
+        selectedDay && (
+          <DayExpandedBottomSheet
+            day={selectedDay}
+            osEvents={eventsByDay[format(selectedDay, 'yyyy-MM-dd')] || {}}
+            isOpen={!!selectedDay}
+            onClose={handleCloseDayDetails}
+            onEventClick={handleEventClick}
+            router={router}
+          />
+        )
+      }
+    </TooltipProvider >
   );
 }
 export default function CalendarioServiciosPage() {

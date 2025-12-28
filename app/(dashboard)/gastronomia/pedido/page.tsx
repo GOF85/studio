@@ -18,7 +18,7 @@ function PedidoGastronomiaRedirectPageInner() {
              router.replace(`/os/${osId}/gastronomia`);
         }
          else {
-            router.replace('/pes');
+            router.replace(`/os/${osId || 'unknown'}/info`);
         }
     }, [osId, briefingItemId, router]);
 

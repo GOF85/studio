@@ -4,13 +4,13 @@ import { useCallback } from 'react';
 
 /**
  * Hook para logging verbose del sistema de carga
- * Deshabilitado por defecto. Habilitar en localStorage:
- * localStorage.setItem('loading-debug-enabled', 'true')
+ * Deshabilitado por defecto. Habilitar con variable de entorno:
+ * NEXT_PUBLIC_LOADING_DEBUG_ENABLED=true
  */
 export function useLoadingDebug() {
-  // Solo habilitado si el usuario lo activa explícitamente en localStorage
-  const isDebugEnabled = 
-    typeof window !== 'undefined' && localStorage.getItem('loading-debug-enabled') === 'true';
+  // Solo habilitado si el usuario lo activa explícitamente en variable de entorno
+  const isDebugEnabled =
+    typeof window !== 'undefined' && process.env.NEXT_PUBLIC_LOADING_DEBUG_ENABLED === 'true';
 
   const log = useCallback((component: string, message: string, data?: any) => {
     if (!isDebugEnabled) return;

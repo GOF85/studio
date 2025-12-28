@@ -12,58 +12,41 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useDataStore } from '@/hooks/use-data-store';
+import { useUpsertFormatoExpedicion } from '@/hooks/use-data-queries';
 
-const formatoExpedicionSchema = z.object({
+export const formatoExpedicionSchema = z.object({
+  id: z.string().optional(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
 });
 
-type FormValues = z.infer<typeof formatoExpedicionSchema>;
+export type FormatoExpedicionFormValues = z.infer<typeof formatoExpedicionSchema>;
 
 export default function NuevoFormatoExpedicionPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { refreshData } = useDataStore();
+  const upsertMutation = useUpsertFormatoExpedicion();
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormatoExpedicionFormValues>({
     resolver: zodResolver(formatoExpedicionSchema),
     defaultValues: {
       nombre: '',
     },
   });
 
-  async function onSubmit(data: FormValues) {
-    setIsLoading(true);
-
-    // Check if already exists
-    const { data: existing } = await supabase
-      .from('formatos_expedicion')
-      .select('id')
-      .ilike('nombre', data.nombre)
-      .single();
-
-    if (existing) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un formato con este nombre.' });
-      setIsLoading(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from('formatos_expedicion')
-      .insert([{ nombre: data.nombre }]);
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
-      setIsLoading(false);
-    } else {
+  async function onSubmit(data: FormatoExpedicionFormValues) {
+    try {
+      await upsertMutation.mutateAsync({
+        ...data,
+        id: data.id || crypto.randomUUID(),
+      });
       toast({ description: 'Nuevo formato añadido correctamente.' });
-      refreshData();
       router.push('/bd/formatos-expedicion');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
     }
   }
+
+  const isLoading = upsertMutation.isPending;
 
   return (
     <main>

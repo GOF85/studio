@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
+import { useGastronomyOrders, useComercialBriefings, useEvento } from '@/hooks/use-data-queries';
 
 const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   Pendiente: 'secondary',
@@ -30,82 +31,40 @@ const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' |
 };
 
 export default function GastronomiaPage() {
-  const [gastronomyOrders, setGastronomyOrders] = useState<GastronomyOrder[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  
   const router = useRouter();
   const params = useParams() ?? {};
   const osId = (params.id as string) || '';
   const { toast } = useToast();
 
-  const loadAndSyncOrders = useCallback(() => {
-    if (!osId) return;
+  const { data: evento, isLoading: loadingOS } = useEvento(osId);
+  const { data: briefings = [], isLoading: loadingBriefings } = useComercialBriefings(osId);
+  const { data: gastronomyOrders = [], isLoading: loadingGastro } = useGastronomyOrders(osId);
 
-    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-    const currentBriefing = allBriefings.find(b => b.osId === osId);
-    const briefingItemsWithGastro = currentBriefing?.items.filter(item => item.conGastronomia) || [];
-    
-    let allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-    let osGastroOrders = allGastroOrders.filter(order => order.osId === osId);
-
-    let needsUpdate = false;
-    
-    // Sync: Add new orders from briefing, update existing ones
-    const syncedOrders = briefingItemsWithGastro.map(briefingItem => {
-        const existingOrder = osGastroOrders.find(o => o.id === briefingItem.id);
-        if (existingOrder) {
-            // Update if data differs, but keep status
-            if (JSON.stringify({ ...existingOrder, status: null }) !== JSON.stringify({ ...briefingItem, osId, status: null })) {
-                needsUpdate = true;
-                return { ...existingOrder, ...briefingItem, osId };
-            }
-            return existingOrder;
-        } else {
-            // Add new order
-            needsUpdate = true;
-            return { ...briefingItem, osId, status: 'Pendiente' as GastronomyOrderStatus };
-        }
-    });
-
-    // Sync: Remove orders that are no longer in the briefing
-    const briefingItemIds = new Set(briefingItemsWithGastro.map(i => i.id));
-    const finalOrders: GastronomyOrder[] = syncedOrders.filter(order => briefingItemIds.has(order.id)) as unknown as GastronomyOrder[];
-    if (osGastroOrders.length !== finalOrders.length) {
-        needsUpdate = true;
-    }
-
-    const otherOsGastroOrders = allGastroOrders.filter(order => order.osId !== osId);
-    
-    if (needsUpdate) {
-        const updatedAllOrders = [...otherOsGastroOrders, ...finalOrders];
-        localStorage.setItem('gastronomyOrders', JSON.stringify(updatedAllOrders));
-        setGastronomyOrders(finalOrders);
-    } else {
-        setGastronomyOrders(osGastroOrders);
-    }
-
-  }, [osId, toast]);
-
-  useEffect(() => {
-    if (osId) {
-      loadAndSyncOrders();
-    }
-    setIsMounted(true);
-  }, [osId, loadAndSyncOrders]);
+  const briefingItemsWithGastro = useMemo(() => {
+    const currentBriefing = briefings[0]; // Assuming one briefing per OS for now
+    return currentBriefing?.items.filter(item => item.conGastronomia) || [];
+  }, [briefings]);
 
   const sortedGastronomyOrders = useMemo(() => {
-    return [...gastronomyOrders].sort((a, b) => {
-      // Sort by ID (briefing item ID) as we don't have fecha in GastronomyOrder
-      return a.id.localeCompare(b.id);
-    });
+    // We show orders that exist in Supabase. 
+    // If a briefing item has conGastronomia but no order exists, we might want to show it as "Pending creation"
+    // but for now let's just show what's in Supabase.
+    return [...gastronomyOrders].sort((a, b) => a.id.localeCompare(b.id));
   }, [gastronomyOrders]);
-  
-  if (!isMounted) {
+
+  if (loadingOS || loadingBriefings || loadingGastro) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />;
   }
 
   return (
     <>
+        <div className="flex items-center justify-between mb-6">
+            <div>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Utensils /> Gastronomía</h1>
+                <p className="text-muted-foreground">Gestión de pedidos gastronómicos para la OS: {evento?.serviceNumber}</p>
+            </div>
+        </div>
+
         <Card>
             <CardHeader><CardTitle>Pedidos de Gastronomía Generados</CardTitle></CardHeader>
             <CardContent>
@@ -113,11 +72,10 @@ export default function GastronomiaPage() {
                     <Table>
                         <TableHeader>
                         <TableRow>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Hora</TableHead>
+                            <TableHead>ID Pedido</TableHead>
                             <TableHead>Descripción</TableHead>
-                            <TableHead>Asistentes</TableHead>
-                            <TableHead>Comentarios</TableHead>
+                            <TableHead>Items</TableHead>
+                            <TableHead>Total</TableHead>
                             <TableHead>Estado</TableHead>
                         </TableRow>
                         </TableHeader>
@@ -126,17 +84,18 @@ export default function GastronomiaPage() {
                             sortedGastronomyOrders.map(order => (
                             <TableRow 
                                 key={order.id} 
-                                onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&briefingItemId=${order.id}`)} 
+                                onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&orderId=${order.id}`)} 
                                 className={cn(
                                     "cursor-pointer", 
                                     order.id && "hover:bg-muted/50"
                                 )}
                             >
-                                <TableCell>{order.id.substring(0, 8)}</TableCell>
-                                <TableCell>-</TableCell>
-                                <TableCell className="min-w-[200px] font-medium">Gastronómico</TableCell>
+                                <TableCell className="font-mono text-xs">{order.id.substring(0, 8)}</TableCell>
+                                <TableCell className="min-w-[200px] font-medium">
+                                    {order.items?.[0]?.nombre || 'Pedido Gastronómico'}
+                                </TableCell>
                                 <TableCell>{order.items?.length || 0}</TableCell>
-                                <TableCell className="min-w-[200px]">-</TableCell>
+                                <TableCell>{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(order.total)}</TableCell>
                                 <TableCell>
                                     <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
                                 </TableCell>
@@ -144,7 +103,7 @@ export default function GastronomiaPage() {
                             ))
                         ) : (
                             <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
+                            <TableCell colSpan={5} className="h-24 text-center">
                                 No hay pedidos de gastronomía. Activa la opción "Con gastronomía" en las entregas del briefing comercial.
                             </TableCell>
                             </TableRow>
@@ -157,3 +116,4 @@ export default function GastronomiaPage() {
     </>
   );
 }
+

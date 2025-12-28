@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Users, User, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,34 +17,36 @@ import {
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import type { PortalUser, Personal } from '@/types';
 import { Badge } from '@/components/ui/badge';
+import { usePersonal, usePerfiles } from '@/hooks/use-data-queries';
 
 export function UserSwitcher() {
     const { impersonatedUser, setImpersonatedUser } = useImpersonatedUser();
-    const [internalUsers, setInternalUsers] = useState<PortalUser[]>([]);
-    const [portalUsers, setPortalUsers] = useState<PortalUser[]>([]);
+    const { data: personalData = [] } = usePersonal();
+    const { data: perfilesData = [] } = usePerfiles();
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
-        // Load internal users from Personal DB
-        const storedPersonal = localStorage.getItem('personal');
-        if (storedPersonal) {
-            const personalData = JSON.parse(storedPersonal) as Personal[];
-            const mappedInternalUsers: PortalUser[] = personalData.map(p => ({
-                id: p.id,
-                nombre: p.nombreCompleto,
-                email: p.email,
-                roles: [p.departamento as PortalUser['roles'][0]], // Assume department is the role
-            }));
-            setInternalUsers(mappedInternalUsers);
-        }
-
-        // Load external users
-        const storedPortalUsers = localStorage.getItem('portalUsers');
-        if (storedPortalUsers) {
-            setPortalUsers(JSON.parse(storedPortalUsers));
-        }
     }, []);
+
+    const internalUsers: PortalUser[] = useMemo(() => {
+        return personalData.map((p: any) => ({
+            id: p.id,
+            nombre: p.nombre_completo || `${p.nombre} ${p.apellido1}`,
+            email: p.email,
+            roles: [p.departamento as any],
+        }));
+    }, [personalData]);
+
+    const portalUsers: PortalUser[] = useMemo(() => {
+        return perfilesData.map((p: any) => ({
+            id: p.id,
+            nombre: p.nombre_completo,
+            email: p.email || '',
+            roles: [p.rol as any],
+            proveedorId: p.proveedor_id,
+        }));
+    }, [perfilesData]);
 
     const allUsers = [...internalUsers, ...portalUsers];
     const currentUser = allUsers.find(u => u.id === impersonatedUser?.id);

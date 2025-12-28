@@ -37,51 +37,51 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
-const statusVariant: { [key in HieloOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+const statusVariant: Record<HieloOrder['status'], 'default' | 'secondary' | 'outline' | 'destructive'> = {
   Pendiente: 'secondary',
   Confirmado: 'default',
   'En reparto': 'outline',
   Entregado: 'outline',
 };
 
+import { useEvento, useHieloOrders } from '@/hooks/use-data-queries';
+
 export default function HieloPage() {
-  const [hieloOrders, setHieloOrders] = useState<HieloOrder[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  
   const router = useRouter();
   const params = useParams() ?? {};
   const osId = (params.id as string) || '';
   const { toast } = useToast();
 
+  const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId);
+  const { data: hieloOrders = [], isLoading: isLoadingOrders } = useHieloOrders(osId);
+
+  const [isMounted, setIsMounted] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!osId) return;
-
-    const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
-    const relatedOrders = allHieloOrders.filter(order => order.osId === osId);
-    setHieloOrders(relatedOrders);
-
     setIsMounted(true);
-  }, [osId, router, toast]);
+  }, []);
 
   const totalAmount = useMemo(() => {
     return hieloOrders.reduce((sum, order) => sum + order.total, 0);
   }, [hieloOrders]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!orderToDelete) return;
 
-    let allOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
-    const updatedOrders = allOrders.filter((o: HieloOrder) => o.id !== orderToDelete);
-    localStorage.setItem('hieloOrders', JSON.stringify(updatedOrders));
-    setHieloOrders(updatedOrders.filter((o: HieloOrder) => o.osId === osId));
-    
-    toast({ title: 'Pedido de hielo eliminado' });
-    setOrderToDelete(null);
+    try {
+        const { error } = await supabase.from('pedidos_hielo').delete().eq('id', orderToDelete);
+        if (error) throw error;
+        toast({ title: 'Pedido de hielo eliminado' });
+        setOrderToDelete(null);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el pedido.' });
+    }
   };
   
-  if (!isMounted) {
+  if (!isMounted || isLoadingOS || isLoadingOrders) {
     return <LoadingSkeleton title="Cargando Módulo de Hielo..." />;
   }
 
@@ -89,7 +89,7 @@ export default function HieloPage() {
     <>
       <div className="flex items-start justify-end mb-8">
         <Button asChild>
-          <Link href={`/hielo/pedido?osId=${osId}`}>
+          <Link href={`/pedidos?osId=${osId}&type=Hielo`}>
             <PlusCircle className="mr-2" />
             Nuevo Pedido de Hielo
           </Link>
@@ -120,7 +120,7 @@ export default function HieloPage() {
                               <TableCell>{order.items?.length || 0}</TableCell>
                               <TableCell>{formatCurrency(order.total)}</TableCell>
                               <TableCell>
-                              <Badge variant={statusVariant[order.status]}>
+                              <Badge variant={statusVariant[order.status as keyof typeof statusVariant] || 'default'}>
                                   {order.status}
                               </Badge>
                               </TableCell>
@@ -133,7 +133,7 @@ export default function HieloPage() {
                                   </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/hielo/pedido?osId=${osId}&orderId=${order.id}`)}>
+                                  <DropdownMenuItem onClick={() => router.push(`/pedidos?osId=${osId}&type=Hielo&orderId=${order.id}`)}>
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Editar
                                   </DropdownMenuItem>

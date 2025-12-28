@@ -2,20 +2,18 @@
 
 import type { ObjetivosGasto, Alergeno } from '@/types';
 
-export const GASTO_LABELS: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, string> = {
+export const GASTO_LABELS: Record<keyof Omit<ObjetivosGasto, 'id' | 'nombre' | 'name' | 'os_id' | 'personal_solicitado_cpr'>, string> = {
     gastronomia: 'Gastronomía',
     bodega: 'Bodega',
-    consumibles: 'Bio',
-    hielo: 'Hielo',
+    consumibles: 'Consumibles',
     almacen: 'Almacén',
     alquiler: 'Alquiler',
     transporte: 'Transporte',
     decoracion: 'Decoración',
     atipicos: 'Atípicos',
-    personalMice: 'Personal MICE',
-    personalExterno: 'Personal Externo',
-    costePruebaMenu: 'Coste Prueba de Menu',
-    personalSolicitadoCpr: 'Personal de Apoyo CPR',
+    personal_mice: 'Personal MICE',
+    personal_externo: 'Personal Externo',
+    coste_prueba_menu: 'Coste Prueba de Menú',
 };
 
 export const ALERGENOS_INFO: Record<Alergeno, { abbr: string; color: string }> = {

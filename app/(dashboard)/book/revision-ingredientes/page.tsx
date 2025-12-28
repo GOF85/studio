@@ -113,7 +113,7 @@ function RevisionPageInner() {
     return (
         <main className="pb-24 bg-background min-h-screen">
             
-            <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
+            <div className="sticky top-12 z-20 bg-background/95 backdrop-blur border-b shadow-sm pt-2">
                 {/* FIX: Usar defaultTab dinámico */}
                 <Tabs defaultValue={defaultTab} className="w-full">
                     

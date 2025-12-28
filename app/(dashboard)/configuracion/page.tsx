@@ -15,7 +15,7 @@ const configItems = [
 export default function ConfiguracionPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <main className="flex-grow container mx-auto px-4 py-8">
+      <main className="flex-grow container mx-auto px-4 pt-0 pb-8">
          <div className="mb-12">
             <h1 className="text-4xl font-headline font-bold tracking-tight">Configuración del Sistema</h1>
             <p className="text-lg text-muted-foreground mt-2">Administra los datos maestros y las plantillas que potencian la aplicación.</p>
@@ -48,11 +48,6 @@ export default function ConfiguracionPage() {
                     </CardDescription>
                 </CardHeader>
                  <CardContent className="flex gap-4">
-                    <Link href="/bd/borrar">
-                        <Button variant="destructive" >
-                            Borrar Bases de Datos Maestras
-                        </Button>
-                    </Link>
                      <Link href="/bd/borrar-os">
                         <Button variant="destructive" >
                             Limpieza de Datos de Eventos

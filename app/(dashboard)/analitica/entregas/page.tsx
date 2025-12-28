@@ -1,44 +1,51 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck, Clock, Pencil, MessageSquare, AlertTriangle, LifeBuoy } from 'lucide-react';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck, Clock, Pencil, MessageSquare, AlertTriangle, LifeBuoy, ClipboardCheck, Calendar as CalendarIcon, Hand } from 'lucide-react';
+import SplashScreen from '@/components/layout/splash-screen';
 import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte, PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, PersonalExternoAjuste, Proveedor, CategoriaPersonal } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatNumber, formatPercentage, cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, isWithinInterval, endOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, isWithinInterval, endOfDay, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  AreaChart,
-  Area,
-  CartesianGrid,
-  PieChart,
-  Pie,
-  Cell,
+    Bar,
+    BarChart,
+    ResponsiveContainer,
+    XAxis,
+    YAxis,
+    Tooltip,
+    Legend,
+    AreaChart,
+    Area,
+    CartesianGrid,
+    PieChart,
+    Pie,
+    Cell,
 } from "@/lib/recharts-lazy"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { GASTO_LABELS } from '@/lib/constants';
 import Link from 'next/link';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-
+import {
+    useEntregas,
+    usePedidosEntrega,
+    useTransporteOrders,
+    usePersonalEntrega,
+    usePersonalExternoAjustes,
+    useTiposPersonal,
+    useProveedores,
+    useArticulos,
+    useTiposTransporte
+} from '@/hooks/use-data-queries';
 
 type AnaliticaItem = {
     os: Entrega;
@@ -58,7 +65,58 @@ type AnaliticaItem = {
     }[];
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+type KpiCardProps = {
+    title: string;
+    value: string;
+    icon: React.ElementType;
+    color?: 'primary' | 'emerald' | 'rose' | 'amber' | 'blue';
+    description?: string;
+}
+
+function KpiCard({ title, value, icon: Icon, color = 'primary', description }: KpiCardProps) {
+    const colorClasses = {
+        primary: "text-indigo-600 bg-indigo-50 border-indigo-100",
+        emerald: "text-emerald-600 bg-emerald-50 border-emerald-100",
+        rose: "text-rose-600 bg-rose-50 border-rose-100",
+        amber: "text-amber-600 bg-amber-50 border-amber-100",
+        blue: "text-blue-600 bg-blue-50 border-blue-100"
+    };
+
+    const iconColorClasses = {
+        primary: "text-indigo-600",
+        emerald: "text-emerald-600",
+        rose: "text-rose-600",
+        amber: "text-amber-600",
+        blue: "text-blue-600"
+    };
+
+    return (
+        <Card className="bg-card/60 backdrop-blur-md border-border/40 shadow-xl hover:-translate-y-1 transition-all duration-500 group overflow-hidden relative">
+            <div className={cn("absolute top-0 left-0 w-1 h-full",
+                color === 'primary' ? 'bg-indigo-500' :
+                    color === 'emerald' ? 'bg-emerald-500' :
+                        color === 'rose' ? 'bg-rose-500' :
+                            color === 'amber' ? 'bg-amber-500' : 'bg-blue-500'
+            )} />
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+                <div className={cn("p-2 rounded-xl transition-colors duration-500", colorClasses[color])}>
+                    <Icon className={cn("h-4 w-4", iconColorClasses[color])} />
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold tracking-tight">{value}</div>
+                {description && (
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        {description}
+                    </p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 const calculateHours = (start?: string, end?: string): number => {
     if (!start || !end) return 0;
@@ -75,15 +133,8 @@ const calculateHours = (start?: string, end?: string): number => {
 
 export default function AnaliticaEntregasPage() {
     const [isMounted, setIsMounted] = useState(false);
-    const [allPedidos, setAllPedidos] = useState<AnaliticaItem[]>([]);
-    const [allTransporte, setAllTransporte] = useState<TransporteOrder[]>([]);
-    const [proveedoresTransporte, setProveedoresTransporte] = useState<ProveedorTransporte[]>([]);
-    const [allPersonal, setAllPersonal] = useState<PersonalEntrega[]>([]);
-    const [allAjustesPersonal, setAllAjustesPersonal] = useState<Record<string, PersonalExternoAjuste[]>>({});
-    const [proveedoresPersonal, setProveedoresPersonal] = useState<CategoriaPersonal[]>([]);
-    const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
 
-
+    // Filtros y selección
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfMonth(new Date()),
         to: endOfMonth(new Date()),
@@ -95,28 +146,41 @@ export default function AnaliticaEntregasPage() {
     const [personalProviderFilter, setPersonalProviderFilter] = useState('all');
     const [partnerProviderFilter, setPartnerProviderFilter] = useState('all');
 
+    // Hooks de datos
+    const { data: entregas = [], isLoading: loadingEntregas } = useEntregas();
+    const { data: pedidosEntrega = [], isLoading: loadingPedidos } = usePedidosEntrega();
+    const { data: transporteOrders = [], isLoading: loadingTransporte } = useTransporteOrders();
+    const { data: personalEntrega = [], isLoading: loadingPersonal } = usePersonalEntrega();
+    const { data: personalExternoAjustes = [], isLoading: loadingAjustes } = usePersonalExternoAjustes();
+    const { data: categoriasPersonal = [], isLoading: loadingCategorias } = useTiposPersonal();
+    const { data: proveedores = [], isLoading: loadingProveedores } = useProveedores();
+    const { data: articulos = [], isLoading: loadingArticulos } = useArticulos();
+    const { data: tiposTransporte = [], isLoading: loadingTiposTransporte } = useTiposTransporte();
+
+    const isLoadingData = loadingEntregas || loadingPedidos || loadingTransporte || loadingPersonal || loadingAjustes || loadingCategorias || loadingProveedores || loadingArticulos || loadingTiposTransporte;
+
     useEffect(() => {
-        const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.vertical === 'Entregas');
-        const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-        const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
-        const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-        const allProveedoresTransporte = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[];
-        const allPersonalData = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
-        const allAjustesData = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-        const allProveedoresPersonalData = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
-        const proveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        setAllProveedores(proveedoresData);
+        setIsMounted(true);
+    }, []);
 
-        setAllTransporte(allTransporteOrders);
-        setProveedoresTransporte(allProveedoresTransporte);
-        setAllPersonal(allPersonalData);
-        setAllAjustesPersonal(allAjustesData);
-        setProveedoresPersonal(allProveedoresPersonalData);
+    // Datos procesados mediante useMemo para evitar bucles infinitos de re-renderizado
+    const allPedidosData = useMemo(() => {
+        if (isLoadingData) return [];
 
-        const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
+        const filteredEntregas = entregas.filter(os => os.vertical === 'Entregas');
+        const productosMap = new Map(articulos.map(p => [p.id, p]));
+        const adjustmentsByOsId: Record<string, PersonalExternoAjuste[]> = {};
 
-        const data: AnaliticaItem[] = allEntregas.map(os => {
-            const deliveryOrder = allPedidosEntrega.find(d => d.osId === os.id);
+        personalExternoAjustes.forEach(ajuste => {
+            const osId = (ajuste as any).evento_id || (ajuste as any).osId;
+            if (osId) {
+                if (!adjustmentsByOsId[osId]) adjustmentsByOsId[osId] = [];
+                adjustmentsByOsId[osId].push(ajuste);
+            }
+        });
+
+        return filteredEntregas.map(os => {
+            const deliveryOrder = pedidosEntrega.find(d => d.osId === os.id);
             let costeTotal = 0;
             let pvpTotal = 0;
             let pvpIfemaTotal = 0;
@@ -125,550 +189,498 @@ export default function AnaliticaEntregasPage() {
             const costePorte = os.tarifa === 'IFEMA' ? 95 : 30;
 
             if (deliveryOrder && deliveryOrder.hitos) {
-                deliveryOrder.hitos.forEach(hito => {
+                deliveryOrder.hitos.forEach((hito: EntregaHito) => {
                     const totalPortesHito = (hito.portes || 0) * costePorte;
                     pvpTotal += totalPortesHito;
                     pvpIfemaTotal += totalPortesHito;
 
                     const horasCamarero = hito.horasCamarero || 0;
-                    if(horasCamarero > 0) {
+                    if (horasCamarero > 0) {
                         const horasFacturables = horasCamarero > 0 && horasCamarero < 4 ? 4 : horasCamarero;
                         const pvpCamareroHora = os.tarifa === 'IFEMA' ? 44.50 : 36.50;
                         const costeCamareroHora = 17.50;
                         const pvpServicioCamarero = horasFacturables * pvpCamareroHora;
                         const costeServicioCamarero = horasCamarero * costeCamareroHora;
-                        
+
                         pvpTotal += pvpServicioCamarero;
                         pvpIfemaTotal += pvpServicioCamarero;
                         costeTotal += costeServicioCamarero;
                         costesPorCategoria['Personal'] = (costesPorCategoria['Personal'] || 0) + costeServicioCamarero;
                     }
 
-                    (hito.items || []).forEach(item => {
+                    (hito.items || []).forEach((item: any) => {
                         const producto = productosMap.get(item.id);
                         if (producto) {
-                            const costeComponentes = (producto.componentes || []).reduce((sum, comp) => {
+                            const costeComponentes = ((producto as any).componentes || []).reduce((sum: number, comp: any) => {
                                 const costeReal = comp.coste || 0;
                                 return sum + (costeReal * comp.cantidad);
                             }, 0);
-                            
-                            costeTotal += costeComponentes * item.quantity;
-                            pvpTotal += producto.pvp * item.quantity;
-                            pvpIfemaTotal += (producto.pvpIfema || producto.pvp) * item.quantity;
+
+                            const totalCosteItem = costeComponentes * item.quantity;
+                            costeTotal += totalCosteItem;
+
+                            const pvpUnitario = (producto as any).pvp || 0;
+                            const pvpIfemaUnitario = (producto as any).pvpIfema || pvpUnitario;
+
+                            pvpTotal += pvpUnitario * item.quantity;
+                            pvpIfemaTotal += pvpIfemaUnitario * item.quantity;
 
                             if (producto.categoria) {
-                                costesPorCategoria[producto.categoria] = (costesPorCategoria[producto.categoria] || 0) + (costeComponentes * item.quantity);
+                                (costesPorCategoria as any)[producto.categoria] = (costesPorCategoria[producto.categoria] || 0) + totalCosteItem;
                             }
 
                             productos.push({
                                 id: producto.id,
                                 nombre: producto.nombre,
-                                categoria: producto.categoria,
+                                categoria: producto.categoria as any,
                                 cantidad: item.quantity,
                                 coste: costeComponentes,
-                                pvp: os.tarifa === 'IFEMA' ? (producto.pvpIfema || producto.pvp) : producto.pvp,
-                                producidoPorPartner: producto.producidoPorPartner,
-                                partnerId: producto.partnerId
+                                pvp: os.tarifa === 'IFEMA' ? pvpIfemaUnitario : pvpUnitario,
+                                producidoPorPartner: (producto as any).producidoPorPartner,
+                                partnerId: (producto as any).partnerId
                             });
                         }
                     });
                 });
             }
 
-            const transporteOs = allTransporteOrders.filter(t => t.osId === os.id);
+            const transporteOs = transporteOrders.filter(t => t.osId === os.id);
             const costeTransporteOs = transporteOs.reduce((sum, t) => sum + t.precio, 0);
             costeTotal += costeTransporteOs;
             costesPorCategoria[GASTO_LABELS.transporte] = (costesPorCategoria[GASTO_LABELS.transporte] || 0) + costeTransporteOs;
-            
-            const personalOs = allPersonalData.find(p => p.osId === os.id);
+
+            const personalOs = personalEntrega.find(p => p.osId === os.id);
             if (personalOs) {
                 const costePersonalOs = personalOs.turnos.reduce((sum: number, turno: any) => {
-                    // horaEntradaReal y horaSalidaReal no existen, usar horaEntrada y horaSalida
                     const horas = calculateHours(turno.horaEntrada, turno.horaSalida);
                     return sum + horas * (turno.precioHora || 0);
                 }, 0);
-                const ajustes = (allAjustesData[os.id] || []).reduce((sum: number, aj: any) => sum + aj.importe, 0);
+                const ajustes = (adjustmentsByOsId[os.id] || []).reduce((sum: number, aj: any) => sum + aj.importe, 0);
                 costesPorCategoria['Personal'] = (costesPorCategoria['Personal'] || 0) + costePersonalOs + ajustes;
                 costeTotal += costePersonalOs + ajustes;
             }
 
-
             return { os, costeTotal, pvpTotal, pvpIfemaTotal, costesPorCategoria, productos };
         });
+    }, [isLoadingData, entregas, pedidosEntrega, articulos, transporteOrders, personalEntrega, personalExternoAjustes]);
 
-        setAllPedidos(data);
-        setIsMounted(true);
-    }, []);
-    
     const pedidosFiltrados = useMemo(() => {
-    if (!dateRange?.from) return [];
-        const toDate = dateRange.to || dateRange.from;
-        return allPedidos.filter(p => {
+        if (!dateRange?.from) return [];
+        const fromDate = startOfDay(dateRange.from);
+        const toDate = endOfDay(dateRange.to || dateRange.from);
+
+        return allPedidosData.filter(p => {
             const osDate = new Date(p.os.startDate);
-            const isInDateRange = isWithinInterval(osDate, { start: dateRange.from!, end: endOfDay(toDate) });
+            const isInDateRange = isWithinInterval(osDate, { start: fromDate, end: toDate });
             const matchesTarifa = tarifaFilter === 'all' || p.os.tarifa === tarifaFilter;
             return isInDateRange && matchesTarifa;
         });
-    }, [allPedidos, dateRange, tarifaFilter]);
+    }, [allPedidosData, dateRange, tarifaFilter]);
 
-
+    // Sincronizar selección inicial
     useEffect(() => {
-        setSelectedPedidos(new Set(pedidosFiltrados.map(p => p.os.id)));
+        if (pedidosFiltrados.length > 0 && selectedPedidos.size === 0) {
+            setSelectedPedidos(new Set(pedidosFiltrados.map(p => p.os.id)));
+        }
     }, [pedidosFiltrados]);
 
     const handleSelect = (osId: string) => {
         setSelectedPedidos(prev => {
-            const newSelection = new Set(prev);
-            if (newSelection.has(osId)) {
-                newSelection.delete(osId);
-            } else {
-                newSelection.add(osId);
-            }
-            return newSelection;
+            const next = new Set(prev);
+            if (next.has(osId)) next.delete(osId);
+            else next.add(osId);
+            return next;
         });
-    }
-    
+    };
+
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
             setSelectedPedidos(new Set(pedidosFiltrados.map(p => p.os.id)));
         } else {
             setSelectedPedidos(new Set());
         }
-    }
-    
+    };
+
     const analisisSeleccion = useMemo(() => {
         const seleccion = pedidosFiltrados.filter(p => selectedPedidos.has(p.os.id));
-        if (seleccion.length === 0) {
-            return { pvpBruto: 0, pvpNeto: 0, costeProductos: 0, costeTransporte: 0, costePersonal: 0, comisionAgencia: 0, comisionCanon: 0, costesPorCategoria: {}, productos: [], hitosCount: 0, pvpPorCategoria: {} };
-        }
-        
-        let pvpBruto = 0;
-        let pvpNeto = 0;
-        let comisionAgencia = 0;
-        let comisionCanon = 0;
-        
-        seleccion.forEach(item => {
-            const pvpItemBruto = item.os.tarifa === 'IFEMA' ? item.pvpIfemaTotal : item.pvpTotal;
-            pvpBruto += pvpItemBruto;
-            const comisionAgenciaTotal = pvpItemBruto * ((item.os.agencyPercentage || 0) / 100) + (item.os.agencyCommissionValue || 0);
-            const comisionCanonTotal = pvpItemBruto * ((item.os.spacePercentage || 0) / 100) + (item.os.spaceCommissionValue || 0);
-            comisionAgencia += comisionAgenciaTotal;
-            comisionCanon += comisionCanonTotal;
-            pvpNeto += pvpItemBruto - comisionAgenciaTotal - comisionCanonTotal;
-        });
-        
-        const costesPorCategoria: { [key: string]: number } = {};
+        const pvpTotal = seleccion.reduce((sum, p) => sum + (p.os.tarifa === 'IFEMA' ? p.pvpIfemaTotal : p.pvpTotal), 0);
+        const costeTotal = seleccion.reduce((sum, p) => sum + p.costeTotal, 0);
+        const margen = pvpTotal - costeTotal;
+        const margenPct = pvpTotal > 0 ? (margen / pvpTotal) : 0;
+
+        const categoriasAgregadas: { [key: string]: { name: string; coste: number } } = {};
         const productosAgregados: { [key: string]: AnaliticaItem['productos'][0] } = {};
-        let hitosCount = 0;
-        
-        const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
 
-        seleccion.forEach(item => {
-            const pedido = allPedidosEntrega.find(p => p.osId === item.os.id);
-            hitosCount += pedido?.hitos.length || 0;
+        seleccion.forEach(p => {
+            Object.entries(p.costesPorCategoria).forEach(([cat, val]) => {
+                const label = cat;
+                if (!categoriasAgregadas[label]) categoriasAgregadas[label] = { name: label, coste: 0 };
+                categoriasAgregadas[label].coste += val;
+            });
 
-            for (const cat in item.costesPorCategoria) {
-                costesPorCategoria[cat] = (costesPorCategoria[cat] || 0) + item.costesPorCategoria[cat];
-            }
-            item.productos.forEach(prod => {
+            p.productos.forEach(prod => {
                 if (!productosAgregados[prod.id]) {
-                    productosAgregados[prod.id] = { ...prod, cantidad: 0, coste: 0, pvp: 0 };
+                    productosAgregados[prod.id] = { ...prod };
+                } else {
+                    productosAgregados[prod.id].cantidad += prod.cantidad;
                 }
-                productosAgregados[prod.id].cantidad += prod.cantidad;
-                productosAgregados[prod.id].coste += prod.coste * prod.cantidad;
-                productosAgregados[prod.id].pvp += prod.pvp * prod.cantidad;
             });
         });
-        
-        const costeTransporte = costesPorCategoria[GASTO_LABELS.transporte] || 0;
-        const costePersonal = costesPorCategoria['Personal'] || 0;
-        const costeProductos = Object.entries(costesPorCategoria).reduce((sum, [cat, val]) => {
-            return (cat === GASTO_LABELS.transporte || cat === 'Personal') ? sum : sum + val;
-        }, 0);
-        
-        const pvpTransporte = seleccion.reduce((sum, item) => {
-            const costePorte = item.os.tarifa === 'IFEMA' ? 95 : 30;
-            const pedido = allPedidosEntrega.find(p => p.osId === item.os.id);
-            const portes = pedido?.hitos.reduce((hSum, hito) => hSum + (hito.portes || 0), 0) || 0;
-            return sum + (portes * costePorte);
-        }, 0);
 
-        const pvpCamareros = seleccion.reduce((sum, item) => {
-            const pvpCamareroHora = item.os.tarifa === 'IFEMA' ? 44.50 : 36.50;
-            const pedido = allPedidosEntrega.find(p => p.osId === item.os.id);
-            const horas = pedido?.hitos.reduce((hSum, hito) => {
-                const h = hito.horasCamarero || 0;
-                return hSum + (h > 0 && h < 4 ? 4 : h);
-            }, 0) || 0;
-            return sum + (horas * pvpCamareroHora);
-        }, 0);
-        
-        const pvpPorCategoria: { [key: string]: number } = { 
-            [GASTO_LABELS.transporte]: pvpTransporte,
-            'Personal': pvpCamareros
-        };
+        // Crear una copia para evitar mutaciones directas en el original durante el sort
+        const categorias = Object.values(categoriasAgregadas);
+        const productos = Object.values(productosAgregados);
 
-        Object.values(productosAgregados).forEach(p => {
-             pvpPorCategoria[p.categoria] = (pvpPorCategoria[p.categoria] || 0) + p.pvp;
-        });
-
-        return { pvpBruto, pvpNeto, costeProductos, costeTransporte, costePersonal, comisionAgencia, comisionCanon, costesPorCategoria, productos: Object.values(productosAgregados), hitosCount, pvpPorCategoria };
-
-    }, [pedidosFiltrados, selectedPedidos]);
-    
-    const { ticketMedioContrato, ticketMedioEntrega } = useMemo(() => {
-        const numContratos = selectedPedidos.size;
-        const numEntregas = analisisSeleccion.hitosCount;
         return {
-            ticketMedioContrato: numContratos > 0 ? analisisSeleccion.pvpNeto / numContratos : 0,
-            ticketMedioEntrega: numEntregas > 0 ? analisisSeleccion.pvpNeto / numEntregas : 0
+            pvpTotal,
+            costeTotal,
+            margen,
+            margenPct,
+            numPedidos: seleccion.length,
+            categorias,
+            productos
         };
-    }, [analisisSeleccion, selectedPedidos]);
+    }, [pedidosFiltrados, selectedPedidos]);
 
     const topProductos = useMemo(() => {
-        return analisisSeleccion.productos
-            .sort((a,b) => b.cantidad - a.cantidad)
+        return [...analisisSeleccion.productos]
+            .sort((a, b) => b.cantidad - a.cantidad)
             .slice(0, 5);
     }, [analisisSeleccion.productos]);
 
-    const rentabilidadPorCategoria = useMemo(() => {
-        const allCategories = new Set([
-            ...Object.keys(analisisSeleccion.costesPorCategoria),
-            ...Object.keys(analisisSeleccion.pvpPorCategoria || {})
-        ]);
+    const topCategorias = useMemo(() => {
+        return [...analisisSeleccion.categorias]
+            .sort((a, b) => b.coste - a.coste)
+            .slice(0, 5);
+    }, [analisisSeleccion.categorias]);
 
-        return Array.from(allCategories).map(cat => {
-            const coste = analisisSeleccion.costesPorCategoria[cat] || 0;
-            const pvp = (analisisSeleccion.pvpPorCategoria || {})[cat] || 0;
-            const margen = pvp - coste;
-            const margenPct = pvp > 0 ? (margen / pvp) * 100 : 0;
-            return { categoria: cat, pvp, coste, margen, margenPct };
-        }).filter(c => c.pvp > 0 || c.coste > 0)
-          .sort((a,b) => b.margen - a.margen);
-    }, [analisisSeleccion.costesPorCategoria, analisisSeleccion.pvpPorCategoria]);
-    
+    const transportAnalysis = useMemo(() => {
+        const transportOrdersSelected = transporteOrders.filter(t => selectedPedidos.has(t.osId || ''));
+        const totalTransporte = transportOrdersSelected.reduce((sum, t) => sum + (t.precio || 0), 0);
+
+        const byProvider: { [key: string]: { name: string; coste: number; count: number; id: string } } = {};
+        transportOrdersSelected.forEach(t => {
+            const providerName = t.nombreProveedor || 'Otros';
+            const providerId = t.tipoTransporteId || 'other';
+            if (!byProvider[providerId]) byProvider[providerId] = { name: providerName, coste: 0, count: 0, id: providerId };
+            byProvider[providerId].coste += (t.precio || 0);
+            byProvider[providerId].count++;
+        });
+
+        const providersList = Object.values(byProvider);
+        const filteredProviders = transporteProviderFilter === 'all'
+            ? providersList
+            : providersList.filter(p => p.id === transporteProviderFilter);
+
+        return {
+            totalTransporte,
+            providersList,
+            filteredProviders
+        };
+    }, [selectedPedidos, transporteOrders, transporteProviderFilter]);
+
+    const personalAnalysis = useMemo(() => {
+        const selectedOsIds = Array.from(selectedPedidos);
+        let totalPersonal = 0;
+        const byCategory: { [key: string]: { name: string; coste: number; count: number; id: string } } = {};
+
+        selectedOsIds.forEach(osId => {
+            const personal = personalEntrega.find(p => p.osId === osId);
+            if (personal) {
+                personal.turnos.forEach((turno: any) => {
+                    const horas = calculateHours(turno.horaEntrada, turno.horaSalida);
+                    const cost = horas * (turno.precioHora || 0);
+                    totalPersonal += cost;
+
+                    const catId = turno.categoriaId || 'other';
+                    const catName = turno.categoriaNombre || 'Sin Categoría';
+                    if (!byCategory[catId]) byCategory[catId] = { name: catName, coste: 0, count: 0, id: catId };
+                    byCategory[catId].coste += cost;
+                    byCategory[catId].count++;
+                });
+            }
+            const ajustes = (personalExternoAjustes as any[]).filter(aj => aj.osId === osId).reduce((sum, aj) => sum + (aj.importe || 0), 0);
+            totalPersonal += ajustes;
+            if (ajustes !== 0) {
+                if (!byCategory['adjustments']) byCategory['adjustments'] = { name: 'Ajustes', coste: 0, count: 0, id: 'adjustments' };
+                byCategory['adjustments'].coste += ajustes;
+            }
+        });
+
+        const categoriesList = Object.values(byCategory);
+        const filteredCategories = personalProviderFilter === 'all'
+            ? categoriesList
+            : categoriesList.filter(c => c.id === personalProviderFilter);
+
+        return {
+            totalPersonal,
+            categoriesList,
+            filteredCategories
+        };
+    }, [selectedPedidos, personalEntrega, personalExternoAjustes, personalProviderFilter]);
+
     const partnerAnalysis = useMemo(() => {
-        const allPartnerProducts = analisisSeleccion.productos.filter(p => p.producidoPorPartner);
-        
-        const partnerProducts = partnerProviderFilter === 'all'
-            ? allPartnerProducts
-            : allPartnerProducts.filter(p => p.partnerId === partnerProviderFilter);
-            
-        const coste = partnerProducts.reduce((sum, p) => sum + p.coste, 0);
-        const pvp = partnerProducts.reduce((sum, p) => sum + p.pvp, 0);
-        const margen = pvp - coste;
-        const margenPct = pvp > 0 ? (margen / pvp) * 100 : 0;
-        const top = partnerProducts.sort((a,b) => b.cantidad - a.cantidad).slice(0,5);
-        
-        const costePorPartner: Record<string, number> = {};
-         allPartnerProducts.forEach(p => {
-            const partnerName = allProveedores.find(prov => prov.id === p.partnerId)?.nombreComercial || 'Desconocido';
-            costePorPartner[partnerName] = (costePorPartner[partnerName] || 0) + p.coste;
-        });
-        const pieData = Object.entries(costePorPartner).map(([name, value]) => ({ name, value }));
+        const partnerProducts = analisisSeleccion.productos.filter(p => p.producidoPorPartner);
+        const partnerIds = Array.from(new Set(partnerProducts.map(p => p.partnerId).filter(Boolean)));
 
-        return { coste, pvp, margen, margenPct, top, pieData };
-    }, [analisisSeleccion.productos, partnerProviderFilter, allProveedores]);
-
-    const monthlyData = useMemo(() => {
-        const dataByMonth: { [key: string]: { facturacionNeta: number, coste: number, contratos: Set<string>, entregas: number } } = {};
-        
-        pedidosFiltrados.forEach(item => {
-            const month = format(new Date(item.os.startDate), 'yyyy-MM');
-            if (!dataByMonth[month]) {
-                dataByMonth[month] = { facturacionNeta: 0, coste: 0, contratos: new Set(), entregas: 0 };
-            }
-            const pvpBruto = item.os.tarifa === 'IFEMA' ? item.pvpIfemaTotal : item.pvpTotal;
-            const comisionAgenciaTotal = pvpBruto * ((item.os.agencyPercentage || 0) / 100) + (item.os.agencyCommissionValue || 0);
-            const comisionCanonTotal = pvpBruto * ((item.os.spacePercentage || 0) / 100) + (item.os.spaceCommissionValue || 0);
-            
-            dataByMonth[month].facturacionNeta += pvpBruto - comisionAgenciaTotal - comisionCanonTotal;
-            dataByMonth[month].coste += item.costeTotal;
-            dataByMonth[month].contratos.add(item.os.id);
-            
-            const pedido = (JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[]).find(p => p.osId === item.os.id);
-            dataByMonth[month].entregas += pedido?.hitos.length || 0;
+        const byPartner: { [key: string]: { name: string; count: number; value: number; id: string } } = {};
+        partnerProducts.forEach(p => {
+            const pid = p.partnerId!;
+            const partner = proveedores.find(pr => pr.id === pid);
+            const pName = partner?.nombre || 'Desconocido';
+            if (!byPartner[pid]) byPartner[pid] = { name: pName, count: 0, value: 0, id: pid };
+            byPartner[pid].count += p.cantidad;
+            byPartner[pid].value += p.coste * p.cantidad;
         });
 
-        return Object.entries(dataByMonth).map(([month, data]) => ({
-            name: format(new Date(`${month}-02`), 'MMM yy', {locale: es}),
-            Facturación: data.facturacionNeta,
-            Rentabilidad: data.facturacionNeta - data.coste,
-            Contratos: data.contratos.size,
-            Entregas: data.entregas,
-            'Ticket Medio Contrato': data.contratos.size > 0 ? data.facturacionNeta / data.contratos.size : 0,
-            'Ticket Medio Entrega': data.entregas > 0 ? data.facturacionNeta / data.entregas : 0,
-        })).sort((a,b) => new Date(a.name).getTime() - new Date(b.name).getTime());
-    }, [pedidosFiltrados]);
+        const partnersList = Object.values(byPartner);
+        const top = [...partnerProducts].sort((a, b) => b.cantidad - a.cantidad);
 
-    const transporteAnalysis = useMemo(() => {
-        const osIdsEnRango = new Set(pedidosFiltrados.map(p => p.os.id));
-        const transporteEnRango = allTransporte.filter(t => osIdsEnRango.has(t.osId));
+        const filteredPartners = partnerProviderFilter === 'all'
+            ? partnersList
+            : partnersList.filter(p => p.id === partnerProviderFilter);
 
-        const filteredByProvider = transporteProviderFilter === 'all'
-            ? transporteEnRango
-            : transporteEnRango.filter(t => t.proveedorId === transporteProviderFilter);
-
-        const costeTotal = filteredByProvider.reduce((sum, t) => sum + t.precio, 0);
-        const totalViajes = filteredByProvider.length;
-        const costeMedio = totalViajes > 0 ? costeTotal / totalViajes : 0;
-        
-        const viajesPorProveedor: { [key: string]: number } = {};
-        transporteEnRango.forEach(t => {
-            const nombre = t.proveedorNombre || 'Desconocido';
-            viajesPorProveedor[nombre] = (viajesPorProveedor[nombre] || 0) + 1;
-        });
-        const pieData = Object.entries(viajesPorProveedor).map(([name, value]) => ({ name, value }));
-
-        const porMes: { [key: string]: { coste: number; viajes: number } } = {};
-        filteredByProvider.forEach(t => {
-            const month = format(new Date(t.fecha), 'yyyy-MM');
-            if (!porMes[month]) {
-                porMes[month] = { coste: 0, viajes: 0 };
-            }
-            porMes[month].coste += t.precio;
-            porMes[month].viajes += 1;
-        });
-        const monthlyChartData = Object.entries(porMes).map(([month, data]) => ({
-            name: format(new Date(`${month}-02`), 'MMM yy', {locale: es}),
-            Coste: data.coste,
-            Viajes: data.viajes
-        })).sort((a,b) => new Date(a.name).getTime() - new Date(b.name).getTime());
-
-        return { costeTotal, totalViajes, costeMedio, pieData, monthlyChartData, listado: filteredByProvider };
-    }, [pedidosFiltrados, allTransporte, transporteProviderFilter]);
-    
-   const personalAnalysis = useMemo(() => {
-        const osIdsEnRango = new Set(pedidosFiltrados.map(p => p.os.id));
-        let personalEnRango = allPersonal.filter(p => osIdsEnRango.has(p.osId));
-        
-        const proveedoresMap = new Map(allProveedores.map(p => [p.id, p.nombreComercial]));
-        const categoriasMap = new Map(proveedoresPersonal.map(p => [p.id, p]));
-
-        if (personalProviderFilter !== 'all') {
-            const personalDelProveedor = proveedoresPersonal.filter(pp => pp.proveedorId === personalProviderFilter).map(pp => pp.id);
-            personalEnRango = personalEnRango.map(p => ({
-                ...p,
-                turnos: p.turnos.filter(t => personalDelProveedor.includes(t.proveedorId)),
-            })).filter(p => p.turnos.length > 0);
-        }
-
-        let costeTotalPlan = 0, costeTotalReal = 0, horasPlan = 0, horasReal = 0, totalTurnos = 0, totalAjustes = 0;
-        const costePorProveedor: Record<string, number> = {};
-        
-
-        const ajustesFiltrados: (PersonalExternoAjuste & {os: Entrega})[] = [];
-
-        personalEnRango.forEach(p => {
-            totalTurnos += p.turnos.length;
-            p.turnos.forEach(turno => {
-                horasPlan += calculateHours(turno.horaEntrada, turno.horaSalida);
-                costeTotalPlan += calculateHours(turno.horaEntrada, turno.horaSalida) * turno.precioHora;
-                
-                const hReal = turno.asignaciones?.reduce((sum, asig) => sum + calculateHours(asig.horaEntradaReal, asig.horaSalidaReal), 0) || calculateHours(turno.horaEntrada, turno.horaSalida);
-                horasReal += hReal;
-                const costeTurnoReal = hReal * turno.precioHora;
-                costeTotalReal += costeTurnoReal;
-
-                const catPersonal = categoriasMap.get(turno.proveedorId);
-                const provName = catPersonal ? (proveedoresMap.get(catPersonal.proveedorId) || 'Desconocido') : 'Desconocido';
-                costePorProveedor[provName] = (costePorProveedor[provName] || 0) + costeTurnoReal;
-            });
-
-            const osAjustes = allAjustesPersonal[p.osId] || [];
-            osAjustes.forEach(ajuste => {
-                 const os = pedidosFiltrados.find(ped => ped.os.id === p.osId)?.os;
-                 if (os) {
-                    ajustesFiltrados.push({ ...ajuste, os});
-                 }
-            });
-            totalAjustes += osAjustes.reduce((sum, aj) => sum + aj.importe, 0);
-        });
-        
-        const pieData = Object.entries(costePorProveedor).map(([name, value]) => ({ name, value }));
-
-        return { costeTotalPlan, costeTotalReal, totalAjustes, costeFinal: costeTotalReal + totalAjustes, horasPlan, horasReal, totalTurnos, pieData, ajustes: ajustesFiltrados };
-    }, [pedidosFiltrados, allPersonal, allAjustesPersonal, proveedoresPersonal, personalProviderFilter, allProveedores]);
-
-    const uniquePartnerProviders = useMemo(() => {
-        const providerIds = new Set(analisisSeleccion.productos.filter(p=>p.partnerId).map(p => p.partnerId));
-        return allProveedores.filter(p => providerIds.has(p.id));
-    }, [analisisSeleccion.productos, allProveedores]);
-    
-    const uniquePersonalProviders = useMemo(() => {
-        const providerIds = new Set(proveedoresPersonal.map(p => p.proveedorId));
-        return allProveedores.filter(p => providerIds.has(p.id));
-    }, [proveedoresPersonal, allProveedores]);
-
+        return {
+            partnersList,
+            top,
+            filteredPartners
+        };
+    }, [analisisSeleccion.productos, partnerProviderFilter, proveedores]);
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
         const now = new Date();
-        switch(preset) {
-            case 'month': setDateRange({ from: startOfMonth(now), to: endOfMonth(now) }); break;
-            case 'year': setDateRange({ from: startOfYear(now), to: endOfYear(now) }); break;
-            case 'q1': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 0, 1)), to: endOfQuarter(new Date(now.getFullYear(), 2, 31)) }); break;
-            case 'q2': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 3, 1)), to: endOfQuarter(new Date(now.getFullYear(), 5, 30)) }); break;
-            case 'q3': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 6, 1)), to: endOfQuarter(new Date(now.getFullYear(), 8, 30)) }); break;
-            case 'q4': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 9, 1)), to: endOfQuarter(new Date(now.getFullYear(), 11, 31)) }); break;
+        let from, to;
+        switch (preset) {
+            case 'month': from = startOfMonth(now); to = endOfMonth(now); break;
+            case 'year': from = startOfYear(now); to = endOfYear(now); break;
+            case 'q1': from = startOfQuarter(new Date(now.getFullYear(), 0, 1)); to = endOfQuarter(new Date(now.getFullYear(), 2, 31)); break;
+            case 'q2': from = startOfQuarter(new Date(now.getFullYear(), 3, 1)); to = endOfQuarter(new Date(now.getFullYear(), 5, 30)); break;
+            case 'q3': from = startOfQuarter(new Date(now.getFullYear(), 6, 1)); to = endOfQuarter(new Date(now.getFullYear(), 8, 30)); break;
+            case 'q4': from = startOfQuarter(new Date(now.getFullYear(), 9, 1)); to = endOfQuarter(new Date(now.getFullYear(), 11, 31)); break;
         }
+        setDateRange({ from, to });
+        setIsDatePickerOpen(false);
     };
-    
-    const costeTotalSeleccion = analisisSeleccion.costeProductos + analisisSeleccion.costeTransporte + analisisSeleccion.costePersonal + analisisSeleccion.comisionAgencia + analisisSeleccion.comisionCanon;
-    const margenFinal = analisisSeleccion.pvpNeto - costeTotalSeleccion;
 
-
-    if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Analítica de Rentabilidad..." />;
-    }
+    if (!isMounted || isLoadingData) return <SplashScreen />;
 
     return (
-        <main className="container mx-auto px-4 py-8">
-            <div className="flex items-center gap-4 mb-6">
-                <h1 className="text-3xl font-headline font-bold">Analítica de Rentabilidad de Entregas</h1>
-            </div>
-            
-            <Card className="mb-6">
-                <CardContent className="p-4 flex flex-wrap items-center gap-4 justify-between">
-                    <div className="flex flex-wrap items-center gap-2">
+        <div className="space-y-8">
+            {/* Header Premium Sticky */}
+            <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
+                <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
+                    <div className="flex items-center">
+                        <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                            <Package className="h-5 w-5 text-amber-500" />
+                        </div>
+                    </div>
+
+                    <div className="flex-1" />
+
+                    <div className="flex items-center gap-3">
+                        <Select value={tarifaFilter} onValueChange={(v: any) => setTarifaFilter(v)}>
+                            <SelectTrigger className="h-8 w-[140px] text-[10px] font-black uppercase tracking-widest bg-background/50 border-border/40">
+                                <SelectValue placeholder="Tarifa" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todas</SelectItem>
+                                <SelectItem value="Empresa">Empresa</SelectItem>
+                                <SelectItem value="IFEMA">IFEMA</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <div className="hidden lg:flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/40">
+                            <Button variant="ghost" size="sm" className="text-[9px] font-black uppercase tracking-widest rounded-lg h-7 px-3" onClick={() => setDatePreset('month')}>Mes</Button>
+                            <Button variant="ghost" size="sm" className="text-[9px] font-black uppercase tracking-widest rounded-lg h-7 px-3" onClick={() => setDatePreset('year')}>Año</Button>
+                            <Button variant="ghost" size="sm" className="text-[9px] font-black uppercase tracking-widest rounded-lg h-7 px-3" onClick={() => setDatePreset('q1')}>Q1</Button>
+                            <Button variant="ghost" size="sm" className="text-[9px] font-black uppercase tracking-widest rounded-lg h-7 px-3" onClick={() => setDatePreset('q2')}>Q2</Button>
+                            <Button variant="ghost" size="sm" className="text-[9px] font-black uppercase tracking-widest rounded-lg h-7 px-3" onClick={() => setDatePreset('q3')}>Q3</Button>
+                            <Button variant="ghost" size="sm" className="text-[9px] font-black uppercase tracking-widest rounded-lg h-7 px-3" onClick={() => setDatePreset('q4')}>Q4</Button>
+                        </div>
                         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
-                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                                <Button variant="outline" size="sm" className={cn("h-8 text-[10px] font-black uppercase tracking-widest border-border/40 bg-background/50 hover:bg-amber-500/5", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-3.5 w-3.5 text-amber-500" />
+                                    {dateRange?.from ? (
+                                        dateRange.to ? (
+                                            <>
+                                                {format(dateRange.from, "d LLL", { locale: es })} - {format(dateRange.to, "d LLL, yyyy", { locale: es })}
+                                            </>
+                                        ) : (
+                                            format(dateRange.from, "d LLL, yyyy", { locale: es })
+                                        )
+                                    ) : (
+                                        <span>Fechas</span>
+                                    )}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+                            <PopoverContent className="w-auto p-0 rounded-2xl border-border/40 shadow-2xl" align="end">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={dateRange?.from}
+                                    selected={dateRange}
+                                    onSelect={setDateRange}
+                                    numberOfMonths={2}
+                                    locale={es}
+                                />
                             </PopoverContent>
                         </Popover>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('month')}>Mes en curso</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('year')}>Año en curso</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
                     </div>
-                    <Select value={tarifaFilter} onValueChange={(value) => setTarifaFilter(value as any)}>
-                        <SelectTrigger className="w-full md:w-[180px]">
-                            <SelectValue placeholder="Filtrar por tarifa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas las Tarifas</SelectItem>
-                            <SelectItem value="Empresa">Empresa</SelectItem>
-                            <SelectItem value="IFEMA">IFEMA</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
-            <Tabs defaultValue="rentabilidad">
-                <TabsList className="mb-4 grid w-full grid-cols-4">
-                    <TabsTrigger value="rentabilidad">Análisis de Rentabilidad</TabsTrigger>
-                    <TabsTrigger value="partner">Análisis Partner</TabsTrigger>
-                    <TabsTrigger value="transporte">Análisis de Transporte</TabsTrigger>
-                    <TabsTrigger value="personal">Análisis de Personal</TabsTrigger>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <KpiCard title="Facturación Bruta" value={formatCurrency(analisisSeleccion.pvpTotal)} icon={Euro} color="primary" />
+                <KpiCard title="Coste Directo" value={formatCurrency(analisisSeleccion.costeTotal)} icon={TrendingDown} color="rose" />
+                <KpiCard title="Margen Bruto" value={formatCurrency(analisisSeleccion.margen)} icon={TrendingUp} color="emerald" />
+                <KpiCard title="Margen %" value={formatPercentage(analisisSeleccion.margenPct)} icon={TrendingUp} color="emerald" />
+            </div>
+
+            <Tabs defaultValue="analisis" className="space-y-6">
+                <TabsList className="bg-muted/50 border border-border/40 rounded-full h-11 p-1">
+                    <TabsTrigger value="analisis" className="rounded-full px-6">Análisis General</TabsTrigger>
+                    <TabsTrigger value="transporte" className="rounded-full px-6">Transporte</TabsTrigger>
+                    <TabsTrigger value="personal" className="rounded-full px-6">Personal</TabsTrigger>
+                    <TabsTrigger value="partners" className="rounded-full px-6">Partners</TabsTrigger>
                 </TabsList>
-                <TabsContent value="rentabilidad">
-                    <div className="space-y-8">
-                       <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                                    <CardTitle className="text-xl font-medium">Facturación</CardTitle>
-                                    <Euro className="h-5 w-5 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent className="space-y-1">
-                                    <p className="text-sm text-muted-foreground">Bruta: {formatCurrency(analisisSeleccion.pvpBruto)}</p>
-                                    <div className="text-3xl font-bold text-green-600">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-base font-medium">Desglose de Costes</CardTitle>
-                                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent className="text-xs space-y-0.5">
-                                    <div className="flex justify-between"><span>Productos:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeProductos)}</span></div>
-                                    <div className="flex justify-between"><span>Personal:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costePersonal)}</span></div>
-                                    <div className="flex justify-between"><span>Transporte:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeTransporte)}</span></div>
-                                    <div className="flex justify-between"><span>Com. Agencia:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionAgencia)}</span></div>
-                                    <div className="flex justify-between"><span>Canon Espacio:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionCanon)}</span></div>
-                                    <Separator className="my-1"/>
-                                    <div className="flex justify-between font-bold text-sm"><span>Total:</span> <span>{formatCurrency(costeTotalSeleccion)}</span></div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                                    <CardTitle className="text-base font-medium">Rentabilidad Final</CardTitle>
-                                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent className="space-y-0.5">
-                                    <div className={cn("text-2xl font-bold", margenFinal >= 0 ? "text-green-600" : "text-destructive")}>
-                                        {formatCurrency(margenFinal)}
-                                    </div>
-                                    <p className={cn("text-base font-semibold", (analisisSeleccion.pvpNeto > 0 ? (margenFinal / analisisSeleccion.pvpNeto) * 100 : 0) >= 0 ? "text-green-600" : "text-destructive")}>
-                                        {(analisisSeleccion.pvpNeto > 0 ? (margenFinal / analisisSeleccion.pvpNeto) * 100 : 0).toFixed(2)}%
-                                    </p>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-base font-medium">Volumen</CardTitle>
-                                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent className="space-y-1">
-                                    <div className="text-2xl font-bold">{selectedPedidos.size} <span className="text-sm font-normal text-muted-foreground">contratos</span></div>
-                                    <div className="text-2xl font-bold">{analisisSeleccion.hitosCount} <span className="text-sm font-normal text-muted-foreground">entregas</span></div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-base font-medium">Ticket Medio</CardTitle>
-                                    <Ticket className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent className="space-y-1">
-                                    <div className="text-lg font-bold">{formatCurrency(ticketMedioContrato)} <span className="text-xs font-normal text-muted-foreground">/contrato</span></div>
-                                    <div className="text-lg font-bold">{formatCurrency(ticketMedioEntrega)} <span className="text-xs font-normal text-muted-foreground">/entrega</span></div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                         <Card>
-                            <CardHeader><CardTitle>Facturación y Rentabilidad Mensual</CardTitle></CardHeader>
-                            <CardContent className="pl-0">
+
+                <TabsContent value="analisis" className="space-y-6">
+                    <div className="grid lg:grid-cols-2 gap-6">
+                        <Card className="bg-card/60 backdrop-blur-md border-border/40 overflow-hidden">
+                            <CardHeader className="border-b border-border/40 bg-primary/5">
+                                <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                                    <TrendingUp className="w-5 h-5 text-primary" />
+                                    Distribución de Costes
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-6">
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <AreaChart data={monthlyData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value: any) => `€${(value as number) / 1000}k`}/>
-                                        <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                                    <PieChart>
+                                        <Pie data={analisisSeleccion.categorias} dataKey="coste" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(entry) => `${entry.name} (${formatPercentage(entry.coste / (analisisSeleccion.costeTotal || 1))})`}>
+                                            {analisisSeleccion.categorias.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip formatter={(val: number) => formatCurrency(val)} />
                                         <Legend />
-                                        <Area type="monotone" dataKey="Facturación" stackId="1" stroke="#8884d8" fill="#8884d8" />
-                                        <Area type="monotone" dataKey="Rentabilidad" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
-                                    </AreaChart>
+                                    </PieChart>
                                 </ResponsiveContainer>
                             </CardContent>
                         </Card>
-                        <div className="grid lg:grid-cols-2 gap-4">
-                            <Card>
-                                <CardHeader><CardTitle>Top 5 Productos más Vendidos</CardTitle></CardHeader>
-                                <CardContent>
-                                    <Table>
-                                        <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Cantidad Vendida</TableHead></TableRow></TableHeader>
-                                        <TableBody>
-                                            {topProductos.map(p => (
-                                                <TableRow key={p.id}><TableCell>{p.nombre}</TableCell><TableCell className="text-right font-medium">{p.cantidad}</TableCell></TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+
+                        <Card className="bg-card/60 backdrop-blur-md border-border/40 overflow-hidden">
+                            <CardHeader className="border-b border-border/40 bg-amber-500/5">
+                                <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                                    <Package className="w-5 h-5 text-amber-500" />
+                                    Top 5 Productos (Cantidad)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-6">
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={topProductos} layout="vertical" margin={{ left: 50 }}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="nombre" type="category" width={120} fontSize={10} axisLine={false} tickLine={false} />
+                                        <Tooltip />
+                                        <Bar dataKey="cantidad" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <Card className="bg-card/60 backdrop-blur-md border-border/40 overflow-hidden">
+                        <CardHeader className="border-b border-border/40 bg-primary/5 flex flex-row items-center justify-between">
+                            <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                                <BookOpen className="w-5 h-5 text-primary" />
+                                Desglose por OS ({pedidosFiltrados.length})
+                            </CardTitle>
+                            <div className="flex items-center gap-2">
+                                <Checkbox checked={selectedPedidos.size === pedidosFiltrados.length} onCheckedChange={handleSelectAll} className="rounded-md" />
+                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground leading-none">Seleccionar Todos</span>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="hover:bg-transparent border-border/40 font-black uppercase text-[10px] tracking-widest">
+                                        <TableHead className="w-12 text-center"></TableHead>
+                                        <TableHead>Número OS</TableHead>
+                                        <TableHead>Cliente</TableHead>
+                                        <TableHead>Fecha</TableHead>
+                                        <TableHead className="text-right">PVP Total</TableHead>
+                                        <TableHead className="text-right">Coste Total</TableHead>
+                                        <TableHead className="text-right pr-6">Margen %</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {pedidosFiltrados.map((p) => {
+                                        const isSelected = selectedPedidos.has(p.os.id);
+                                        const pvp = p.os.tarifa === 'IFEMA' ? p.pvpIfemaTotal : p.pvpTotal;
+                                        const margin = pvp - p.costeTotal;
+                                        const marginPct = pvp > 0 ? margin / pvp : 0;
+
+                                        return (
+                                            <TableRow key={p.os.id} className={cn("border-border/40 hover:bg-primary/5 transition-colors cursor-pointer", !isSelected && "opacity-60")}>
+                                                <TableCell className="text-center" onClick={(e) => { e.stopPropagation(); handleSelect(p.os.id); }}>
+                                                    <Checkbox checked={isSelected} onCheckedChange={() => handleSelect(p.os.id)} />
+                                                </TableCell>
+                                                <TableCell className="font-mono text-xs font-bold text-primary">
+                                                    <Link href={`/os/${p.os.id}/cta-explotacion`}>{p.os.serviceNumber}</Link>
+                                                </TableCell>
+                                                <TableCell className="text-xs font-medium uppercase tracking-tight">{p.os.client}</TableCell>
+                                                <TableCell className="text-xs font-medium">{format(new Date(p.os.startDate), 'dd MMM yyyy', { locale: es })}</TableCell>
+                                                <TableCell className="text-right text-xs font-bold">{formatCurrency(pvp)}</TableCell>
+                                                <TableCell className="text-right text-xs font-bold">{formatCurrency(p.costeTotal)}</TableCell>
+                                                <TableCell className={cn("text-right pr-6 text-xs font-black", marginPct < 0 ? 'text-destructive' : 'text-emerald-600')}>
+                                                    {formatPercentage(marginPct)}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="transporte" className="space-y-6">
+                    <div className="grid lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-1 space-y-4">
+                            <KpiCard title="Total Transporte" value={formatCurrency(transportAnalysis.totalTransporte)} icon={Truck} color="blue" />
+                            <Card className="bg-card/60 backdrop-blur-md border-border/40 overflow-hidden">
+                                <CardHeader className="border-b border-border/40 bg-blue-500/5">
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-blue-600">Filtro por Proveedor</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-2 space-y-1">
+                                    <Button variant={transporteProviderFilter === 'all' ? 'secondary' : 'ghost'} className="w-full justify-start rounded-xl px-4 text-xs font-bold uppercase tracking-widest" onClick={() => setTransporteProviderFilter('all')}>Todos los proveedores</Button>
+                                    {tiposTransporte.map((t: any) => (
+                                        <Button key={t.id} variant={transporteProviderFilter === t.id ? 'secondary' : 'ghost'} className="w-full justify-start rounded-xl px-4 text-xs font-bold uppercase tracking-widest truncate" onClick={() => setTransporteProviderFilter(t.id)}>{t.nombre || t.nombreProveedor || 'Desconocido'}</Button>
+                                    ))}
                                 </CardContent>
                             </Card>
-                             <Card>
-                                <CardHeader><CardTitle>Rentabilidad por Categoría</CardTitle></CardHeader>
-                                <CardContent>
+                        </div>
+                        <div className="lg:col-span-2">
+                            <Card className="bg-card/60 backdrop-blur-md border-border/40 overflow-hidden h-full">
+                                <CardHeader className="border-b border-border/40 bg-blue-500/5 flex flex-row items-center justify-between">
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-blue-600">Resumen por Proveedor</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0">
                                     <Table>
-                                        <TableHeader><TableRow><TableHead>Categoría</TableHead><TableHead className="text-right">Margen Bruto</TableHead><TableHead className="text-right">Margen %</TableHead></TableRow></TableHeader>
+                                        <TableHeader>
+                                            <TableRow className="hover:bg-transparent border-border/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                                <TableHead>Proveedor</TableHead>
+                                                <TableHead className="text-center">Servicios</TableHead>
+                                                <TableHead className="text-right pr-6">Coste Total</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
                                         <TableBody>
-                                            {rentabilidadPorCategoria.map(c => (
-                                                <TableRow key={c.categoria}><TableCell>{c.categoria}</TableCell><TableCell className="text-right">{formatCurrency(c.margen)}</TableCell><TableCell className={cn("text-right font-medium", c.margenPct < 0 && 'text-destructive')}>{c.margenPct.toFixed(1)}%</TableCell></TableRow>
+                                            {transportAnalysis.filteredProviders.map(p => (
+                                                <TableRow key={p.id} className="border-border/40 hover:bg-blue-500/5 transition-colors">
+                                                    <TableCell className="text-xs font-bold uppercase tracking-tight">{p.name}</TableCell>
+                                                    <TableCell className="text-center font-mono font-bold">{p.count}</TableCell>
+                                                    <TableCell className="text-right pr-6 text-xs font-black">{formatCurrency(p.coste)}</TableCell>
+                                                </TableRow>
                                             ))}
                                         </TableBody>
                                     </Table>
@@ -677,250 +689,98 @@ export default function AnaliticaEntregasPage() {
                         </div>
                     </div>
                 </TabsContent>
-                  <TabsContent value="partner">
-                    <div className="flex gap-2 flex-wrap mb-4">
-                        <Button size="sm" variant={partnerProviderFilter === 'all' ? 'default' : 'outline'} onClick={() => setPartnerProviderFilter('all')}>Todos</Button>
-                        {uniquePartnerProviders.map(proveedor => (
-                            <Button key={proveedor.id} size="sm" variant={partnerProviderFilter === proveedor.id ? 'default' : 'outline'} onClick={() => setPartnerProviderFilter(proveedor.id)}>
-                                {proveedor.nombreComercial}
-                            </Button>
-                        ))}
-                    </div>
-                    <div className="grid md:grid-cols-[1fr_400px] gap-8 items-start">
-                        <Card>
-                            <CardHeader><CardTitle>Top 5 Productos de Partner más vendidos</CardTitle></CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {partnerAnalysis.top.map(p => (
-                                            <TableRow key={p.id}><TableCell>{p.nombre}</TableCell><TableCell className="text-right font-medium">{p.cantidad}</TableCell></TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
-                        <div className="space-y-4">
-                             <Card>
-                                <CardHeader><CardTitle>Rentabilidad de Partner</CardTitle></CardHeader>
-                                <CardContent className="space-y-2">
-                                    <div className="flex justify-between font-semibold"><span>Facturación (PVP)</span><span>{formatCurrency(partnerAnalysis.pvp)}</span></div>
-                                    <div className="flex justify-between"><span>Coste</span><span>{formatCurrency(partnerAnalysis.coste)}</span></div>
-                                    <Separator className="my-2"/>
-                                    <div className="flex justify-between font-bold text-lg"><span>Margen Bruto</span><span>{formatCurrency(partnerAnalysis.margen)}</span></div>
-                                    <div className="flex justify-between font-bold text-lg"><span>Margen %</span><span className={cn(partnerAnalysis.margenPct < 0 && 'text-destructive')}>{partnerAnalysis.margenPct.toFixed(2)}%</span></div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader><CardTitle>Distribución de Coste por Partner</CardTitle></CardHeader>
-                                <CardContent>
-                                    <ResponsiveContainer width="100%" height={250}>
-                                        <PieChart>
-                                            <Pie data={partnerAnalysis.pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(props) => `${props.name} (${formatCurrency(props.value as number)})`}>
-                                                 {partnerAnalysis.pieData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="transporte">
-                    <div className="flex gap-2 flex-wrap mb-4">
-                        <Button size="sm" variant={transporteProviderFilter === 'all' ? 'default' : 'outline'} onClick={() => setTransporteProviderFilter('all')}>Todos</Button>
-                        {proveedoresTransporte.map(p => p.nombreProveedor).filter((v, i, a) => a.indexOf(v) === i).map(name => (
-                            <Button key={name} size="sm" variant={transporteProviderFilter === proveedoresTransporte.find(p=>p.nombreProveedor === name)?.id ? 'default' : 'outline'} onClick={() => setTransporteProviderFilter(proveedoresTransporte.find(p=>p.nombreProveedor === name)?.id || 'all')}>
-                                {name}
-                            </Button>
-                        ))}
-                    </div>
-                    <div className="space-y-8">
-                         <div className="grid md:grid-cols-3 gap-4">
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Coste Total Transporte</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                                <CardContent><div className="text-2xl font-bold">{formatCurrency(transporteAnalysis.costeTotal)}</div></CardContent>
-                            </Card>
-                             <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Nº Total de Viajes</CardTitle><Truck className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                                <CardContent><div className="text-2xl font-bold">{transporteAnalysis.totalViajes}</div></CardContent>
-                            </Card>
-                             <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Coste Medio por Viaje</CardTitle><Euro className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                                <CardContent><div className="text-2xl font-bold">{formatCurrency(transporteAnalysis.costeMedio)}</div></CardContent>
-                            </Card>
-                        </div>
 
-                         <div className="grid lg:grid-cols-2 gap-4">
-                            <Card>
-                                <CardHeader><CardTitle>Distribución de Viajes por Transportista</CardTitle></CardHeader>
-                                <CardContent>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <PieChart>
-                                            <Pie data={transporteAnalysis.pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
-                                                 {transporteAnalysis.pieData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip formatter={(value) => `${value} viajes`} />
-                                            <Legend />
-                                        </PieChart>
-                                    </ResponsiveContainer>
+                <TabsContent value="personal" className="space-y-6">
+                    <div className="grid lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-1 space-y-4">
+                            <KpiCard title="Total Personal" value={formatCurrency(personalAnalysis.totalPersonal)} icon={UserCheck} color="emerald" />
+                            <Card className="bg-card/60 backdrop-blur-md border-border/40 overflow-hidden">
+                                <CardHeader className="border-b border-border/40 bg-emerald-500/5">
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-emerald-600">Filtro por Categoría</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-2 space-y-1">
+                                    <Button variant={personalProviderFilter === 'all' ? 'secondary' : 'ghost'} className="w-full justify-start rounded-xl px-4 text-xs font-bold uppercase tracking-widest" onClick={() => setPersonalProviderFilter('all')}>Todas las categorías</Button>
+                                    {categoriasPersonal.map((c: any) => (
+                                        <Button key={c.id} variant={personalProviderFilter === c.id ? 'secondary' : 'ghost'} className="w-full justify-start rounded-xl px-4 text-xs font-bold uppercase tracking-widest truncate" onClick={() => setPersonalProviderFilter(c.id)}>{c.nombre || c.categoria || 'Sin Nombre'}</Button>
+                                    ))}
                                 </CardContent>
                             </Card>
-                             <Card>
-                                <CardHeader><CardTitle>Costes de Transporte Mensuales</CardTitle></CardHeader>
-                                <CardContent className="pl-0">
-                                     <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={transporteAnalysis.monthlyChartData}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value: any) => formatCurrency(Number(value))} />
-                                            <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
-                                            <Bar dataKey="Coste" fill="#8884d8" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                         </div>
-                         <Card>
-                            <CardHeader>
-                                <div className="flex justify-between items-center">
-                                    <CardTitle>Listado de Viajes</CardTitle>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                 <Table>
-                                    <TableHeader><TableRow><TableHead>OS</TableHead><TableHead>Proveedor</TableHead><TableHead>Tipo Vehículo</TableHead><TableHead className="text-right">Coste</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {transporteAnalysis.listado.map(t => (
-                                            <TableRow key={t.id}><TableCell>{allPedidos.find(p => p.os.id === t.osId)?.os.serviceNumber}</TableCell><TableCell>{t.proveedorNombre}</TableCell><TableCell>{t.tipoTransporte}</TableCell><TableCell className="text-right">{formatCurrency(t.precio)}</TableCell></TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                         </Card>
-                    </div>
-                  </TabsContent>
-                   <TabsContent value="personal">
-                    <div className="flex gap-2 flex-wrap mb-4">
-                        <Button size="sm" variant={personalProviderFilter === 'all' ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter('all')}>Todos</Button>
-                        {uniquePersonalProviders.map(proveedor => (
-                            <Button key={proveedor.id} size="sm" variant={personalProviderFilter === proveedor.id ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter(proveedor.id)}>
-                                {proveedor.nombreComercial}
-                            </Button>
-                        ))}
-                    </div>
-                    <div className="space-y-8">
-                        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Coste Total Planificado</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                                <CardContent><div className="text-2xl font-bold">{formatCurrency(personalAnalysis.costeTotalPlan)}</div></CardContent>
-                            </Card>
-                             <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Coste Total Personal</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                                <CardContent><div className="text-2xl font-bold">{formatCurrency(personalAnalysis.costeFinal)}</div><p className="text-xs text-muted-foreground">Coste real + ajustes</p></CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Desviación de Costes</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                                <CardContent><div className={cn("text-2xl font-bold", personalAnalysis.costeFinal - personalAnalysis.costeTotalPlan >= 0 ? "text-destructive" : "text-green-600")}>{formatCurrency(personalAnalysis.costeFinal - personalAnalysis.costeTotalPlan)}</div><p className="text-xs text-muted-foreground">vs. planificado</p></CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Nº de empleados</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                                <CardContent><div className="text-2xl font-bold">{personalAnalysis.totalTurnos}</div></CardContent>
-                            </Card>
-                             <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Horas</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                                <CardContent><div className="text-2xl font-bold">{formatNumber(personalAnalysis.horasReal, 2)}h</div><p className="text-xs text-muted-foreground">Planificadas: {formatNumber(personalAnalysis.horasPlan, 2)}h</p></CardContent>
-                             </Card>
                         </div>
-                        <div className="grid lg:grid-cols-2 gap-4">
-                             <Card>
-                                <CardHeader><CardTitle>Coste por Proveedor de Personal</CardTitle></CardHeader>
-                                <CardContent>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <PieChart>
-                                            <Pie data={personalAnalysis.pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={(props) => `${props.name} (${formatCurrency(props.value as number)})`}>
-                                                 {personalAnalysis.pieData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip formatter={(_value, name, props) => {
-                                                const total = personalAnalysis.costeFinal;
-                                                const percentage = total > 0 ? ((props.payload.value / total) * 100).toFixed(2) : 0;
-                                                return [`${percentage}%`, name];
-                                            }} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                             <Card>
-                                <CardHeader><CardTitle>Ajustes Manuales de Coste</CardTitle></CardHeader>
-                                <CardContent>
-                                     <Table>
-                                        <TableHeader><TableRow><TableHead>Servicio</TableHead><TableHead>Fecha</TableHead><TableHead>Concepto</TableHead><TableHead className="text-right">Importe</TableHead></TableRow></TableHeader>
+                        <div className="lg:col-span-2">
+                            <Card className="bg-card/60 backdrop-blur-md border-border/40 overflow-hidden h-full">
+                                <CardHeader className="border-b border-border/40 bg-emerald-500/5 flex flex-row items-center justify-between">
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-emerald-600">Resumen por Categoría / Ajustes</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="hover:bg-transparent border-border/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                                <TableHead>Categoría / Concepto</TableHead>
+                                                <TableHead className="text-center">Turnos</TableHead>
+                                                <TableHead className="text-right pr-6">Coste Total</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
                                         <TableBody>
-                                            {personalAnalysis.ajustes.map((a, i) => (
-                                                <TableRow key={i}>
-                                                    <TableCell><Link href={`/entregas/pedido/${a.os.id}`} className="text-primary hover:underline">{a.os.serviceNumber}</Link></TableCell>
-                                                    <TableCell>{format(new Date(a.os.startDate), 'dd/MM/yy')}</TableCell>
-                                                    <TableCell>{a.concepto}</TableCell>
-                                                    <TableCell className="text-right font-medium">{formatCurrency(a.importe || 0)}</TableCell>
+                                            {personalAnalysis.filteredCategories.map(c => (
+                                                <TableRow key={c.id} className="border-border/40 hover:bg-emerald-500/5 transition-colors">
+                                                    <TableCell className="text-xs font-bold uppercase tracking-tight">{c.name}</TableCell>
+                                                    <TableCell className="text-center font-mono font-bold">{c.id === 'adjustments' ? '-' : c.count}</TableCell>
+                                                    <TableCell className="text-right pr-6 text-xs font-black">{formatCurrency(c.coste)}</TableCell>
                                                 </TableRow>
                                             ))}
-                                            <TableRow className="font-bold border-t-2"><TableCell colSpan={3}>Total Ajustes</TableCell><TableCell className="text-right">{formatCurrency(personalAnalysis.totalAjustes)}</TableCell></TableRow>
                                         </TableBody>
                                     </Table>
                                 </CardContent>
-                             </Card>
+                            </Card>
                         </div>
                     </div>
-                  </TabsContent>
-            </Tabs>
-            
-            <Accordion type="single" collapsible className="w-full mt-8">
-                <AccordionItem value="item-1" className="border-none">
-                    <Card>
-                        <AccordionTrigger className="py-2 px-4">
-                            <CardTitle>Listado de Pedidos en el Periodo ({pedidosFiltrados.length})</CardTitle>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <CardContent className="pt-2">
-                                <div className="border rounded-lg max-h-96 overflow-y-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-12"><Checkbox onCheckedChange={handleSelectAll} checked={selectedPedidos.size === pedidosFiltrados.length && pedidosFiltrados.length > 0} /></TableHead>
-                                            <TableHead>Nº Pedido</TableHead>
-                                            <TableHead>Tarifa</TableHead>
-                                            <TableHead>Cliente</TableHead>
-                                            <TableHead className="text-right">Coste</TableHead>
-                                            <TableHead className="text-right">PVP</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {pedidosFiltrados.map(p => (
-                                            <TableRow key={p.os.id} onClick={() => handleSelect(p.os.id)} className="cursor-pointer">
-                                                <TableCell><Checkbox checked={selectedPedidos.has(p.os.id)} /></TableCell>
-                                                <TableCell className="font-medium">{p.os.serviceNumber}</TableCell>
-                                                <TableCell>{p.os.tarifa}</TableCell>
-                                                <TableCell>{p.os.client}</TableCell>
-                                                <TableCell className="text-right">{formatCurrency(p.costeTotal)}</TableCell>
-                                                <TableCell className="text-right font-bold">{formatCurrency(p.os.tarifa === 'IFEMA' ? p.pvpIfemaTotal : p.pvpTotal)}</TableCell>
+                </TabsContent>
+
+                <TabsContent value="partners" className="space-y-6">
+                    <div className="grid lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-1 space-y-4">
+                            <Card className="bg-card/60 backdrop-blur-md border-border/40 overflow-hidden">
+                                <CardHeader className="border-b border-border/40 bg-amber-500/5">
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-amber-600">Filtro por Partner</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-2 space-y-1">
+                                    <Button variant={partnerProviderFilter === 'all' ? 'secondary' : 'ghost'} className="w-full justify-start rounded-xl px-4 text-xs font-bold uppercase tracking-widest" onClick={() => setPartnerProviderFilter('all')}>Todos los partners</Button>
+                                    {partnerAnalysis.partnersList.map(p => (
+                                        <Button key={p.id} variant={partnerProviderFilter === p.id ? 'secondary' : 'ghost'} className="w-full justify-start rounded-xl px-4 text-xs font-bold uppercase tracking-widest truncate" onClick={() => setPartnerProviderFilter(p.id)}>{p.name}</Button>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        </div>
+                        <div className="lg:col-span-2">
+                            <Card className="bg-card/60 backdrop-blur-md border-border/40 overflow-hidden h-full">
+                                <CardHeader className="border-b border-border/40 bg-amber-500/5 flex flex-row items-center justify-between">
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-amber-600">Rendimiento por Partner</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="hover:bg-transparent border-border/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                                <TableHead>Partner</TableHead>
+                                                <TableHead className="text-center">Unidades</TableHead>
+                                                <TableHead className="text-right pr-6">Volumen Compra</TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                                </div>
-                            </CardContent>
-                        </AccordionContent>
-                    </Card>
-                </AccordionItem>
-            </Accordion>
-            
-        </main>
-    )
+                                        </TableHeader>
+                                        <TableBody>
+                                            {partnerAnalysis.filteredPartners.map(p => (
+                                                <TableRow key={p.id} className="border-border/40 hover:bg-amber-500/5 transition-colors">
+                                                    <TableCell className="text-xs font-bold uppercase tracking-tight">{p.name}</TableCell>
+                                                    <TableCell className="text-center font-mono font-bold">{p.count}</TableCell>
+                                                    <TableCell className="text-right pr-6 text-xs font-black">{formatCurrency(p.value)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
 }

@@ -22,6 +22,7 @@ import {
   SheetTitle,
   SheetTrigger,
   SheetClose,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import { Menu } from 'lucide-react';
 import { allNavSections } from '@/lib/nav-config';
@@ -129,6 +130,9 @@ export function Header() {
                 <UtensilsCrossed className="h-5 w-5" />
                 MICE Catering
               </SheetTitle>
+              <SheetDescription className="sr-only">
+                Navegación principal del sistema
+              </SheetDescription>
             </SheetHeader>
             <nav className="flex flex-col gap-6 mt-6">
               {allNavSections.map((section) => (

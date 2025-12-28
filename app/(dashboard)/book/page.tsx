@@ -25,7 +25,7 @@ import {
     BookHeart, ChefHat, Component, BookCheck, AlertCircle, 
     TrendingUp, Activity, Trash2, ShieldCheck, 
     ShieldAlert, Sprout, ThermometerSnowflake, Flame, Cookie, PackageOpen,
-    BarChart3, ArrowUpRight, ArrowDownRight, Minus
+    BarChart3, ArrowUpRight, ArrowDownRight, Minus, Plus
 } from 'lucide-react';
 
 // Hooks & Libs
@@ -431,22 +431,35 @@ export default function BookDashboardPage() {
     if (isLoading || !stats) return <LoadingSkeleton title="Cargando Dashboard..." />;
 
     return (
-        <main className="min-h-screen bg-background pb-20">
+        <main className="min-h-screen bg-background/30 pb-20">
             
-            {/* HEADER STICKY */}
-            <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-                    <div className="flex items-center w-full">
-                        <div className="flex-1 w-full">
-                            <div className="relative shadow-md rounded-lg border-2 border-primary/20 focus-within:border-primary/50 transition-all bg-background">
-                                <GlobalSearch />
-                            </div>
+            {/* Header Premium Sticky */}
+            <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
+                <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
+                    <div className="flex items-center">
+                        <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                            <ChefHat className="h-5 w-5 text-emerald-500" />
                         </div>
+                    </div>
+
+                    <div className="flex-1 hidden md:block">
+                        <div className="relative group">
+                            <GlobalSearch />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <Button size="sm" variant="outline" asChild className="h-8 text-[10px] font-black uppercase tracking-widest border-border/40 bg-background/50">
+                            <Link href="/book/recetas/nueva">
+                                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                                Nueva Receta
+                            </Link>
+                        </Button>
                     </div>
                 </div>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+            <div className="px-4 sm:px-6 pt-0 pb-6 space-y-6 max-w-7xl mx-auto">
                 
                 {/* SECCIÓN 1: ESTRUCTURA */}
                 <div>

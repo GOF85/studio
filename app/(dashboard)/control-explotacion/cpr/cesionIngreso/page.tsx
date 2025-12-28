@@ -18,6 +18,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+import { useCprCesionesPersonal } from '@/hooks/use-cpr-data';
+import { usePersonal } from '@/hooks/use-data-queries';
+
 type DetalleIngreso = CesionStorage & {
     costeReal: number;
     costePlanificado: number;
@@ -25,7 +28,6 @@ type DetalleIngreso = CesionStorage & {
 
 function CesionIngresoPageInner() {
     const [isMounted, setIsMounted] = useState(false);
-    const [detalles, setDetalles] = useState<DetalleIngreso[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState('all');
     const searchParams = useSearchParams() ?? new URLSearchParams();
@@ -33,29 +35,27 @@ function CesionIngresoPageInner() {
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
-    useEffect(() => {
-        if (!from || !to) {
-            setIsMounted(true);
-            return;
-        }
+    const { data: allCesiones = [] } = useCprCesionesPersonal();
+    const { data: allPersonal = [] } = usePersonal();
+
+    const personalMap = useMemo(() => new Map(allPersonal.map(p => [p.nombreCompleto, p])), [allPersonal]);
+
+    const detalles = useMemo(() => {
+        if (!from || !to || !allCesiones.length) return [];
 
         const rangeStart = startOfDay(parseISO(from));
         const rangeEnd = endOfDay(parseISO(to));
         
-        const allCesiones = (JSON.parse(localStorage.getItem('cesionesPersonal') || '[]') as CesionStorage[])
-            .filter(c => {
-                if (!c.fecha) return false;
-                try {
-                    const [year, month, day] = c.fecha.split('-').map(Number);
-                    const fechaCesion = new Date(year, month - 1, day);
-                    return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
-                } catch(e) { return false; }
-            });
+        const filteredCesiones = allCesiones.filter(c => {
+            if (!c.fecha) return false;
+            try {
+                const [year, month, day] = c.fecha.split('-').map(Number);
+                const fechaCesion = new Date(year, month - 1, day);
+                return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
+            } catch(e) { return false; }
+        });
             
-        const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        const personalMap = new Map(allPersonal.map(p => [p.nombreCompleto, p]));
-
-        const ingresosDetallados: DetalleIngreso[] = allCesiones
+        const ingresosDetallados: DetalleIngreso[] = filteredCesiones
             .filter(c => {
                 const p = personalMap.get(c.nombre);
                 return p && p.departamento === 'CPR' && c.centroCoste !== 'CPR';
@@ -70,9 +70,12 @@ function CesionIngresoPageInner() {
                 }
             });
         
-        setDetalles(ingresosDetallados.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
+        return ingresosDetallados.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+    }, [from, to, allCesiones, personalMap]);
+
+    useEffect(() => {
         setIsMounted(true);
-    }, [from, to]);
+    }, []);
     
     const uniqueDepartments = useMemo(() => {
         const departments = new Set<string>();

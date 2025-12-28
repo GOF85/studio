@@ -11,17 +11,17 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { DialogTitle } from '@/components/ui/dialog';
+import { DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
 type SearchResult = {
-    id: string;
-    numero_expediente: string;
-    nombre_evento: string;
-    fecha_inicio: string;
-    estado: string;
+  id: string;
+  numero_expediente: string;
+  client: string;
+  start_date: string;
+  status: string;
 };
 
 export function ServiceOrderSearch() {
@@ -34,31 +34,31 @@ export function ServiceOrderSearch() {
   const fetchOrders = async (query: string = '') => {
     setLoading(true);
     try {
-        let dbQuery = supabase
-            .from('eventos')
-            .select('id, numero_expediente, nombre_evento, fecha_inicio, estado')
-            .order('fecha_inicio', { ascending: false })
-            .limit(20);
+      let dbQuery = supabase
+        .from('eventos')
+        .select('id, numero_expediente, client, start_date, status')
+        .order('start_date', { ascending: false })
+        .limit(20);
 
-        if (query) {
-            dbQuery = dbQuery.or(`numero_expediente.ilike.%${query}%,nombre_evento.ilike.%${query}%`);
-        }
+      if (query) {
+        dbQuery = dbQuery.or(`numero_expediente.ilike.%${query}%,client.ilike.%${query}%`);
+      }
 
-        const { data, error } = await dbQuery;
-        
-        if (error) throw error;
-        if (data) setResults(data);
+      const { data, error } = await dbQuery;
+
+      if (error) throw error;
+      if (data) setResults(data as unknown as SearchResult[]);
     } catch (error) {
-        console.error("Error buscando servicios:", error);
+      console.error("Error buscando servicios:", error);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
   // Cargar inicial al abrir
   React.useEffect(() => {
     if (open) {
-        fetchOrders();
+      fetchOrders();
     }
   }, [open]);
 
@@ -96,45 +96,48 @@ export function ServiceOrderSearch() {
         </kbd>
       </Button>
 
-      <CommandDialog 
-        open={open} 
+      <CommandDialog
+        open={open}
         onOpenChange={setOpen}
       >
         <DialogTitle className="sr-only">Buscar Orden de Servicio</DialogTitle>
-        
-        <CommandInput 
-            placeholder="Escribe Nº expediente o nombre..." 
-            onValueChange={(val) => fetchOrders(val)}
+        <DialogDescription className="sr-only">
+          Busca y selecciona una orden de servicio por número de expediente o nombre.
+        </DialogDescription>
+
+        <CommandInput
+          placeholder="Escribe Nº expediente o nombre..."
+          onValueChange={(val) => fetchOrders(val)}
         />
-        
+
         <CommandList className="min-h-[300px]">
           {loading ? (
-             <div className="py-10 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-primary/50" /> 
-                <span>Buscando servicios...</span>
-             </div>
+            <div className="py-10 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
+              <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+              <span>Buscando servicios...</span>
+            </div>
           ) : results.length === 0 ? (
             <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
-               No se encontraron servicios.
+              No se encontraron servicios.
             </CommandEmpty>
           ) : (
             <CommandGroup heading="Resultados">
-                {results.map((os) => (
+              {results.map((os) => (
                 <CommandItem
-                    key={os.id}
-                    value={`${os.numero_expediente} ${os.nombre_evento}`}
-                    onSelect={() => runCommand(() => router.push(`/os/${os.id}`))}
-                    className="cursor-pointer aria-selected:bg-accent"
+                  key={os.id}
+                  value={`${os.numero_expediente} ${os.client}`}
+                  onSelect={() => runCommand(() => router.push(`/os/${os.id}/info`))}
+                  className="cursor-pointer aria-selected:bg-accent"
                 >
-                    <FileText className="mr-3 h-4 w-4 text-blue-500 shrink-0" />
-                    <div className="flex flex-col">
-                        <span className="font-medium text-sm">{os.numero_expediente} <span className="text-muted-foreground font-normal">- {os.nombre_evento}</span></span>
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
-                            {new Date(os.fecha_inicio).toLocaleDateString()} • <span className={cn(os.estado === 'CONFIRMADO' ? 'text-green-600' : 'text-amber-600')}>{os.estado}</span>
-                        </span>
-                    </div>
+                  <FileText className="mr-3 h-4 w-4 text-blue-500 shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-sm">{os.numero_expediente} <span className="text-muted-foreground font-normal">- {os.client}</span></span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
+                      {os.start_date ? new Date(os.start_date).toLocaleDateString() : 'Sin fecha'} • <span className={cn(os.status?.toUpperCase() === 'CONFIRMADO' ? 'text-green-600' : 'text-amber-600')}>{os.status}</span>
+                    </span>
+                  </div>
                 </CommandItem>
-                ))}
+              ))}
             </CommandGroup>
           )}
         </CommandList>

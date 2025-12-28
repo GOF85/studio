@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useCprStockElaboraciones, useCprPickingStates, useCprOrdenesFabricacion, useCprElaboraciones } from '@/hooks/use-cpr-data';
 
 type StockDisplayItem = {
   elaboracionId: string;
@@ -36,26 +37,26 @@ type StockDisplayItem = {
 };
 
 export default function ExcedentesPage() {
-  const [isMounted, setIsMounted] = useState(false);
+  const { data: allStock = {} } = useCprStockElaboraciones();
+  const { data: allPickingStates = [] } = useCprPickingStates();
+  const { data: allOFs = [] } = useCprOrdenesFabricacion();
+  const { data: allElaboraciones = [] } = useCprElaboraciones();
+
   const [searchTerm, setSearchTerm] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
 
-  const [stock, setStock] = useState<StockDisplayItem[]>([]);
-  const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
-
   useEffect(() => {
-    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    setIsMounted(true);
+  }, []);
+
+  const stock = useMemo(() => {
     const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
-    setElaboracionesMap(elabMap);
-    
-    const allStock = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}') as Record<string, StockElaboracion>;
-    const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
-    const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
     const ofsMap = new Map(allOFs.map(of => [of.id, of]));
 
     // Calcular las cantidades asignadas en todos los pickings
     const assignedQuantities: Record<string, number> = {};
-    Object.values(allPickingStates).forEach(pickingState => {
+    allPickingStates.forEach(pickingState => {
         (pickingState.itemStates || []).forEach(loteAsignado => {
             const of = ofsMap.get(loteAsignado.ofId);
             if (of) {
@@ -89,16 +90,15 @@ export default function ExcedentesPage() {
             elaboracionId: item.elaboracionId,
             elaboracionNombre: elab?.nombre || 'Desconocido',
             cantidadTotal: cantidadDisponible,
-            unidad: item.unidad,
+            unidad: item.unidad || '',
             valoracion: cantidadDisponible * costeUnitario,
             caducidadProxima,
             estado
         };
     }).filter(item => item.cantidadTotal > 0.01);
 
-    setStock(stockItems);
-    setIsMounted(true);
-  }, []);
+    return stockItems;
+  }, [allStock, allPickingStates, allOFs, allElaboraciones]);
 
   const filteredItems = useMemo(() => {
     return stock.filter(item => 

@@ -17,8 +17,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Combobox } from '@/components/ui/combobox';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Input } from '@/components/ui/input';
+import { usePerfiles, useCreatePerfil, useUpdatePerfil, useProveedores } from '@/hooks/use-data-queries';
 
 
 export const portalUserSchema = z.object({
@@ -43,10 +45,12 @@ export default function PortalUserFormPage() {
   const id = (params.id as string) || '';
   const isEditing = id !== 'nuevo';
 
-  const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
   
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const { data: perfiles = [], isLoading: loadingPerfiles } = usePerfiles();
+  const { data: proveedores = [], isLoading: loadingProveedores } = useProveedores();
+  const createPerfil = useCreatePerfil();
+  const updatePerfil = useUpdatePerfil();
 
   const form = useForm<PortalUserFormValues>({
     resolver: zodResolver(portalUserSchema),
@@ -55,68 +59,50 @@ export default function PortalUserFormPage() {
 
   const selectedProviderId = form.watch('proveedorId');
   const selectedFiscalData = useMemo(() => {
-    // This logic needs to be adapted as we don't have fiscal data directly on the provider anymore
-    // For now, we can just show the provider name.
-    return proveedores.find(df => df.id === selectedProviderId);
+    return proveedores.find((df: any) => df.id === selectedProviderId);
   }, [selectedProviderId, proveedores]);
 
   useEffect(() => {
-    const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-    setProveedores(allProveedores);
-
-    if (isEditing) {
-      const items = JSON.parse(localStorage.getItem('portalUsers') || '[]') as PortalUser[];
-      const item = items.find(p => p.id === id);
+    if (isEditing && perfiles.length > 0) {
+      const item = perfiles.find((p: any) => p.id === id);
       if (item) {
-        form.reset(item);
-      } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el usuario.' });
-        router.push('/portal/gestion-accesos');
+        form.reset({
+            id: item.id,
+            nombre: item.nombre_completo,
+            email: item.email || '',
+            roles: [item.rol],
+            proveedorId: item.proveedor_id
+        });
       }
-    } else {
-        form.reset({...defaultValues, id: Date.now().toString() });
+    } else if (!isEditing) {
+        form.reset({...defaultValues, id: 'temp' });
     }
-  }, [id, isEditing, form, router, toast]);
+  }, [id, isEditing, perfiles, form]);
 
-  function onSubmit(data: PortalUserFormValues) {
-    setIsLoading(true);
-
-    let allItems = JSON.parse(localStorage.getItem('portalUsers') || '[]') as PortalUser[];
-    let message = '';
-    
-    if (isEditing) {
-      const index = allItems.findIndex(p => p.id === id);
-      if (index !== -1) {
-        allItems[index] = data as PortalUser;
-        message = 'Usuario actualizado correctamente.';
-      }
-    } else {
-       const existing = allItems.find(p => p.email.toLowerCase() === data.email.toLowerCase());
-        if (existing) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un usuario con este email.' });
-            setIsLoading(false);
-            return;
+  async function onSubmit(data: PortalUserFormValues) {
+    try {
+        if (isEditing) {
+            await updatePerfil.mutateAsync(data);
+        } else {
+            await createPerfil.mutateAsync(data);
         }
-      allItems.push(data as PortalUser);
-      message = 'Usuario creado correctamente.';
+        router.push('/portal/gestion-accesos');
+    } catch (error) {
+        // Error handled by mutation
     }
-
-    localStorage.setItem('portalUsers', JSON.stringify(allItems));
-    
-    setTimeout(() => {
-      toast({ description: message });
-      setIsLoading(false);
-      router.push('/portal/gestion-accesos');
-    }, 1000);
   }
   
   const proveedorOptions = useMemo(() => 
-    proveedores.map(p => ({
+    proveedores.map((p: any) => ({
         value: p.id,
-        label: p.nombreComercial
+        label: p.nombre_comercial || p.nombre
     })), [proveedores]);
     
   const rolesOptions = PORTAL_ROLES.map(r => ({ label: r, value: r }));
+
+  if (loadingPerfiles || loadingProveedores) {
+    return <LoadingSkeleton title="Cargando Usuario..." />;
+  }
 
   return (
     <>
@@ -127,8 +113,8 @@ export default function PortalUserFormPage() {
                 <X className="mr-2 h-4 w-4" />
                 Cancelar
             </Button>
-            <Button type="submit" form="user-form" disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+            <Button type="submit" form="user-form" disabled={createPerfil.isPending || updatePerfil.isPending}>
+              {(createPerfil.isPending || updatePerfil.isPending) ? <Loader2 className="animate-spin" /> : <Save />}
               <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Crear y Autorizar'}</span>
             </Button>
           </div>

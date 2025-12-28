@@ -5,16 +5,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, UserPlus } from 'lucide-react';
-import type { PersonalExternoDB, Proveedor } from '@/types';
-import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { useUpsertPersonalExternoDB, useProveedores } from '@/hooks/use-data-queries';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 export const personalExternoSchema = z.object({
   id: z.string().min(1, 'El DNI/ID es obligatorio'),
@@ -26,20 +24,12 @@ export const personalExternoSchema = z.object({
   email: z.string().email('Debe ser un email válido').optional().or(z.literal('')),
 });
 
-type PersonalExternoFormValues = z.infer<typeof personalExternoSchema>;
+export type PersonalExternoFormValues = z.infer<typeof personalExternoSchema>;
 
 export default function NuevoPersonalExternoPage() {
   const router = useRouter();
-  const { isLoading, setIsLoading } = useLoadingStore();
-  const { toast } = useToast();
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-
-  useEffect(() => {
-    const storedProveedores = localStorage.getItem('proveedores');
-    if (storedProveedores) {
-        setProveedores(JSON.parse(storedProveedores));
-    }
-  }, []);
+  const { data: proveedores = [], isLoading: isLoadingProveedores } = useProveedores();
+  const upsertMutation = useUpsertPersonalExternoDB();
 
   const form = useForm<PersonalExternoFormValues>({
     resolver: zodResolver(personalExternoSchema),
@@ -54,39 +44,24 @@ export default function NuevoPersonalExternoPage() {
     },
   });
 
-  function onSubmit(data: PersonalExternoFormValues) {
-    setIsLoading(true);
-
-    const allItems = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
-    
-    const existing = allItems.find(p => p.id.toLowerCase() === data.id.toLowerCase());
-    if (existing) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un trabajador con este DNI/ID.' });
-        setIsLoading(false);
-        return;
-    }
-
+  async function onSubmit(data: PersonalExternoFormValues) {
     const nombreCompleto = `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim();
     const nombreCompacto = `${data.nombre} ${data.apellido1}`;
     
-    const finalData: PersonalExternoDB = {
-        id: data.id,
-        nombre: data.nombre,
-        apellido1: data.apellido1,
-        apellido2: data.apellido2 || '',
-        proveedorId: data.proveedorId,
-        email: data.email || undefined,
-        telefono: data.telefono || undefined,
+    try {
+      await upsertMutation.mutateAsync({
+        ...data,
         nombreCompleto,
         nombreCompacto
+      });
+      router.push('/bd/personal-externo-db');
+    } catch (error) {
+      // Error handled by mutation
     }
+  }
 
-    allItems.push(finalData);
-    localStorage.setItem('personalExternoDB', JSON.stringify(allItems));
-    
-    toast({ description: 'Nuevo trabajador externo añadido correctamente.' });
-    router.push('/bd/personal-externo-db');
-    setIsLoading(false);
+  if (isLoadingProveedores) {
+    return <LoadingSkeleton />;
   }
 
   return (
@@ -100,8 +75,8 @@ export default function NuevoPersonalExternoPage() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" type="button" onClick={() => router.push('/bd/personal-externo-db')}> <X className="mr-2"/> Cancelar</Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+              <Button type="submit" disabled={upsertMutation.isPending}>
+                {upsertMutation.isPending ? <Loader2 className="animate-spin" /> : <Save />}
                 <span className="ml-2">Guardar</span>
               </Button>
             </div>

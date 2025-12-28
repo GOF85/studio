@@ -5,9 +5,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Loader2, Save, X, BookHeart, Trash2 } from 'lucide-react';
-import type { CategoriaReceta } from '@/types';
 import { categoriaRecetaSchema, type CategoriaRecetaFormValues } from '../nuevo/page';
 
 import { Button } from '@/components/ui/button';
@@ -17,14 +15,18 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { supabase } from '@/lib/supabase';
+import { useCategoriaReceta, useUpsertCategoriaReceta, useDeleteCategoriaReceta } from '@/hooks/use-data-queries';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 export default function EditarCategoriaRecetaPage() {
   const router = useRouter();
   const params = useParams() ?? {};
   const id = (params.id as string) || '';
 
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: item, isLoading: isLoadingData } = useCategoriaReceta(id);
+  const upsertMutation = useUpsertCategoriaReceta();
+  const deleteMutation = useDeleteCategoriaReceta();
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
 
@@ -33,56 +35,37 @@ export default function EditarCategoriaRecetaPage() {
   });
 
   useEffect(() => {
-    const fetchCategoria = async () => {
-      const { data: item, error } = await supabase
-        .from('categorias_recetas')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error || !item) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la categoría.' });
-        router.push('/bd/categorias-recetas');
-      } else {
-        form.reset(item);
-      }
-    };
-    fetchCategoria();
-  }, [id, form, router, toast]);
+    if (item) {
+      form.reset(item);
+    }
+  }, [item, form]);
 
   async function onSubmit(data: CategoriaRecetaFormValues) {
-    setIsLoading(true);
-
-    const { error } = await supabase
-      .from('categorias_recetas')
-      .update({
-        nombre: data.nombre,
-        snack: data.snack
-      })
-      .eq('id', id);
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar la categoría: ' + error.message });
-    } else {
+    try {
+      await upsertMutation.mutateAsync({
+        ...data,
+        id
+      });
       toast({ description: 'Categoría actualizada correctamente.' });
       router.push('/bd/categorias-recetas');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar la categoría: ' + error.message });
     }
-    setIsLoading(false);
   }
 
   const handleDelete = async () => {
-    const { error } = await supabase
-      .from('categorias_recetas')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la categoría: ' + error.message });
-    } else {
+    try {
+      await deleteMutation.mutateAsync(id);
       toast({ title: 'Categoría eliminada' });
       router.push('/bd/categorias-recetas');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la categoría: ' + error.message });
     }
   };
+
+  if (isLoadingData) {
+    return <LoadingSkeleton title="Cargando Categoría..." />;
+  }
 
   return (
     <>

@@ -41,22 +41,6 @@ export default function RRHHUsuariosPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            // 1. Fetch Personal
-            // In a real app with Supabase, we would fetch from 'personal' table
-            // For now, we might need to rely on localStorage if migration isn't fully done or if we want to show both
-            // But the plan said we migrated tables. Let's try to fetch from Supabase 'personal'
-            // If empty, maybe fallback to localStorage for demo purposes?
-            // The user said "La base de datos de usuario está vacía".
-            // So we assume we need to populate it or it's empty.
-            // But 'personal' table should have data if we migrated.
-            // Since I didn't write a migration script to move data from localStorage to Supabase, the tables are likely empty.
-            // I should probably provide a way to "Import from LocalStorage" or just read from LocalStorage for now and save to Supabase when requesting access.
-            // The user said "Genera un Bank Office que puedan utilizar recursos humanos para actualizar los datos directamente en la aplicación".
-            // So maybe I should just read from Supabase and if empty, show empty.
-            // But for the "Solicitar Acceso" to work, we need data.
-            // I will implement a "Sync from LocalStorage" button for dev/migration purposes if needed, or just assume data is there.
-            // Given the context, I'll try to fetch from Supabase. If error/empty, I'll try to load from localStorage to show something and allow "Import & Request".
-
             const { data: personalData, error: personalError } = await supabase.from('personal').select('*');
             const { data: proveedoresData, error: proveedoresError } = await supabase.from('proveedores').select('*');
             const { data: perfilesData, error: perfilesError } = await supabase.from('perfiles').select('personal_id, proveedor_id, estado, id');

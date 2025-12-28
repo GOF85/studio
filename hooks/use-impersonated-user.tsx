@@ -14,26 +14,11 @@ const ImpersonatedUserContext = createContext<ImpersonatedUserContextType | unde
 export function ImpersonatedUserProvider({ children }: { children: ReactNode }) {
   const [impersonatedUser, setImpersonatedUserState] = useState<PortalUser | null>(null);
 
-  useEffect(() => {
-    // On initial load, try to get the user from localStorage
-    const storedUser = localStorage.getItem('impersonatedUser');
-    if (storedUser) {
-      try {
-        setImpersonatedUserState(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Failed to parse impersonated user from localStorage", e);
-        localStorage.removeItem('impersonatedUser');
-      }
-    }
-  }, []);
+  // Eliminado: persistencia en localStorage. El usuario suplantado solo vive en memoria/contexto.
 
   const setImpersonatedUser = (user: PortalUser | null) => {
     setImpersonatedUserState(user);
-    if (user) {
-      localStorage.setItem('impersonatedUser', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('impersonatedUser');
-    }
+    // Ya no se persiste en localStorage
   };
 
   return (

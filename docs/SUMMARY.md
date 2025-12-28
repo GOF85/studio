@@ -10,3 +10,5 @@
 - [Guías y Best Practices](guias/)
 - [Usuario](usuario/)
 - [Desarrollador](dev/)
+- [Estado Final Implementación](ESTADO_FINAL_IMPLEMENTACION.md)
+- [Reporte Final Migración Supabase](REPORTE_FINAL_MIGRACION_SUPABASE.md)

@@ -24,6 +24,8 @@ import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useCprOrdenesFabricacion, useCprElaboraciones } from '@/hooks/use-cpr-data';
+import { usePersonal, useIngredientesInternos, useArticulosERP } from '@/hooks/use-data-queries';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' | 'success' } = {
   'Pendiente': 'secondary',
@@ -181,40 +183,34 @@ function TareaRow({ of, router }: { of: OrdenFabricacion, router: any }) {
 
 
 export default function ProduccionPage() {
-  const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
-  const [selectedCocinero, setSelectedCocinero] = useState<string | null>(null);
-  const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);
-  const [elaboraciones, setElaboraciones] = useState<Map<string, Elaboracion>>(new Map());
-  const [ingredientes, setIngredientes] = useState<Map<string, IngredienteConERP>>(new Map());
-  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
+  const { data: personal = [], isLoading: isLoadingPersonal } = usePersonal();
+  const { data: ordenes = [], isLoading: isLoadingOFs } = useCprOrdenesFabricacion();
+  const { data: elaboracionesList = [], isLoading: isLoadingElabs } = useCprElaboraciones();
+  const { data: ingredientesInternos = [], isLoading: isLoadingIngs } = useIngredientesInternos();
+  const { data: articulosERP = [], isLoading: isLoadingERP } = useArticulosERP();
 
-  useEffect(() => {
-    const allPersonal = (JSON.parse(localStorage.getItem('personal') || '[]') as Personal[]).filter(p => p.departamento === 'CPR');
-    setPersonalCPR(allPersonal);
-    
-    const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
-    setOrdenes(allOFs);
+  const [selectedCocinero, setSelectedCocinero] = useState<string | null>(null);
 
-    const allElab = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    setElaboraciones(new Map(allElab.map(e => [e.id, e])));
-    
-    const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-    const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-    const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
-    const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
-    setIngredientes(new Map(combinedIngredientes.map(i => [i.id, i])));
+  const personalCPR = useMemo(() => 
+    personal.filter(p => p.departamento === 'CPR'), 
+  [personal]);
 
-    const lastSelected = localStorage.getItem('lastSelectedCocinero');
-    if(lastSelected) {
-        setSelectedCocinero(lastSelected);
-    }
-    setIsMounted(true);
-  }, []);
+  const elaboraciones = useMemo(() => 
+    new Map(elaboracionesList.map(e => [e.id, e])), 
+  [elaboracionesList]);
+
+  const ingredientes = useMemo(() => {
+    const erpMap = new Map(articulosERP.map(i => [i.idreferenciaerp, i]));
+    const combined = ingredientesInternos.map(ing => ({ 
+        ...ing, 
+        erp: erpMap.get(ing.productoERPlinkId) 
+    }));
+    return new Map(combined.map(i => [i.id, i]));
+  }, [ingredientesInternos, articulosERP]);
 
   const handleSelectCocinero = (cocinero: string) => {
     setSelectedCocinero(cocinero);
-    localStorage.setItem('lastSelectedCocinero', cocinero);
   }
 
   const filteredOrdenesTareas = useMemo(() => {
@@ -239,11 +235,11 @@ export default function ProduccionPage() {
     if (!elab) return [];
     
     return (elab.componentes || [])
-      .map(c => c.tipo === 'ingrediente' ? ingredientes.get(c.componenteId) : undefined)
+      .map(c => ingredientes.get(c.componenteId))
       .filter(Boolean) as IngredienteConERP[];
   }
 
-  if (!isMounted) {
+  if (isLoadingPersonal || isLoadingOFs || isLoadingElabs || isLoadingIngs || isLoadingERP) {
     return <LoadingSkeleton title="Cargando Taller de Producción..." />;
   }
 

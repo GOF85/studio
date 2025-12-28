@@ -12,6 +12,7 @@ La documentación ha sido reorganizada. Consulta los siguientes recursos princip
 - [Escandallo y Producción](docs/escandallo/README_ESCANDALLO_SYSTEM.md)
 - [Guías de Usuario](docs/usuario/INFORME_EJECUTIVO.md)
 - [Guías de Desarrollo](docs/dev/SETUP_DEV_ENVIRONMENT.md)
+- [Reporte Final Migración Supabase](docs/REPORTE_FINAL_MIGRACION_SUPABASE.md)
 
 Para un índice completo por temas, consulta [`docs/SUMMARY.md`](docs/SUMMARY.md).
 ANTES                              DESPUÉS

@@ -18,6 +18,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+import { useCprCesionesPersonal } from '@/hooks/use-cpr-data';
+import { usePersonal } from '@/hooks/use-data-queries';
+
 type DetalleGasto = CesionStorage & {
     costeReal: number;
     costePlanificado: number;
@@ -26,8 +29,6 @@ type DetalleGasto = CesionStorage & {
 
 function CesionGastoPageInner() {
     const [isMounted, setIsMounted] = useState(false);
-    const [detalles, setDetalles] = useState<DetalleGasto[]>([]);
-    const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
     const [searchTerm, setSearchTerm] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState('all');
     const searchParams = useSearchParams() ?? new URLSearchParams();
@@ -35,32 +36,29 @@ function CesionGastoPageInner() {
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
-    useEffect(() => {
-        if (!from || !to) {
-            setIsMounted(true);
-            return;
-        }
+    const { data: allCesiones = [] } = useCprCesionesPersonal();
+    const { data: allPersonal = [] } = usePersonal();
+
+    const personalMap = useMemo(() => new Map(allPersonal.map(p => [p.nombreCompleto, p])), [allPersonal]);
+
+    const detalles = useMemo(() => {
+        if (!from || !to || !allCesiones.length) return [];
 
         const rangeStart = startOfDay(parseISO(from));
         const rangeEnd = endOfDay(parseISO(to));
         
-        const allCesiones = (JSON.parse(localStorage.getItem('cesionesPersonal') || '[]') as CesionStorage[])
-            .filter(c => {
-                if (!c.fecha) return false;
-                try {
-                    const [year, month, day] = c.fecha.split('-').map(Number);
-                    const fechaCesion = new Date(year, month - 1, day);
-                    return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
-                } catch(e) { return false; }
-            });
+        const filteredCesiones = allCesiones.filter(c => {
+            if (!c.fecha) return false;
+            try {
+                const [year, month, day] = c.fecha.split('-').map(Number);
+                const fechaCesion = new Date(year, month - 1, day);
+                return isWithinInterval(fechaCesion, { start: rangeStart, end: rangeEnd });
+            } catch(e) { return false; }
+        });
             
-        const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        const pMap = new Map(allPersonal.map(p => [p.nombreCompleto, p]));
-        setPersonalMap(pMap);
-        
-        const gastosDetallados: DetalleGasto[] = allCesiones
+        const gastosDetallados: DetalleGasto[] = filteredCesiones
             .filter(c => {
-                const p = pMap.get(c.nombre);
+                const p = personalMap.get(c.nombre);
                 return p && p.departamento !== 'CPR' && c.centroCoste === 'CPR';
             })
             .map(c => {
@@ -73,9 +71,12 @@ function CesionGastoPageInner() {
                 }
             });
         
-        setDetalles(gastosDetallados.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
+        return gastosDetallados.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+    }, [from, to, allCesiones, personalMap]);
+
+    useEffect(() => {
         setIsMounted(true);
-    }, [from, to]);
+    }, []);
     
     const uniqueDepartments = useMemo(() => {
         const departments = new Set<string>();

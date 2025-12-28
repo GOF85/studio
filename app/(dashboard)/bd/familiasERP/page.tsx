@@ -1,10 +1,9 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import { useState, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown, Layers } from 'lucide-react';
-import type { FamiliaERP } from '@/types';
 import { Button } from '@/components/ui/button';
 import { downloadCSVTemplate } from '@/lib/utils';
 import {
@@ -35,16 +34,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import Papa from 'papaparse';
-import { useDataStore } from '@/hooks/use-data-store';
-import { supabase } from '@/lib/supabase';
+import { useFamiliasERP, useDeleteFamiliaERP, useUpsertFamiliaERP } from '@/hooks/use-data-queries';
 
 const CSV_HEADERS = ["id", "familiaCategoria", "Familia", "Categoria"];
 
 function FamiliasERPPageContent() {
-  const { data, loadAllData } = useDataStore();
-  const familiasERP = data.familiasERP;
+  const { data, isLoading } = useFamiliasERP();
+  const familiasERP = data || [];
+  const deleteFamilia = useDeleteFamiliaERP();
+  const upsertFamilia = useUpsertFamiliaERP();
 
-  const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
@@ -52,11 +51,6 @@ function FamiliasERPPageContent() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-    loadAllData();
-  }, [loadAllData]);
 
   const filteredItems = useMemo(() => {
     return familiasERP.filter(item => {
@@ -72,19 +66,15 @@ function FamiliasERPPageContent() {
   const handleDelete = async () => {
     if (!itemToDelete) return;
 
-    const { error } = await supabase
-      .from('familias')
-      .delete()
-      .eq('id', itemToDelete);
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el registro.' });
-      return;
-    }
-
-    await loadAllData();
-    toast({ title: 'Registro eliminado' });
-    setItemToDelete(null);
+    deleteFamilia.mutate(itemToDelete, {
+      onSuccess: () => {
+        toast({ title: 'Registro eliminado' });
+        setItemToDelete(null);
+      },
+      onError: () => {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el registro.' });
+      }
+    });
   };
 
   const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
@@ -111,18 +101,12 @@ function FamiliasERPPageContent() {
           categoria_padre: item.Categoria,
         }));
 
-        const { error } = await supabase
-          .from('familias')
-          .upsert(importedData, { onConflict: 'id' });
-
-        if (error) {
+        try {
+          await upsertFamilia.mutateAsync(importedData);
+          toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        } catch (error: any) {
           toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-          setIsImportAlertOpen(false);
-          return;
         }
-
-        await loadAllData();
-        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
         setIsImportAlertOpen(false);
       },
       error: (error) => {
@@ -152,74 +136,113 @@ function FamiliasERPPageContent() {
     toast({ title: 'Exportación completada' });
   };
 
-  if (!isMounted) {
+  if (isLoading) {
     return <LoadingSkeleton title="Cargando Familias ERP..." />;
   }
 
   return (
-    <>
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <Input
-          placeholder="Buscar por código, familia o categoría..."
-          className="flex-grow max-w-lg"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <div className="flex-grow flex justify-end gap-2">
-          <Button onClick={() => router.push('/bd/familiasERP/nuevo')}>
-            <PlusCircle className="mr-2" />
-            Nuevo
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon"><Menu /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
-                <FileUp size={16} className="mr-2" />Importar CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_familias.csv')}>
-                <FileDown size={16} className="mr-2" />Descargar Plantilla
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportCSV}>
-                <FileDown size={16} className="mr-2" />Exportar CSV
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      {/* Premium Header Section */}
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-card/40 backdrop-blur-md border border-border/40 p-8 shadow-2xl">
+        <div className="absolute top-0 right-0 -mt-24 -mr-24 w-96 h-96 bg-primary/10 rounded-full blur-[100px]" />
+        
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="p-4 rounded-[2rem] bg-primary/10 text-primary shadow-inner">
+              <Layers className="h-8 w-8" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black tracking-tighter text-foreground">Familias ERP</h1>
+              <p className="text-sm font-medium text-muted-foreground/70">Mapeo de categorías entre Factusol y MICE</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => router.push('/bd/familiasERP/nuevo')}
+              className="rounded-2xl font-black px-6 h-12 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95"
+            >
+              <PlusCircle className="mr-2 h-5 w-5" />
+              Nueva Familia
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="rounded-2xl h-12 w-12 border-border/40 bg-background/40 backdrop-blur-sm hover:bg-background/60 transition-all">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-2xl border-border/40 shadow-2xl p-2">
+                <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)} className="rounded-xl gap-2 font-bold py-3">
+                  <FileUp size={18} className="text-primary" /> Importar CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => downloadCSVTemplate(CSV_HEADERS, 'plantilla_familias.csv')} className="rounded-xl gap-2 font-bold py-3">
+                  <FileDown size={18} className="text-primary" /> Descargar Plantilla
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV} className="rounded-xl gap-2 font-bold py-3">
+                  <FileDown size={18} className="text-primary" /> Exportar CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-col md:flex-row gap-4 items-center">
+          <div className="relative flex-1 w-full group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/40 group-focus-within:text-primary transition-colors" />
+            <Input
+              placeholder="Buscar por código, familia o categoría..."
+              className="pl-12 h-12 bg-background/40 border-border/40 rounded-2xl focus:ring-primary/20 transition-all font-medium"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
-      <div className="border rounded-lg">
+      {/* Vista Escritorio: Tabla Premium */}
+      <div className="rounded-[2rem] border border-border/40 bg-card/40 backdrop-blur-md overflow-hidden shadow-2xl">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Código Familia (ERP)</TableHead>
-              <TableHead>Nombre Familia</TableHead>
-              <TableHead>Categoría MICE</TableHead>
-              <TableHead className="text-right w-24">Acciones</TableHead>
+          <TableHeader className="bg-muted/30">
+            <TableRow className="hover:bg-transparent border-border/40 h-16">
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 pl-8">Código Familia (ERP)</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Nombre Familia</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Categoría MICE</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 text-right pr-8">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredItems.length > 0 ? (
-              filteredItems.map(item => (
-                <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/bd/familiasERP/${item.id}`)}>
-                  <TableCell className="font-mono">{item.familiaCategoria}</TableCell>
-                  <TableCell>{item.Familia}</TableCell>
-                  <TableCell>{item.Categoria}</TableCell>
-                  <TableCell className="text-right">
+              filteredItems.map((item) => (
+                <TableRow
+                  key={item.id}
+                  onClick={() => router.push(`/bd/familiasERP/${item.id}`)}
+                  className="group cursor-pointer transition-all duration-300 border-border/40 h-20 hover:bg-primary/[0.03]"
+                >
+                  <TableCell className="pl-8">
+                    <span className="font-mono text-xs font-bold bg-primary/5 text-primary px-3 py-1.5 rounded-lg border border-primary/10">
+                      {item.familiaCategoria}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-black text-sm tracking-tight group-hover:text-primary transition-colors">{item.Familia}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-bold text-xs text-muted-foreground/60">{item.Categoria}</span>
+                  </TableCell>
+                  <TableCell className="text-right pr-8">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                          <span className="sr-only">Abrir menú</span>
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" className="h-9 w-9 p-0 rounded-xl hover:bg-primary/10 hover:text-primary transition-all" onClick={(e) => e.stopPropagation()}>
+                          <MoreHorizontal className="h-5 w-5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/bd/familiasERP/${item.id}`)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Editar
+                      <DropdownMenuContent align="end" className="rounded-2xl border-border/40 shadow-2xl p-2">
+                        <DropdownMenuItem onClick={() => router.push(`/bd/familiasERP/${item.id}`)} className="rounded-xl gap-2 font-bold py-3">
+                          <Pencil className="h-4 w-4 text-primary" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                        <DropdownMenuItem className="rounded-xl gap-2 font-bold py-3 text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id) }}>
+                          <Trash2 className="h-4 w-4" /> Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -228,8 +251,12 @@ function FamiliasERPPageContent() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
-                  No se encontraron registros.
+                <TableCell colSpan={4} className="h-64 text-center">
+                  <div className="flex flex-col items-center justify-center text-muted-foreground/30">
+                    <Layers className="h-16 w-16 mb-4 opacity-10" />
+                    <p className="text-lg font-black uppercase tracking-widest">No se encontraron familias</p>
+                    <p className="text-sm font-medium mt-1">Prueba a cambiar los filtros de búsqueda</p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -238,40 +265,53 @@ function FamiliasERPPageContent() {
       </div>
 
       <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-[2rem] border-border/40 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el registro.
+            <AlertDialogTitle className="text-2xl font-black tracking-tighter">¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription className="font-medium text-muted-foreground">
+              Esta acción no se puede deshacer. Se eliminará permanentemente el registro de la familia.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl h-12 font-bold">Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
+              className="rounded-xl h-12 font-black bg-destructive hover:bg-destructive/90 text-white px-8"
               onClick={handleDelete}
             >
-              Eliminar
+              Eliminar Familia
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
       <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-[2rem] border-border/40 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-2xl font-black tracking-tighter">Importar Archivo CSV</AlertDialogTitle>
+            <AlertDialogDescription className="font-medium text-muted-foreground">
               Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="!justify-center gap-4">
+          <AlertDialogFooter className="flex-col sm:flex-row gap-3 mt-4">
             <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
-            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-            <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+            <Button 
+              variant="outline"
+              className="rounded-xl h-12 font-bold flex-1"
+              onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}
+            >
+              Comas ( , )
+            </Button>
+            <Button 
+              variant="outline"
+              className="rounded-xl h-12 font-bold flex-1"
+              onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}
+            >
+              Punto y Coma ( ; )
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }
 

@@ -10,36 +10,49 @@ import { Database, Menu, ChevronRight, Settings } from 'lucide-react';
 import { bdNavLinks } from '@/lib/bd-nav';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
     const pathname = usePathname() ?? '';
     return (
-        <div className="w-full">
-            <SheetHeader className="p-4 border-b">
-                <SheetTitle className="flex items-center gap-2 text-lg"><Database />Bases de Datos</SheetTitle>
+        <div className="w-full h-full flex flex-col bg-background/95 backdrop-blur-md">
+            <SheetHeader className="p-6 border-b border-border/40">
+                <SheetTitle className="flex items-center gap-3 text-xl font-black tracking-tight">
+                    <div className="p-2 rounded-xl bg-primary/10 text-primary shadow-sm">
+                        <Database className="h-5 w-5" />
+                    </div>
+                    Bases de Datos
+                </SheetTitle>
             </SheetHeader>
-            <nav className="grid items-start gap-1 p-4">
-                {bdNavLinks.map((item, index) => {
-                    const isActive = pathname.startsWith(item.path);
-                    return (
-                        <Link
-                            key={index}
-                            href={item.path}
-                            onClick={closeSheet}
-                        >
-                            <span
+            <ScrollArea className="flex-1">
+                <nav className="grid items-start gap-1.5 p-4">
+                    {bdNavLinks.map((item, index) => {
+                        const isActive = pathname.startsWith(item.path);
+                        return (
+                            <Link
+                                key={index}
+                                href={item.path}
+                                onClick={closeSheet}
                                 className={cn(
-                                    "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                    isActive ? "bg-accent" : "transparent"
+                                    "group flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300",
+                                    isActive
+                                        ? "bg-primary/10 text-primary shadow-sm"
+                                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                 )}
                             >
-                                <item.icon className="mr-2 h-4 w-4" />
-                                <span>{item.title}</span>
-                            </span>
-                        </Link>
-                    )
-                })}
-            </nav>
+                                <div className="flex items-center">
+                                    <item.icon className={cn(
+                                        "mr-3 h-4 w-4 transition-colors",
+                                        isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                                    )} />
+                                    <span>{item.title}</span>
+                                </div>
+                                {isActive && <ChevronRight className="h-4 w-4" />}
+                            </Link>
+                        )
+                    })}
+                </nav>
+            </ScrollArea>
         </div>
     );
 }
@@ -85,52 +98,59 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <>
-            <div className="sticky top-12 z-30 bg-background/95 backdrop-blur-sm border-b">
-                <div className="container mx-auto px-4">
-                    <div className="flex items-center justify-between py-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold">
+        <div className="min-h-screen flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background">
+            <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                    <div className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-2 text-sm font-bold">
                             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                                 <SheetTrigger asChild>
-                                    <Button variant="outline" size="icon" className="mr-2">
+                                    <Button variant="outline" size="icon" className="mr-2 rounded-xl border-border/40 bg-background/40 backdrop-blur-sm hover:bg-primary/5 transition-all active:scale-95">
                                         <Menu className="h-5 w-5" />
                                     </Button>
                                 </SheetTrigger>
-                                <SheetContent side="left" className="w-[280px] p-0">
+                                <SheetContent side="left" className="w-[300px] p-0 border-r border-border/40">
                                     <NavContent closeSheet={() => setIsSheetOpen(false)} />
                                 </SheetContent>
                             </Sheet>
-                            <Link href="/bd" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-                                <Database className="h-5 w-5" />
-                                <span>Bases de datos</span>
+
+                            <Link href="/bd" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-all duration-300 group">
+                                <div className="p-1.5 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                                    <Database className="h-4 w-4" />
+                                </div>
+                                <span className="hidden sm:inline tracking-tight">Bases de datos</span>
                             </Link>
+
                             {currentPage && (
                                 <>
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
                                     <Link href={currentPage.path} className={cn(
-                                        "flex items-center gap-2 transition-colors",
-                                        thirdLevelBreadcrumb ? "text-muted-foreground hover:text-primary" : "font-bold text-primary"
+                                        "flex items-center gap-2 transition-all duration-300 px-2 py-1 rounded-lg",
+                                        thirdLevelBreadcrumb
+                                            ? "text-muted-foreground hover:text-primary hover:bg-primary/5"
+                                            : "font-black text-primary bg-primary/5"
                                     )}>
-                                        <currentPage.icon className="h-5 w-5" />
-                                        <span>{currentPage.title}</span>
+                                        <currentPage.icon className="h-4 w-4" />
+                                        <span className="tracking-tight">{currentPage.title}</span>
                                     </Link>
                                 </>
                             )}
+
                             {thirdLevelBreadcrumb && (
                                 <>
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                    <span className="font-bold text-primary">
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
+                                    <div className="px-2 py-1 rounded-lg bg-primary/10 font-black text-primary tracking-tight">
                                         {thirdLevelBreadcrumb}
-                                    </span>
+                                    </div>
                                 </>
                             )}
                         </div>
                     </div>
                 </div>
             </div>
-            <main className="container mx-auto px-4 py-4">
+            <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 pt-0 pb-8">
                 {children}
             </main>
-        </>
+        </div>
     );
 }

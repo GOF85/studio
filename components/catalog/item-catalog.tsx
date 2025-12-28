@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '../ui/button';
 import { FilePlus2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../ui/dialog';
 import { Label } from '../ui/label';
 
 interface ItemCatalogProps {
@@ -33,7 +33,12 @@ function TemplateSelectorDialog({ plantillas, onSelect }: { plantillas: PedidoPl
                 <Button variant="outline"><FilePlus2 className="mr-2"/>Usar Plantilla</Button>
             </DialogTrigger>
             <DialogContent>
-                <DialogHeader><DialogTitle>Seleccionar Plantilla</DialogTitle></DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>Seleccionar Plantilla</DialogTitle>
+                    <DialogDescription>
+                        Elige una plantilla para cargar artículos predefinidos.
+                    </DialogDescription>
+                </DialogHeader>
                 <div className="space-y-2 py-4">
                     {plantillas.length === 0 ? (
                         <p className="text-muted-foreground text-center">No hay plantillas para este tipo de pedido.</p>
@@ -58,7 +63,7 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
 
   const types = useMemo(() => {
     const allTypes = new Set(items.map(item => item.tipo).filter(Boolean) as string[]);
-    return ['all', ...Array.from(allTypes)];
+    return ['all', ...Array.from(allTypes).sort((a, b) => a.localeCompare(b))];
   }, [items]);
   
   const groupedAndSortedItems = useMemo(() => {
@@ -68,7 +73,8 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
         return false;
       }
       
-      const rentalProviderMatch = orderType !== 'Alquiler' || (selectedProviderId ? (item as any).partnerId === selectedProviderId : false);
+      const isRental = orderType === 'Alquiler';
+      const rentalProviderMatch = !isRental || (selectedProviderId ? (item as any).partnerId === selectedProviderId : true);
 
       const matchesType = selectedType === 'all' || item.tipo === selectedType;
       const matchesSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) || item.itemCode.toLowerCase().includes(searchTerm.toLowerCase());
@@ -102,12 +108,12 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
             {/* {orderType !== 'Alquiler' && <AssistantDialog onAddSuggestedItem={onAddItem} />} */}
         </div>
       </div>
-       {orderType === 'Alquiler' && rentalProviders && onSelectProvider && (
+       {(orderType === 'Alquiler' || orderType === 'Hielo') && rentalProviders && onSelectProvider && (
             <div className="mb-6">
-                <Label htmlFor="provider-selector">Proveedor de Alquiler</Label>
+                <Label htmlFor="provider-selector">{orderType === 'Hielo' ? 'Proveedor de Hielo' : 'Proveedor de Alquiler'}</Label>
                 <Select onValueChange={(value) => onSelectProvider(value === 'none' ? null : value)} value={selectedProviderId || 'none'}>
                     <SelectTrigger id="provider-selector">
-                        <SelectValue placeholder="Selecciona un proveedor para ver su catálogo..." />
+                        <SelectValue placeholder={orderType === 'Hielo' ? "Selecciona un proveedor de hielo..." : "Selecciona un proveedor para ver su catálogo..."} />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="none">-- Ninguno --</SelectItem>

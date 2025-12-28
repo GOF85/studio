@@ -8,7 +8,8 @@ import { useEffect } from 'react';
 export default function TransporteRedirectPage() {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/pes');
+        // Redirigir a una ruta por defecto, por ejemplo, overview general o dashboard
+        router.replace('/os');
     }, [router]);
     return null;
 }

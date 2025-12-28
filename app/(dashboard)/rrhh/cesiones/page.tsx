@@ -154,6 +154,10 @@ function CesionModal({ open, onOpenChange, onSave, personalDB, initialData, onDe
     );
 }
 
+import { useCprCesionesPersonal } from '@/hooks/use-cpr-data';
+import { usePersonal } from '@/hooks/use-data-queries';
+import { supabase } from '@/lib/supabase';
+
 const statusVariant: { [key in EstadoCesionPersonal]: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' } = {
   'Solicitado': 'secondary',
   'Aprobado': 'outline',
@@ -163,53 +167,87 @@ const statusVariant: { [key in EstadoCesionPersonal]: 'default' | 'secondary' | 
 };
 
 export default function CesionesPersonalPage() {
-  const [cesiones, setCesiones] = useState<CesionStorage[]>([]);
-  const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCesion, setEditingCesion] = useState<Partial<CesionStorage> | null>(null);
 
-  const loadData = useCallback(() => {
-    let storedPersonal = localStorage.getItem('personal');
-    const pMap = new Map<string, Personal>();
-    if (storedPersonal) {
-        (JSON.parse(storedPersonal) as Personal[]).forEach(p => pMap.set(p.nombreCompleto, p));
-    }
-    setPersonalMap(pMap);
+  const { data: cesiones = [], isLoading: loadingCesiones, refetch: refetchCesiones } = useCprCesionesPersonal();
+  const { data: allPersonal = [], isLoading: loadingPersonal } = usePersonal();
 
-    let storedCesiones = localStorage.getItem('cesionesPersonal');
-    const parsedCesiones = (storedCesiones ? JSON.parse(storedCesiones) : []);
-    setCesiones(parsedCesiones);
-    setIsMounted(true);
-  }, []);
+  const isLoaded = !loadingCesiones && !loadingPersonal;
+
+  const personalMap = useMemo(() => {
+    const pMap = new Map<string, Personal>();
+    allPersonal.forEach(p => pMap.set(p.nombreCompleto, p));
+    return pMap;
+  }, [allPersonal]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    setIsMounted(true);
+  }, []);
   
-  const handleSave = (data: CesionStorage) => {
-    let allCesiones = [...cesiones];
-    const index = allCesiones.findIndex(c => c.id === data.id);
+  const handleSave = async (data: CesionStorage) => {
+    try {
+        const payload = {
+            fecha: data.fecha,
+            centro_coste: data.centroCoste,
+            nombre: data.nombre,
+            dni: data.dni,
+            tipo_servicio: data.tipoServicio,
+            hora_entrada: data.horaEntrada,
+            hora_salida: data.horaSalida,
+            precio_hora: data.precioHora,
+            hora_entrada_real: data.horaEntradaReal,
+            hora_salida_real: data.horaSalidaReal,
+            comentarios: data.comentarios,
+            estado: data.estado
+        };
 
-    if (index > -1) {
-        allCesiones[index] = data;
-        toast({title: "Cesión actualizada"});
-    } else {
-        allCesiones.push(data);
-        toast({title: "Cesión creada"});
+        if (data.id && !data.id.startsWith('temp-')) {
+            const { error } = await supabase
+                .from('cpr_cesiones_personal')
+                .update(payload)
+                .eq('id', data.id);
+            if (error) throw error;
+            toast({title: "Cesión actualizada"});
+        } else {
+            const { error } = await supabase
+                .from('cpr_cesiones_personal')
+                .insert(payload);
+            if (error) throw error;
+            toast({title: "Cesión creada"});
+        }
+
+        refetchCesiones();
+        setIsModalOpen(false);
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error al guardar',
+            description: error.message
+        });
     }
-    
-    localStorage.setItem('cesionesPersonal', JSON.stringify(allCesiones));
-    setCesiones(allCesiones);
   };
-  
-  const handleDelete = (id: string) => {
-    const updatedCesiones = cesiones.filter(c => c.id !== id);
-    localStorage.setItem('cesionesPersonal', JSON.stringify(updatedCesiones));
-    setCesiones(updatedCesiones);
-    toast({ title: 'Cesión eliminada' });
+
+  const handleDelete = async (id: string) => {
+    try {
+        const { error } = await supabase
+            .from('cpr_cesiones_personal')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+        
+        toast({title: "Cesión eliminada"});
+        refetchCesiones();
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error al eliminar',
+            description: error.message
+        });
+    }
   };
   
   const handleRowClick = (cesion: CesionStorage) => {
@@ -233,7 +271,7 @@ export default function CesionesPersonalPage() {
     }).sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime() || a.nombre.localeCompare(b.nombre));
   }, [cesiones, searchTerm]);
 
-  if (!isMounted) {
+  if (!isMounted || !isLoaded) {
     return <LoadingSkeleton title="Cargando Cesiones de Personal..." />;
   }
 

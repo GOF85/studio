@@ -26,6 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { useEvento, useMaterialOrders, useReturnSheet, useUpdateReturnSheet } from '@/hooks/use-data-queries';
 
 type ReturnSheetItem = OrderItem & { sentQuantity: number; returnedQuantity: number; orderId: string; type: MaterialOrder['type'] };
 type ReturnIncidencia = { osId: string; osServiceNumber: string; item: ReturnSheetItem; comment: string; timestamp: string };
@@ -55,7 +56,7 @@ function StatCard({ title, itemCount, totalValue, progress }: StatCardProps) {
 }
 
 export default function RetornoSheetPage() {
-    const [sheet, setSheet] = useState<ReturnSheet | null>(null);
+    const [localSheet, setLocalSheet] = useState<ReturnSheet | null>(null);
     const [isMounted, setIsMounted] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     
@@ -64,24 +65,30 @@ export default function RetornoSheetPage() {
     const osId = (params.id as string) || '';
     const { toast } = useToast();
 
-    const loadData = useCallback(() => {
-        const allSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>;
-        let currentSheet = allSheets[osId];
+    const { data: os, isLoading: isLoadingOS } = useEvento(osId);
+    const { data: materialOrders = [], isLoading: isLoadingOrders } = useMaterialOrders(osId);
+    const { data: dbSheet, isLoading: isLoadingSheet } = useReturnSheet(osId);
+    const updateMutation = useUpdateReturnSheet();
 
-        if (!currentSheet) {
-            const allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-            const osOrders = allMaterialOrders.filter(o => o.osId === osId);
-            
-            const itemsFromOrders: Omit<ReturnSheetItem, 'returnedQuantity'>[] = [];
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (dbSheet) {
+            setLocalSheet(dbSheet);
+        } else if (os && materialOrders.length > 0) {
+            // Initialize from material orders if no sheet exists in DB
+            const itemsFromOrders: (OrderItem & { sentQuantity: number; orderId: string; type: MaterialOrder['type']; })[] = [];
             const initialItemStates: Record<string, ReturnItemState> = {};
             
-            osOrders.forEach(order => {
+            materialOrders.forEach(order => {
                 order.items.forEach(item => {
                     const isRental = order.type === 'Alquiler';
                     const isAlmacen = order.type === 'Almacen';
                     const isAutoReturn = isRental || isAlmacen;
 
-                    const newItem: Omit<ReturnSheetItem, 'returnedQuantity'> = { ...item, sentQuantity: item.quantity, orderId: order.id, type: order.type };
+                    const newItem = { ...item, sentQuantity: item.quantity, orderId: order.id, type: order.type };
                     itemsFromOrders.push(newItem);
                     const itemKey = `${order.id}_${item.itemCode}`;
 
@@ -90,101 +97,97 @@ export default function RetornoSheetPage() {
                     };
                 });
             });
-            
-            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-            const os = allServiceOrders.find(o => o.id === osId);
 
-            currentSheet = {
+            setLocalSheet({
                 id: osId,
                 osId: osId,
                 status: 'Pendiente',
-                items: itemsFromOrders.map(i => ({...i, returnedQuantity: initialItemStates[`${i.orderId}_${i.itemCode}`]?.returnedQuantity || 0 })),
+                items: itemsFromOrders,
                 itemStates: initialItemStates,
-                os: os,
-            };
-            
-            allSheets[osId] = currentSheet;
-            localStorage.setItem('returnSheets', JSON.stringify(allSheets));
-        } else if (!currentSheet.os) {
-            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-            currentSheet.os = allServiceOrders.find(o => o.id === osId);
+                os: os
+            });
         }
-        
-        setSheet(currentSheet);
-        setIsMounted(true);
-    }, [osId]);
+    }, [dbSheet, os, materialOrders, osId]);
 
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
-    
-    const saveSheet = useCallback((newSheetData: Partial<ReturnSheet>) => {
-        if (!sheet) return;
-        
-        const { os, ...sheetToSave } = sheet;
-
-        const updatedSheet: ReturnSheet = { ...sheetToSave, ...newSheetData };
-        const allSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}');
-        allSheets[osId] = updatedSheet;
-        localStorage.setItem('returnSheets', JSON.stringify(allSheets));
-        
-        setSheet({...updatedSheet, os });
-    }, [sheet, osId]);
+    const saveSheet = useCallback(async (sheetToSave: ReturnSheet) => {
+        try {
+            await updateMutation.mutateAsync(sheetToSave);
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la hoja de retorno." });
+        }
+    }, [updateMutation, toast]);
 
     const updateItemState = (itemKey: string, updates: Partial<ReturnItemState>) => {
-        if (!sheet) return;
-        const newStates = { ...sheet.itemStates };
+        if (!localSheet) return;
+        const newStates = { ...localSheet.itemStates };
         const currentState = newStates[itemKey] || { returnedQuantity: 0 };
         newStates[itemKey] = { ...currentState, ...updates };
 
         const hasStarted = Object.values(newStates).some(state => state.isReviewed);
-        const status = sheet.status === 'Pendiente' && hasStarted ? 'Procesando' : sheet.status;
+        const status = localSheet.status === 'Pendiente' && hasStarted ? 'Procesando' : localSheet.status;
 
-        saveSheet({ itemStates: newStates, status });
+        const updatedSheet = { ...localSheet, itemStates: newStates, status };
+        setLocalSheet(updatedSheet);
+        saveSheet(updatedSheet);
     };
     
     const handleAddIncidencia = (item: ReturnSheetItem, comment: string) => {
-        if(!sheet || !sheet.os) return;
-        const allIncidencias = JSON.parse(localStorage.getItem('incidenciasRetorno') || '[]') as ReturnIncidencia[];
-        const newIncidencia: ReturnIncidencia = {
-            osId: sheet.osId,
-            osServiceNumber: sheet.os.serviceNumber,
-            item,
-            comment,
-            timestamp: new Date().toISOString()
-        };
-        
+        if(!localSheet || !localSheet.os) return;
         const itemKey = `${item.orderId}_${item.itemCode}`;
-        const existingIndex = allIncidencias.findIndex(inc => inc.osId === osId && inc.item.itemCode === item.itemCode);
-        if(existingIndex > -1) {
-            allIncidencias[existingIndex] = newIncidencia;
-        } else {
-            allIncidencias.push(newIncidencia);
-        }
-        localStorage.setItem('incidenciasRetorno', JSON.stringify(allIncidencias));
         updateItemState(itemKey, { incidentComment: comment });
         toast({title: 'Incidencia Registrada', description: `Se ha registrado una incidencia para ${item.description}`});
     }
 
     const handleReset = () => {
-        const allSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}');
-        delete allSheets[osId];
-        localStorage.setItem('returnSheets', JSON.stringify(allSheets));
-        loadData(); // Use loadData instead of loadSheet
-        toast({ title: "Retorno Reiniciado", description: "Se ha restaurado el estado inicial del retorno." });
+        if (!os) return;
+        
+        const itemsFromOrders: (OrderItem & { sentQuantity: number; orderId: string; type: MaterialOrder['type']; })[] = [];
+        const initialItemStates: Record<string, ReturnItemState> = {};
+        
+        materialOrders.forEach(order => {
+            order.items.forEach(item => {
+                const isRental = order.type === 'Alquiler';
+                const isAlmacen = order.type === 'Almacen';
+                const isAutoReturn = isRental || isAlmacen;
+
+                const newItem = { ...item, sentQuantity: item.quantity, orderId: order.id, type: order.type };
+                itemsFromOrders.push(newItem);
+                const itemKey = `${order.id}_${item.itemCode}`;
+
+                initialItemStates[itemKey] = { 
+                    returnedQuantity: isAutoReturn ? item.quantity : 0,
+                };
+            });
+        });
+
+        const resetSheet = {
+            id: osId,
+            osId: osId,
+            status: 'Pendiente' as const,
+            items: itemsFromOrders,
+            itemStates: initialItemStates,
+            os: os
+        };
+
+        setLocalSheet(resetSheet);
+        saveSheet(resetSheet);
         setShowResetConfirm(false);
+        toast({ title: "Retorno Reiniciado", description: "Se ha restaurado el estado inicial del retorno." });
     }
     
     const handleComplete = () => {
-         saveSheet({ status: 'Completado' });
-         toast({ title: "Retorno Completado", description: "Se ha marcado el retorno como completado." });
+        if (!localSheet) return;
+        const finalizedSheet = { ...localSheet, status: 'Completado' as const };
+        setLocalSheet(finalizedSheet);
+        saveSheet(finalizedSheet);
+        toast({ title: "Retorno Completado", description: "Se ha marcado el retorno como completado." });
     }
     
     const { groupedItems, stats } = useMemo(() => {
-        if(!sheet) return { groupedItems: {}, stats: {} };
-        const consumptionList = sheet.items.map(item => {
+        if(!localSheet) return { groupedItems: {}, stats: {} };
+        const consumptionList = localSheet.items.map(item => {
             const itemKey = `${item.orderId}_${item.itemCode}`;
-            const state = sheet.itemStates[itemKey] || { returnedQuantity: 0, isReviewed: false };
+            const state = localSheet.itemStates[itemKey] || { returnedQuantity: 0, isReviewed: false };
             const returnedQty = state.returnedQuantity;
 
             return {
@@ -216,10 +219,10 @@ export default function RetornoSheetPage() {
 
         return { groupedItems: grouped, stats: calculatedStats };
 
-    }, [sheet]);
+    }, [localSheet]);
 
 
-    if (!isMounted || !sheet || !sheet.os) {
+    if (!isMounted || isLoadingOS || isLoadingOrders || isLoadingSheet || !localSheet || !localSheet.os) {
         return <LoadingSkeleton title="Cargando Hoja de Retorno..." />;
     }
 

@@ -5,8 +5,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Loader2, Save, X, Package, Trash2 } from 'lucide-react';
+import { formatoExpedicionSchema, type FormatoExpedicionFormValues } from '../nuevo/page';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -14,79 +14,57 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { supabase } from '@/lib/supabase';
-import { useDataStore } from '@/hooks/use-data-store';
-
-const formatoExpedicionSchema = z.object({
-  nombre: z.string().min(1, 'El nombre es obligatorio'),
-});
-
-type FormValues = z.infer<typeof formatoExpedicionSchema>;
+import { useFormatoExpedicion, useUpsertFormatoExpedicion, useDeleteFormatoExpedicion } from '@/hooks/use-data-queries';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 export default function EditarFormatoExpedicionPage() {
   const router = useRouter();
   const params = useParams() ?? {};
   const id = (params.id as string) || '';
 
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: item, isLoading: isLoadingData } = useFormatoExpedicion(id);
+  const upsertMutation = useUpsertFormatoExpedicion();
+  const deleteMutation = useDeleteFormatoExpedicion();
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
-  const { refreshData } = useDataStore();
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormatoExpedicionFormValues>({
     resolver: zodResolver(formatoExpedicionSchema),
   });
 
   useEffect(() => {
-    const loadData = async () => {
-      const { data, error } = await supabase
-        .from('formatos_expedicion')
-        .select('*')
-        .eq('id', id)
-        .single();
+    if (item) {
+      form.reset({ nombre: item.nombre });
+    }
+  }, [item, form]);
 
-      if (error || !data) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el formato.' });
-        router.push('/bd/formatos-expedicion');
-      } else {
-        form.reset({ nombre: data.nombre });
-      }
-    };
-    loadData();
-  }, [id, form, router, toast]);
-
-  async function onSubmit(data: FormValues) {
-    setIsLoading(true);
-
-    const { error } = await supabase
-      .from('formatos_expedicion')
-      .update({ nombre: data.nombre })
-      .eq('id', id);
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
-      setIsLoading(false);
-    } else {
+  async function onSubmit(data: FormatoExpedicionFormValues) {
+    try {
+      await upsertMutation.mutateAsync({
+        ...data,
+        id
+      });
       toast({ description: 'Formato actualizado correctamente.' });
-      refreshData();
       router.push('/bd/formatos-expedicion');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
     }
   }
 
   const handleDelete = async () => {
-    const { error } = await supabase
-      .from('formatos_expedicion')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
-    } else {
+    try {
+      await deleteMutation.mutateAsync(id);
       toast({ title: 'Formato eliminado' });
-      refreshData();
       router.push('/bd/formatos-expedicion');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
     }
   };
+
+  if (isLoadingData) {
+    return <LoadingSkeleton title="Cargando Formato..." />;
+  }
 
   return (
     <>

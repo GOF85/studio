@@ -15,7 +15,7 @@ export const useSidebarStore = create<SidebarState>()(
     }),
     {
       name: 'sidebar-storage', // name of the item in the storage (must be unique)
-      storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
+      storage: createJSONStorage(() => sessionStorage), // Cambiado a sessionStorage para evitar persistencia entre sesiones
     }
   )
 );

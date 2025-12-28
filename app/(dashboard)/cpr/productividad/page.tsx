@@ -17,6 +17,7 @@ import type { OrdenFabricacion } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { useCprOrdenesFabricacion } from '@/hooks/use-cpr-data';
 
 type OfConTiempos = OrdenFabricacion & {
     tiempoAsignacion?: string;
@@ -30,18 +31,16 @@ type DatosResponsable = {
 };
 
 export default function ProductividadPage() {
-    const [isMounted, setIsMounted] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: subDays(startOfToday(), 7),
         to: startOfToday(),
     });
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-    const [allOFs, setAllOFs] = useState<OrdenFabricacion[]>([]);
+    const { data: allOFs = [] } = useCprOrdenesFabricacion();
     const [responsableFilter, setResponsableFilter] = useState('all');
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        const storedOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        setAllOFs(storedOFs);
         setIsMounted(true);
     }, []);
 
@@ -50,7 +49,9 @@ export default function ProductividadPage() {
 
         const ofsEnRango = allOFs.filter(of => {
             const fechaFin = of.fechaFinalizacion ? parseISO(of.fechaFinalizacion) : null;
-            return fechaFin && fechaFin >= dateRange!.from && fechaFin <= (dateRange!.to ?? dateRange!.from);
+            if (!fechaFin || !dateRange.from) return false;
+            const to = dateRange.to || dateRange.from;
+            return fechaFin >= dateRange.from && fechaFin <= to;
         });
 
         const ofsFiltradasPorResponsable = responsableFilter === 'all'

@@ -43,7 +43,7 @@ export function ItemCard({ item, onAddItem }: ItemCardProps) {
         <CardDescription>Código: {item.itemCode}</CardDescription>
         <div className="flex items-center justify-between mt-2">
           <p className="text-lg font-semibold text-primary">
-            {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            {(item.price || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
           </p>
         </div>
          <Badge variant="outline" className="mt-2">{item.category}</Badge>

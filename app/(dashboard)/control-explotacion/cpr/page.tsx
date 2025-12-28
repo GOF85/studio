@@ -14,6 +14,8 @@ import Link from "next/link";
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import type { ServiceOrder, GastronomyOrder, Receta, PersonalMiceOrder, PersonalExterno, PersonalExternoAjuste, CosteFijoCPR, ObjetivoMensualCPR, SolicitudPersonalCPR, CategoriaPersonal, CesionStorage, Personal } from '@/types';
+import { useEventos, useGastronomyOrders, useRecetas, usePersonal, useCategoriasPersonal } from '@/hooks/use-data-queries';
+import { useCprCostesFijos, useCprObjetivos, useCprSolicitudesPersonal, useCprCesionesPersonal, useCprOsData, useUpdateCprOsData } from '@/hooks/use-cpr-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -95,69 +97,57 @@ function CprControlExplotacionPageInner() {
     const [objetivoMes, setObjetivoMes] = useState<Date>(startOfMonth(new Date()));
     const [availableObjetivoMonths, setAvailableObjetivoMonths] = useState<{label: string, value: string}[]>([]);
 
+    const osId = searchParams.get('osId');
 
-    // Estados para datos maestros
-    const [allServiceOrders, setAllServiceOrders] = useState<ServiceOrder[]>([]);
-    const [allGastroOrders, setAllGastroOrders] = useState<GastronomyOrder[]>([]);
-    const [allRecetas, setAllRecetas] = useState<Receta[]>([]);
-    const [allCostesFijos, setAllCostesFijos] = useState<CosteFijoCPR[]>([]);
-    const [allObjetivos, setAllObjetivos] = useState<ObjetivoMensualCPR[]>([]);
-    const [allSolicitudesPersonalCPR, setAllSolicitudesPersonalCPR] = useState<SolicitudPersonalCPR[]>([]);
-    const [allCesionesPersonal, setAllCesionesPersonal] = useState<CesionStorage[]>([]);
-    const [personalMap, setPersonalMap] = useState<Map<string, Personal>>(new Map());
-    const [personalInterno, setPersonalInterno] = useState<Personal[]>([]);
-    
-    // Estados para valores manuales
+    // Hooks de Supabase
+    const { data: allServiceOrders = [] } = useEventos();
+    const { data: allGastroOrders = [] } = useGastronomyOrders();
+    const { data: allRecetas = [] } = useRecetas();
+    const { data: allCostesFijos = [] } = useCprCostesFijos();
+    const { data: allObjetivos = [] } = useCprObjetivos();
+    const { data: allSolicitudesPersonalCPR = [] } = useCprSolicitudesPersonal();
+    const { data: allCesionesPersonal = [] } = useCprCesionesPersonal();
+    const { data: personalInterno = [] } = usePersonal();
+    const { data: categoriasPersonal = [] } = useCategoriasPersonal();
+    const { data: cprOsData } = useCprOsData(osId || undefined);
+    const updateCprOsData = useUpdateCprOsData();
+
+    const personalMap = useMemo(() => {
+        const pMap = new Map<string, Personal>();
+        personalInterno.forEach(p => {
+            pMap.set(p.nombre, p); 
+            pMap.set(p.nombreCompleto, p);
+        });
+        return pMap;
+    }, [personalInterno]);
+
+    // Estados para valores manuales (inicializados desde Supabase cuando carguen)
     const [realCostInputs, setRealCostInputs] = useState<Record<string, number | undefined>>({});
     const [comentarios, setComentarios] = useState<Record<string, string>>({});
     const [editingComment, setEditingComment] = useState<{label: string, text: string} | null>(null);
 
-    const osId = searchParams.get('osId');
-
-    const loadData = useCallback(() => {
-        setAllServiceOrders(JSON.parse(localStorage.getItem('serviceOrders') || '[]'));
-        setAllGastroOrders(JSON.parse(localStorage.getItem('gastronomyOrders') || '[]'));
-        setAllRecetas(JSON.parse(localStorage.getItem('recetas') || '[]'));
-        setAllCostesFijos(JSON.parse(localStorage.getItem('costesFijosCPR') || '[]'));
-        setAllSolicitudesPersonalCPR(JSON.parse(localStorage.getItem('solicitudesPersonalCPR') || '[]'));
-        
-        const cesionesData = JSON.parse(localStorage.getItem('cesionesPersonal') || '[]') as CesionStorage[];
-        setAllCesionesPersonal(cesionesData);
-        
-        const personalData = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-        const pMap = new Map<string, Personal>();
-        personalData.forEach(p => {
-            pMap.set(p.nombre, p); 
-            pMap.set(p.nombreCompleto, p);
-        });
-        setPersonalMap(pMap);
-        setPersonalInterno(personalData);
-
-
-        const objetivosData = JSON.parse(localStorage.getItem('objetivosCPR') || '[]') as ObjetivoMensualCPR[];
-        setAllObjetivos(objetivosData);
-        
-        const months = objetivosData
-            .map(o => o.mes)
-            .sort((a,b) => b.localeCompare(a));
-        setAvailableObjetivoMonths(months.map(m => ({
-            value: m,
-            label: format(parseISO(`${m}-02`), 'MMMM yyyy', { locale: es })
-        })));
-        
-        const storedComentarios = osId ? (JSON.parse(localStorage.getItem('ctaComentarios') || '{}')[osId] || {}) : {};
-        setComentarios(storedComentarios);
-        
-        const storedRealCosts = osId ? (JSON.parse(localStorage.getItem('ctaRealCosts') || '{}')[osId] || {}) : {};
-        setRealCostInputs(storedRealCosts);
-
-        setIsMounted(true);
-    }, [osId]);
-
+    useEffect(() => {
+        if (cprOsData) {
+            setComentarios(cprOsData.comentarios || {});
+            setRealCostInputs(cprOsData.costesReales || {});
+        }
+    }, [cprOsData]);
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        if (allObjetivos.length > 0) {
+            const months = allObjetivos
+                .map(o => o.mes)
+                .sort((a,b) => b.localeCompare(a));
+            setAvailableObjetivoMonths(months.map(m => ({
+                value: m,
+                label: format(parseISO(`${m}-02`), 'MMMM yyyy', { locale: es })
+            })));
+        }
+    }, [allObjetivos]);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
     
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -185,7 +175,9 @@ function CprControlExplotacionPageInner() {
                 .filter(os => {
                     try {
                         const osDate = new Date(os.startDate);
-                        return os.status === 'Confirmado' && isWithinInterval(osDate, { start: rangeStart, end: rangeEnd });
+                        // Check for both 'Confirmado' and 'CONFIRMADO' to be safe
+                        const isConfirmed = os.status === 'Confirmado' || os.status === 'CONFIRMADO';
+                        return isConfirmed && isWithinInterval(osDate, { start: rangeStart, end: rangeEnd });
                     } catch (e) { return false; }
                 })
                 .map(os => os.id)
@@ -246,7 +238,6 @@ function CprControlExplotacionPageInner() {
             }
         });
 
-        const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
         const solicitudesPersonalEnRango = allSolicitudesPersonalCPR.filter(solicitud => {
             try {
                 const fechaServicio = new Date(solicitud.fechaServicio);
@@ -256,13 +247,13 @@ function CprControlExplotacionPageInner() {
         
         const costePersonalSolicitadoPlanificado = solicitudesPersonalEnRango.reduce((sum, s) => {
             const horas = calculateHours(s.horaInicio, s.horaFin);
-            const tipo = tiposPersonalMap.get(s.proveedorId || '');
+            const tipo = categoriasPersonal.find(t => t.id === s.proveedorId);
             const precioHora = tipo?.precioHora || 0;
             return sum + (horas * precioHora * s.cantidad);
         }, 0);
 
         const costePersonalSolicitadoCierre = solicitudesPersonalEnRango.filter(s => s.estado === 'Cerrado').reduce((sum, s) => {
-            const tipo = tiposPersonalMap.get(s.proveedorId || '');
+            const tipo = categoriasPersonal.find(t => t.id === s.proveedorId);
             const precioHora = tipo?.precioHora || 0;
             const horasReales = s.personalAsignado && s.personalAsignado.length > 0
                 ? s.personalAsignado.reduce((hSum, pa) => hSum + calculateHours(pa.horaEntradaReal, pa.horaSalidaReal), 0)
@@ -285,7 +276,7 @@ function CprControlExplotacionPageInner() {
         
         return { kpis, objetivo: allObjetivos.find(o => o.mes === format(objetivoMes, 'yyyy-MM')) || {}, costeEscandallo, ingresosVenta, ingresosCesionPersonalPlanificado, ingresosCesionPersonalCierre, gastosCesionPersonalPlanificado, gastosCesionPersonalCierre, costesFijosPeriodo: otrosGastos, facturacionNeta: ingresosTotales, costePersonalSolicitadoPlanificado, costePersonalSolicitadoCierre };
 
-    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes, allCesionesPersonal, personalMap, personalInterno]);
+    }, [isMounted, dateRange, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allObjetivos, allSolicitudesPersonalCPR, objetivoMes, allCesionesPersonal, personalMap, personalInterno, categoriasPersonal]);
 
     const dataAcumulada = useMemo(() => {
         if (!isMounted) return [];
@@ -301,7 +292,8 @@ function CprControlExplotacionPageInner() {
                 allServiceOrders.filter(os => {
                     try {
                         const osDate = new Date(os.startDate);
-                        return os.status === 'Confirmado' && isWithinInterval(osDate, { start: rangeStart, end: rangeEnd });
+                        const isConfirmed = os.status === 'Confirmado' || os.status === 'CONFIRMADO';
+                        return isConfirmed && isWithinInterval(osDate, { start: rangeStart, end: rangeEnd });
                     } catch (e) { return false; }
                 }).map(os => os.id)
             );
@@ -340,9 +332,9 @@ function CprControlExplotacionPageInner() {
                     return false;
                 }
             });
-            const tiposPersonalMap = new Map((JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[]).map(t => [t.id, t]));
+            
             const costePersonalSolicitado = solicitudesPersonalEnRango.reduce((sum, s) => {
-                const tipo = tiposPersonalMap.get(s.proveedorId || '');
+                const tipo = categoriasPersonal.find(t => t.id === s.proveedorId);
                 const precioHora = tipo?.precioHora || 0;
                 if (s.personalAsignado && s.personalAsignado.length > 0) {
                      const horasReales = s.personalAsignado.reduce((hSum, pa) => hSum + calculateHours(pa.horaEntradaReal, pa.horaSalidaReal), 0);
@@ -370,7 +362,7 @@ function CprControlExplotacionPageInner() {
             }
         });
 
-    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal, personalInterno]);
+    }, [isMounted, allServiceOrders, allGastroOrders, allRecetas, allCostesFijos, allSolicitudesPersonalCPR, allCesionesPersonal, personalInterno, categoriasPersonal]);
     
     const processedCostes: CostRow[] = useMemo(() => {
         if (!dataCalculada) return [];
@@ -380,7 +372,7 @@ function CprControlExplotacionPageInner() {
             { label: 'Cesión de Personal', presupuesto: dataCalculada.ingresosCesionPersonalPlanificado, cierre: dataCalculada.ingresosCesionPersonalCierre, detailType: 'cesionIngreso' },
             { label: GASTO_LABELS.gastronomia, presupuesto: dataCalculada.costeEscandallo, cierre: dataCalculada.costeEscandallo, detailType: 'costeMP' },
             { label: 'Personal Cedido a CPR', presupuesto: dataCalculada.gastosCesionPersonalPlanificado, cierre: dataCalculada.gastosCesionPersonalCierre, detailType: 'cesionGasto' },
-            { label: GASTO_LABELS.personalSolicitadoCpr, presupuesto: dataCalculada.costePersonalSolicitadoPlanificado, cierre: dataCalculada.costePersonalSolicitadoCierre, detailType: 'personalApoyo' },
+            { label: 'Personal CPR', presupuesto: dataCalculada.costePersonalSolicitadoPlanificado, cierre: dataCalculada.costePersonalSolicitadoCierre, detailType: 'personalApoyo' },
             { label: 'Otros Gastos (Fijos)', presupuesto: dataCalculada.costesFijosPeriodo, cierre: dataCalculada.costesFijosPeriodo },
         ];
 
@@ -389,8 +381,8 @@ function CprControlExplotacionPageInner() {
                 'Venta Gastronomía': 'presupuestoVentas',
                 'Cesión de Personal': 'presupuestoCesionPersonal',
                 [GASTO_LABELS.gastronomia]: 'presupuestoGastosMP',
-                [GASTO_LABELS.personalMice]: 'presupuestoGastosPersonalMice',
-                [GASTO_LABELS.personalSolicitadoCpr]: 'presupuestoGastosPersonalExterno',
+                [GASTO_LABELS.personal_mice]: 'presupuestoGastosPersonalMice',
+                'Personal CPR': 'presupuestoGastosPersonalExterno',
                 'Otros Gastos (Fijos)': 'presupuestoOtrosGastos',
             };
             const objKey = keyMap[g.label];
@@ -441,13 +433,27 @@ function CprControlExplotacionPageInner() {
     const handleSaveRealCost = (label: string, value: string) => {
         if (!osId) return;
         const numericValue = value === '' ? undefined : parseFloat(value) || 0;
-        const allCosts = JSON.parse(localStorage.getItem('ctaRealCosts') || '{}');
-        if (!allCosts[osId]) {
-        allCosts[osId] = {};
-        }
-        allCosts[osId][label] = numericValue;
-        localStorage.setItem('ctaRealCosts', JSON.stringify(allCosts));
-        toast({ title: "Coste Real Guardado", description: "El valor se ha guardado localmente."});
+        
+        const newCosts = { ...realCostInputs, [label]: numericValue };
+        setRealCostInputs(newCosts);
+
+        updateCprOsData.mutate({
+            osId,
+            costesReales: newCosts,
+            comentarios: comentarios
+        }, {
+            onSuccess: () => {
+                toast({ title: "Coste Real Guardado", description: "El valor se ha sincronizado con Supabase."});
+            },
+            onError: (error) => {
+                toast({ 
+                    title: "Error al guardar", 
+                    description: "No se pudo sincronizar con Supabase. Revisa tu conexión.",
+                    variant: "destructive"
+                });
+                console.error("Error saving real cost:", error);
+            }
+        });
     };
     
     const handleSaveComentario = () => {
@@ -455,12 +461,24 @@ function CprControlExplotacionPageInner() {
         const newComentarios = { ...comentarios, [editingComment.label]: editingComment.text };
         setComentarios(newComentarios);
         
-        const allComentarios = JSON.parse(localStorage.getItem('ctaComentarios') || '{}');
-        allComentarios[osId] = newComentarios;
-        localStorage.setItem('ctaComentarios', JSON.stringify(allComentarios));
-        
-        setEditingComment(null);
-        toast({ title: "Comentario guardado" });
+        updateCprOsData.mutate({
+            osId,
+            costesReales: realCostInputs,
+            comentarios: newComentarios
+        }, {
+            onSuccess: () => {
+                setEditingComment(null);
+                toast({ title: "Comentario guardado", description: "Sincronizado con Supabase." });
+            },
+            onError: (error) => {
+                toast({ 
+                    title: "Error al guardar", 
+                    description: "No se pudo sincronizar con Supabase.",
+                    variant: "destructive"
+                });
+                console.error("Error saving comment:", error);
+            }
+        });
     };
 
     if (!isMounted || !dataCalculada) {

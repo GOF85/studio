@@ -18,6 +18,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
+import { useEventos, useGastronomyOrders, useRecetas } from '@/hooks/use-data-queries';
+
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 type VentaDetalle = {
@@ -33,26 +35,23 @@ type VentaDetalle = {
 
 function VentaGastronomiaPageInner() {
     const [isMounted, setIsMounted] = useState(false);
-    const [detalleVentas, setDetalleVentas] = useState<VentaDetalle[]>([]);
     const router = useRouter();
     const searchParams = useSearchParams() ?? new URLSearchParams();
 
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
-    useEffect(() => {
-        if (!from || !to) {
-            setIsMounted(true);
-            return;
-        }
+    const { data: allServiceOrders = [] } = useEventos();
+    const { data: allGastroOrders = [] } = useGastronomyOrders();
+    const { data: allRecetas = [] } = useRecetas();
+
+    const detalleVentas = useMemo(() => {
+        if (!from || !to || !allServiceOrders.length) return [];
 
         try {
             const rangeStart = new Date(from);
             const rangeEnd = new Date(to);
             
-            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-            const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-            const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
             const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
 
             const osIdsEnRango = new Set(
@@ -92,12 +91,16 @@ function VentaGastronomiaPageInner() {
                 });
             });
             
-            setDetalleVentas(ventasDetalladas.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
+            return ventasDetalladas.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
         } catch (error) {
             console.error("Error loading data:", error);
+            return [];
         }
+    }, [from, to, allServiceOrders, allGastroOrders, allRecetas]);
+
+    useEffect(() => {
         setIsMounted(true);
-    }, [from, to]);
+    }, []);
     
     const dateRangeDisplay = useMemo(() => {
         if (!from || !to) return "Rango de fechas no especificado";

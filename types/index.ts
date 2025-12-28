@@ -1,3 +1,43 @@
+// --- BLOQUE 1: Tipos y Enums estrictos OS ---
+
+// Strict Enums (case sensitive, exactos)
+export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | 'Hielo';
+export type MaterialOrderStatus = 'Asignado' | 'En preparación' | 'Listo';
+export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Listo' | 'Incidencia';
+export type TransporteOrderStatus = 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Entregado';
+export type PersonalMiceCentroCoste = 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
+
+// Responsables (JSONB en eventos)
+export interface ResponsablesOS {
+    respMetre?: string;
+    respMetrePhone?: string;
+    respCocinaCPR?: string;
+    respProjectManager?: string;
+    respRRHH?: string;
+}
+
+// Items de Briefing (JSONB en comercial_briefings)
+export interface BriefingItem {
+    id: string; // UUID generado en frontend
+    fecha: string; // YYYY-MM-DD
+    horaInicio: string; // HH:mm
+    servicio: string; // Ej: "Coffee Break"
+    descripcion: string;
+    asistentes: number;
+    precioUnitario: number;
+}
+
+// Turnos Externos (JSONB en personal_externo)
+export interface TurnoExterno {
+    id: string; // UUID
+    proveedorId: string;
+    categoria: string; // Ej: "Camarero"
+    horaEntrada: string;
+    horaSalida: string;
+    cantidad: number;
+    asignaciones: Array<{ nombre: string, dni: string }>;
+}
+// --- FIN BLOQUE 1 ---
 
 import { z } from "zod";
 
@@ -14,6 +54,7 @@ export type CateringItem = {
 };
 
 export type OrderItem = CateringItem & {
+    id?: string;
     quantity: number;
     orderId?: string;
     tipo?: string;
@@ -57,6 +98,7 @@ export type ServiceOrder = {
     spacePhone: string;
     spaceMail: string;
     respMetre: string;
+    personalAsignado?: any;
     respMetrePhone: string;
     respMetreMail: string;
     respCocinaCPR: string;
@@ -85,7 +127,7 @@ export type ServiceOrder = {
     facturacion: number;
     plane: string;
     comments: string;
-    status: 'Borrador' | 'Pendiente' | 'Confirmado' | 'Anulado';
+    status: 'Borrador' | 'Pendiente' | 'Confirmado' | 'Enviado' | 'Entregado' | 'Anulado';
     anulacionMotivo?: string;
     deliveryTime?: string;
     deliveryLocations?: string[];
@@ -102,7 +144,7 @@ export type ServiceOrder = {
 export type MaterialOrder = {
     id: string;
     osId: string;
-    type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
+    type: MaterialOrderType;
     status: 'Asignado' | 'En preparación' | 'Listo';
     items: OrderItem[];
     days: number;
@@ -131,6 +173,7 @@ export type Personal = {
     telefono: string;
     email: string;
     precioHora: number;
+    activo: boolean;
 }
 
 export const TIPO_ESPACIO = ['Hotel', 'Espacio Singular', 'Finca', 'Restaurante', 'Auditorio', 'Corporativo', 'Centro de Congresos', 'Exterior'] as const;
@@ -312,7 +355,7 @@ export type Espacio = {
 };
 
 
-export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler', 'Menaje', 'Decoracion', 'Servicios', 'Gastronomia', 'Otros'] as const;
+export const ARTICULO_CATERING_CATEGORIAS = ['Gastronomía', 'Bio', 'Bebida', 'Almacén', 'Alquiler', 'Otros'] as const;
 export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];
 
 export type ArticuloCatering = {
@@ -344,6 +387,7 @@ export type ArticuloCatering = {
     precioVentaEntregasIfema?: number | null;
     precioAlquilerIfema?: number | null;
     precioVentaIfema?: number | null;
+    precioAlquilerEntregas?: number | null;
     // Campos compartidos
     iva?: number | null;
     docDriveUrl?: string | null;
@@ -393,7 +437,7 @@ export type GastronomyOrderItem = {
     quantity?: number;
     comentarios?: string;
 }
-export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Listo' | 'Incidencia';
+
 
 export type ComercialBriefingItem = {
     id: string;
@@ -430,6 +474,7 @@ export type TransporteOrder = {
     id: string;
     osId: string;
     fecha: string;
+    hora?: string;
     proveedorId: string;
     proveedorNombre: string;
     tipoTransporte: string;
@@ -455,7 +500,6 @@ export type HieloOrder = {
     proveedorNombre: string;
     items: { id: string; producto: string; precio: number; cantidad: number }[];
     total: number;
-    observaciones: string;
     status: 'Pendiente' | 'Confirmado' | 'En reparto' | 'Entregado';
 };
 
@@ -573,7 +617,7 @@ export type PersonalEntregaTurno = {
     requiereActualizacion?: boolean;
 };
 
-export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado'] as const;
+export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado', 'Confirmado', 'Validado'] as const;
 export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
 
 export type PersonalEntrega = {
@@ -581,6 +625,7 @@ export type PersonalEntrega = {
     turnos: PersonalEntregaTurno[];
     status: EstadoPersonalEntrega;
     observacionesGenerales?: string;
+    ajustes?: any[];
 };
 
 
@@ -603,21 +648,22 @@ export type CtaExplotacionObjetivos = {
     gastronomia: number;
     bodega: number;
     consumibles: number;
-    hielo: number;
     almacen: number;
     alquiler: number;
     transporte: number;
     decoracion: number;
     atipicos: number;
-    personalMice: number;
-    personalExterno: number;
-    costePruebaMenu: number;
+    personal_mice: number;
+    personal_externo: number;
+    personal_solicitado_cpr: number;
+    coste_prueba_menu: number;
 }
 
 export type ObjetivosGasto = CtaExplotacionObjetivos & {
     id: string;
+    nombre: string;
     name: string;
-    personalSolicitadoCpr?: number;
+    os_id?: string | null;
 };
 
 export type ComercialAjuste = {
@@ -657,6 +703,7 @@ export const articuloErpSchema = z.object({
     unidad: z.enum(UNIDADES_MEDIDA),
     tipo: z.string().optional(),
     categoriaMice: z.string().optional(),
+    categoria: z.string().optional(),
     alquiler: z.boolean().default(false),
     observaciones: z.string().optional(),
 });
@@ -707,7 +754,7 @@ export type Elaboracion = {
     videoProduccionURL?: string;
     formatoExpedicion: string;
     ratioExpedicion: number;
-    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO' | 'AMBIENTE' | 'CALIENTE';
     costePorUnidad?: number;
     alergenos?: Alergeno[];
     requiereRevision?: boolean;
@@ -860,7 +907,7 @@ export type PickingItemState = {
     resolved?: boolean;
 };
 
-export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
+
 
 export type PickingSheet = {
     id: string; // Composite key: osId + fechaNecesidad
@@ -1009,6 +1056,7 @@ export type EntregaHito = {
     items: PedidoEntregaItem[];
     portes?: number;
     horasCamarero?: number;
+    pickingState?: PickingEntregaState;
 }
 export type PedidoEntrega = {
     osId: string;
@@ -1194,6 +1242,50 @@ export type CesionStorage = {
     comentarios?: string;
     estado: EstadoCesionPersonal;
 };
+
+// --- BLOQUE: Devoluciones, Mermas e Incidencias ---
+
+export interface Devolucion {
+    id?: string;
+    os_id: string;
+    articulo_id: string;
+    cantidad: number;
+    usuario_id?: string;
+    fecha?: string;
+    modulo?: string;
+    observaciones?: string;
+    es_correccion?: boolean;
+}
+
+export interface Merma {
+    id?: string;
+    os_id: string;
+    articulo_id: string;
+    cantidad: number;
+    motivo?: string;
+    coste_impacto?: number;
+    usuario_id?: string;
+    fecha?: string;
+    observaciones?: string;
+}
+
+export interface IncidenciaMaterial {
+    id?: string;
+    os_id: string;
+    articulo_id: string;
+    descripcion: string;
+    fotos?: string[];
+    usuario_id?: string;
+    fecha?: string;
+}
+
+export interface OSEstadoCierre {
+    os_id: string;
+    cerrada: boolean;
+    fecha_cierre?: string;
+    usuario_cierre?: string;
+    motivo_reapertura?: string;
+}
 
 
 export * from './espacios';

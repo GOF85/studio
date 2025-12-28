@@ -3,16 +3,20 @@
 import { memo, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { X } from 'lucide-react';
+import { X, Users } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import {
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
 } from '@/components/ui/sheet';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,10 +29,15 @@ export interface CalendarEvent {
   osId: string;
   serviceNumber: string;
   horaInicio: string;
+  horaFin: string;
   space: string;
+  client: string;
   finalClient: string;
   asistentes: number;
   status: string;
+  briefingItems?: any[];
+  gastronomyCount?: number;
+  gastronomyPaxTotal?: number;
   respMetre?: string;
   respPase?: string;
   respProjectManager?: string;
@@ -135,8 +144,8 @@ const DayExpandedBottomSheetComponent = ({
             <span className="text-sm font-medium text-muted-foreground">
               Total del día
             </span>
-            <Badge variant="default" className="text-lg px-3 py-1">
-              {totalDayPax} pax
+            <Badge variant="default" className="text-lg px-3 py-1 flex items-center gap-2">
+              {totalDayPax} <Users className="h-5 w-5" />
             </Badge>
           </div>
         </div>
@@ -151,6 +160,12 @@ const DayExpandedBottomSheetComponent = ({
           side="bottom"
           className="h-[85vh] rounded-t-2xl flex flex-col overflow-hidden"
         >
+          <SheetHeader className="sr-only">
+            <SheetTitle>{formattedDate}</SheetTitle>
+            <SheetDescription>
+              Detalle de eventos para el día {formattedDate}
+            </SheetDescription>
+          </SheetHeader>
           {contentComponent}
         </SheetContent>
       </Sheet>
@@ -161,6 +176,9 @@ const DayExpandedBottomSheetComponent = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden p-0">
         <DialogTitle className="sr-only">{formattedDate}</DialogTitle>
+        <DialogDescription className="sr-only">
+          Detalle de eventos para el día {formattedDate}
+        </DialogDescription>
         {contentComponent}
       </DialogContent>
     </Dialog>

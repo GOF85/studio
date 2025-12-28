@@ -16,9 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
-import { useLoadingStore } from '@/hooks/use-loading-store';
-import { supabase } from '@/lib/supabase';
+import { useUpsertPersonal } from '@/hooks/use-data-queries';
 
 export const personalFormSchema = z.object({
   id: z.string().min(1, 'El DNI es obligatorio'),
@@ -37,8 +35,8 @@ type PersonalFormValues = z.infer<typeof personalFormSchema>;
 
 export default function NuevoPersonalPage() {
   const router = useRouter();
-  const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
+  const upsertPersonal = useUpsertPersonal();
 
   const form = useForm<PersonalFormValues>({
     resolver: zodResolver(personalFormSchema),
@@ -57,48 +55,25 @@ export default function NuevoPersonalPage() {
   });
 
   async function onSubmit(data: PersonalFormValues) {
-    setIsLoading(true);
+    try {
+      const nombreCompleto = `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim();
+      const nombreCompacto = `${data.nombre} ${data.apellido1}`.trim();
+      const iniciales = `${data.nombre[0]}${data.apellido1[0]}`.toUpperCase();
 
-    // Check if ID exists
-    const { data: existing } = await supabase
-      .from('personal')
-      .select('id')
-      .eq('id', data.id)
-      .single();
+      await upsertPersonal.mutateAsync({
+        ...data,
+        nombreCompleto,
+        nombreCompacto,
+        iniciales,
+        activo: true
+      });
 
-    if (existing) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un empleado con este DNI.' });
-      setIsLoading(false);
-      return;
-    }
-
-    const nombreCompleto = `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim();
-    const nombreCompacto = `${data.nombre} ${data.apellido1}`.trim();
-    const iniciales = `${data.nombre[0]}${data.apellido1[0]}`.toUpperCase();
-
-    const { error } = await supabase.from('personal').insert({
-      id: data.id,
-      nombre: data.nombre,
-      apellido1: data.apellido1,
-      apellido2: data.apellido2,
-      nombre_completo: nombreCompleto,
-      nombre_compacto: nombreCompacto,
-      iniciales: iniciales,
-      departamento: data.departamento,
-      categoria: data.categoria,
-      telefono: data.telefono,
-      email: data.email,
-      precio_hora: data.precioHora,
-      activo: true
-    });
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear el empleado: ' + error.message });
-    } else {
       toast({ description: 'Nuevo empleado añadido correctamente.' });
       router.push('/bd/personal');
+    } catch (error: any) {
+      console.error('Error creating personal:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear el empleado: ' + error.message });
     }
-    setIsLoading(false);
   }
 
   return (
@@ -123,8 +98,8 @@ export default function NuevoPersonalPage() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" type="button" onClick={() => router.push('/bd/personal')}> <X className="mr-2" /> Cancelar</Button>
-              <Button type="submit" form="personal-form" disabled={isLoading}>
-                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+              <Button type="submit" form="personal-form" disabled={upsertPersonal.isPending}>
+                {upsertPersonal.isPending ? <Loader2 className="animate-spin" /> : <Save />}
                 <span className="ml-2">Guardar</span>
               </Button>
             </div>
@@ -132,7 +107,7 @@ export default function NuevoPersonalPage() {
         </div>
       </div>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 pt-0 pb-8">
         <Form {...form}>
           <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Card>

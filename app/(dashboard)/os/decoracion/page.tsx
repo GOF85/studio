@@ -36,53 +36,42 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
+import { useDecoracionOrders, useDeleteDecoracionOrder, useEvento } from '@/hooks/use-data-queries';
 
 
 export default function DecoracionPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [decoracionOrders, setDecoracionOrders] = useState<DecoracionOrder[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  
   const router = useRouter();
   const params = useParams() ?? {};
   const osId = (params.id as string) || '';
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
+  const { data: evento, isLoading: loadingOS } = useEvento(osId);
+  const { data: decoracionOrders = [], isLoading: loadingOrders } = useDecoracionOrders(osId);
+  const deleteOrder = useDeleteDecoracionOrder();
 
-      const allDecoracionOrders = JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as DecoracionOrder[];
-      const relatedOrders = allDecoracionOrders.filter(order => order.osId === osId);
-      setDecoracionOrders(relatedOrders);
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
-        router.push('/pes');
-    }
-    setIsMounted(true);
-  }, [osId, router, toast]);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   const totalAmount = useMemo(() => {
     return decoracionOrders.reduce((sum, order) => sum + order.precio, 0);
   }, [decoracionOrders]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!orderToDelete) return;
-
-    let allOrders = JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as DecoracionOrder[];
-    const updatedOrders = allOrders.filter((o: DecoracionOrder) => o.id !== orderToDelete);
-    localStorage.setItem('decoracionOrders', JSON.stringify(updatedOrders));
-    setDecoracionOrders(updatedOrders.filter((o: DecoracionOrder) => o.osId === osId));
-    
-    toast({ title: 'Gasto de decoración eliminado' });
+    await deleteOrder.mutateAsync(orderToDelete);
     setOrderToDelete(null);
   };
   
-  if (!isMounted || !serviceOrder) {
+  if (loadingOS || loadingOrders) {
     return <LoadingSkeleton title="Cargando Módulo de Decoración..." />;
+  }
+
+  if (!evento) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <p className="text-destructive mb-4">No se ha encontrado la Orden de Servicio.</p>
+        <Button onClick={() => router.push('/os')}>Volver a OS</Button>
+      </div>
+    );
   }
 
   return (

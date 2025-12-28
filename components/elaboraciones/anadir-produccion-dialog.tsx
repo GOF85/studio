@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Form,
@@ -246,6 +247,9 @@ export function AñadirProduccionDialog({
           <DialogTitle className="text-base sm:text-lg">
             {editingProduccion ? 'Editar Producción' : 'Registrar Nueva Producción'}
           </DialogTitle>
+          <DialogDescription>
+            Introduce los detalles de la producción y ajusta las mermas si es necesario.
+          </DialogDescription>
         </DialogHeader>
 
         {form ? (

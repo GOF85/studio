@@ -10,7 +10,7 @@ import { z } from "zod";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Save, Flower2, Calendar as CalendarIcon, Loader2, X } from 'lucide-react';
-import type { ServiceOrder, DecoracionDBItem, DecoracionOrder } from '@/types';
+import type { DecoracionDBItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,10 +22,10 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
 import { Combobox } from '@/components/ui/combobox';
+import { useEvento, useDecoracionOrders, useCreateDecoracionOrder, useUpdateDecoracionOrder, useDecoracionCatalogo } from '@/hooks/use-data-queries';
 
 
 const decoracionOrderSchema = z.object({
-  id: z.string(),
   fecha: z.date({ required_error: 'La fecha es obligatoria.' }),
   concepto: z.string().min(1, 'El concepto es obligatorio'),
   precio: z.coerce.number().min(0.01, 'El precio debe ser mayor que cero'),
@@ -37,139 +37,131 @@ type DecoracionOrderFormValues = z.infer<typeof decoracionOrderSchema>;
 function PedidoDecoracionPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
-  const osId = searchParams.get('osId');
+  const osId = searchParams.get('osId') || '';
   const orderId = searchParams.get('orderId');
   const isEditing = !!orderId;
 
-  const [isMounted, setIsMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [decoracionDB, setDecoracionDB] = useState<DecoracionDBItem[]>([]);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { toast } = useToast();
+  const { data: evento, isLoading: loadingOS } = useEvento(osId);
+  const { data: decoracionOrders = [], isLoading: loadingOrders } = useDecoracionOrders(evento?.id || osId);
+  const { data: decoracionCatalogo = [], isLoading: loadingCatalogo } = useDecoracionCatalogo();
+  const createOrder = useCreateDecoracionOrder();
+  const updateOrder = useUpdateDecoracionOrder();
+
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const form = useForm<DecoracionOrderFormValues>({
     resolver: zodResolver(decoracionOrderSchema),
+    defaultValues: {
+        fecha: new Date(),
+        concepto: '',
+        precio: 0,
+        observaciones: '',
+    }
   });
 
-  const { setValue, watch } = form;
+  const { setValue, watch, reset } = form;
   const selectedConcepto = watch('concepto');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    setServiceOrder(currentOS || null);
-
-    const dbItems = JSON.parse(localStorage.getItem('decoracionDB') || '[]') as DecoracionDBItem[];
-    setDecoracionDB(dbItems);
+    if (isInitialized) return;
 
     if (isEditing) {
-      const allOrders = JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as DecoracionOrder[];
-      const order = allOrders.find(o => o.id === orderId);
-      if (order) {
-        form.reset({
-          ...order,
-          fecha: new Date(order.fecha),
-        });
+      if (decoracionOrders.length > 0) {
+        const order = decoracionOrders.find(o => o.id === orderId);
+        if (order) {
+          setIsInitialized(true);
+          reset({
+            concepto: order.concepto,
+            precio: order.precio,
+            observaciones: order.observaciones || '',
+            fecha: new Date(order.fecha),
+          });
+        }
       }
-    } else {
-      form.reset({
-        id: Date.now().toString(),
-        fecha: currentOS?.startDate ? new Date(currentOS.startDate) : new Date(),
+    } else if (evento) {
+      setIsInitialized(true);
+      reset({
+        fecha: evento.startDate ? new Date(evento.startDate) : new Date(),
         precio: 0,
         concepto: '',
         observaciones: '',
       });
     }
-    
-    setIsMounted(true);
-  }, [osId, orderId, form, isEditing]);
+  }, [isEditing, decoracionOrders, orderId, evento, reset, isInitialized]);
+
+  // Reset initialization when orderId or osId changes
+  useEffect(() => {
+    setIsInitialized(false);
+  }, [osId, orderId]);
 
   useEffect(() => {
-    const dbItem = decoracionDB.find(item => item.concepto.toLowerCase() === selectedConcepto?.toLowerCase());
+    const dbItem = decoracionCatalogo.find((item: any) => item.nombre.toLowerCase() === selectedConcepto?.toLowerCase());
     if (dbItem) {
-      setValue('precio', dbItem.precio);
+      setValue('precio', dbItem.precio_referencia);
     }
-  }, [selectedConcepto, decoracionDB, setValue]);
+  }, [selectedConcepto, setValue, decoracionCatalogo]);
 
   const decoracionOptions = useMemo(() => {
-    return decoracionDB.map(item => ({ label: item.concepto, value: item.concepto }));
-  }, [decoracionDB]);
+    return decoracionCatalogo.map((item: any) => ({ label: item.nombre, value: item.nombre }));
+  }, [decoracionCatalogo]);
 
-  const onSubmit = (data: DecoracionOrderFormValues) => {
-    setIsLoading(true);
-    if (!osId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
-      setIsLoading(false);
-      return;
+  const onSubmit = async (data: DecoracionOrderFormValues) => {
+    try {
+        const payload = {
+            ...data,
+            osId: osId,
+            fecha: format(data.fecha, 'yyyy-MM-dd'),
+        };
+
+        if (isEditing && orderId) {
+            await updateOrder.mutateAsync({ ...payload, id: orderId });
+            toast({ title: "Gasto actualizado" });
+        } else {
+            await createOrder.mutateAsync(payload);
+            toast({ title: "Gasto de decoración creado" });
+        }
+        router.push(`/os/${osId}/decoracion`);
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message });
     }
-
-    // Check if the concept is new. If so, add it to the DB.
-    const isNewConcept = !decoracionDB.some(item => item.concepto.toLowerCase() === data.concepto.toLowerCase());
-    if (isNewConcept) {
-      const newDBItem: DecoracionDBItem = {
-        id: Date.now().toString(),
-        concepto: data.concepto,
-        precio: data.precio,
-      };
-      const updatedDB = [...decoracionDB, newDBItem];
-      localStorage.setItem('decoracionDB', JSON.stringify(updatedDB));
-      setDecoracionDB(updatedDB);
-      toast({ title: "Concepto nuevo guardado", description: `"${data.concepto}" se ha añadido a la base de datos.` });
-    }
-
-    const allOrders = JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as DecoracionOrder[];
-    
-    const finalOrder: DecoracionOrder = {
-      ...data,
-      osId,
-      fecha: format(data.fecha, 'yyyy-MM-dd'),
-    };
-
-    if (isEditing) {
-      const index = allOrders.findIndex(o => o.id === orderId);
-      if (index !== -1) {
-        allOrders[index] = finalOrder;
-        toast({ title: "Gasto actualizado" });
-      }
-    } else {
-      allOrders.push(finalOrder);
-      toast({ title: "Gasto de decoración creado" });
-    }
-
-    localStorage.setItem('decoracionOrders', JSON.stringify(allOrders));
-    
-    setTimeout(() => {
-        setIsLoading(false);
-        router.push(`/decoracion?osId=${osId}`);
-    }, 500);
   };
 
-  if (!isMounted || !serviceOrder) {
+  if (loadingOS || loadingOrders) {
     return <LoadingSkeleton title="Cargando Gasto de Decoración..." />;
   }
 
+  if (!evento && !loadingOS) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <p className="text-destructive mb-4 font-bold text-lg">No se ha encontrado la Orden de Servicio.</p>
+        <p className="text-muted-foreground mb-6 text-sm">ID/Número buscado: <span className="font-mono bg-muted px-2 py-1 rounded">{osId || 'Ninguno'}</span></p>
+        <Button onClick={() => router.push('/os')}>Volver a OS</Button>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <main className="container mx-auto px-4 py-8">
+    <main className="container mx-auto px-4 py-8">
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/decoracion?osId=${osId}`)} className="mb-2">
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/decoracion`)} className="mb-2">
                             <ArrowLeft className="mr-2" />
                             Volver al Módulo
                         </Button>
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Flower2 />{isEditing ? 'Editar' : 'Nuevo'} Gasto de Decoración</h1>
-                        <p className="text-muted-foreground">Para la OS: {serviceOrder.serviceNumber}</p>
+                        <p className="text-muted-foreground">Para la OS: {evento?.serviceNumber}</p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" type="button" onClick={() => router.push(`/decoracion?osId=${osId}`)}>
+                        <Button variant="outline" type="button" onClick={() => router.push(`/os/${osId}/decoracion`)}>
                             <X className="mr-2 h-4 w-4" />
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={isLoading}>
-                            {isLoading ? <Loader2 className="animate-spin" /> : <Save className="mr-2" />}
+                        <Button type="submit" disabled={createOrder.isPending || updateOrder.isPending}>
+                            {(createOrder.isPending || updateOrder.isPending) ? <Loader2 className="animate-spin" /> : <Save className="mr-2" />}
                             Guardar Gasto
                         </Button>
                     </div>
@@ -220,28 +212,24 @@ function PedidoDecoracionPageInner() {
                                 </FormItem>
                             )} />
                         </div>
-                        
-                    </CardContent>
-                    <CardFooter>
-                         <FormField control={form.control} name="observaciones" render={({ field }) => (
-                            <FormItem className="w-full">
+                        <FormField control={form.control} name="observaciones" render={({ field }) => (
+                            <FormItem>
                             <FormLabel>Observaciones</FormLabel>
                             <FormControl><Textarea {...field} rows={4} /></FormControl>
                             <FormMessage />
                             </FormItem>
                         )} />
-                    </CardFooter>
+                    </CardContent>
                 </Card>
             </form>
         </Form>
-      </main>
-    </>
+    </main>
   );
 }
 
 export default function PedidoDecoracionPage() {
   return (
-    <Suspense fallback={<div>Cargando ...</div>}>
+    <Suspense fallback={<LoadingSkeleton title="Cargando..." />}>
       <PedidoDecoracionPageInner />
     </Suspense>
   );

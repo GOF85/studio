@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X } from 'lucide-react';
-import type { CategoriaReceta } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -14,11 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useUpsertCategoriaReceta } from '@/hooks/use-data-queries';
 
 export const categoriaRecetaSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   snack: z.boolean().default(false),
 });
@@ -27,53 +25,31 @@ export type CategoriaRecetaFormValues = z.infer<typeof categoriaRecetaSchema>;
 
 export default function NuevaCategoriaRecetaPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const upsertMutation = useUpsertCategoriaReceta();
 
   const form = useForm<CategoriaRecetaFormValues>({
     resolver: zodResolver(categoriaRecetaSchema),
     defaultValues: {
-      id: Date.now().toString(),
       nombre: '',
       snack: false,
     },
   });
 
   async function onSubmit(data: CategoriaRecetaFormValues) {
-    setIsLoading(true);
-
-    // Check if category exists
-    const { data: existing, error: checkError } = await supabase
-      .from('categorias_recetas')
-      .select('id')
-      .ilike('nombre', data.nombre)
-      .single();
-
-    if (existing) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Ya existe una categoría con este nombre.' });
-      setIsLoading(false);
-      return;
-    }
-
-    const newCategory = {
-      id: crypto.randomUUID(),
-      nombre: data.nombre,
-      snack: data.snack
-    };
-
-    const { data: insertedData, error } = await supabase
-      .from('categorias_recetas')
-      .insert(newCategory)
-      .select();
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear la categoría: ' + error.message });
-    } else {
+    try {
+      await upsertMutation.mutateAsync({
+        ...data,
+        id: data.id || crypto.randomUUID(),
+      });
       toast({ description: 'Nueva categoría añadida correctamente.' });
       router.push('/bd/categorias-recetas');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear la categoría: ' + error.message });
     }
-    setIsLoading(false);
   }
+
+  const isLoading = upsertMutation.isPending;
 
   return (
     <Form {...form}>

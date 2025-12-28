@@ -131,24 +131,43 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
     );
 }
 
-export default function PersonalExternoPage() {
-    const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [isMounted, setIsMounted] = useState(false);
-    const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
-    const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isPrinting, setIsPrinting] = useState(false);
-    const [rowToDelete, setRowToDelete] = useState<number | null>(null);
-    const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
-    const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
-    const [showClearConfirm, setShowClearConfirm] = useState(false);
+import {
+    useEvento,
+    useComercialBriefings,
+    useCategoriasPersonal,
+    useProveedores,
+    usePersonalExterno,
+    usePersonalExternoAjustes,
+    useUpdatePersonalExterno,
+    useUpdatePersonalExternoAjustes
+} from '@/hooks/use-data-queries';
 
-    const router = useRouter();
+export default function PersonalExternoPage() {
     const params = useParams() ?? {};
     const osId = (params.id as string) || '';
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
+    const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId);
+    const { data: briefings, isLoading: isLoadingBriefings } = useComercialBriefings(osId);
+    const { data: proveedoresDB = [], isLoading: isLoadingCategorias } = useCategoriasPersonal();
+    const { data: allProveedores = [], isLoading: isLoadingProveedores } = useProveedores();
+    const { data: personalExternoData, isLoading: isLoadingPersonal } = usePersonalExterno(osId);
+    const { data: ajustesData = [], isLoading: isLoadingAjustes } = usePersonalExternoAjustes(osId);
+
+    const updatePersonalMutation = useUpdatePersonalExterno();
+    const updateAjustesMutation = useUpdatePersonalExternoAjustes();
+
+    const briefingItems = useMemo(() => briefings?.[0]?.items || [], [briefings]);
+    const personalExterno = useMemo(() => (personalExternoData as PersonalExterno) || { osId, turnos: [], status: 'Pendiente' }, [personalExternoData, osId]);
+
+    const [isMounted, setIsMounted] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -167,41 +186,19 @@ export default function PersonalExternoPage() {
         name: "ajustes",
     });
 
-    const loadData = useCallback(() => {
-        if (!osId || !impersonatedUser) return;
-        try {
-            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-            const currentOS = allServiceOrders.find(os => os.id === osId);
-            setServiceOrder(currentOS || null);
-            const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-            const currentBriefing = allBriefings.find(b => b.osId === osId);
-            setBriefingItems(currentBriefing?.items || []);
-            const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
-            setProveedoresDB(dbProveedores);
-
-            const allProveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-            setAllProveedores(allProveedoresData);
-            const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-            const currentPersonalExterno = allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' };
-            setPersonalExterno(currentPersonalExterno);
-
-            const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as { [key: string]: PersonalExternoAjuste[] };
-
+    useEffect(() => {
+        if (personalExterno && isMounted) {
             form.reset({
-                turnos: currentPersonalExterno.turnos.map(t => ({ ...t, fecha: new Date(t.fecha) })),
-                ajustes: storedAjustes[osId] || []
+                turnos: personalExterno.turnos.map(t => ({ ...t, fecha: new Date(t.fecha) })),
+                ajustes: ajustesData,
+                observacionesGenerales: personalExterno.observacionesGenerales || ''
             });
-
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de personal externo.' });
-        } finally {
-            setIsMounted(true);
         }
-    }, [osId, toast, form, impersonatedUser]);
+    }, [personalExterno, ajustesData, isMounted, form]);
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        setIsMounted(true);
+    }, []);
 
     const handleProviderChange = useCallback((index: number, proveedorId: string) => {
         if (!proveedorId) return;
@@ -233,17 +230,13 @@ export default function PersonalExternoPage() {
             }, 0);
         }, 0) || 0;
 
-        const aj = watchedAjustes?.reduce((sum, ajuste) => sum + ajuste.importe, 0) || 0;
+        const aj = watchedAjustes?.reduce((sum, ajuste) => sum + (ajuste.importe || 0), 0) || 0;
         return { totalPlanned: planned, totalReal: real, totalAjustes: aj, costeFinalPlanificado: planned + aj, finalTotalReal: real + aj };
     }, [watchedFields, watchedAjustes]);
 
-    const handleGlobalStatusAction = (newStatus: EstadoPersonalExterno) => {
+    const handleGlobalStatusAction = async (newStatus: EstadoPersonalExterno) => {
         if (!personalExterno) return;
 
-        let requiresUpdate = false;
-        if (newStatus === 'Solicitado') {
-            requiresUpdate = personalExterno.turnos.some(t => t.statusPartner !== 'Gestionado');
-        }
         const updatedTurnos = personalExterno.turnos.map(t => ({
             ...t,
             requiereActualizacion: newStatus === 'Solicitado' ? true : t.requiereActualizacion,
@@ -251,17 +244,13 @@ export default function PersonalExternoPage() {
 
         const updatedPersonalExterno = { ...personalExterno, status: newStatus, turnos: updatedTurnos };
 
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const index = allPersonalExterno.findIndex(p => p.osId === osId);
-
-        if (index > -1) {
-            allPersonalExterno[index] = updatedPersonalExterno;
-        } else {
-            allPersonalExterno.push(updatedPersonalExterno);
+        try {
+            await updatePersonalMutation.mutateAsync(updatedPersonalExterno);
+            toast({ title: 'Estado actualizado', description: `La solicitud de personal ahora está: ${newStatus}` });
+        } catch (error) {
+            console.error('Error updating status:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar el estado.' });
         }
-        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-        setPersonalExterno(updatedPersonalExterno);
-        toast({ title: 'Estado actualizado', description: `La solicitud de personal ahora está: ${newStatus}` });
     };
 
     const isSolicitudDesactualizada = useMemo(() => {
@@ -298,57 +287,42 @@ export default function PersonalExternoPage() {
         }
     }
 
-    const onSubmit = (data: FormValues) => {
+    const onSubmit = async (data: FormValues) => {
         setIsLoading(true);
-        if (!osId) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
-            setIsLoading(false);
-            return;
-        }
+        try {
+            const currentStatus = personalExterno?.status || 'Pendiente';
 
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const index = allPersonalExterno.findIndex(p => p.osId === osId);
+            const newPersonalData: PersonalExterno = {
+                osId,
+                turnos: data.turnos.map(t => {
+                    const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
+                    return {
+                        ...t,
+                        fecha: format(t.fecha, 'yyyy-MM-dd'),
+                        statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
+                        requiereActualizacion: true,
+                        asignaciones: (t.asignaciones || []).map(a => ({
+                            ...a,
+                            horaEntradaReal: a.horaEntradaReal || '',
+                            horaSalidaReal: a.horaSalidaReal || '',
+                        })),
+                    }
+                }),
+                status: currentStatus,
+                observacionesGenerales: data.observacionesGenerales || '',
+            };
 
-        const currentStatus = personalExterno?.status || 'Pendiente';
+            await updatePersonalMutation.mutateAsync(newPersonalData);
+            await updateAjustesMutation.mutateAsync({ osId, ajustes: data.ajustes || [] });
 
-        const newPersonalData: PersonalExterno = {
-            osId,
-            turnos: data.turnos.map(t => {
-                const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
-                return {
-                    ...t,
-                    fecha: format(t.fecha, 'yyyy-MM-dd'),
-                    statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-                    requiereActualizacion: true,
-                    asignaciones: (t.asignaciones || []).map(a => ({
-                        ...a,
-                        horaEntradaReal: a.horaEntradaReal || '',
-                        horaSalidaReal: a.horaSalidaReal || '',
-                    })),
-                }
-            }),
-            status: currentStatus,
-            observacionesGenerales: form.getValues('observacionesGenerales'),
-        };
-
-        if (index > -1) {
-            allPersonalExterno[index] = newPersonalData;
-        } else {
-            allPersonalExterno.push(newPersonalData);
-        }
-
-        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-
-        const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-        allAjustes[osId] = data.ajustes || [];
-        localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
-        window.dispatchEvent(new Event('storage'));
-
-        setTimeout(() => {
             toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
-            setIsLoading(false);
             form.reset(data);
-        }, 500);
+        } catch (error) {
+            console.error('Error saving personal:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la planificación.' });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const addRow = () => {
@@ -377,19 +351,12 @@ export default function PersonalExternoPage() {
         }
     };
 
-    const handleClearAll = () => {
+    const handleClearAll = async () => {
         remove();
         setShowClearConfirm(false);
         toast({ title: 'Planificación vaciada' });
-        handleSubmit(onSubmit)();
+        await handleSubmit(onSubmit)();
     };
-
-    const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
-        if (!osId) return;
-        const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-        allAjustes[osId] = newAjustes;
-        localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
-    }
 
     const providerOptions = useMemo(() =>
         allProveedores.filter(p => p.nombreComercial && p.nombreComercial.length > 0).map(p => ({
@@ -727,13 +694,13 @@ export default function PersonalExternoPage() {
                                                 <div key={ajuste.id} className="flex gap-2 items-center">
                                                     <FormField control={control} name={`ajustes.${index}.proveedorId`} render={({ field }) => (
                                                         <FormItem className="flex-grow">
-                                                            <Combobox options={providerOptions} value={field.value} onChange={field.onChange} placeholder="Proveedor..." />
+                                                            <Combobox options={providerOptions} value={field.value || ''} onChange={field.onChange} placeholder="Proveedor..." />
                                                         </FormItem>
                                                     )} />
                                                     <FormField control={control} name={`ajustes.${index}.concepto`} render={({ field }) => (
                                                         <Combobox
                                                             options={AJUSTE_CONCEPTO_OPCIONES.map(o => ({ label: o, value: o }))}
-                                                            value={field.value}
+                                                            value={field.value || ''}
                                                             onChange={field.onChange}
                                                             placeholder="Concepto..."
                                                         />

@@ -5,8 +5,13 @@ import './globals.css';
 // 1. IMPORTAMOS AMBOS PROVEEDORES
 import QueryProvider from '@/providers/query-provider'; 
 import { AuthProvider } from '@/providers/auth-provider'; // Asumiendo exportación nombrada
+import { Toaster } from '@/components/ui/toaster';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  preload: true,
+});
 
 export const metadata: Metadata = {
   title: 'Studio App',
@@ -25,6 +30,7 @@ export default function RootLayout({
         <AuthProvider>
           <QueryProvider>
             {children}
+            <Toaster />
           </QueryProvider>
         </AuthProvider>
       </body>

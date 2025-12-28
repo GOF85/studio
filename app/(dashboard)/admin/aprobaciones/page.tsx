@@ -108,7 +108,7 @@ export default function AdminAprobacionesPage() {
     if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
 
     return (
-        <div className="container mx-auto py-8">
+        <div className="container mx-auto pt-0 pb-8">
             <h1 className="text-2xl font-bold mb-6">Aprobaciones Pendientes</h1>
 
             <Card>
