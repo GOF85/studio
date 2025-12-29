@@ -243,8 +243,8 @@ const CalendarEventRowComponent = ({
                   {formatSafeTime(item.horaInicio)} - {formatSafeTime(item.horaFin)}
                 </span>
               </div>
-              {item.comentarios && (
-                <p className="text-[9px] text-muted-foreground line-clamp-1 italic">"{item.comentarios}"</p>
+              {(item.comentario || item.comentarios) && (
+                <p className="text-[9px] text-muted-foreground line-clamp-1 italic">"{item.comentario || item.comentarios}"</p>
               )}
               <div className="flex justify-between items-center mt-1">
                 <span className="text-[8px] font-bold opacity-60 uppercase tracking-tighter">

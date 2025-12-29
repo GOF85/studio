@@ -19,14 +19,12 @@ export const planningItems: MenuItem[] = [
         href: '/pes',
         icon: ClipboardList,
         description: 'Planifica y gestiona servicios futuros',
-        badge: { label: '3 activos', variant: 'secondary' }
     },
     {
         title: 'Calendario de Servicios',
         href: '/calendario',
         icon: Calendar,
         description: 'Vista temporal de todos los eventos',
-        badge: { label: 'Hoy: 2', variant: 'default' }
     },
     {
         title: 'Entregas MICE',
@@ -34,7 +32,6 @@ export const planningItems: MenuItem[] = [
         icon: Truck,
         className: "theme-orange",
         description: 'Gestión de entregas y logística',
-        badge: { label: '1 pendiente', variant: 'destructive' }
     },
 ];
 

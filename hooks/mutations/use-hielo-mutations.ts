@@ -19,10 +19,12 @@ export function useCreateHieloOrder() {
             
             const insertData = order.items.map(item => ({
                 evento_id: targetId,
+                proveedor_id: order.proveedorId,
                 tipo_hielo: order.deliveryTime ? `[${order.deliveryTime}] ${item.producto}` : item.producto,
                 cantidad_kg: item.cantidad,
                 precio_kg: item.precio,
                 total: item.cantidad * item.precio,
+                status: 'Pendiente'
             }));
 
             const { data, error } = await supabase

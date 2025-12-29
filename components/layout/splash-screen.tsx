@@ -4,20 +4,29 @@ import React, { useEffect, useState, useRef } from 'react';
 import { ChefHat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLoadingDebug } from '@/hooks/use-loading-debug';
+import { useAuth } from '@/providers/auth-provider';
 
 const COMPONENT_NAME = 'SplashScreen';
 
 type SplashPhase = 'showing' | 'fading' | 'hidden';
 type LoadingState = 'initializing' | 'authenticating' | 'loading-dashboard' | 'ready';
 
-const LOADING_STATES: Record<LoadingState, string> = {
-  initializing: 'Inicializando aplicación...',
-  authenticating: 'Verificando autenticación...',
-  'loading-dashboard': 'Cargando dashboard...',
-  ready: 'Listo'
+const TECHNICAL_MESSAGES: Record<LoadingState, string> = {
+  initializing: 'Resolviendo OS ID y cargando esquemas...',
+  authenticating: 'Verificando sesión y permisos de rol...',
+  'loading-dashboard': 'Ejecutando RPC get_dashboard_metrics...',
+  ready: 'Sistema listo'
+};
+
+const BUSINESS_MESSAGES: Record<LoadingState, string> = {
+  initializing: 'Preparando tu experiencia...',
+  authenticating: 'Validando acceso seguro...',
+  'loading-dashboard': 'Organizando tus eventos...',
+  ready: '¡Bienvenido!'
 };
 
 export default function SplashScreen() {
+  const { isAdmin } = useAuth();
   const [splashPhase, setSplashPhase] = useState<SplashPhase>('showing');
   const [opacity, setOpacity] = useState(100);
   const [loadingState, setLoadingState] = useState<LoadingState>('initializing');
@@ -26,6 +35,8 @@ export default function SplashScreen() {
   const { log, logPhase } = useLoadingDebug();
   const sequenceStartedRef = useRef(false);
   const fadeStartedRef = useRef(false);
+
+  const messages = isAdmin ? TECHNICAL_MESSAGES : BUSINESS_MESSAGES;
 
   // Verificar si el splash ya se mostró (una sola vez al montar)
   useEffect(() => {
@@ -38,7 +49,7 @@ export default function SplashScreen() {
       setSplashPhase('hidden');
     } else {
       log(COMPONENT_NAME, 'Splash screen iniciado - primera carga');
-      logPhase(COMPONENT_NAME, LOADING_STATES.initializing, 10);
+      logPhase(COMPONENT_NAME, messages.initializing, 10);
     }
     setIsInitialized(true);
   }, []);
@@ -59,7 +70,7 @@ export default function SplashScreen() {
     const timeouts = stateSequence.map(({ state, delay, progressPercent }) =>
       setTimeout(() => {
         log(COMPONENT_NAME, `Estado de carga cambió: ${state}`);
-        logPhase(COMPONENT_NAME, LOADING_STATES[state], progressPercent);
+        logPhase(COMPONENT_NAME, messages[state], progressPercent);
         setLoadingState(state);
         setCurrentMessageIndex(stateSequence.findIndex(s => s.state === state));
       }, delay)
@@ -68,7 +79,7 @@ export default function SplashScreen() {
     return () => {
       timeouts.forEach(timeout => clearTimeout(timeout));
     };
-  }, [isInitialized, splashPhase]);
+  }, [isInitialized, splashPhase, isAdmin]);
 
   // Fade out y ocultar splash screen cuando esté listo (ejecuta solo una vez)
   useEffect(() => {
@@ -107,64 +118,66 @@ export default function SplashScreen() {
   }
 
   return (
-    <div
-      className={cn(
-        'fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background transition-opacity duration-500 ease-in-out',
-        opacity === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'
-      )}
-    >
-      {/* Logo y marca principal */}
-      <div className="flex flex-col items-center animate-in fade-in zoom-in duration-700">
-        <div className="p-4 bg-emerald-100 rounded-full mb-4 shadow-lg animate-bounce">
-          <ChefHat className="w-16 h-16 text-emerald-600" />
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          MICE <span className="text-emerald-600">Catering</span>
-        </h1>
-      </div>
-
-      {/* Estado de carga progresivo */}
-      <div className="mt-12 flex flex-col items-center gap-4 animate-in fade-in duration-500 delay-300">
-        {/* Barra de progreso simple */}
-        <div className="w-48 h-1 bg-border rounded-full overflow-hidden">
-          <div
-            className={cn(
-              'h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-500 ease-out',
-              loadingState === 'initializing' && 'w-1/4',
-              loadingState === 'authenticating' && 'w-1/2',
-              loadingState === 'loading-dashboard' && 'w-3/4',
-              loadingState === 'ready' && 'w-full'
-            )}
-          />
-        </div>
-
-        {/* Mensaje de estado actual */}
-        <div className="h-6 flex items-center justify-center">
-          <p
-            key={currentMessageIndex}
-            className="text-sm text-muted-foreground animate-in fade-in duration-300"
-          >
-            {LOADING_STATES[loadingState]}
-          </p>
-        </div>
-
-        {/* Puntos animados indicadores de actividad */}
-        {loadingState !== 'ready' && (
-          <div className="flex gap-1 items-center">
-            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
-            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
-          </div>
+    <div className="relative">
+      <div
+        className={cn(
+          'fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background transition-opacity duration-500 ease-in-out',
+          opacity === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'
         )}
+      >
+        {/* Logo y marca principal */}
+        <div className="flex flex-col items-center animate-in fade-in zoom-in duration-700">
+          <div className="p-4 bg-emerald-100 rounded-full mb-4 shadow-lg animate-bounce">
+            <ChefHat className="w-16 h-16 text-emerald-600" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            MICE <span className="text-emerald-600">Catering</span>
+          </h1>
+        </div>
 
-        {/* Checkmark cuando está listo */}
-        {loadingState === 'ready' && (
-          <div className="animate-in fade-in zoom-in duration-300">
-            <div className="w-6 h-6 text-emerald-600 flex items-center justify-center">
-              ✓
+        {/* Estado de carga progresivo */}
+        <div className="mt-12 flex flex-col items-center gap-4 animate-in fade-in duration-500 delay-300">
+          {/* Barra de progreso simple */}
+          <div className="w-48 h-1 bg-border rounded-full overflow-hidden">
+            <div
+              className={cn(
+                'h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-500 ease-out',
+                loadingState === 'initializing' && 'w-1/4',
+                loadingState === 'authenticating' && 'w-1/2',
+                loadingState === 'loading-dashboard' && 'w-3/4',
+                loadingState === 'ready' && 'w-full'
+              )}
+            />
+          </div>
+
+          {/* Mensaje de estado actual */}
+          <div className="h-6 flex items-center justify-center">
+            <p
+              key={currentMessageIndex}
+              className="text-sm text-muted-foreground animate-in fade-in duration-300"
+            >
+              {messages[loadingState]}
+            </p>
+          </div>
+
+          {/* Puntos animados indicadores de actividad */}
+          {loadingState !== 'ready' && (
+            <div className="flex gap-1 items-center">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Checkmark cuando está listo */}
+          {loadingState === 'ready' && (
+            <div className="animate-in fade-in zoom-in duration-300">
+              <div className="w-6 h-6 text-emerald-600 flex items-center justify-center">
+                ✓
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

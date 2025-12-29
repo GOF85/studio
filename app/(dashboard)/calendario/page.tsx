@@ -2,7 +2,7 @@
 
 // 1. IMPORTS
 import { useState, useEffect, useMemo, useCallback, memo, Suspense } from 'react';
-import { useRouter, useSearchParams, usePathname, useParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   format,
   startOfMonth,
@@ -25,39 +25,21 @@ import {
   Calendar as CalendarIcon,
   Users,
   Clock,
-  List,
-  Grid,
   AlertCircle
 } from 'lucide-react';
 
 import type { ServiceOrder } from '@/types';
-import { useEventos, useComercialBriefings } from '@/hooks/use-data-queries';
+import { useCalendarEvents } from '@/hooks/use-data-queries';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SplashScreen from '@/components/layout/splash-screen';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DayExpandedBottomSheet } from '@/components/calendar/day-expanded-bottom-sheet';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/supabase';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
-// 2. UTILS
-const formatSafeTime = (time: any) => {
-  if (!time) return '--:--';
-  if (typeof time !== 'string') return '--:--';
-  // Si ya es formato HH:mm o HH:mm:ss
-  if (/^\d{2}:\d{2}/.test(time)) return time.substring(0, 5);
-  try {
-    const d = new Date(time);
-    if (isNaN(d.getTime())) return time;
-    return format(d, 'HH:mm');
-  } catch {
-    return time;
-  }
-};
-
-// 3. TYPES & INTERFACES
+// 2. TYPES & INTERFACES
 type CalendarStatus = 'BORRADOR' | 'PENDIENTE' | 'CONFIRMADO' | 'EJECUTADO' | 'CANCELADO';
 
 interface CalendarEvent {
@@ -94,24 +76,136 @@ interface EventsByDay {
 // 3. HELPERS PUROS
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-// Definición de estilos según guía (Amber para atención/pendiente)
-const getStatusStyles = (status: string) => {
-  const s = status.toUpperCase();
-  switch (s) {
-    case 'BORRADOR': return { badge: 'outline', border: 'border-dashed border-muted-foreground/40', bg: 'bg-muted/30' };
-    case 'PENDIENTE': return { badge: 'secondary', border: 'border-amber-400', bg: 'bg-amber-50', text: 'text-amber-700' }; // Acento Ámbar
-    case 'CONFIRMADO': return { badge: 'default', border: 'border-primary', bg: 'bg-card' };
-    case 'EJECUTADO': return { badge: 'secondary', border: 'border-slate-400', bg: 'bg-slate-50' };
-    case 'CANCELADO': return { badge: 'destructive', border: 'border-destructive', bg: 'bg-destructive/10' };
-    default: return { badge: 'default', border: 'border-border', bg: 'bg-card' };
+/**
+ * Formatea una hora de forma segura manejando nulos y formatos inválidos
+ */
+const formatSafeTime = (time: any) => {
+  if (!time) return '--:--';
+  if (typeof time !== 'string') return '--:--';
+  // Si ya es formato HH:mm o HH:mm:ss
+  if (/^\d{2}:\d{2}/.test(time)) return time.substring(0, 5);
+  try {
+    const d = new Date(time);
+    if (isNaN(d.getTime())) return time;
+    return format(d, 'HH:mm');
+  } catch {
+    return time;
   }
 };
 
+/**
+ * Transforma los datos crudos de Supabase al formato interno del calendario
+ */
+const transformCalendarData = (serviceOrders: ServiceOrder[], briefings: any[]): CalendarEvent[] => {
+  const allEvents: CalendarEvent[] = [];
+
+  serviceOrders.forEach((os: ServiceOrder) => {
+    const statusNormalized = os.status?.toUpperCase() || 'BORRADOR';
+    if (statusNormalized === 'CANCELADO') return;
+
+    const briefing = briefings.find(b => b.osId === os.id || (b as any).os_id === os.id);
+    const dates = new Set<string>();
+
+    if (briefing && briefing.items && briefing.items.length > 0) {
+      briefing.items.forEach((item: any) => {
+        if (item.fecha) {
+          dates.add(item.fecha);
+        }
+      });
+    }
+
+    // Si no hay servicios con fecha, usamos la fecha de inicio de la OS
+    if (dates.size === 0) {
+      const dateKey = os.startDate ? format(new Date(os.startDate), 'yyyy-MM-dd') : null;
+      if (dateKey) dates.add(dateKey);
+    }
+
+    dates.forEach(dateKey => {
+      const eventDate = parseISO(dateKey);
+      const itemsForThisDate = briefing?.items?.filter((i: any) => i.fecha === dateKey) || [];
+
+      // Extraer hora de inicio específica (la más temprana del día)
+      let horaInicio = os.startDate ? format(new Date(os.startDate), 'HH:mm') : '00:00';
+      let horaFin = os.endDate ? format(new Date(os.endDate), 'HH:mm') : '00:00';
+      
+      if (itemsForThisDate.length > 0) {
+        const sortedItems = [...itemsForThisDate].sort((a, b) => (a.horaInicio || '').localeCompare(b.horaInicio || ''));
+        if (sortedItems[0].horaInicio) {
+          horaInicio = sortedItems[0].horaInicio;
+        }
+        
+        const sortedByEnd = [...itemsForThisDate].sort((a, b) => (b.horaFin || '').localeCompare(a.horaFin || ''));
+        if (sortedByEnd[0].horaFin) {
+          horaFin = sortedByEnd[0].horaFin;
+        }
+      }
+
+      const gastronomyCount = itemsForThisDate.filter((i: any) => i.conGastronomia).length;
+      const gastronomyPaxTotal = itemsForThisDate
+        .filter((i: any) => i.conGastronomia)
+        .reduce((max: number, item: any) => Math.max(max, Number(item.asistentes) || 0), 0);
+      
+      const totalPaxThisDay = itemsForThisDate.reduce((max: number, item: any) => Math.max(max, Number(item.asistentes) || 0), 0);
+
+      allEvents.push({
+        date: eventDate,
+        osId: os.id,
+        serviceNumber: os.serviceNumber || 'S/N',
+        horaInicio,
+        horaFin,
+        space: os.space || 'Por definir',
+        client: os.client || 'Empresa',
+        finalClient: os.finalClient || 'Cliente',
+        asistentes: totalPaxThisDay > 0 ? totalPaxThisDay : (os.asistentes || 0),
+        status: statusNormalized,
+        briefingItems: itemsForThisDate,
+        gastronomyCount,
+        gastronomyPaxTotal,
+        respMetre: os.respMetre || undefined,
+        respPase: os.respPase || undefined,
+        respProjectManager: os.respProjectManager || undefined,
+        respMetrePhone: os.respMetrePhone || undefined,
+        respPasePhone: os.respPasePhone || undefined,
+        respProjectManagerPhone: os.respProjectManagerPhone || undefined,
+        respMetreMail: os.respMetreMail || undefined,
+        respPaseMail: os.respPaseMail || undefined,
+        respProjectManagerMail: os.respProjectManagerMail || undefined,
+      });
+    });
+  });
+
+  return allEvents;
+};
+
+/**
+ * Retorna estilos visuales basados en el estado del evento (Paleta Semántica)
+ */
+const getStatusStyles = (status: string) => {
+  const s = status.toUpperCase();
+  switch (s) {
+    case 'BORRADOR': 
+      return { badge: 'outline', border: 'border-dashed border-muted-foreground/40', bg: 'bg-muted/30' };
+    case 'PENDIENTE': 
+      return { badge: 'secondary', border: 'border-amber-400', bg: 'bg-amber-50', text: 'text-amber-700' }; // Ámbar: Atención
+    case 'CONFIRMADO': 
+      return { badge: 'default', border: 'border-emerald-500', bg: 'bg-emerald-50/50', text: 'text-emerald-700' }; // Esmeralda: Éxito
+    case 'EJECUTADO': 
+      return { badge: 'secondary', border: 'border-slate-400', bg: 'bg-slate-50' };
+    case 'CANCELADO': 
+      return { badge: 'destructive', border: 'border-destructive', bg: 'bg-destructive/10' };
+    default: 
+      return { badge: 'default', border: 'border-border', bg: 'bg-card' };
+  }
+};
+
+/**
+ * Retorna clases de heatmap basadas en el volumen de PAX
+ */
 const getHeatmapClass = (totalPax: number) => {
   if (totalPax === 0) return '';
   if (totalPax < 50) return 'bg-slate-50/50 hover:bg-slate-100/80';
-  if (totalPax < 200) return 'bg-orange-50/40 hover:bg-orange-100/60'; // Acento cálido
-  return 'bg-rose-50/40 hover:bg-rose-100/60';
+  if (totalPax < 200) return 'bg-orange-50/40 hover:bg-orange-100/60'; // Naranja: Gastronomía/Carga media
+  return 'bg-rose-50/40 hover:bg-rose-100/60'; // Rose: Carga alta
 };
 
 // 4. SUB-COMPONENTES LOCALES
@@ -194,7 +288,12 @@ const DayGridCell = memo(function DayGridCell({
                     <span className="font-mono font-bold text-[8px] opacity-70 shrink-0">{firstEvent.horaInicio}</span>
                   </div>
                   <div className="flex items-center justify-between gap-1 opacity-60">
-                    <span className="truncate text-[8px] font-medium">{firstEvent.finalClient}</span>
+                    <div className="flex items-center gap-1 truncate">
+                      <span className="truncate text-[8px] font-medium">{firstEvent.finalClient}</span>
+                      {firstEvent.gastronomyCount !== undefined && firstEvent.gastronomyCount > 0 && (
+                        <span className="text-[8px] text-orange-600 font-bold">🍴{firstEvent.gastronomyCount}</span>
+                      )}
+                    </div>
                     <span className="font-black text-[8px] shrink-0">{firstEvent.asistentes}p</span>
                   </div>
                 </div>
@@ -245,8 +344,8 @@ const DayGridCell = memo(function DayGridCell({
                                   {formatSafeTime(item.horaInicio)} - {formatSafeTime(item.horaFin)}
                                 </span>
                               </div>
-                              {item.comentarios && (
-                                <p className="text-[9px] text-muted-foreground line-clamp-1 italic">"{item.comentarios}"</p>
+                              {(item.comentario || item.comentarios) && (
+                                <p className="text-[9px] text-muted-foreground line-clamp-1 italic">"{item.comentario || item.comentarios}"</p>
                               )}
                               <div className="flex justify-between items-center mt-1">
                                 <span className="text-[8px] font-bold opacity-60 uppercase tracking-tighter">
@@ -297,47 +396,69 @@ const DayGridCell = memo(function DayGridCell({
 
 // Vista Agenda (Móvil / Lista)
 const AgendaView = memo(function AgendaView({
-  daysWithEvents,
+  allDays,
   eventsByDay,
   router
 }: {
-  daysWithEvents: Date[];
+  allDays: Date[];
   eventsByDay: EventsByDay;
   router: any;
 }) {
-  if (!daysWithEvents?.length) {
+  if (!allDays?.length) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/60 border rounded-lg bg-muted/10 mt-4">
         <CalendarIcon className="h-12 w-12 mb-3 opacity-50" />
-        <p className="font-medium">Sin eventos este mes</p>
+        <p className="font-medium">Sin días seleccionados</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 pb-20 mt-4">
-      {daysWithEvents.map((day) => {
+    <div className="space-y-0 pb-20 mt-4 border border-border/40 rounded-2xl overflow-hidden bg-card/40 backdrop-blur-md shadow-sm">
+      {allDays.map((day) => {
         const dayKey = format(day, 'yyyy-MM-dd');
         const dayData = eventsByDay[dayKey];
-        if (!dayData) return null;
-
+        const hasEvents = dayData && Object.keys(dayData).length > 0;
         const isToday = isSameDay(day, new Date());
+
+        if (!hasEvents) {
+          return (
+            <div key={dayKey} className={cn(
+              "py-2.5 px-4 border-b border-border/40 flex justify-between items-center transition-colors",
+              isToday ? "bg-primary/5" : "bg-muted/10 opacity-40"
+            )}>
+              <div className="flex items-center gap-3">
+                <span className={cn(
+                  "text-[10px] font-black uppercase tracking-widest",
+                  isToday ? "text-primary" : "text-muted-foreground"
+                )}>
+                  {format(day, 'EEEE d MMM', { locale: es })}
+                </span>
+                {isToday && <Badge variant="default" className="text-[8px] h-3.5 px-1 font-black uppercase">Hoy</Badge>}
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/30 italic">Sin eventos</span>
+            </div>
+          );
+        }
 
         // Calcular pax total del día
         const dailyPax = Object.values(dayData).flat().reduce((acc, ev) => acc + ev.asistentes, 0);
 
         return (
-          <div key={dayKey} className="group">
+          <div key={dayKey} className="group border-b border-border/40 last:border-b-0">
             {/* Sticky Day Header */}
             <div className={cn(
-              "sticky top-0 z-10 py-2 px-3 bg-background/95 backdrop-blur border-b flex justify-between items-center font-medium text-sm transition-colors",
+              "sticky top-0 z-10 py-2.5 px-4 bg-background/95 backdrop-blur border-b flex justify-between items-center font-medium text-sm transition-colors",
               isToday ? "text-primary border-primary bg-primary/5" : "text-foreground group-hover:bg-muted/30"
             )}>
-              <span className="capitalize">{format(day, 'EEEE d MMM', { locale: es })}</span>
+              <div className="flex items-center gap-3">
+                <span className="capitalize font-black text-xs tracking-tight">{format(day, 'EEEE d MMM', { locale: es })}</span>
+                {isToday && <Badge variant="default" className="text-[8px] h-3.5 px-1 font-black uppercase">Hoy</Badge>}
+              </div>
               {dailyPax > 0 && (
-                <span className="text-xs text-muted-foreground font-mono flex items-center gap-1">
-                  {dailyPax} <Users className="h-3 w-3" />
-                </span>
+                <Badge variant="secondary" className="text-[10px] px-2 h-5 font-black bg-background/80 backdrop-blur-sm border-border/40">
+                  {dailyPax}p
+                </Badge>
               )}
             </div>
 
@@ -402,19 +523,71 @@ const AgendaView = memo(function AgendaView({
   );
 });
 
+// Tira de fechas horizontal para móvil
+const MobileDateStrip = ({
+  currentDate,
+  onDateSelect
+}: {
+  currentDate: Date;
+  onDateSelect: (date: Date) => void;
+}) => {
+  const days = useMemo(() => {
+    // Generar 14 días alrededor de la fecha actual
+    return Array.from({ length: 14 }).map((_, i) => add(currentDate, { days: i - 3 }));
+  }, [currentDate]);
+
+  return (
+    <div className="flex overflow-x-auto py-4 px-4 gap-3 no-scrollbar bg-background/40 backdrop-blur-md border-b border-border/40 sticky top-[104px] z-20 -mx-4 sm:hidden">
+      {days.map((day) => {
+        const isSelected = isSameDay(day, currentDate);
+        const isToday = isSameDay(day, new Date());
+        return (
+          <button
+            key={day.toISOString()}
+            onClick={() => onDateSelect(day)}
+            className={cn(
+              "flex flex-col items-center justify-center min-w-[56px] h-16 rounded-2xl transition-all duration-300 border",
+              isSelected 
+                ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-200 scale-105" 
+                : "bg-card/60 border-border/40 text-muted-foreground hover:border-indigo-300"
+            )}
+          >
+            <span className="text-[9px] font-black uppercase tracking-tighter opacity-70">
+              {format(day, 'EEE', { locale: es })}
+            </span>
+            <span className="text-lg font-black tracking-tighter">
+              {format(day, 'd')}
+            </span>
+            {isToday && !isSelected && (
+              <div className="w-1 h-1 bg-indigo-500 rounded-full mt-0.5" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 // 5. MAIN COMPONENT
 function CalendarioServiciosPageInner() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const params = useParams();
 
   // --- STATE & URL SYNC ---
   // Leemos estado de la URL, fallback a valores por defecto
   const viewParam = searchParams?.get('view');
   const dateParam = searchParams?.get('date');
 
-  const viewMode = (viewParam === 'agenda' ? 'agenda' : viewParam === 'week' ? 'week' : 'grid') as 'grid' | 'agenda' | 'week';
+  const viewMode = (viewParam === 'agenda' ? 'agenda' : viewParam === 'week' ? 'week' : viewParam === 'grid' ? 'grid' : isMobile ? 'agenda' : 'grid') as 'grid' | 'agenda' | 'week';
+
+  // Force agenda on mobile if no view is specified
+  useEffect(() => {
+    if (isMobile && !viewParam) {
+      setViewMode('agenda');
+    }
+  }, [isMobile, viewParam]);
 
   const currentDate = useMemo(() => {
     if (dateParam) {
@@ -431,92 +604,28 @@ function CalendarioServiciosPageInner() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   // --- DATA FETCHING ---
-  const { data: serviceOrders = [], isLoading: isLoadingEventos } = useEventos();
-  const { data: briefings = [], isLoading: isLoadingBriefings } = useComercialBriefings();
+  const fetchRange = useMemo(() => {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    return { start: startDate.toISOString(), end: endDate.toISOString() };
+  }, [currentDate]);
 
-  const isLoading = isLoadingEventos || isLoadingBriefings;
+  const { data: calendarData, isLoading: isLoadingCalendar, error: calendarError } = useCalendarEvents(fetchRange.start, fetchRange.end);
+  
+  const serviceOrders = calendarData?.events || [];
+  const briefings = calendarData?.briefings || [];
+
+  useEffect(() => {
+    document.title = 'Mice Catering | Calendario';
+  }, []);
+  const isLoading = isLoadingCalendar;
 
   // --- LOGIC ---
 
   // Transformación de datos (Memoized)
-  const events = useMemo(() => {
-    const allEvents: CalendarEvent[] = [];
-
-    serviceOrders.forEach((os: ServiceOrder) => {
-      const statusNormalized = os.status?.toUpperCase() || 'BORRADOR';
-      if (statusNormalized === 'CANCELADO') return;
-
-      const briefing = briefings.find(b => b.osId === os.id || (b as any).os_id === os.id);
-      const dates = new Set<string>();
-
-      if (briefing && briefing.items && briefing.items.length > 0) {
-        briefing.items.forEach(item => {
-          if (item.fecha) {
-            dates.add(item.fecha);
-          }
-        });
-      }
-
-      // Si no hay servicios con fecha, usamos la fecha de inicio de la OS
-      if (dates.size === 0) {
-        const dateKey = os.startDate ? format(new Date(os.startDate), 'yyyy-MM-dd') : null;
-        if (dateKey) dates.add(dateKey);
-      }
-
-      dates.forEach(dateKey => {
-        const eventDate = parseISO(dateKey);
-        const itemsForThisDate = briefing?.items?.filter(i => i.fecha === dateKey) || [];
-
-        // Extraer hora de inicio específica (la más temprana del día)
-        let horaInicio = os.startDate ? format(new Date(os.startDate), 'HH:mm') : '00:00';
-        let horaFin = os.endDate ? format(new Date(os.endDate), 'HH:mm') : '00:00';
-        
-        if (itemsForThisDate.length > 0) {
-          const sortedItems = [...itemsForThisDate].sort((a, b) => (a.horaInicio || '').localeCompare(b.horaInicio || ''));
-          if (sortedItems[0].horaInicio) {
-            horaInicio = sortedItems[0].horaInicio;
-          }
-          
-          const sortedByEnd = [...itemsForThisDate].sort((a, b) => (b.horaFin || '').localeCompare(a.horaFin || ''));
-          if (sortedByEnd[0].horaFin) {
-            horaFin = sortedByEnd[0].horaFin;
-          }
-        }
-
-        const gastronomyCount = itemsForThisDate.filter(i => i.conGastronomia).length;
-        const gastronomyPaxTotal = itemsForThisDate
-          .filter(i => i.conGastronomia)
-          .reduce((sum, item) => sum + (Number(item.asistentes) || 0), 0);
-
-        allEvents.push({
-          date: eventDate,
-          osId: os.id,
-          serviceNumber: os.serviceNumber || 'S/N',
-          horaInicio,
-          horaFin,
-          space: os.space || 'Por definir',
-          client: os.client || 'Empresa',
-          finalClient: os.finalClient || 'Cliente',
-          asistentes: gastronomyPaxTotal > 0 ? gastronomyPaxTotal : (os.asistentes || 0),
-          status: statusNormalized,
-          briefingItems: itemsForThisDate,
-          gastronomyCount,
-          gastronomyPaxTotal,
-          respMetre: os.respMetre || undefined,
-          respPase: os.respPase || undefined,
-          respProjectManager: os.respProjectManager || undefined,
-          respMetrePhone: os.respMetrePhone || undefined,
-          respPasePhone: os.respPasePhone || undefined,
-          respProjectManagerPhone: os.respProjectManagerPhone || undefined,
-          respMetreMail: os.respMetreMail || undefined,
-          respPaseMail: os.respPaseMail || undefined,
-          respProjectManagerMail: os.respProjectManagerMail || undefined,
-        });
-      });
-    });
-
-    return allEvents;
-  }, [serviceOrders, briefings]);
+  const events = useMemo(() => transformCalendarData(serviceOrders, briefings), [serviceOrders, briefings]);
 
   // Cálculos de Calendario
   const calendarDays = useMemo(() => {
@@ -599,15 +708,33 @@ function CalendarioServiciosPageInner() {
     return <SplashScreen />;
   }
 
+  if (calendarError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <div className="text-center">
+          <h2 className="text-lg font-bold">Error al cargar el calendario</h2>
+          <p className="text-muted-foreground">{(calendarError as any)?.message || 'Ocurrió un error inesperado'}</p>
+        </div>
+        <Button onClick={() => window.location.reload()}>Reintentar</Button>
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider delayDuration={100}>
       <main className="flex-1 w-full bg-background/30 min-h-screen flex flex-col">
         {/* Header Premium Sticky */}
         <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
           <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
                 <CalendarIcon className="h-5 w-5 text-indigo-500" />
+              </div>
+              <div className="hidden md:block">
+                <h1 className="text-sm font-bold text-foreground tracking-tight">
+                  Calendario de eventos
+                </h1>
               </div>
             </div>
 
@@ -673,11 +800,17 @@ function CalendarioServiciosPageInner() {
       </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-0 pb-6 sm:pb-8 w-full flex-grow space-y-6">
+          {isMobile && viewMode === 'agenda' && (
+            <MobileDateStrip 
+              currentDate={currentDate} 
+              onDateSelect={(date) => updateParams({ date: format(date, 'yyyy-MM-dd') })} 
+            />
+          )}
           <div className="flex-1 flex flex-col relative">
             {/* VISTA AGENDA */}
             {viewMode === 'agenda' && (
               <AgendaView
-                daysWithEvents={daysWithEventsCurrentMonth}
+                allDays={calendarDays.filter(d => isSameMonth(d, currentDate))}
                 eventsByDay={eventsByDay}
                 router={router}
               />

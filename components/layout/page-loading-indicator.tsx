@@ -17,14 +17,16 @@ export function PageLoadingIndicator({
 }: PageLoadingIndicatorProps) {
     if (variant === 'bar') {
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-                <div className="w-full max-w-md space-y-4 px-4">
-                    <ProgressBar progress={progress} />
-                    <div className="text-center">
-                        <p className="text-sm text-muted-foreground">{message}</p>
-                        {progress !== undefined && (
-                            <p className="text-xs text-muted-foreground mt-1">{Math.round(progress)}%</p>
-                        )}
+            <div className="relative">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                    <div className="w-full max-w-md space-y-4 px-4">
+                        <ProgressBar progress={progress} />
+                        <div className="text-center">
+                            <p className="text-sm text-muted-foreground">{message}</p>
+                            {progress !== undefined && (
+                                <p className="text-xs text-muted-foreground mt-1">{Math.round(progress)}%</p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

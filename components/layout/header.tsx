@@ -152,16 +152,6 @@ export function Header() {
                         >
                           <item.icon className={cn("h-4 w-4", item.className?.includes('theme-orange') ? 'text-orange-500' : 'text-primary')} />
                           {item.title}
-                          {item.badge && (
-                            <span className={cn(
-                              "ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
-                              item.badge.variant === 'destructive' ? "bg-red-100 text-red-700" :
-                                item.badge.variant === 'secondary' ? "bg-gray-100 text-gray-700" :
-                                  "bg-blue-100 text-blue-700"
-                            )}>
-                              {item.badge.label}
-                            </span>
-                          )}
                         </Link>
                       </SheetClose>
                     ))}

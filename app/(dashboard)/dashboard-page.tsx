@@ -67,15 +67,9 @@ function MiniNavItem({ item }: { item: MenuItem }) {
                     {item.title}
                 </span>
             </div>
-            {item.badge ? (
-                <Badge variant={item.badge.variant || 'secondary'} className="text-[9px] h-4 px-1.5 ml-2 font-bold uppercase tracking-tighter">
-                    {item.badge.label}
-                </Badge>
-            ) : (
-                <div className="w-5 h-5 flex items-center justify-center rounded-full bg-muted/30 opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-1 transition-all duration-300">
-                    <ChevronRight className="w-3 h-3 text-primary" />
-                </div>
-            )}
+            <div className="w-5 h-5 flex items-center justify-center rounded-full bg-muted/30 opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-1 transition-all duration-300">
+                <ChevronRight className="w-3 h-3 text-primary" />
+            </div>
         </Link>
     );
 }
@@ -93,11 +87,14 @@ interface DashboardMetrics {
 
 // --- PÁGINA PRINCIPAL ---
 
+interface DashboardPageProps {
+    initialMetrics?: DashboardMetrics;
+}
 
-export default function DashboardPage() {
+export default function DashboardPage({ initialMetrics }: DashboardPageProps) {
     // --- HOOKS ---
     const router = useRouter();
-    const { data: metrics, isLoading, refetch } = useDashboardMetrics();
+    const { data: metrics, isLoading, refetch } = useDashboardMetrics(initialMetrics);
     const [modalType, setModalType] = useState<'events' | 'services' | null>(null);
     const [modalData, setModalData] = useState<any[]>([]);
     const [modalTitle, setModalTitle] = useState('');
@@ -492,9 +489,9 @@ function ServicesModal({ isOpen, onClose, data, title }: { isOpen: boolean, onCl
                                     )}
                                 </div>
 
-                                {service.comentarios && (
+                                { (service.comentario || service.comentarios) && (
                                     <p className="text-[10px] text-muted-foreground/70 italic line-clamp-1 border-l-2 border-primary/20 pl-2 mt-0.5">
-                                        {service.comentarios}
+                                        {service.comentario || service.comentarios}
                                     </p>
                                 )}
                             </div>

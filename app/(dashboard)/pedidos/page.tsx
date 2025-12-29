@@ -107,7 +107,7 @@ function PedidosPageInner() {
                 ...p,
                 itemCode: p.id,
                 description: p.nombre,
-                price: p.precioVenta,
+                price: orderType === 'Almacen' ? p.precioAlquiler : p.precioVenta,
                 stock: 999,
                 imageUrl: p.imagen || '',
                 imageHint: p.nombre,
@@ -273,7 +273,8 @@ function PedidosPageInner() {
                         id: editOrderId,
                         updates: {
                             cantidad: item.quantity,
-                            precio: item.price || 0
+                            precio: item.price || 0,
+                            proveedorId: selectedProviderId || undefined
                         }
                     });
                 }

@@ -219,8 +219,50 @@ export default function PrevisionEntregasPage() {
                       const deliveryTime = os.deliveryTime || '';
 
                       return (
-                        <TableRow key={os.id} onClick={() => router.push(`/entregas/pedido/${os.id}`)} className="cursor-pointer">
-                            <TableCell className="font-medium">{serviceNumber}</TableCell>
+                        <TableRow key={os.id} onClick={() => router.push(`/entregas/pedido/${os.id}`)} className="cursor-pointer group">
+                            <TableCell className="font-medium">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="hover:underline decoration-primary/30 underline-offset-4">
+                                                {serviceNumber}
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="p-3 max-w-xs bg-popover/95 backdrop-blur-md border-border/50 shadow-xl rounded-xl">
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">{serviceNumber}</span>
+                                                    <Badge variant="outline" className="text-[9px] uppercase font-bold h-4">{status}</Badge>
+                                                </div>
+                                                
+                                                {os.briefing_items && os.briefing_items.length > 0 ? (
+                                                    <div className="space-y-2 pt-1">
+                                                        {os.briefing_items.map((item: any, idx: number) => (
+                                                            <div key={idx} className="text-[10px] border-l-2 border-primary/20 pl-2 py-0.5">
+                                                                <div className="flex justify-between items-start gap-2">
+                                                                    <span className="font-bold text-foreground/90 uppercase leading-tight">
+                                                                        {item.servicio || item.descripcion || 'Servicio'}
+                                                                    </span>
+                                                                    <span className="text-[9px] font-medium text-muted-foreground shrink-0">
+                                                                        {item.horaInicio || '??:??'}
+                                                                    </span>
+                                                                </div>
+                                                                {(item.comentario || item.comentarios) && (
+                                                                    <p className="text-[9px] text-muted-foreground italic mt-0.5 line-clamp-2">
+                                                                        "{item.comentario || item.comentarios}"
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-[10px] text-muted-foreground italic py-1">Sin detalles de servicios</p>
+                                                )}
+                                            </div>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </TableCell>
                             <TableCell>{client}</TableCell>
                             <TableCell>{startDate ? format(new Date(startDate), 'dd/MM/yyyy') : ''} {deliveryTime}</TableCell>
                             <TableCell>

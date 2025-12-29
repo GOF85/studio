@@ -14,7 +14,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Studio App',
+  title: 'Mice Catering',
   description: 'Gestión de eventos',
 };
 

@@ -237,6 +237,83 @@ export function useEventos() {
     });
 }
 
+export function useCalendarEvents(startDate: string, endDate: string) {
+    return useQuery({
+        queryKey: ['calendarEvents', startDate, endDate],
+        queryFn: async () => {
+            const { data, error } = await supabase.rpc('get_calendar_events', {
+                p_start_date: startDate,
+                p_end_date: endDate
+            });
+            if (error) throw error;
+            
+            const result = data as { events: any[], briefings: any[] };
+            return {
+                events: (result.events || []).map(mapEvento),
+                briefings: (result.briefings || []).map(b => {
+                    let items = [];
+                    try {
+                        items = typeof b.items === 'string' ? JSON.parse(b.items) : (b.items || []);
+                    } catch (err) {
+                        console.error('Error parsing briefing items in calendar:', err);
+                    }
+                    return {
+                        ...b,
+                        osId: b.os_id,
+                        items
+                    };
+                })
+            };
+        },
+        enabled: !!startDate && !!endDate,
+    });
+}
+
+export function useEventList(filters: { search?: string, status?: string, timeFilter?: string, showPast?: boolean, limit?: number, offset?: number }) {
+    return useQuery({
+        queryKey: ['eventList', filters],
+        queryFn: async () => {
+            const { data, error } = await supabase.rpc('get_event_list', {
+                p_search: filters.search || null,
+                p_status: filters.status || 'all',
+                p_time_filter: filters.timeFilter || 'all',
+                p_show_past: !!filters.showPast,
+                p_limit: filters.limit || 50,
+                p_offset: filters.offset || 0
+            });
+
+            if (error) throw error;
+            
+            const result = data as { events: any[], total_count: number };
+
+            return {
+                events: (result.events || []).map(e => {
+                    let briefingItems = [];
+                    if (e.briefing?.items) {
+                        try {
+                            briefingItems = typeof e.briefing.items === 'string' 
+                                ? JSON.parse(e.briefing.items) 
+                                : e.briefing.items;
+                        } catch (err) {
+                            console.error('Error parsing briefing items:', err);
+                        }
+                    }
+                    
+                    return {
+                        ...mapEvento(e),
+                        briefing: e.briefing ? {
+                            ...e.briefing,
+                            osId: e.briefing.os_id,
+                            items: briefingItems
+                        } : null
+                    };
+                }),
+                totalCount: result.total_count
+            };
+        },
+    });
+}
+
 
 export function useEvento(idOrNumber?: string) {
     return useQuery({
@@ -467,10 +544,7 @@ export function useEntregas() {
     return useQuery({
         queryKey: ['entregas'],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from('entregas')
-                .select('*')
-                .order('fecha_inicio', { ascending: false });
+            const { data, error } = await supabase.rpc('get_entregas_list');
 
             if (error) throw error;
             return data || [];

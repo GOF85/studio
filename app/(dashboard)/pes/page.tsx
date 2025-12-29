@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo, useEffect, Suspense, Fragment } from 'react';
+import { useState, useMemo, useEffect, Suspense, Fragment, memo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-    format, isThisWeek, isSameWeek, addWeeks, isSameDay, parseISO, isAfter, isBefore, startOfToday
+    format, isThisWeek, isSameWeek, addWeeks, isSameDay, parseISO, isAfter, isBefore, startOfToday, startOfDay
 } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -13,7 +13,7 @@ import {
     History, Eye, EyeOff, ClipboardList
 } from 'lucide-react';
 
-import { useEventos, useComercialBriefings } from '@/hooks/use-data-queries';
+import { useEventList } from '@/hooks/use-data-queries';
 import { ServiceOrder, ComercialBriefing } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -67,7 +67,7 @@ const getHealthWarnings = (os: ServiceOrder) => {
 
 // --- COMPONENTES LOCALES ---
 
-function PESMobileCard({ os, date, gastronomyCount, gastronomyPaxTotal }: { os: ServiceOrder, date: Date, gastronomyCount?: number, gastronomyPaxTotal?: number }) {
+const PESMobileCard = memo(({ os, date, gastronomyCount, dayPax }: { os: ServiceOrder, date: Date, gastronomyCount?: number, dayPax?: number }) => {
     const statusConfig = STATUS_CONFIG[(os.status || 'BORRADOR').toUpperCase()] || STATUS_CONFIG['BORRADOR'];
     const warnings = getHealthWarnings(os);
 
@@ -118,7 +118,7 @@ function PESMobileCard({ os, date, gastronomyCount, gastronomyPaxTotal }: { os: 
                             <div className="flex items-center gap-1.5 text-muted-foreground">
                                 <Users className="w-4 h-4" />
                                 <span className="font-medium text-foreground">
-                                    {gastronomyPaxTotal !== undefined && gastronomyPaxTotal > 0 ? gastronomyPaxTotal : os.asistentes}
+                                    {dayPax !== undefined ? dayPax : os.asistentes}
                                 </span>
                             </div>
                             {warnings.length > 0 && (
@@ -138,7 +138,171 @@ function PESMobileCard({ os, date, gastronomyCount, gastronomyPaxTotal }: { os: 
             </Card>
         </Link>
     );
-}
+});
+
+PESMobileCard.displayName = 'PESMobileCard';
+
+const DayHeader = memo(({ dateKey, eventsCount, gastroServices, gastroPax }: { 
+    dateKey: string, 
+    eventsCount: number, 
+    gastroServices: number, 
+    gastroPax: number 
+}) => (
+    <TableRow className="bg-muted/30 hover:bg-muted/30 border-y">
+        <TableCell colSpan={7} className="py-2 px-4">
+            <div className="flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                <span className="font-bold text-sm text-foreground">
+                    {dateKey !== 'unknown' ? format(parseISO(dateKey), "EEEE d 'de' MMMM", { locale: es }) : 'Fecha desconocida'}
+                </span>
+                <Badge variant="secondary" className="text-[10px] h-5 ml-2">{eventsCount} eventos</Badge>
+                {gastroServices > 0 && (
+                    <Badge variant="outline" className="text-[10px] h-5 bg-orange-50 text-orange-700 border-orange-200 font-bold">
+                        {gastroServices} servicios gastro
+                    </Badge>
+                )}
+                {gastroPax > 0 && (
+                    <Badge variant="outline" className="text-[10px] h-5 bg-blue-50 text-blue-700 border-blue-200 font-bold">
+                        {gastroPax} PAX
+                    </Badge>
+                )}
+            </div>
+        </TableCell>
+    </TableRow>
+));
+DayHeader.displayName = 'DayHeader';
+
+const EventRow = memo(({ os, dateKey, onClick }: { 
+    os: any, 
+    dateKey: string, 
+    onClick: () => void 
+}) => {
+    const status = STATUS_CONFIG[os.status?.toUpperCase()] || STATUS_CONFIG['BORRADOR'];
+    const warnings = getHealthWarnings(os);
+    const { gastroCount, gastroPax, itemsForThisDate } = os.dayStats;
+    
+    // Calculate day pax: max of any item this day, or OS total if no items
+    const dayPax = itemsForThisDate.length > 0 
+        ? Math.max(0, ...itemsForThisDate.map((i: any) => Number(i.asistentes) || 0))
+        : os.asistentes;
+
+    return (
+        <TableRow
+            className={cn(
+                "group cursor-pointer hover:bg-muted/50",
+                os.isVip && "bg-amber-50/50 hover:bg-amber-100/50"
+            )}
+            onClick={onClick}
+        >
+            <TableCell className="text-center">
+                {os.isVip && <Star className="w-4 h-4 fill-amber-400 text-amber-400 mx-auto" />}
+            </TableCell>
+            <TableCell className="font-black text-sm text-foreground tracking-tight">
+                {os.serviceNumber}
+            </TableCell>
+            <TableCell>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div className="flex flex-col">
+                            <span className="text-sm text-muted-foreground">{os.client}</span>
+                            {warnings.length > 0 && (
+                                <div className="flex gap-2 mt-1">
+                                    {warnings.map(w => (
+                                        <Badge key={w} variant="destructive" className="text-[10px] h-4 px-1 py-0 font-normal">
+                                            {w}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="start" className="w-80 p-0 overflow-hidden shadow-xl border-muted-foreground/20">
+                        <div className="bg-muted/50 p-3 border-b">
+                            <div className="flex justify-between items-start mb-1">
+                                <h4 className="font-bold text-sm">{os.client}</h4>
+                                <Badge variant="outline" className="text-[10px]">{os.serviceNumber}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <MapPin className="w-3 h-3" /> {os.space}
+                            </p>
+                        </div>
+                        <div className="p-3 space-y-3">
+                            {itemsForThisDate.length > 0 ? (
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Servicios del día</p>
+                                    {itemsForThisDate.map((item: any, idx: number) => (
+                                        <div key={idx} className="flex items-start gap-2 text-xs border-l-2 border-primary/20 pl-2 py-0.5">
+                                            <div className="flex flex-col min-w-[45px]">
+                                                <span className="font-bold">{item.horaInicio}</span>
+                                                <span className="text-[10px] text-muted-foreground">{item.horaFin}</span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-medium">{item.descripcion}</span>
+                                                    {item.conGastronomia && <Badge className="h-3 px-1 text-[8px] bg-blue-100 text-blue-700 border-none">GASTRO</Badge>}
+                                                </div>
+                                                {(item.comentario || item.comentarios) && (
+                                                    <p className="text-[10px] text-muted-foreground italic mt-0.5 line-clamp-2">
+                                                        "{item.comentario || item.comentarios}"
+                                                    </p>
+                                                )}
+                                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                                                    <span className="flex items-center gap-0.5"><Users className="w-2.5 h-2.5" /> {item.asistentes} pax</span>
+                                                    {item.sala && <span className="flex items-center gap-0.5"><Info className="w-2.5 h-2.5" /> {item.sala}</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-muted-foreground italic py-2">No hay detalles del briefing disponibles para esta fecha.</p>
+                            )}
+
+                            <div className="pt-2 border-t flex justify-between items-center">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-muted-foreground">Comercial</span>
+                                    <span className="text-xs font-medium">{os.comercial || 'No asignado'}</span>
+                                </div>
+                                <div className="flex flex-col text-right">
+                                    <span className="text-[10px] text-muted-foreground">Pax Gastro</span>
+                                    <span className="text-xs font-bold">{gastroPax || 0}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+            </TableCell>
+            <TableCell className="text-sm text-muted-foreground">
+                {os.space}
+            </TableCell>
+            <TableCell className="text-center font-medium">
+                {dayPax}
+            </TableCell>
+            <TableCell className="text-center">
+                {gastroCount > 0 ? (
+                    <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-orange-200 font-bold">
+                        {gastroCount}
+                    </Badge>
+                ) : (
+                    <span className="text-muted-foreground text-xs">-</span>
+                )}
+            </TableCell>
+            <TableCell className="text-right">
+                <Badge
+                    variant="outline"
+                    className={cn(
+                        "text-[10px] font-black uppercase tracking-widest",
+                        status.bg || "bg-gray-100",
+                        status.color || "text-gray-700"
+                    )}
+                >
+                    {status.label}
+                </Badge>
+            </TableCell>
+        </TableRow>
+    );
+});
+EventRow.displayName = 'EventRow';
 
 // --- PÁGINA PRINCIPAL ---
 
@@ -173,99 +337,97 @@ function PESPageInner() {
     const statusFilter = (searchParams.get('status') as StatusFilter) || 'all';
     const showPast = searchParams.get('past') === 'true';
 
-    const { data: eventos = [], isLoading: isLoadingEventos } = useEventos();
-    const { data: briefings = [], isLoading: isLoadingBriefings } = useComercialBriefings();
+    const { data: eventListData, isLoading } = useEventList({
+        search: debouncedSearch,
+        status: statusFilter,
+        timeFilter: timeFilter,
+        showPast: showPast,
+        limit: 100
+    });
 
-    const isLoading = isLoadingEventos || isLoadingBriefings;
-
-    const briefingsMap = useMemo(() => {
-        const map: Record<string, ComercialBriefing> = {};
-        briefings.forEach(b => {
-            // @ts-ignore - os_id from DB vs osId in type
-            const id = b.osId || b.os_id;
-            if (id) map[id] = b;
-        });
-        return map;
-    }, [briefings]);
-
-    const filteredEvents = useMemo(() => {
-        if (!eventos || eventos.length === 0) return [];
-
-        const today = startOfToday();
-        const searchLower = debouncedSearch.toLowerCase();
-
-        return eventos.filter(os => {
-            const matchesSearch = !debouncedSearch ||
-                os.client.toLowerCase().includes(searchLower) ||
-                os.serviceNumber.toLowerCase().includes(searchLower) ||
-                os.space.toLowerCase().includes(searchLower);
-
-            if (!matchesSearch) return false;
-
-            const matchesStatus = statusFilter === 'all' || os.status?.toUpperCase() === statusFilter;
-            if (!matchesStatus) return false;
-
-            const date = os.startDate ? (typeof os.startDate === 'string' ? parseISO(os.startDate) : os.startDate) : undefined;
-            
-            // Ocultar pasados por defecto
-            const isPast = date ? isBefore(date, today) : false;
-            if (!showPast && isPast) return false;
-
-            if (timeFilter === 'today') {
-                return date ? isSameDay(date, today) : false;
-            }
-            if (timeFilter === 'this_week') {
-                return date ? isThisWeek(date, { weekStartsOn: 1 }) : false;
-            }
-            if (timeFilter === 'next_week') {
-                return date ? isSameWeek(date, addWeeks(new Date(), 1), { weekStartsOn: 1 }) : false;
-            }
-            if (timeFilter === 'future') {
-                return date ? isAfter(date, today) : false;
-            }
-
-            return true;
-        }).sort((a, b) => {
-            const aVal = a.startDate ? new Date(a.startDate).getTime() : 0;
-            const bVal = b.startDate ? new Date(b.startDate).getTime() : 0;
-            return aVal - bVal;
-        });
-    }, [eventos, debouncedSearch, statusFilter, timeFilter, showPast]);
+    const eventos = eventListData?.events || [];
 
     const groupedEvents = useMemo(() => {
-        const groups: Record<string, ServiceOrder[]> = {};
-        filteredEvents.forEach(os => {
-            const briefing = briefingsMap[os.id];
+        const groups: Record<string, { 
+            items: (ServiceOrder & { 
+                dayStats: { 
+                    gastroCount: number, 
+                    gastroPax: number,
+                    itemsForThisDate: any[]
+                } 
+            })[], 
+            stats: { gastroServices: number, gastroPax: number } 
+        }> = {};
+
+        const today = startOfToday();
+        const nextWeek = addWeeks(today, 1);
+
+        eventos.forEach(os => {
+            const briefing = (os as any).briefing;
             const dates = new Set<string>();
 
-            if (briefing && briefing.items && briefing.items.length > 0) {
-                briefing.items.forEach(item => {
-                    if (item.fecha) {
-                        dates.add(item.fecha);
-                    }
+            if (briefing?.items?.length > 0) {
+                briefing.items.forEach((item: any) => {
+                    if (item.fecha) dates.add(item.fecha);
                 });
             }
 
-            // Si no hay servicios con fecha, usamos la fecha de inicio de la OS
             if (dates.size === 0) {
-                const dateKey = os.startDate ? (typeof os.startDate === 'string' ? os.startDate.split('T')[0] : format(os.startDate, 'yyyy-MM-dd')) : 'unknown';
+                const dateKey = os.startDate ? (typeof os.startDate === 'string' ? os.startDate.split('T')[0] : format(new Date(os.startDate), 'yyyy-MM-dd')) : 'unknown';
                 dates.add(dateKey);
             }
 
             dates.forEach(dateKey => {
-                if (!groups[dateKey]) groups[dateKey] = [];
-                groups[dateKey].push(os);
+                // Frontend filtering to match the selected time filter
+                if (dateKey !== 'unknown' && timeFilter !== 'all') {
+                    const date = parseISO(dateKey);
+                    const sDate = startOfDay(date);
+                    
+                    if (timeFilter === 'today' && !isSameDay(sDate, today)) return;
+                    if (timeFilter === 'this_week' && !isSameWeek(sDate, today, { weekStartsOn: 1 })) return;
+                    if (timeFilter === 'next_week' && !isSameWeek(sDate, nextWeek, { weekStartsOn: 1 })) return;
+                }
+
+                if (!groups[dateKey]) {
+                    groups[dateKey] = { items: [], stats: { gastroServices: 0, gastroPax: 0 } };
+                }
+                
+                // Calculate stats for this OS on this specific date
+                let gastroCount = 0;
+                let gastroPax = 0;
+                const itemsForThisDate: any[] = [];
+                
+                if (briefing?.items) {
+                    briefing.items.forEach((item: any) => {
+                        if (item.fecha === dateKey) {
+                            itemsForThisDate.push(item);
+                            if (item.conGastronomia) {
+                                gastroCount++;
+                                // Use Max to avoid double counting same people in different services
+                                gastroPax = Math.max(gastroPax, Number(item.asistentes) || 0);
+                            }
+                        }
+                    });
+                }
+
+                groups[dateKey].items.push({
+                    ...os,
+                    dayStats: { gastroCount, gastroPax, itemsForThisDate }
+                } as any);
+                
+                groups[dateKey].stats.gastroServices += gastroCount;
+                groups[dateKey].stats.gastroPax += gastroPax;
             });
         });
 
-        // Ordenar las fechas
-        const sortedGroups: Record<string, ServiceOrder[]> = {};
-        Object.keys(groups).sort().forEach(key => {
+        const sortedKeys = Object.keys(groups).sort();
+        const sortedGroups: typeof groups = {};
+        sortedKeys.forEach(key => {
             sortedGroups[key] = groups[key];
         });
 
         return sortedGroups;
-    }, [filteredEvents, briefingsMap]);
+    }, [eventos, timeFilter]);
 
     const updateFilter = (key: string, value: string | null) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -284,9 +446,15 @@ function PESPageInner() {
             {/* Header Premium Sticky */}
             <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
                 <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-3">
                         <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                             <ClipboardList className="h-5 w-5 text-emerald-500" />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none">Listado</span>
+                            <span className="text-xs font-bold text-foreground leading-none mt-1">
+                                Órdenes de Servicio
+                            </span>
                         </div>
                     </div>
 
@@ -307,13 +475,13 @@ function PESPageInner() {
                         <Tabs
                             value={timeFilter}
                             onValueChange={(v) => updateFilter('time', v)}
-                            className="hidden lg:block"
+                            className="w-full lg:w-auto"
                         >
-                            <TabsList className="h-8 bg-muted/50 border border-border/40 rounded-lg p-1">
-                                <TabsTrigger value="all" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-emerald-600 data-[state=active]:text-white h-6">Todo</TabsTrigger>
-                                <TabsTrigger value="today" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-emerald-600 data-[state=active]:text-white h-6">Hoy</TabsTrigger>
-                                <TabsTrigger value="this_week" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-emerald-600 data-[state=active]:text-white h-6">Semana</TabsTrigger>
-                                <TabsTrigger value="next_week" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-emerald-600 data-[state=active]:text-white h-6">Próxima</TabsTrigger>
+                            <TabsList className="h-8 bg-muted/50 border border-border/40 rounded-lg p-1 w-full lg:w-auto overflow-x-auto no-scrollbar flex justify-start lg:justify-center">
+                                <TabsTrigger value="all" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-emerald-600 data-[state=active]:text-white h-6 flex-1 lg:flex-none">Todo</TabsTrigger>
+                                <TabsTrigger value="today" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-emerald-600 data-[state=active]:text-white h-6 flex-1 lg:flex-none">Hoy</TabsTrigger>
+                                <TabsTrigger value="this_week" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-emerald-600 data-[state=active]:text-white h-6 flex-1 lg:flex-none">Semana</TabsTrigger>
+                                <TabsTrigger value="next_week" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-emerald-600 data-[state=active]:text-white h-6 flex-1 lg:flex-none">Próxima</TabsTrigger>
                             </TabsList>
                         </Tabs>
 
@@ -366,63 +534,53 @@ function PESPageInner() {
 
             <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
                 <div className="md:hidden space-y-6">
-                    {Object.entries(groupedEvents).map(([date, items]) => {
-                        const dayGastroServices = items.reduce((sum, os) => {
-                            const briefing = briefingsMap[os.id];
-                            return sum + (briefing?.items?.filter(i => i.conGastronomia && i.fecha === date).length || 0);
-                        }, 0);
-
-                        const dayGastroPax = items.reduce((sum, os) => {
-                            const briefing = briefingsMap[os.id];
-                            return sum + (briefing?.items?.filter(i => i.conGastronomia && i.fecha === date).reduce((s, i) => s + (Number(i.asistentes) || 0), 0) || 0);
-                        }, 0);
+                    {Object.entries(groupedEvents).map(([date, group]) => {
+                        const { items, stats } = group;
+                        const { gastroServices, gastroPax } = stats;
 
                         return (
                             <div key={date}>
-                                <div className="sticky top-[130px] z-10 bg-background/95 backdrop-blur py-2 mb-2 border-b space-y-1">
+                                <div className="sticky top-[112px] z-10 bg-background/95 backdrop-blur py-2 mb-2 border-b space-y-1">
                                     <div className="flex items-center justify-between text-sm">
                                         <span className="font-bold text-foreground">
                                             {date !== 'unknown' ? format(parseISO(date), "EEEE d 'de' MMMM", { locale: es }) : 'Fecha desconocida'}
                                         </span>
                                         <Badge variant="secondary" className="text-[10px] h-5">{items.length}</Badge>
                                     </div>
-                                    {(dayGastroServices > 0 || dayGastroPax > 0) && (
+                                    {(gastroServices > 0 || gastroPax > 0) && (
                                         <div className="flex gap-1.5">
-                                            {dayGastroServices > 0 && (
+                                            {gastroServices > 0 && (
                                                 <Badge variant="outline" className="text-[9px] h-4 bg-orange-50 text-orange-700 border-orange-200 font-bold px-1.5">
-                                                    {dayGastroServices} serv. gastro
+                                                    {gastroServices} serv. gastro
                                                 </Badge>
                                             )}
-                                            {dayGastroPax > 0 && (
+                                            {gastroPax > 0 && (
                                                 <Badge variant="outline" className="text-[9px] h-4 bg-blue-50 text-blue-700 border-blue-200 font-bold px-1.5">
-                                                    {dayGastroPax} PAX
+                                                    {gastroPax} PAX
                                                 </Badge>
                                             )}
                                         </div>
                                     )}
                                 </div>
                                 {items.map(os => {
-                                    const briefing = briefingsMap[os.id];
-                                    const itemsForThisDate = briefing?.items?.filter(i => i.fecha === date) || [];
-                                    const gastronomyCount = itemsForThisDate.filter(i => i.conGastronomia).length;
-                                    const gastronomyPaxTotal = itemsForThisDate
-                                        .filter(i => i.conGastronomia)
-                                        .reduce((sum, item) => sum + (Number(item.asistentes) || 0), 0);
-
+                                    const dayPax = os.dayStats.itemsForThisDate.length > 0 
+                                        ? Math.max(0, ...os.dayStats.itemsForThisDate.map((i: any) => Number(i.asistentes) || 0))
+                                        : os.asistentes;
+                                    
                                     return (
                                         <PESMobileCard
                                             key={`${os.id}-${date}`}
                                             os={os}
                                             date={date !== 'unknown' ? parseISO(date) : new Date()}
-                                            gastronomyCount={gastronomyCount}
-                                            gastronomyPaxTotal={gastronomyPaxTotal}
+                                            gastronomyCount={os.dayStats.gastroCount}
+                                            dayPax={dayPax}
                                         />
                                     );
                                 })}
                             </div>
                         );
                     })}
-                    {filteredEvents.length === 0 && (
+                    {eventos.length === 0 && (
                         <div className="text-center py-12 text-muted-foreground">
                             <CalendarDays className="w-12 h-12 mx-auto mb-3 opacity-20" />
                             <p>No se encontraron eventos</p>
@@ -446,155 +604,25 @@ function PESPageInner() {
                             </TableHeader>
                             <TableBody>
                                 {Object.entries(groupedEvents).length > 0 ? (
-                                    Object.entries(groupedEvents).map(([dateKey, events]) => {
-                                        const dayGastroServices = events.reduce((sum, os) => {
-                                            const briefing = briefingsMap[os.id];
-                                            return sum + (briefing?.items?.filter(i => i.conGastronomia && i.fecha === dateKey).length || 0);
-                                        }, 0);
-
-                                        const dayGastroPax = events.reduce((sum, os) => {
-                                            const briefing = briefingsMap[os.id];
-                                            return sum + (briefing?.items?.filter(i => i.conGastronomia && i.fecha === dateKey).reduce((s, i) => s + (Number(i.asistentes) || 0), 0) || 0);
-                                        }, 0);
+                                    Object.entries(groupedEvents).map(([dateKey, group]) => {
+                                        const { items: events, stats } = group;
 
                                         return (
                                             <Fragment key={dateKey}>
-                                                <TableRow className="bg-muted/30 hover:bg-muted/30 border-y">
-                                                    <TableCell colSpan={7} className="py-2 px-4">
-                                                        <div className="flex items-center gap-2">
-                                                            <CalendarDays className="w-4 h-4 text-muted-foreground" />
-                                                            <span className="font-bold text-sm text-foreground">
-                                                                {dateKey !== 'unknown' ? format(parseISO(dateKey), "EEEE d 'de' MMMM", { locale: es }) : 'Fecha desconocida'}
-                                                            </span>
-                                                            <Badge variant="secondary" className="text-[10px] h-5 ml-2">{events.length} eventos</Badge>
-                                                            {dayGastroServices > 0 && (
-                                                                <Badge variant="outline" className="text-[10px] h-5 bg-orange-50 text-orange-700 border-orange-200 font-bold">
-                                                                    {dayGastroServices} servicios gastro
-                                                                </Badge>
-                                                            )}
-                                                            {dayGastroPax > 0 && (
-                                                                <Badge variant="outline" className="text-[10px] h-5 bg-blue-50 text-blue-700 border-blue-200 font-bold">
-                                                                    {dayGastroPax} PAX
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                                {events.map((os) => {
-                                                    const status = STATUS_CONFIG[os.status?.toUpperCase()] || STATUS_CONFIG['BORRADOR'];
-                                                    const warnings = getHealthWarnings(os);
-                                                    const briefing = briefingsMap[os.id];
-                                                    const itemsForThisDate = briefing?.items?.filter(i => i.fecha === dateKey) || [];
-                                                    const gastronomyCount = itemsForThisDate.filter(i => i.conGastronomia).length;
-                                                    const gastronomyPaxTotal = itemsForThisDate
-                                                        .filter(i => i.conGastronomia)
-                                                        .reduce((sum, item) => sum + (Number(item.asistentes) || 0), 0);
-
-                                                    return (
-                                                        <TableRow
-                                                            key={`${os.id}-${dateKey}`}
-                                                            className={cn(
-                                                                "group cursor-pointer hover:bg-muted/50",
-                                                                os.isVip && "bg-amber-50/50 hover:bg-amber-100/50"
-                                                            )}
-                                                            onClick={() => router.push(`/os/${os.id}/info`)}
-                                                        >
-                                                            <TableCell className="text-center">
-                                                                {os.isVip && <Star className="w-4 h-4 fill-amber-400 text-amber-400 mx-auto" />}
-                                                            </TableCell>
-                                                            <TableCell className="font-black text-sm text-foreground tracking-tight">
-                                                                {os.serviceNumber}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <div className="flex flex-col">
-                                                                            <span className="text-sm text-muted-foreground">{os.client}</span>
-                                                                            {warnings.length > 0 && (
-                                                                                <div className="flex gap-2 mt-1">
-                                                                                    {warnings.map(w => (
-                                                                                        <Badge key={w} variant="destructive" className="text-[10px] h-4 px-1 py-0 font-normal">
-                                                                                            {w}
-                                                                                        </Badge>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent side="bottom" align="start" className="w-80 p-0 overflow-hidden shadow-xl border-muted-foreground/20">
-                                                                        <div className="bg-muted/50 p-3 border-b">
-                                                                            <div className="flex justify-between items-start mb-1">
-                                                                                <h4 className="font-bold text-sm">{os.client}</h4>
-                                                                                <Badge variant="outline" className="text-[10px]">{os.serviceNumber}</Badge>
-                                                                            </div>
-                                                                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                                                                <MapPin className="w-3 h-3" /> {os.space}
-                                                                            </p>
-                                                                        </div>
-                                                                        <div className="p-3 space-y-3">
-                                                                            {itemsForThisDate.length > 0 ? (
-                                                                                <div className="space-y-2">
-                                                                                    <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Servicios del día</p>
-                                                                                    {itemsForThisDate.map((item, idx) => (
-                                                                                        <div key={idx} className="flex items-start gap-2 text-xs border-l-2 border-primary/20 pl-2 py-0.5">
-                                                                                            <div className="flex flex-col min-w-[45px]">
-                                                                                                <span className="font-bold">{item.horaInicio}</span>
-                                                                                                <span className="text-[10px] text-muted-foreground">{item.horaFin}</span>
-                                                                                            </div>
-                                                                                            <div className="flex-1">
-                                                                                                <div className="flex items-center gap-1">
-                                                                                                    <span className="font-medium">{item.descripcion}</span>
-                                                                                                    {item.conGastronomia && <Badge className="h-3 px-1 text-[8px] bg-blue-100 text-blue-700 border-none">GASTRO</Badge>}
-                                                                                                </div>
-                                                                                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                                                                                                    <span className="flex items-center gap-0.5"><Users className="w-2.5 h-2.5" /> {item.asistentes} pax</span>
-                                                                                                    {item.sala && <span className="flex items-center gap-0.5"><Info className="w-2.5 h-2.5" /> {item.sala}</span>}
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            ) : (
-                                                                                <p className="text-xs text-muted-foreground italic py-2">No hay detalles del briefing disponibles para esta fecha.</p>
-                                                                            )}
-
-                                                                            <div className="pt-2 border-t flex justify-between items-center">
-                                                                                <div className="flex flex-col">
-                                                                                    <span className="text-[10px] text-muted-foreground">Comercial</span>
-                                                                                    <span className="text-xs font-medium">{os.comercial || 'No asignado'}</span>
-                                                                                </div>
-                                                                                <div className="flex flex-col text-right">
-                                                                                    <span className="text-[10px] text-muted-foreground">Pax Gastro</span>
-                                                                                    <span className="text-xs font-bold">{gastronomyPaxTotal || 0}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TableCell>
-                                                            <TableCell className="text-sm text-muted-foreground">
-                                                                {os.space}
-                                                            </TableCell>
-                                                            <TableCell className="text-center font-medium">
-                                                                {os.asistentes}
-                                                            </TableCell>
-                                                            <TableCell className="text-center">
-                                                                {gastronomyCount > 0 ? (
-                                                                    <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-orange-200 font-bold">
-                                                                        {gastronomyCount}
-                                                                    </Badge>
-                                                                ) : (
-                                                                    <span className="text-muted-foreground text-xs">-</span>
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                <Badge variant="outline" className={cn("font-medium", status.color, status.bg, status.border)}>
-                                                                    {status.label}
-                                                                </Badge>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    );
-                                                })}
+                                                <DayHeader 
+                                                    dateKey={dateKey} 
+                                                    eventsCount={events.length} 
+                                                    gastroServices={stats.gastroServices} 
+                                                    gastroPax={stats.gastroPax} 
+                                                />
+                                                {events.map((os) => (
+                                                    <EventRow 
+                                                        key={`${os.id}-${dateKey}`} 
+                                                        os={os} 
+                                                        dateKey={dateKey} 
+                                                        onClick={() => router.push(`/os/${os.id}/info`)} 
+                                                    />
+                                                ))}
                                             </Fragment>
                                         );
                                     })

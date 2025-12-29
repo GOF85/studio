@@ -74,12 +74,12 @@
 | articulos_erp       | ubicaciones                  | ARRAY                       | null    | YES         | null                              |
 | articulos_erp       | updated_at                   | timestamp with time zone    | null    | YES         | now()                             |
 | atipico_orders      | id                           | uuid                        | null    | NO          | gen_random_uuid()                 |
-| atipico_orders      | os_id                        | uuid                        | null    | NO          | null                              |
-| atipico_orders      | fecha                        | date                        | null    | NO          | null                              |
+| atipico_orders      | os_id                        | character varying           | 255     | NO          | null                              |
+| atipico_orders      | fecha                        | date                        | null    | NO          | CURRENT_DATE                      |
 | atipico_orders      | concepto                     | character varying           | 255     | NO          | null                              |
 | atipico_orders      | observaciones                | text                        | null    | YES         | null                              |
 | atipico_orders      | precio                       | numeric                     | null    | YES         | 0                                 |
-| atipico_orders      | status                       | USER-DEFINED                | null    | YES         | 'Pendiente'::atipico_order_status |
+| atipico_orders      | status                       | character varying           | 50      | YES         | 'Pendiente'::character varying    |
 | atipico_orders      | created_at                   | timestamp with time zone    | null    | YES         | now()                             |
 | atipico_orders      | updated_at                   | timestamp with time zone    | null    | YES         | now()                             |
 | atipicos_catalogo   | id                           | uuid                        | null    | NO          | uuid_generate_v4()                |
