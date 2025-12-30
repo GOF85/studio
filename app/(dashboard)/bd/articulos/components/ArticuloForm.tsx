@@ -122,7 +122,7 @@ export function ArticuloForm({ initialData, isEditing = false }: { initialData?:
   const onSubmit = async (values: ArticuloMicecateringFormValues) => {
     try {
       await upsertArticulo.mutateAsync({
-        ...values,
+        ...(values as any),
         tipoArticulo: 'micecatering',
         imagenes: imagenes,
       });

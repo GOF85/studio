@@ -1,8 +1,9 @@
+import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { EspacioV2, Sala, ContactoEspacio } from '@/types/espacios';
 
 // CRUD Espacios
-export async function getEspacios() {
+export async function getEspacios(supabase: SupabaseClient) {
     const { data, error } = await supabase
         .from('espacios_v2')
         .select(`
@@ -18,7 +19,38 @@ export async function getEspacios() {
     return data.map(mapEspacioFromDB);
 }
 
-export async function getEspacioById(id: string) {
+export async function getEspaciosPaginated(
+  supabase: SupabaseClient,
+  options: {
+    page: number;
+    pageSize: number;
+    searchTerm?: string;
+  }
+) {
+  const { page, pageSize, searchTerm } = options;
+  
+  let query = supabase
+    .from('espacios_v2')
+    .select('*', { count: 'exact' });
+
+  if (searchTerm) {
+    query = query.or(`nombre.ilike.%${searchTerm}%,ciudad.ilike.%${searchTerm}%,provincia.ilike.%${searchTerm}%`);
+  }
+
+  const { data, count, error } = await query
+    .order('nombre')
+    .range((page - 1) * pageSize, page * pageSize - 1);
+
+  if (error) throw error;
+
+  return {
+    items: (data || []).map(mapEspacioFromDB),
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / pageSize)
+  };
+}
+
+export async function getEspacioById(supabase: SupabaseClient, id: string) {
     const { data, error } = await supabase
         .from('espacios_v2')
         .select(`
@@ -29,9 +61,10 @@ export async function getEspacioById(id: string) {
       imagenes:espacios_imagenes(*)
     `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
     if (error) throw error;
+    if (!data) return null;
     return mapEspacioFromDB(data);
 }
 
@@ -87,7 +120,7 @@ export async function createEspacio(espacio: Partial<EspacioV2>) {
         if (imagenesError) throw imagenesError;
     }
 
-    return getEspacioById(newEspacio.id);
+    return getEspacioById(supabase, newEspacio.id);
 }
 
 export async function updateEspacio(id: string, updates: Partial<EspacioV2>) {
@@ -126,7 +159,7 @@ export async function updateEspacio(id: string, updates: Partial<EspacioV2>) {
         }
     }
 
-    return getEspacioById(id);
+    return getEspacioById(supabase, id);
 }
 
 export async function deleteEspacio(id: string) {

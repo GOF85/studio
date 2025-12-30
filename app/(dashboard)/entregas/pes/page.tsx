@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, Package, ClipboardList, Search, Filter, Eye, EyeOff, Plus, Truck, Clock, User } from 'lucide-react';
@@ -32,11 +32,28 @@ import { useEntregas } from '@/hooks/use-data-queries';
 export default function PrevisionEntregasPage() {
   const { data: entregasData, isLoading } = useEntregas();
   const [isMounted, setIsMounted] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
-  const [showPastEvents, setShowPastEvents] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // URL-driven state
+  const searchTerm = searchParams.get('q') || '';
+  const selectedMonth = searchParams.get('month') || format(new Date(), 'yyyy-MM');
+  const showPastEvents = searchParams.get('past') === 'true';
+  const statusFilter = searchParams.get('status') || 'all';
+
+  const updateFilters = (updates: Record<string, string | boolean | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === 'all' || value === '' || value === false) {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -119,9 +136,9 @@ export default function PrevisionEntregasPage() {
     });
 
     return filtered.sort((a, b) => {
-        const dateA = a.fecha_inicio;
-        const dateB = b.fecha_inicio;
-        return new Date(dateA).getTime() - new Date(dateB).getTime();
+        const dateA = a.fecha_inicio || '';
+        const dateB = b.fecha_inicio || '';
+        return dateA.localeCompare(dateB);
     });
 
   }, [allHitos, searchTerm, selectedMonth, showPastEvents, statusFilter]);
@@ -162,7 +179,7 @@ export default function PrevisionEntregasPage() {
                       <Input
                           placeholder="Buscar pedido o cliente..."
                           value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onChange={(e) => updateFilters({ q: e.target.value })}
                           className="h-8 pl-9 text-[11px] bg-background/50 border-border/40 rounded-lg focus-visible:ring-amber-500/20 w-full"
                       />
                   </div>
@@ -170,7 +187,7 @@ export default function PrevisionEntregasPage() {
 
               <div className="flex items-center gap-3">
 
-                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <Select value={selectedMonth} onValueChange={(val) => updateFilters({ month: val })}>
                       <SelectTrigger className="h-8 w-[180px] text-[10px] font-black uppercase tracking-widest border-border/40 bg-background/50">
                         <SelectValue placeholder="Mes" />
                       </SelectTrigger>
@@ -187,7 +204,7 @@ export default function PrevisionEntregasPage() {
                   <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowPastEvents(!showPastEvents)}
+                      onClick={() => updateFilters({ past: !showPastEvents })}
                       className={cn(
                           "h-8 text-[10px] font-black uppercase tracking-widest border-border/40 bg-background/50",
                           showPastEvents ? "border-amber-500/50 bg-amber-500/5 text-amber-700" : "text-muted-foreground"
@@ -217,7 +234,7 @@ export default function PrevisionEntregasPage() {
                     key={status}
                     size="sm" 
                     variant="ghost"
-                    onClick={() => setStatusFilter(status)}
+                    onClick={() => updateFilters({ status: status })}
                     className={cn(
                         "h-7 px-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all",
                         statusFilter === status 

@@ -32,9 +32,14 @@ export function EvaluacionTab() {
     async function loadProveedores() {
         const { data } = await supabase
             .from('proveedores')
-            .select('id, nombre')
-            .order('nombre');
-        if (data) setProveedores(data);
+            .select('id, nombre_comercial')
+            .order('nombre_comercial');
+        if (data) {
+            setProveedores(data.map(p => ({
+                id: p.id,
+                nombreComercial: p.nombre_comercial
+            })) as any);
+        }
     }
 
     const addPuntoFuerte = () => {

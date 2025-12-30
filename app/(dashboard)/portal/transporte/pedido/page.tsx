@@ -23,7 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
 
-import { useEvento, useTransporteOrders, useTiposTransporte } from '@/hooks/use-data-queries';
+import { useEvento, useTransporteOrders, useTiposTransporte, useProveedoresTransporte } from '@/hooks/use-data-queries';
 import { useCreateTransporteOrder, useUpdateTransporteOrder } from '@/hooks/mutations/use-transporte-mutations';
 
 const statusOptions: TransporteOrder['status'][] = ['Pendiente', 'Confirmado', 'En Ruta', 'Entregado'];
@@ -49,7 +49,7 @@ function PedidoTransportePageInner() {
   const isEditing = !!orderId;
 
   const { data: serviceOrder, isLoading: loadingOS } = useEvento(osId);
-  const { data: allTiposTransporte = [], isLoading: loadingTipos } = useTiposTransporte();
+  const { data: allTiposTransporte = [], isLoading: loadingTipos } = useProveedoresTransporte();
   const { data: allTransportOrders = [], isLoading: loadingOrders } = useTransporteOrders();
   
   const createMutation = useCreateTransporteOrder();

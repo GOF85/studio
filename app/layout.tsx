@@ -11,11 +11,17 @@ const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   preload: true,
+  variable: '--font-body',
 });
 
 export const metadata: Metadata = {
   title: 'Mice Catering',
   description: 'Gestión de eventos',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/icons/mc.png',
+  },
 };
 
 export default function RootLayout({
@@ -24,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
+    <html lang="es" className={inter.variable}>
       <body className={inter.className}>
         {/* 2. ENVOLVEMOS: AuthProvider (primero) -> QueryProvider -> App */}
         <AuthProvider>

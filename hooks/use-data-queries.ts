@@ -10,6 +10,10 @@ import {
     updateEspacio,
     deleteEspacio
 } from '@/services/espacios-service';
+import { mapArticuloFromDB, getArticulosPaginated } from '@/services/articulos-service';
+import { mapArticuloERPFromDB, getArticulosERPPaginated } from '@/services/erp-service';
+import { mapPersonalFromDB, getPersonalPaginated } from '@/services/personal-service';
+import { mapProveedorFromDB, getProveedoresPaginated } from '@/services/proveedores-service';
 import type { EspacioV2 } from '@/types/espacios';
 import type {
     ServiceOrder,
@@ -43,6 +47,22 @@ import type {
 // ============================================
 // HELPERS
 // ============================================
+
+// ============================================
+// DATABASE / MASTER DATA
+// ============================================
+
+export function useDatabaseCounts() {
+    return useQuery({
+        queryKey: ['databaseCounts'],
+        queryFn: async () => {
+            const { data, error } = await supabase.rpc('get_database_counts');
+            if (error) throw error;
+            return data as Record<string, number>;
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+}
 
 // ============================================
 // COMERCIAL AJUSTES
@@ -236,6 +256,35 @@ export function useEventos() {
                 .order('start_date', { ascending: false });
             if (error) throw error;
             return (data || []).map(mapEvento);
+        },
+    });
+}
+
+export function useEventosPaginated(page: number, pageSize: number, searchTerm: string) {
+    return useQuery({
+        queryKey: ['eventos-paginated', page, pageSize, searchTerm],
+        queryFn: async () => {
+            let query = supabase
+                .from('eventos')
+                .select('*', { count: 'exact' });
+
+            if (searchTerm) {
+                query = query.or(`numero_expediente.ilike.%${searchTerm}%,cliente.ilike.%${searchTerm}%,cliente_final.ilike.%${searchTerm}%`);
+            }
+
+            const from = page * pageSize;
+            const to = from + pageSize - 1;
+
+            const { data, error, count } = await query
+                .order('start_date', { ascending: false })
+                .range(from, to);
+
+            if (error) throw error;
+
+            return {
+                eventos: (data || []).map(mapEvento),
+                totalCount: count || 0
+            };
         },
     });
 }
@@ -1359,63 +1408,6 @@ export function useArticulosERPByIds(ids: string[]) {
     });
 }
 
-export function useArticulosERPPaginated(options: {
-    page: number;
-    limit: number;
-    searchTerm?: string;
-    typeFilter?: string;
-    providerFilter?: string;
-}) {
-    const { page, limit, searchTerm, typeFilter, providerFilter } = options;
-    return useQuery({
-        queryKey: ['articulosERP', page, limit, searchTerm, typeFilter, providerFilter],
-        queryFn: async () => {
-            let query = supabase.from('articulos_erp').select('*', { count: 'exact' });
-
-            if (searchTerm) {
-                query = query.ilike('nombre', `%${searchTerm}%`);
-            }
-            if (typeFilter && typeFilter !== 'all') {
-                query = query.eq('tipo', typeFilter);
-            }
-            if (providerFilter && providerFilter !== 'all') {
-                query = query.eq('nombre_proveedor', providerFilter);
-            }
-
-            const from = (page - 1) * limit;
-            const to = from + limit - 1;
-
-            const { data, error, count } = await query
-                .order('nombre', { ascending: true })
-                .range(from, to);
-
-            if (error) throw error;
-
-            const items = (data || []).map(row => ({
-                id: row.id,
-                idreferenciaerp: row.erp_id || '',
-                idProveedor: row.proveedor_id || '',
-                nombreProveedor: row.nombre_proveedor || 'Sin proveedor',
-                nombreProductoERP: row.nombre || '',
-                referenciaProveedor: row.referencia_proveedor || '',
-                familiaCategoria: row.familia_categoria || '',
-                precioCompra: row.precio_compra || 0,
-                descuento: row.descuento || 0,
-                unidadConversion: row.unidad_conversion || 1,
-                precio: row.precio || 0,
-                precioAlquiler: row.precio_alquiler || 0,
-                unidad: row.unidad_medida || 'UD',
-                tipo: row.tipo || '',
-                categoriaMice: row.categoria_mice || '',
-                alquiler: row.alquiler || false,
-                observaciones: row.observaciones || '',
-            })) as ArticuloERP[];
-
-            return { items, count: count || 0 };
-        }
-    });
-}
-
 export function useArticulosERPMetadata() {
     return useQuery({
         queryKey: ['articulosERP-metadata'],
@@ -1507,13 +1499,13 @@ export function useTransporteOrders(eventoId?: string) {
                 id: item.id,
                 osId: item.evento_id,
                 proveedorId: item.proveedor_id,
-                proveedorNombre: item.data?.nombreProveedor || '',
+                proveedorNombre: item.proveedor_nombre || item.data?.nombreProveedor || '',
                 tipoTransporte: item.tipo_transporte,
                 fecha: item.fecha,
-                hora: item.hora,
+                hora: item.hora_entrega || item.hora || '',
                 precio: item.precio,
-                status: item.status as any,
-                observaciones: item.comentarios,
+                status: item.estado as any,
+                observaciones: item.observaciones,
                 lugarRecogida: item.lugar_recogida || '',
                 horaRecogida: item.hora_recogida || '',
                 lugarEntrega: item.lugar_entrega || '',
@@ -1992,6 +1984,19 @@ export function usePersonal() {
     });
 }
 
+export function usePersonalPaginated(page: number, pageSize: number, searchTerm: string, departmentFilter: string, initialData?: { items: Personal[], totalCount: number, totalPages: number }) {
+    return useQuery({
+        queryKey: ['personal-paginated', page, pageSize, searchTerm, departmentFilter],
+        queryFn: () => getPersonalPaginated(supabase, {
+            page,
+            pageSize,
+            searchTerm,
+            departmentFilter
+        }),
+        initialData
+    });
+}
+
 // ============================================
 // ESPACIOS
 // ============================================
@@ -2003,15 +2008,45 @@ export function usePersonal() {
 export function useEspacios() {
     return useQuery({
         queryKey: ['espacios'],
-        queryFn: getEspacios,
+        queryFn: () => getEspacios(supabase),
         staleTime: 1000 * 60 * 10, // 10 minutes
+    });
+}
+
+export function useEspaciosPaginated(page: number, pageSize: number, searchTerm: string) {
+    return useQuery({
+        queryKey: ['espacios-paginated', page, pageSize, searchTerm],
+        queryFn: async () => {
+            let query = supabase
+                .from('espacios_v2')
+                .select('*', { count: 'exact' });
+
+            if (searchTerm) {
+                query = query.or(`nombre.ilike.%${searchTerm}%,ciudad.ilike.%${searchTerm}%,calle.ilike.%${searchTerm}%`);
+            }
+
+            const from = (page - 1) * pageSize;
+            const to = from + pageSize - 1;
+
+            const { data, error, count } = await query
+                .order('nombre', { ascending: true })
+                .range(from, to);
+
+            if (error) throw error;
+
+            return {
+                items: data || [],
+                totalCount: count || 0,
+                totalPages: Math.ceil((count || 0) / pageSize)
+            };
+        }
     });
 }
 
 export function useEspacioItem(id: string | null) {
     return useQuery({
         queryKey: ['espacio', id],
-        queryFn: () => id ? getEspacioById(id) : null,
+        queryFn: () => id ? getEspacioById(supabase, id) : null,
         enabled: !!id,
     });
 }
@@ -2319,52 +2354,7 @@ export function useUpdateEventoFinancials() {
 // ARTÍCULOS
 // ============================================
 
-const mapArticuloFromDB = (item: any): ArticuloCatering => {
-    const isEntrega = item.tipo_articulo === 'entregas';
-    const parsedPack = Array.isArray(item.pack) ? item.pack : (typeof item.pack === 'string' && item.pack ? JSON.parse(item.pack) : []);
-    
-    return {
-        id: item.id,
-        erpId: item.erp_id,
-        nombre: item.nombre,
-        categoria: isEntrega ? item.categoria : normalizeCategoria(item.categoria) as any,
-        familia: item.familia,
-        esHabitual: item.es_habitual,
-        precioVenta: item.precio_venta,
-        precioAlquiler: item.precio_alquiler,
-        precioReposicion: item.precio_reposicion,
-        unidadVenta: item.unidad_venta,
-        stockSeguridad: item.stock_seguridad,
-        tipo: item.tipo,
-        loc: item.loc,
-        imagen: item.imagen,
-        producidoPorPartner: item.producido_por_partner,
-        partnerId: item.partner_id,
-        recetaId: item.receta_id,
-        subcategoria: item.subcategoria,
-        tipoArticulo: item.tipo_articulo,
-        referenciaArticuloEntregas: item.referencia_articulo_entregas,
-        dptEntregas: item.dpt_entregas,
-        precioCoste: item.precio_coste,
-        precioCosteAlquiler: item.precio_coste_alquiler,
-        precioVentaEntregas: item.precio_venta_entregas,
-        precioVentaEntregasIfema: item.precio_venta_entregas_ifema,
-        precioAlquilerIfema: item.precio_alquiler_ifema,
-        precioVentaIfema: item.precio_venta_ifema,
-        precioAlquilerEntregas: item.precio_alquiler_entregas,
-        // Compatibility with ProductoVenta
-        pvp: isEntrega ? (item.precio_venta_entregas || 0) : (item.precio_venta || 0),
-        pvpIfema: isEntrega ? (item.precio_venta_entregas_ifema || 0) : (item.precio_venta_ifema || 0),
-        iva: item.iva,
-        docDriveUrl: item.doc_drive_url,
-        alergenos: item.alergenos || [],
-        imagenes: item.imagenes || [],
-        packs: parsedPack,
-        pack: parsedPack,
-        audit: item.audit || [],
-        createdAt: item.created_at,
-    } as any;
-};
+// mapArticuloFromDB is now imported from @/services/articulos-service
 
 const mapArticuloToDB = (item: Partial<ArticuloCatering>) => ({
     id: item.id,
@@ -2497,6 +2487,116 @@ export function useArticulosInfinite(options: {
         initialPageParam: 0,
     });
 }
+
+export function useArticulosERPPaginated(options: {
+    page: number;
+    pageSize: number;
+    searchTerm?: string;
+    typeFilter?: string;
+    providerFilter?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+}, initialData?: { items: ArticuloERP[], totalCount: number }) {
+    const { page, pageSize, searchTerm, typeFilter, providerFilter, sortBy, sortOrder } = options;
+
+    return useQuery({
+        queryKey: ['articulos-erp-paginated', page, pageSize, searchTerm, typeFilter, providerFilter, sortBy, sortOrder],
+        queryFn: () => getArticulosERPPaginated(supabase, {
+            page,
+            pageSize,
+            searchTerm,
+            typeFilter,
+            providerFilter,
+            sortBy,
+            sortOrder
+        }),
+        initialData
+    });
+}
+
+export function useArticulosPaginated(options: {
+    page: number;
+    pageSize: number;
+    searchTerm?: string;
+    categoryFilter?: string;
+    departmentFilter?: string;
+    isPartnerFilter?: boolean;
+    tipoArticulo?: 'micecatering' | 'entregas';
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+}, initialData?: { items: ArticuloCatering[], totalCount: number }) {
+    const { 
+        page, 
+        pageSize, 
+        searchTerm, 
+        categoryFilter, 
+        departmentFilter,
+        isPartnerFilter, 
+        tipoArticulo, 
+        sortBy = 'nombre',
+        sortOrder = 'asc'
+    } = options;
+
+    return useQuery({
+        queryKey: ['articulos', 'paginated', page, pageSize, searchTerm, categoryFilter, departmentFilter, isPartnerFilter, tipoArticulo, sortBy, sortOrder],
+        queryFn: async () => {
+            return getArticulosPaginated(supabase, {
+                page,
+                pageSize,
+                searchTerm,
+                categoryFilter,
+                departmentFilter,
+                isPartnerFilter,
+                tipoArticulo,
+                sortBy,
+                sortOrder
+            });
+        },
+        initialData
+    });
+}
+
+export function useTablePaginated<T>(options: {
+    tableName: string;
+    page: number;
+    pageSize: number;
+    searchTerm?: string;
+    searchColumns?: string[];
+    orderBy?: string;
+    orderAscending?: boolean;
+}) {
+    const { tableName, page, pageSize, searchTerm, searchColumns, orderBy = 'nombre', orderAscending = true } = options;
+
+    return useQuery({
+        queryKey: [tableName, 'paginated', page, pageSize, searchTerm, orderBy, orderAscending],
+        queryFn: async () => {
+            let query = supabase
+                .from(tableName)
+                .select('*', { count: 'exact' });
+
+            if (searchTerm && searchColumns && searchColumns.length > 0) {
+                const orConditions = searchColumns.map(col => `${col}.ilike.%${searchTerm}%`).join(',');
+                query = query.or(orConditions);
+            }
+
+            const from = page * pageSize;
+            const to = from + pageSize - 1;
+
+            const { data, error, count } = await query
+                .order(orderBy, { ascending: orderAscending })
+                .range(from, to);
+
+            if (error) throw error;
+
+            return {
+                items: (data || []) as T[],
+                totalCount: count || 0
+            };
+        },
+    });
+}
+
+// mapArticuloERPFromDB is now imported from @/services/erp-service
 
 export function useArticulo(id: string | undefined) {
     return useQuery({
@@ -2865,11 +2965,42 @@ export function useTiposTransporte() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('tipos_transporte')
-                .select('*')
+                .select('*, proveedor:proveedores(nombre_comercial)')
                 .order('nombre');
             if (error) throw error;
             return data || [];
         },
+    });
+}
+
+export function useProveedoresTransporte() {
+    return useQuery({
+        queryKey: ['proveedoresTransporte'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('proveedores_tipos_servicio')
+                .select(`
+                    proveedor_id,
+                    tipos,
+                    proveedor:proveedores (
+                        id,
+                        nombre_comercial
+                    )
+                `)
+                .contains('tipos', ['Transporte']);
+            
+            if (error) throw error;
+            
+            return (data || [])
+                .filter((item: any) => item.proveedor)
+                .map((item: any) => ({
+                    id: item.proveedor.id,
+                    nombre: item.proveedor.nombre_comercial,
+                    nombreProveedor: item.proveedor.nombre_comercial,
+                    tipoTransporte: 'Transporte',
+                    precio: 0
+                }));
+        }
     });
 }
 
@@ -2975,6 +3106,19 @@ export function useProveedores() {
         },
     });
 }
+
+export function useProveedoresPaginated(page: number, pageSize: number, searchTerm: string, initialData?: { items: Proveedor[], totalCount: number, totalPages: number }) {
+    return useQuery({
+        queryKey: ['proveedores-paginated', page, pageSize, searchTerm],
+        queryFn: () => getProveedoresPaginated(supabase, {
+            page,
+            pageSize,
+            searchTerm
+        }),
+        initialData
+    });
+}
+
 
 export function useProveedor(id: string) {
     return useQuery({
@@ -3554,6 +3698,55 @@ export function usePersonalExternoDB() {
                 telefono: item.telefono,
                 email: item.email,
             }));
+        }
+    });
+}
+
+export function usePersonalExternoPaginated(options: {
+    page: number;
+    pageSize: number;
+    searchTerm?: string;
+    providerFilter?: string;
+}) {
+    const { page, pageSize, searchTerm, providerFilter } = options;
+
+    return useQuery({
+        queryKey: ['personalExternoDB', 'paginated', page, pageSize, searchTerm, providerFilter],
+        queryFn: async () => {
+            let query = supabase
+                .from('personal_externo_catalogo')
+                .select('*', { count: 'exact' });
+
+            if (searchTerm) {
+                query = query.or(`nombre_completo.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
+            }
+            if (providerFilter && providerFilter !== 'all') {
+                query = query.eq('proveedor_id', providerFilter);
+            }
+
+            const from = page * pageSize;
+            const to = from + pageSize - 1;
+
+            const { data, error, count } = await query
+                .order('nombre', { ascending: true })
+                .range(from, to);
+
+            if (error) throw error;
+
+            return {
+                items: (data || []).map((item: any) => ({
+                    id: item.id,
+                    proveedorId: item.proveedor_id,
+                    nombre: item.nombre,
+                    apellido1: item.apellido1,
+                    apellido2: item.apellido2,
+                    nombreCompleto: item.nombre_completo,
+                    nombreCompacto: item.nombre_compacto,
+                    telefono: item.telefono,
+                    email: item.email,
+                })),
+                totalCount: count || 0
+            };
         }
     });
 }

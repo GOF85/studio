@@ -106,7 +106,7 @@ const getStatusLabel = (status: string): string => {
     case 'CONFIRMADO':
       return 'Confirmado';
     case 'EJECUTADO':
-      return 'Ejecutado';
+      return 'Entregado';
     case 'CANCELADO':
       return 'Cancelado';
     default:

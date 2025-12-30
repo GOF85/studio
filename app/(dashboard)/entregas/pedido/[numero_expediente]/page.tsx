@@ -11,8 +11,6 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileDown, Loader2, Trash2, Package, Save, X, Truck, PlusCircle, Pencil, Printer } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 import type { Entrega, ProductoVenta, PedidoEntrega, PedidoEntregaItem, TransporteOrder, EntregaHito, ProveedorTransporte, ServiceOrder } from '@/types';
 import { cn } from '@/lib/utils';
@@ -59,7 +57,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 
-import { useEntrega, useUpdateEntrega, useCreateEntrega, usePedidosEntrega, useTransporteOrders, useProveedores, useTiposTransporte, useArticulos } from '@/hooks/use-data-queries';
+import { useEntrega, useUpdateEntrega, useCreateEntrega, usePedidosEntrega, useTransporteOrders, useProveedores, useTiposTransporte, useProveedoresTransporte, useArticulos } from '@/hooks/use-data-queries';
 import { useSyncTransporteOrders } from '@/hooks/mutations/use-transporte-mutations';
 import { entregaFormSchema, type EntregaFormValues } from '@/types/entregas';
 
@@ -259,22 +257,22 @@ const FinancialTitle = ({ pvpBruto }: { pvpBruto: number }) => {
 function TransporteDialog({ onSave, osId, hitos, existingTransportOrders }: { onSave: (order: Omit<TransporteOrder, 'id'>) => void; osId: string; hitos: EntregaHito[]; existingTransportOrders: TransporteOrder[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedHitos, setSelectedHitos] = useState<Set<string>>(new Set());
-    const [proveedorId, setProveedorId] = useState<string>('');
+    const [tipoTransporteId, setTipoTransporteId] = useState<string>('');
     
-    const { data: proveedoresData } = useTiposTransporte();
-    const proveedores = useMemo(() => {
-        return (proveedoresData || []) as any[];
-    }, [proveedoresData]);
+    const { data: tiposData } = useTiposTransporte();
+    const tiposTransporte = useMemo(() => {
+        return (tiposData || []) as any[];
+    }, [tiposData]);
 
     const assignedHitoIds = useMemo(() => {
         return new Set(existingTransportOrders.flatMap(t => t.hitosIds || []));
     }, [existingTransportOrders]);
 
-    const selectedProvider = useMemo(() => proveedores.find(p => p.id === proveedorId), [proveedorId, proveedores]);
+    const selectedTipo = useMemo(() => tiposTransporte.find(t => t.id === tipoTransporteId), [tipoTransporteId, tiposTransporte]);
 
     const handleSave = () => {
-        if (selectedHitos.size === 0 || !selectedProvider) {
-            alert("Por favor, selecciona al menos una entrega y un proveedor.");
+        if (selectedHitos.size === 0 || !selectedTipo) {
+            alert("Por favor, selecciona al menos una entrega y un tipo de transporte.");
             return;
         }
 
@@ -284,10 +282,10 @@ function TransporteDialog({ onSave, osId, hitos, existingTransportOrders }: { on
         onSave({
             osId,
             fecha: firstHito.fecha,
-            proveedorId: selectedProvider.id,
-            proveedorNombre: selectedProvider.nombreProveedor || selectedProvider.nombre,
-            tipoTransporte: selectedProvider.tipoTransporte || selectedProvider.nombre,
-            precio: selectedProvider.precio || 0,
+            proveedorId: selectedTipo.proveedor_id || '',
+            proveedorNombre: selectedTipo.proveedor?.nombre_comercial || 'Sin proveedor',
+            tipoTransporte: selectedTipo.nombre,
+            precio: selectedTipo.precio_base || 0,
             lugarRecogida: 'C. Mallorca, 1, 28703 San Sebastián de los Reyes, Madrid',
             horaRecogida: '09:00',
             lugarEntrega: firstHito.lugarEntrega,
@@ -298,7 +296,7 @@ function TransporteDialog({ onSave, osId, hitos, existingTransportOrders }: { on
         });
         setIsOpen(false);
         setSelectedHitos(new Set());
-        setProveedorId('');
+        setTipoTransporteId('');
     };
 
     return (
@@ -338,13 +336,18 @@ function TransporteDialog({ onSave, osId, hitos, existingTransportOrders }: { on
                         </div>
                     </div>
                     <div>
-                        <h4 className="font-semibold mb-2">2. Selecciona un proveedor:</h4>
-                        <Select onValueChange={setProveedorId}>
-                            <SelectTrigger><SelectValue placeholder="Seleccionar proveedor..." /></SelectTrigger>
+                        <h4 className="font-semibold mb-2">2. Selecciona un tipo de transporte:</h4>
+                        <Select onValueChange={setTipoTransporteId}>
+                            <SelectTrigger><SelectValue placeholder="Seleccionar transporte..." /></SelectTrigger>
                             <SelectContent>
-                                {proveedores.map(p => (
-                                    <SelectItem key={p.id} value={p.id}>
-                                        {p.nombreProveedor} - {p.tipoTransporte} ({formatCurrency(p.precio)})
+                                {tiposTransporte.map(t => (
+                                    <SelectItem key={t.id} value={t.id}>
+                                        <div className="flex flex-col">
+                                            <span className="font-bold">{t.nombre}</span>
+                                            <span className="text-[10px] text-muted-foreground uppercase">
+                                                {t.proveedor?.nombre_comercial || 'Sin proveedor'} • {formatCurrency(t.precio_base)}
+                                            </span>
+                                        </div>
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -353,7 +356,7 @@ function TransporteDialog({ onSave, osId, hitos, existingTransportOrders }: { on
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
-                    <Button onClick={handleSave} disabled={selectedHitos.size === 0 || !proveedorId}>Asignar</Button>
+                    <Button onClick={handleSave} disabled={selectedHitos.size === 0 || !tipoTransporteId}>Asignar</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -395,19 +398,18 @@ export default function EntregaFormPage() {
 
     const { control, handleSubmit, formState: { isDirty }, getValues, reset, watch, setValue } = form;
 
+    const tarifa = watch('tarifa');
+
     const calculateHitoTotal = useCallback((hito: EntregaHito): number => {
         const totalProductos = hito.items.reduce((sum, item) => sum + ((item.pvp || 0) * item.quantity), 0);
-        const tarifa = getValues('tarifa');
         const costePorte = tarifa === 'IFEMA' ? 95 : 30;
         const totalPortes = (hito.portes || 0) * costePorte;
         return totalProductos + totalPortes;
-    }, [getValues]);
+    }, [tarifa]);
 
     const pvpTotalHitos = useMemo(() => {
         return hitos.reduce((total, hito) => total + calculateHitoTotal(hito), 0);
     }, [hitos, calculateHitoTotal]);
-
-    const tarifa = watch('tarifa');
 
     useEffect(() => {
         if (tarifa === 'IFEMA') {
@@ -584,6 +586,10 @@ export default function EntregaFormPage() {
 
         setIsPrinting(true);
         try {
+            // Dynamic imports to reduce initial bundle size and avoid blocking main thread on load
+            const { default: jsPDF } = await import('jspdf');
+            const { default: autoTable } = await import('jspdf-autotable');
+
             const articulos = (articulosData || []) as any[];
             const productosMap = new Map(articulos.map(p => [p.id, p]));
 

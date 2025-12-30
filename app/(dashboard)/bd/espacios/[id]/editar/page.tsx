@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { EspacioForm } from '../../components/EspacioForm';
 import { getEspacioById } from '@/services/espacios-service';
+import { supabase } from '@/lib/supabase';
 import type { EspacioV2 } from '@/types/espacios';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,7 +19,7 @@ export default function EditarEspacioPage() {
         async function loadEspacio() {
             try {
                 const id = (params.id as string) || '';
-                const data = await getEspacioById(id);
+                const data = await getEspacioById(supabase, id);
                 setEspacio(data);
             } catch (error: any) {
                 toast({

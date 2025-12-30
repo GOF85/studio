@@ -360,6 +360,7 @@ function PESPageInner() {
         }> = {};
 
         const today = startOfToday();
+        const todayStr = format(today, 'yyyy-MM-dd');
         const nextWeek = addWeeks(today, 1);
 
         eventos.forEach(os => {
@@ -367,9 +368,9 @@ function PESPageInner() {
             const dates = new Set<string>();
 
             if (briefing?.items?.length > 0) {
-                briefing.items.forEach((item: any) => {
+                for (const item of briefing.items) {
                     if (item.fecha) dates.add(item.fecha);
-                });
+                }
             }
 
             if (dates.size === 0) {
@@ -380,10 +381,11 @@ function PESPageInner() {
             dates.forEach(dateKey => {
                 // Frontend filtering to match the selected time filter
                 if (dateKey !== 'unknown' && timeFilter !== 'all') {
+                    if (timeFilter === 'today' && dateKey !== todayStr) return;
+                    
                     const date = parseISO(dateKey);
                     const sDate = startOfDay(date);
                     
-                    if (timeFilter === 'today' && !isSameDay(sDate, today)) return;
                     if (timeFilter === 'this_week' && !isSameWeek(sDate, today, { weekStartsOn: 1 })) return;
                     if (timeFilter === 'next_week' && !isSameWeek(sDate, nextWeek, { weekStartsOn: 1 })) return;
                 }
@@ -398,16 +400,15 @@ function PESPageInner() {
                 const itemsForThisDate: any[] = [];
                 
                 if (briefing?.items) {
-                    briefing.items.forEach((item: any) => {
+                    for (const item of briefing.items) {
                         if (item.fecha === dateKey) {
                             itemsForThisDate.push(item);
                             if (item.conGastronomia) {
                                 gastroCount++;
-                                // Sum all attendees for services with gastronomy as requested
                                 gastroPax += Number(item.asistentes) || 0;
                             }
                         }
-                    });
+                    }
                 }
 
                 groups[dateKey].items.push({
@@ -422,9 +423,9 @@ function PESPageInner() {
 
         const sortedKeys = Object.keys(groups).sort();
         const sortedGroups: typeof groups = {};
-        sortedKeys.forEach(key => {
+        for (const key of sortedKeys) {
             sortedGroups[key] = groups[key];
-        });
+        }
 
         return sortedGroups;
     }, [eventos, timeFilter]);

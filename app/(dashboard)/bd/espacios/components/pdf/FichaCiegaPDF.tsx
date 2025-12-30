@@ -93,6 +93,19 @@ interface FichaCiegaPDFProps {
     espacio: EspacioV2;
 }
 
+// Helper to fix image URLs for react-pdf
+const fixImageUrl = (url: string) => {
+    if (!url) return '';
+    // react-pdf is picky about extensions. If the URL doesn't end in a known extension,
+    // we append a dummy one as a query parameter.
+    const path = url.split('?')[0];
+    const hasExtension = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path);
+    if (!hasExtension) {
+        return `${url}${url.includes('?') ? '&' : '?'}format=.jpg`;
+    }
+    return url;
+};
+
 export function FichaCiegaPDF({ espacio }: FichaCiegaPDFProps) {
     // Get only commercial photos (not blueprints)
     const fotosComerciales = espacio.imagenes?.filter(img => img.categoria !== 'plano').slice(0, 4) || [];
@@ -205,7 +218,7 @@ export function FichaCiegaPDF({ espacio }: FichaCiegaPDFProps) {
                             {fotosComerciales.map((imagen, idx) => (
                                 <Image
                                     key={idx}
-                                    src={imagen.url}
+                                    src={fixImageUrl(imagen.url)}
                                     style={styles.image}
                                 />
                             ))}

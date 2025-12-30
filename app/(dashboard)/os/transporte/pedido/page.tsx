@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
-import { useEvento, useTransporteOrders, useTiposTransporte } from '@/hooks/use-data-queries';
+import { useEvento, useTransporteOrders, useTiposTransporte, useProveedoresTransporte } from '@/hooks/use-data-queries';
 import { useCreateTransporteOrder, useUpdateTransporteOrder } from '@/hooks/mutations/use-transporte-mutations';
 
 const statusOptions: TransporteOrder['status'][] = ['Pendiente', 'Confirmado', 'En Ruta', 'Entregado'];
@@ -48,7 +48,7 @@ function PedidoTransportePageInner() {
 
   const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId);
   const { data: allTransporteOrders = [], isLoading: isLoadingOrders } = useTransporteOrders(osId);
-  const { data: allTiposTransporte = [], isLoading: isLoadingTipos } = useTiposTransporte();
+  const { data: allTiposTransporte = [], isLoading: isLoadingTipos } = useProveedoresTransporte();
   const { mutateAsync: createTransporte, isPending: isCreating } = useCreateTransporteOrder();
   const { mutateAsync: updateTransporte, isPending: isUpdating } = useUpdateTransporteOrder();
 

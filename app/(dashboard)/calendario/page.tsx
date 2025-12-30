@@ -101,11 +101,18 @@ const formatSafeTime = (time: any) => {
 const transformCalendarData = (serviceOrders: ServiceOrder[], briefings: any[]): CalendarEvent[] => {
   const allEvents: CalendarEvent[] = [];
 
+  // OPTIMIZACIÓN: Crear un Map para búsqueda O(1) en lugar de usar .find() dentro del bucle
+  const briefingMap = new Map();
+  briefings.forEach(b => {
+    const id = b.osId || b.os_id;
+    if (id) briefingMap.set(id, b);
+  });
+
   serviceOrders.forEach((os: ServiceOrder) => {
     const statusNormalized = os.status?.toUpperCase() || 'BORRADOR';
     if (statusNormalized === 'CANCELADO') return;
 
-    const briefing = briefings.find(b => b.osId === os.id || (b as any).os_id === os.id);
+    const briefing = briefingMap.get(os.id);
     const dates = new Set<string>();
 
     if (briefing && briefing.items && briefing.items.length > 0) {
@@ -118,7 +125,7 @@ const transformCalendarData = (serviceOrders: ServiceOrder[], briefings: any[]):
 
     // Si no hay servicios con fecha, usamos la fecha de inicio de la OS
     if (dates.size === 0) {
-      const dateKey = os.startDate ? format(new Date(os.startDate), 'yyyy-MM-dd') : null;
+      const dateKey = os.startDate ? (typeof os.startDate === 'string' ? os.startDate.split('T')[0] : format(new Date(os.startDate), 'yyyy-MM-dd')) : null;
       if (dateKey) dates.add(dateKey);
     }
 
@@ -127,8 +134,8 @@ const transformCalendarData = (serviceOrders: ServiceOrder[], briefings: any[]):
       const itemsForThisDate = briefing?.items?.filter((i: any) => i.fecha === dateKey) || [];
 
       // Extraer hora de inicio específica (la más temprana del día)
-      let horaInicio = os.startDate ? format(new Date(os.startDate), 'HH:mm') : '00:00';
-      let horaFin = os.endDate ? format(new Date(os.endDate), 'HH:mm') : '00:00';
+      let horaInicio = os.startDate ? (typeof os.startDate === 'string' ? os.startDate.split('T')[1]?.substring(0, 5) : format(new Date(os.startDate), 'HH:mm')) : '00:00';
+      let horaFin = os.endDate ? (typeof os.endDate === 'string' ? os.endDate.split('T')[1]?.substring(0, 5) : format(new Date(os.endDate), 'HH:mm')) : '00:00';
       
       if (itemsForThisDate.length > 0) {
         const sortedItems = [...itemsForThisDate].sort((a, b) => (a.horaInicio || '').localeCompare(b.horaInicio || ''));

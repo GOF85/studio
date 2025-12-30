@@ -22,6 +22,7 @@ export function useCreateTransporteOrder() {
                     hora_recogida: order.horaRecogida,
                     hora_entrega: order.horaEntrega,
                     proveedor_id: order.proveedorId,
+                    proveedor_nombre: order.proveedorNombre,
                     precio: order.precio,
                     observaciones: order.observaciones,
                     estado: order.status || 'Pendiente',
@@ -30,7 +31,6 @@ export function useCreateTransporteOrder() {
                         lugarEntrega: order.lugarEntrega,
                         contactoRecogida: order.contactoRecogida,
                         contactoEntrega: order.contactoEntrega,
-                        // Store any other fields not in the schema
                     }
                 })
                 .select()
@@ -62,6 +62,7 @@ export function useUpdateTransporteOrder() {
                     hora_recogida: updates.horaRecogida,
                     hora_entrega: updates.horaEntrega,
                     proveedor_id: updates.proveedorId,
+                    proveedor_nombre: updates.proveedorNombre,
                     precio: updates.precio,
                     observaciones: updates.observaciones,
                     estado: updates.status,
@@ -138,6 +139,7 @@ export function useSyncTransporteOrders() {
                     hora_recogida: order.horaRecogida,
                     hora_entrega: order.horaEntrega,
                     proveedor_id: order.proveedorId,
+                    proveedor_nombre: order.proveedorNombre,
                     precio: order.precio,
                     observaciones: order.observaciones,
                     estado: order.status || 'Pendiente',
@@ -178,7 +180,7 @@ export function useUpdateTransporteStatus() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['transporte'] });
+            queryClient.invalidateQueries({ queryKey: ['transporteOrders'] });
         }
     });
 }

@@ -44,16 +44,8 @@ import {
     useTiposPersonal,
     useProveedores,
     useArticulos,
-    useTiposTransporte
-} from '@/hooks/use-data-queries';
-
-type AnaliticaItem = {
-    os: Entrega;
-    costeTotal: number;
-    pvpTotal: number;
-    pvpIfemaTotal: number;
-    costesPorCategoria: { [key: string]: number };
-    productos: {
+    useTiposTransporte,
+    useProveedoresTransporte
         id: string;
         nombre: string;
         categoria: CategoriaProductoVenta;
@@ -155,7 +147,7 @@ export default function AnaliticaEntregasPage() {
     const { data: categoriasPersonal = [], isLoading: loadingCategorias } = useTiposPersonal();
     const { data: proveedores = [], isLoading: loadingProveedores } = useProveedores();
     const { data: articulos = [], isLoading: loadingArticulos } = useArticulos();
-    const { data: tiposTransporte = [], isLoading: loadingTiposTransporte } = useTiposTransporte();
+    const { data: tiposTransporte = [], isLoading: loadingTiposTransporte } = useProveedoresTransporte();
 
     const isLoadingData = loadingEntregas || loadingPedidos || loadingTransporte || loadingPersonal || loadingAjustes || loadingCategorias || loadingProveedores || loadingArticulos || loadingTiposTransporte;
 

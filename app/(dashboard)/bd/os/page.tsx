@@ -1,75 +1,40 @@
-'use client';
+import { createClient } from '@/lib/supabase-server';
+import { getEventosPaginated } from '@/services/os-service';
+import { OSClient } from './components/OSClient';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Button } from '@/components/ui/button';
-import { Trash2, Search, Calendar, Users, Briefcase, FileText } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useEventos } from '@/hooks/use-data-queries';
-import { supabase } from '@/lib/supabase';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+export default async function ServiceOrdersPage() {
+  const supabase = await createClient();
+  
+  const initialData = await getEventosPaginated(supabase, {
+    page: 0,
+    pageSize: 20
+  });
 
-// Tables linked by os_id
-const TABLES_WITH_OS_ID = [
-    'comercial_briefings',
-    'comercial_ajustes',
-    'gastronomia_orders',
-    'material_orders',
-    'pedidos_transporte',
-    'pedidos_hielo',
-    'pedidos_decoracion',
-    'atipico_orders',
-    'pruebas_menu',
-    'hojas_picking',
-    'hojas_retorno',
-    'cta_real_costs',
-    'cta_comentarios',
-    'os_mermas',
-    'os_devoluciones',
-    'personal_mice_asignaciones',
-];
-
-// Tables linked by evento_id
-const TABLES_WITH_EVENTO_ID = [
-    'personal_externo_eventos',
-    'personal_externo_ajustes'
-];
-
-export default function ServiceOrdersPage() {
+  return <OSClient initialData={initialData} />;
+}
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearch = useDebounce(searchTerm, 500);
+    const [page, setPage] = useState(0);
+    const pageSize = 20;
+
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
     const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const { data: eventos, isLoading, refetch } = useEventos();
+    const { data, isLoading, refetch } = useEventosPaginated(page, pageSize, debouncedSearch);
+    const eventos = data?.eventos || [];
+    const totalCount = data?.totalCount || 0;
+    const totalPages = Math.ceil(totalCount / pageSize);
+
     const { toast } = useToast();
     const router = useRouter();
+
+    // Reset page on search
+    useEffect(() => {
+        setPage(0);
+    }, [debouncedSearch]);
 
     // We handle deletion manually to ensure cascade
     const performCascadingDelete = async (ids: string[]) => {
@@ -127,22 +92,10 @@ export default function ServiceOrdersPage() {
         setIsMounted(true);
     }, []);
 
-    const filteredEventos = useMemo(() => {
-        if (!eventos) return [];
-        if (!searchTerm) return eventos;
-
-        const lowerSearch = searchTerm.toLowerCase();
-        return eventos.filter(evento =>
-            evento.serviceNumber.toLowerCase().includes(lowerSearch) ||
-            evento.client.toLowerCase().includes(lowerSearch) ||
-            (evento.finalClient && evento.finalClient.toLowerCase().includes(lowerSearch))
-        );
-    }, [eventos, searchTerm]);
-
     const handleToggleAll = (checked: boolean | 'indeterminate') => {
         if (checked === 'indeterminate') return;
         if (checked) {
-            setSelectedIds(new Set(filteredEventos.map(e => e.id)));
+            setSelectedIds(new Set(eventos.map(e => e.id)));
         } else {
             setSelectedIds(new Set());
         }
@@ -212,7 +165,7 @@ export default function ServiceOrdersPage() {
                         <TableRow className="hover:bg-transparent border-border/40 h-16">
                             <TableHead className="w-16 text-center">
                                 <Checkbox
-                                    checked={selectedIds.size === filteredEventos.length && filteredEventos.length > 0 ? true : selectedIds.size > 0 ? 'indeterminate' : false}
+                                    checked={selectedIds.size === eventos.length && eventos.length > 0 ? true : selectedIds.size > 0 ? 'indeterminate' : false}
                                     onCheckedChange={handleToggleAll}
                                     className="rounded-lg h-5 w-5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                 />
@@ -226,8 +179,8 @@ export default function ServiceOrdersPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredEventos.length > 0 ? (
-                            filteredEventos.map(evento => {
+                        {eventos.length > 0 ? (
+                            eventos.map(evento => {
                                 const isSelected = selectedIds.has(evento.id);
                                 return (
                                     <TableRow
@@ -316,6 +269,64 @@ export default function ServiceOrdersPage() {
                         )}
                     </TableBody>
                 </Table>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-8 py-6 bg-muted/10 border-t border-border/40">
+                        <p className="text-sm font-medium text-muted-foreground">
+                            Mostrando <span className="text-foreground font-bold">{eventos.length}</span> de <span className="text-foreground font-bold">{totalCount}</span> órdenes
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.max(0, p - 1))}
+                                disabled={page === 0}
+                                className="rounded-xl font-bold"
+                            >
+                                <ChevronLeft className="h-4 w-4 mr-1" />
+                                Anterior
+                            </Button>
+                            <div className="flex items-center gap-1 mx-2">
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    let pageNum = page;
+                                    if (totalPages > 5) {
+                                        if (page < 2) pageNum = i;
+                                        else if (page > totalPages - 3) pageNum = totalPages - 5 + i;
+                                        else pageNum = page - 2 + i;
+                                    } else {
+                                        pageNum = i;
+                                    }
+
+                                    return (
+                                        <Button
+                                            key={pageNum}
+                                            variant={page === pageNum ? "default" : "ghost"}
+                                            size="sm"
+                                            onClick={() => setPage(pageNum)}
+                                            className={cn(
+                                                "w-9 h-9 rounded-xl font-bold",
+                                                page === pageNum ? "shadow-lg shadow-primary/20" : ""
+                                            )}
+                                        >
+                                            {pageNum + 1}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                                disabled={page === totalPages - 1}
+                                className="rounded-xl font-bold"
+                            >
+                                Siguiente
+                                <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Floating Bulk Action */}

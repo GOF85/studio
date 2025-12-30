@@ -233,12 +233,16 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
         </div>
         <div className="flex items-center gap-2">
           {isEditing && (
-            <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
+            <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)} className="rounded-xl font-bold">
               <Trash2 className="h-4 w-4 mr-2" />
               Eliminar
             </Button>
           )}
-          <Button onClick={form.handleSubmit(onSubmit)} disabled={upsertArticulo.isPending}>
+          <Button 
+            onClick={form.handleSubmit(onSubmit)} 
+            disabled={upsertArticulo.isPending}
+            className="rounded-xl font-bold bg-orange-500 hover:bg-orange-600 text-white border-none shadow-lg shadow-orange-500/20"
+          >
             {upsertArticulo.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             Guardar
           </Button>
@@ -253,9 +257,9 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
               <CardDescription>Datos básicos del artículo para entregas</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
-                <Checkbox id="tipo-entregas" checked={true} disabled />
-                <label htmlFor="tipo-entregas" className="text-sm font-bold text-primary uppercase tracking-wider">
+              <div className="flex items-center space-x-2 p-3 bg-orange-500/5 rounded-xl border border-orange-500/10">
+                <Checkbox id="tipo-entregas" checked={true} disabled className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500" />
+                <label htmlFor="tipo-entregas" className="text-sm font-bold text-orange-600 uppercase tracking-wider">
                   Artículo de Entregas
                 </label>
               </div>
@@ -372,6 +376,7 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
                       <Checkbox
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                        className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
@@ -499,26 +504,26 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
               <CardDescription>Vincular con artículos del ERP</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button type="button" variant="outline" onClick={() => setIsPackSelectorOpen(true)}>
+              <Button type="button" variant="outline" onClick={() => setIsPackSelectorOpen(true)} className="rounded-xl font-bold hover:bg-orange-500/5 hover:text-orange-600 hover:border-orange-500/30 transition-all">
                 <Link className="h-4 w-4 mr-2" />
                 Gestionar Composición
               </Button>
               {selectedPacks.length > 0 && (
-                <div className="mt-4 border rounded-md overflow-hidden">
+                <div className="mt-4 border rounded-xl overflow-hidden border-border/40">
                   <table className="w-full text-sm">
-                    <thead className="bg-muted">
+                    <thead className="bg-orange-500/5">
                       <tr>
-                        <th className="p-2 text-left">Proveedor</th>
-                        <th className="p-2 text-left">Nombre</th>
-                        <th className="p-2 text-right">Cantidad</th>
+                        <th className="p-3 text-left font-black text-[10px] uppercase tracking-widest text-orange-600/70">Proveedor</th>
+                        <th className="p-3 text-left font-black text-[10px] uppercase tracking-widest text-orange-600/70">Nombre</th>
+                        <th className="p-3 text-right font-black text-[10px] uppercase tracking-widest text-orange-600/70">Cantidad</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedPacks.map(p => (
-                        <tr key={p.erpId} className="border-t">
-                          <td className="p-2">{p.nombreProveedor}</td>
-                          <td className="p-2">{p.nombreProductoERP}</td>
-                          <td className="p-2 text-right">{p.cantidad} {p.unidad}</td>
+                        <tr key={p.erpId} className="border-t border-border/40 hover:bg-orange-500/[0.02] transition-colors">
+                          <td className="p-3 font-medium">{p.nombreProveedor}</td>
+                          <td className="p-3 font-bold">{p.nombreProductoERP}</td>
+                          <td className="p-3 text-right font-black text-orange-600">{p.cantidad} {p.unidad}</td>
                         </tr>
                       ))}
                     </tbody>

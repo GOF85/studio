@@ -32,7 +32,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-import { useTransporteOrders, useEntregas, useTiposTransporte } from '@/hooks/use-data-queries';
+import { useTransporteOrders, useEntregas, useTiposTransporte, useProveedoresTransporte } from '@/hooks/use-data-queries';
 import { useUpdateTransporteOrder, useDeleteTransporteOrder } from '@/hooks/mutations/use-transporte-mutations';
 
 const transporteOrderSchema = z.object({
@@ -67,7 +67,7 @@ export default function GestionTransportePage() {
     // Supabase Hooks
     const { data: transportesData, isLoading: loadingTransportes } = useTransporteOrders();
     const { data: entregasData, isLoading: loadingEntregas } = useEntregas();
-    const { data: proveedoresData } = useTiposTransporte();
+    const { data: proveedoresData } = useProveedoresTransporte();
     
     const updateTransporte = useUpdateTransporteOrder();
     const deleteTransporte = useDeleteTransporteOrder();
