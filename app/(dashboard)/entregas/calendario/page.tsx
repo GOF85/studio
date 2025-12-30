@@ -52,13 +52,13 @@ type DayDetails = {
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-const statusVariant: { [key in Entrega['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
-  Borrador: 'secondary',
-  Pendiente: 'outline',
-  Confirmado: 'default',
-  Entregado: 'default',
-  Enviado: 'default',
-  Anulado: 'destructive'
+const statusVariant: { [key: string]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
+  'BORRADOR': 'secondary',
+  'PENDIENTE': 'outline',
+  'CONFIRMADO': 'default',
+  'ENTREGADO': 'default',
+  'ENVIADO': 'default',
+  'ANULADO': 'destructive',
 };
 
 export default function CalendarioEntregasPage() {
@@ -87,9 +87,9 @@ export default function CalendarioEntregasPage() {
                 space: hito.lugarEntrega || (os as any).spaceAddress || '',
                 finalClient: (os as any).finalClient || (os as any).client || '',
                 asistentes: (os as any).asistentes || 0,
-                status: (os.estado === 'CONFIRMADO' ? 'Confirmado' : 
-                         os.estado === 'CANCELADO' ? 'Anulado' : 
-                         os.estado === 'EJECUTADO' ? 'Entregado' : 'Borrador') as any,
+                status: (os.estado === 'CONFIRMADO' ? 'CONFIRMADO' : 
+                         os.estado === 'CANCELADO' ? 'ANULADO' : 
+                         os.estado === 'EJECUTADO' ? 'ENTREGADO' : 'BORRADOR') as any,
             });
         });
     });
@@ -210,7 +210,7 @@ export default function CalendarioEntregasPage() {
                                         <Link href={`/entregas/pedido/${event.osId}`}>
                                             <div className={cn(
                                                 "group relative flex flex-col p-1.5 rounded-lg border border-border/40 bg-background/50 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all cursor-pointer",
-                                                event.status === 'Anulado' && "opacity-50 grayscale"
+                                                event.status === 'ANULADO' && "opacity-50 grayscale"
                                             )}>
                                                 <div className="flex items-center justify-between mb-0.5">
                                                     <span className="text-[9px] font-black uppercase tracking-tighter truncate max-w-[70%]">

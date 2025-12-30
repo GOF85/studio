@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Package, ClipboardList, Search, Filter, Eye, EyeOff, Plus } from 'lucide-react';
+import { PlusCircle, Package, ClipboardList, Search, Filter, Eye, EyeOff, Plus, Truck, Clock, User } from 'lucide-react';
 import type { Entrega } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -260,35 +260,75 @@ export default function PrevisionEntregasPage() {
                                                 {serviceNumber}
                                             </span>
                                         </TooltipTrigger>
-                                        <TooltipContent className="p-3 max-w-xs bg-popover/95 backdrop-blur-md border-border/50 shadow-xl rounded-xl">
-                                            <div className="space-y-2">
-                                                <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-2">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">{serviceNumber}</span>
-                                                    <Badge variant="outline" className="text-[9px] uppercase font-bold h-4">{displayStatus}</Badge>
-                                                </div>
-                                                
-                                                {os.briefing_items && os.briefing_items.length > 0 ? (
-                                                    <div className="space-y-2 pt-1">
-                                                        {os.briefing_items.map((item: any, idx: number) => (
-                                                            <div key={idx} className="text-[10px] border-l-2 border-primary/20 pl-2 py-0.5">
-                                                                <div className="flex justify-between items-start gap-2">
-                                                                    <span className="font-bold text-foreground/90 uppercase leading-tight">
-                                                                        {item.servicio || item.descripcion || 'Servicio'}
-                                                                    </span>
-                                                                    <span className="text-[9px] font-medium text-muted-foreground shrink-0">
-                                                                        {item.horaInicio || '??:??'}
-                                                                    </span>
-                                                                </div>
-                                                                {(item.comentario || item.comentarios) && (
-                                                                    <p className="text-[9px] text-muted-foreground italic mt-0.5 line-clamp-2">
-                                                                        "{item.comentario || item.comentarios}"
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        ))}
+                                        <TooltipContent className="p-4 w-80 bg-popover/95 backdrop-blur-md border-border/50 shadow-2xl rounded-2xl">
+                                            <div className="space-y-4">
+                                                {/* Header */}
+                                                <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-3">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-primary">{serviceNumber}</span>
+                                                        <span className="text-[9px] text-muted-foreground font-medium truncate max-w-[150px]">{os.nombre_evento}</span>
                                                     </div>
-                                                ) : (
-                                                    <p className="text-[10px] text-muted-foreground italic py-1">Sin detalles de servicios</p>
+                                                    <Badge variant="outline" className="text-[9px] uppercase font-bold h-5 px-2 border-primary/20 bg-primary/5">{displayStatus}</Badge>
+                                                </div>
+
+                                                {/* Delivery Info */}
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-start gap-2">
+                                                        <div className="p-1 rounded bg-amber-500/10 mt-0.5">
+                                                            <Truck className="h-3 w-3 text-amber-600" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p className="text-[10px] font-bold uppercase leading-tight">{os.lugarEntrega || 'Sin dirección'}</p>
+                                                            <p className="text-[9px] text-muted-foreground">{os.localizacion || 'Sin localización específica'}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4 ml-7">
+                                                        <div className="flex items-center gap-1">
+                                                            <Clock className="h-3 w-3 text-muted-foreground" />
+                                                            <span className="text-[9px] font-medium">{os.hora}</span>
+                                                        </div>
+                                                        {os.contacto && (
+                                                            <div className="flex items-center gap-1">
+                                                                <User className="h-3 w-3 text-muted-foreground" />
+                                                                <span className="text-[9px] font-medium truncate max-w-[100px]">{os.contacto}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Items List */}
+                                                <div className="space-y-2">
+                                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2">
+                                                        <Package className="h-3 w-3" />
+                                                        Contenido del Pedido
+                                                    </p>
+                                                    <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                                                        {os.briefing_items && os.briefing_items.length > 0 ? (
+                                                            os.briefing_items.map((item: any, idx: number) => (
+                                                                <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-muted/30 border border-border/20">
+                                                                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded min-w-[20px] text-center">
+                                                                        {item.quantity}
+                                                                    </span>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-[10px] font-bold leading-tight truncate">{item.nombre}</p>
+                                                                        <p className="text-[8px] text-muted-foreground uppercase tracking-tighter">Ref: {item.referencia || 'N/A'}</p>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <p className="text-[10px] text-muted-foreground italic py-1">No hay artículos en este pedido</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Observations */}
+                                                {os.observaciones && (
+                                                    <div className="pt-2 border-t border-border/40">
+                                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/70 mb-1">Observaciones</p>
+                                                        <p className="text-[10px] text-muted-foreground italic leading-relaxed">
+                                                            "{os.observaciones}"
+                                                        </p>
+                                                    </div>
                                                 )}
                                             </div>
                                         </TooltipContent>
