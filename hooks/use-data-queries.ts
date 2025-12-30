@@ -36,6 +36,8 @@ import type {
     Receta,
     Elaboracion,
     GastronomyOrder,
+    Entrega,
+    PedidoEntrega,
 } from '@/types';
 
 // ============================================
@@ -165,6 +167,7 @@ function mapEvento(data: any): ServiceOrder {
     return {
         id: data.id,
         serviceNumber: data.numero_expediente || '',
+        isVip: data.is_vip || false,
         client: data.client || '',
         tipoCliente: data.tipo_cliente || 'Empresa',
         finalClient: data.final_client || '',
@@ -247,23 +250,21 @@ export function useCalendarEvents(startDate: string, endDate: string) {
             });
             if (error) throw error;
             
-            const result = data as { events: any[], briefings: any[] };
-            return {
-                events: (result.events || []).map(mapEvento),
-                briefings: (result.briefings || []).map(b => {
-                    let items = [];
-                    try {
-                        items = typeof b.items === 'string' ? JSON.parse(b.items) : (b.items || []);
-                    } catch (err) {
-                        console.error('Error parsing briefing items in calendar:', err);
-                    }
-                    return {
-                        ...b,
-                        osId: b.os_id,
-                        items
-                    };
-                })
-            };
+            const events = (data as any[] || []).map(mapEvento);
+            const briefings = (data as any[] || []).map(b => {
+                let items = [];
+                try {
+                    items = typeof b.briefing_items === 'string' ? JSON.parse(b.briefing_items) : (b.briefing_items || []);
+                } catch (err) {
+                    console.error('Error parsing briefing items in calendar:', err);
+                }
+                return {
+                    os_id: b.id,
+                    items
+                };
+            });
+
+            return { events, briefings };
         },
         enabled: !!startDate && !!endDate,
     });
@@ -284,10 +285,11 @@ export function useEventList(filters: { search?: string, status?: string, timeFi
 
             if (error) throw error;
             
-            const result = data as { events: any[], total_count: number };
+            const rows = data as any[] || [];
+            const totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
 
             return {
-                events: (result.events || []).map(e => {
+                events: rows.map(e => {
                     let briefingItems = [];
                     if (e.briefing?.items) {
                         try {
@@ -308,7 +310,7 @@ export function useEventList(filters: { search?: string, status?: string, timeFi
                         } : null
                     };
                 }),
-                totalCount: result.total_count
+                totalCount
             };
         },
     });
@@ -541,13 +543,29 @@ export function useDeleteEvento() {
 // ============================================
 
 export function useEntregas() {
-    return useQuery({
+    return useQuery<Entrega[]>({
         queryKey: ['entregas'],
         queryFn: async () => {
-            const { data, error } = await supabase.rpc('get_entregas_list');
+            const { data, error } = await supabase
+                .from('entregas')
+                .select('*')
+                .order('fecha_inicio', { ascending: false });
 
             if (error) throw error;
-            return data || [];
+            
+            return (data || []).map(item => {
+                const extraData = typeof item.data === 'string' ? JSON.parse(item.data) : (item.data || {});
+                return {
+                    ...item,
+                    ...extraData,
+                    // Asegurar que los campos de la tabla tengan prioridad sobre los de 'data'
+                    id: item.id,
+                    numero_expediente: item.numero_expediente,
+                    estado: item.estado,
+                    fecha_inicio: item.fecha_inicio,
+                    fecha_fin: item.fecha_fin
+                };
+            }) as Entrega[];
         },
     });
 }
@@ -557,14 +575,59 @@ export function useEntrega(id: string) {
         queryKey: ['entrega', id],
         queryFn: async () => {
             if (!id) return null;
-            const { data, error } = await supabase
-                .from('entregas')
-                .select('*')
-                .eq('id', id)
-                .single();
+            
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+            
+            // 1. Try to find in 'entregas' table first
+            let query = supabase.from('entregas').select('*');
+            if (isUuid) {
+                query = query.eq('id', id);
+            } else {
+                query = query.eq('numero_expediente', id);
+            }
 
-            if (error) throw error;
-            return data;
+            const { data: entregaData, error: entregaError } = await query.maybeSingle();
+            if (entregaError) throw entregaError;
+
+            if (entregaData) {
+                const extraData = typeof entregaData.data === 'string' ? JSON.parse(entregaData.data) : (entregaData.data || {});
+                return {
+                    ...entregaData,
+                    ...extraData,
+                    id: entregaData.id,
+                    numero_expediente: entregaData.numero_expediente,
+                    estado: entregaData.estado,
+                    fecha_inicio: entregaData.fecha_inicio,
+                    fecha_fin: entregaData.fecha_fin
+                };
+            }
+
+            // 2. Fallback to 'eventos' table if not found in 'entregas'
+            let osQuery = supabase.from('eventos').select('*');
+            if (isUuid) {
+                osQuery = osQuery.eq('id', id);
+            } else {
+                osQuery = osQuery.eq('numero_expediente', id);
+            }
+
+            const { data: osData, error: osError } = await osQuery.maybeSingle();
+            if (osError) throw osError;
+
+            if (!osData) return null;
+
+            // Map 'eventos' data to 'Entrega' shape
+            return {
+                ...osData,
+                serviceNumber: osData.numero_expediente,
+                client: osData.nombre_evento,
+                startDate: osData.fecha_inicio,
+                endDate: osData.fecha_fin,
+                status: osData.estado === 'CONFIRMADO' ? 'Confirmado' :
+                        osData.estado === 'CANCELADO' ? 'Anulado' :
+                        osData.estado === 'EJECUTADO' ? 'Entregado' : 'Borrador',
+                tarifa: osData.tarifa === 'IFEMA' ? 'IFEMA' : 'Empresa',
+                data: osData.data || {}
+            };
         },
         enabled: !!id,
     });
@@ -1262,6 +1325,40 @@ export function useArticuloERP(erpId: string | undefined) {
     });
 }
 
+export function useArticulosERPByIds(ids: string[]) {
+    return useQuery({
+        queryKey: ['articulosERP', ids],
+        queryFn: async () => {
+            if (!ids || ids.length === 0) return [];
+            const { data, error } = await supabase
+                .from('articulos_erp')
+                .select('*')
+                .in('id', ids);
+            if (error) throw error;
+            return (data || []).map(row => ({
+                id: row.id,
+                idreferenciaerp: row.erp_id || '',
+                idProveedor: row.proveedor_id || '',
+                nombreProveedor: row.nombre_proveedor || 'Sin proveedor',
+                nombreProductoERP: row.nombre || '',
+                referenciaProveedor: row.referencia_proveedor || '',
+                familiaCategoria: row.familia_categoria || '',
+                precioCompra: row.precio_compra || 0,
+                descuento: row.descuento || 0,
+                unidadConversion: row.unidad_conversion || 1,
+                precio: row.precio || 0,
+                precioAlquiler: row.precio_alquiler || 0,
+                unidad: row.unidad_medida || 'UD',
+                tipo: row.tipo || '',
+                categoriaMice: row.categoria_mice || '',
+                alquiler: row.alquiler || false,
+                observaciones: row.observaciones || '',
+            })) as ArticuloERP[];
+        },
+        enabled: ids.length > 0
+    });
+}
+
 export function useArticulosERPPaginated(options: {
     page: number;
     limit: number;
@@ -1395,6 +1492,12 @@ export function useTransporteOrders(eventoId?: string) {
         queryFn: async () => {
             if (!eventoId) return [];
             const targetId = await resolveOsId(eventoId);
+            
+            // Si no pudimos resolver a un UUID y no es un UUID, devolvemos vacío
+            // para evitar error 400 en Supabase
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId);
+            if (!isUuid) return [];
+
             let query = supabase.from('pedidos_transporte').select('*');
             query = query.eq('evento_id', targetId);
             const { data, error } = await query;
@@ -1732,24 +1835,47 @@ export function usePersonalExternoAjustes(osId?: string) {
 // ============================================
 
 export function usePedidosEntrega(eventoId?: string) {
-    return useQuery({
+    return useQuery<PedidoEntrega[]>({
         queryKey: ['pedidosEntrega', eventoId],
         queryFn: async () => {
-            let query = supabase.from('pedidos_entrega').select('*');
-            if (eventoId) {
-                query = query.eq('evento_id', eventoId);
+            if (!eventoId) return [];
+            
+            let query = supabase.from('entregas').select('*');
+            
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventoId);
+            
+            if (isUuid) {
+                // Si es UUID, intentamos ver si es un evento para sacar su numero_expediente
+                const { data: eventData } = await supabase.from('eventos').select('numero_expediente').eq('id', eventoId).maybeSingle();
+                if (eventData?.numero_expediente) {
+                    query = query.eq('numero_expediente', eventData.numero_expediente);
+                } else {
+                    // Si no es un evento, buscamos por ID de entrega
+                    query = query.eq('id', eventoId);
+                }
+            } else {
+                // Si no es UUID, es directamente el numero_expediente
+                query = query.eq('numero_expediente', eventoId);
             }
+
             const { data, error } = await query;
+            
             if (error) throw error;
-            return (data || []).map((p: any) => ({
-                id: p.id,
-                osId: p.evento_id,
-                hitos: p.data?.hitos || [],
-                status: p.estado,
-                updatedAt: p.updated_at
-            }));
+            return (data || []).map((p: any) => {
+                const extraData = typeof p.data === 'string' ? JSON.parse(p.data) : (p.data || {});
+                return {
+                    ...p,
+                    ...extraData,
+                    id: p.id,
+                    osId: p.id,
+                    entrega_id: p.id,
+                    hitos: extraData.hitos || p.hitos || [],
+                    status: p.estado,
+                    updatedAt: p.updated_at
+                };
+            }) as any[];
         },
-        enabled: !!eventoId || eventoId === undefined,
+        enabled: !!eventoId,
     });
 }
 
@@ -2194,11 +2320,14 @@ export function useUpdateEventoFinancials() {
 // ============================================
 
 const mapArticuloFromDB = (item: any): ArticuloCatering => {
+    const isEntrega = item.tipo_articulo === 'entregas';
+    const parsedPack = Array.isArray(item.pack) ? item.pack : (typeof item.pack === 'string' && item.pack ? JSON.parse(item.pack) : []);
+    
     return {
         id: item.id,
         erpId: item.erp_id,
         nombre: item.nombre,
-        categoria: normalizeCategoria(item.categoria) as any,
+        categoria: isEntrega ? item.categoria : normalizeCategoria(item.categoria) as any,
         familia: item.familia,
         esHabitual: item.es_habitual,
         precioVenta: item.precio_venta,
@@ -2223,19 +2352,23 @@ const mapArticuloFromDB = (item: any): ArticuloCatering => {
         precioAlquilerIfema: item.precio_alquiler_ifema,
         precioVentaIfema: item.precio_venta_ifema,
         precioAlquilerEntregas: item.precio_alquiler_entregas,
+        // Compatibility with ProductoVenta
+        pvp: isEntrega ? (item.precio_venta_entregas || 0) : (item.precio_venta || 0),
+        pvpIfema: isEntrega ? (item.precio_venta_entregas_ifema || 0) : (item.precio_venta_ifema || 0),
         iva: item.iva,
         docDriveUrl: item.doc_drive_url,
         alergenos: item.alergenos || [],
         imagenes: item.imagenes || [],
-        pack: item.pack || [],
+        packs: parsedPack,
+        pack: parsedPack,
         audit: item.audit || [],
         createdAt: item.created_at,
-    };
+    } as any;
 };
 
 const mapArticuloToDB = (item: Partial<ArticuloCatering>) => ({
     id: item.id,
-    erp_id: item.erpId,
+    erp_id: item.erpId || null,
     nombre: item.nombre,
     categoria: item.categoria,
     familia: item.familia,
@@ -2249,11 +2382,11 @@ const mapArticuloToDB = (item: Partial<ArticuloCatering>) => ({
     loc: item.loc,
     imagen: item.imagen,
     producido_por_partner: item.producidoPorPartner,
-    partner_id: item.partnerId,
-    receta_id: item.recetaId,
+    partner_id: item.partnerId || null,
+    receta_id: item.recetaId || null,
     subcategoria: item.subcategoria,
     tipo_articulo: item.tipoArticulo,
-    referencia_articulo_entregas: item.referenciaArticuloEntregas,
+    referencia_articulo_entregas: item.referenciaArticuloEntregas || null,
     dpt_entregas: item.dptEntregas,
     precio_coste: item.precioCoste,
     precio_coste_alquiler: item.precioCosteAlquiler,
@@ -2263,10 +2396,10 @@ const mapArticuloToDB = (item: Partial<ArticuloCatering>) => ({
     precio_venta_ifema: item.precioVentaIfema,
     precio_alquiler_entregas: item.precioAlquilerEntregas,
     iva: item.iva,
-    doc_drive_url: item.docDriveUrl,
+    doc_drive_url: item.docDriveUrl || null,
     alergenos: item.alergenos,
     imagenes: item.imagenes,
-    pack: item.pack,
+    pack: item.packs || item.pack,
     audit: item.audit,
 });
 
@@ -2284,24 +2417,59 @@ export function useArticulos() {
     });
 }
 
+export function useArticulosEntregas() {
+    return useQuery({
+        queryKey: ['articulos', 'entregas'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('articulos')
+                .select('*')
+                .eq('tipo_articulo', 'entregas')
+                .order('nombre');
+            if (error) throw error;
+            return (data || []).map(mapArticuloFromDB);
+        },
+    });
+}
+
 export function useArticulosInfinite(options: {
     searchTerm?: string;
     categoryFilter?: string;
+    departmentFilter?: string;
     isPartnerFilter?: boolean;
     tipoArticulo?: 'micecatering' | 'entregas';
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
     limit?: number;
 }) {
-    const { searchTerm, categoryFilter, isPartnerFilter, tipoArticulo, limit = 50 } = options;
+    const { 
+        searchTerm, 
+        categoryFilter, 
+        departmentFilter,
+        isPartnerFilter, 
+        tipoArticulo, 
+        sortBy = 'nombre',
+        sortOrder = 'asc',
+        limit = 50 
+    } = options;
+
     return useInfiniteQuery({
-        queryKey: ['articulos', 'infinite', searchTerm, categoryFilter, isPartnerFilter, tipoArticulo],
+        queryKey: ['articulos', 'infinite', searchTerm, categoryFilter, departmentFilter, isPartnerFilter, tipoArticulo, sortBy, sortOrder],
         queryFn: async ({ pageParam = 0 }) => {
             let query = supabase.from('articulos').select('*', { count: 'exact' });
 
             if (searchTerm) {
-                query = query.or(`nombre.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
+                if (tipoArticulo === 'entregas') {
+                    query = query.or(`nombre.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%,referencia_articulo_entregas.ilike.%${searchTerm}%`);
+                } else {
+                    query = query.or(`nombre.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
+                }
             }
             if (categoryFilter && categoryFilter !== 'all') {
                 query = query.eq('categoria', categoryFilter);
+            }
+            if (departmentFilter && departmentFilter !== 'all') {
+                query = query.eq('dpt_entregas', departmentFilter);
             }
             if (isPartnerFilter) {
                 query = query.eq('producido_por_partner', true);
@@ -2314,7 +2482,7 @@ export function useArticulosInfinite(options: {
             const to = from + limit - 1;
 
             const { data, error, count } = await query
-                .order('nombre', { ascending: true })
+                .order(sortBy, { ascending: sortOrder === 'asc' })
                 .range(from, to);
 
             if (error) throw error;
@@ -2378,21 +2546,34 @@ export function useUpsertArticulo() {
                 .upsert(dbData)
                 .select()
                 .single();
-            if (error) throw error;
+            
+            if (error) {
+                console.error('Supabase upsert error in useUpsertArticulo:', error);
+                throw error;
+            }
 
             // Handle packs if provided
-            if (articulo.packs && articulo.packs.length > 0) {
+            if (articulo.packs) {
                 // First delete existing packs for this article
-                await supabase.from('articulo_packs').delete().eq('articulo_id', data.id);
+                const { error: deleteError } = await supabase.from('articulo_packs').delete().eq('articulo_id', data.id);
+                if (deleteError) {
+                    console.error('Error deleting existing packs:', deleteError);
+                    throw deleteError;
+                }
 
-                const packsToInsert = articulo.packs.map(p => ({
-                    articulo_id: data.id,
-                    erp_id: p.erpId,
-                    cantidad: p.cantidad,
-                }));
+                if (articulo.packs.length > 0) {
+                    const packsToInsert = articulo.packs.map(p => ({
+                        articulo_id: data.id,
+                        erp_id: p.erpId,
+                        cantidad: p.cantidad,
+                    }));
 
-                const { error: packsError } = await supabase.from('articulo_packs').insert(packsToInsert);
-                if (packsError) throw packsError;
+                    const { error: packsError } = await supabase.from('articulo_packs').insert(packsToInsert);
+                    if (packsError) {
+                        console.error('Error inserting new packs:', packsError);
+                        throw packsError;
+                    }
+                }
             }
 
             return mapArticuloFromDB(data);
@@ -3794,7 +3975,6 @@ export function useSyncArticulosWithERP() {
     return useMutation({
         mutationFn: async (onProgress?: (msg: string) => void) => {
             const log = (msg: string) => {
-                console.log(`[SYNC] ${msg}`);
                 if (onProgress) onProgress(msg);
             };
 

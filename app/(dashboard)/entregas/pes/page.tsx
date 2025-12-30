@@ -42,36 +42,58 @@ export default function PrevisionEntregasPage() {
     setIsMounted(true);
   }, []);
 
-  const entregas = useMemo(() => {
-    return (entregasData || []) as any[];
+  const allHitos = useMemo(() => {
+    const flattened: any[] = [];
+    (entregasData || []).forEach((entrega: any) => {
+      const hitos = entrega.hitos || [];
+      if (hitos.length === 0) return;
+      
+      hitos.forEach((hito: any, index: number) => {
+        const hitoIndex = (index + 1).toString().padStart(2, '0');
+        flattened.push({
+          ...entrega,
+          ...hito,
+          id: `${entrega.id}-${hito.id || index}`, // ID único para la fila
+          serviceNumber: `${entrega.numero_expediente}.${hitoIndex}`,
+          parentExpediente: entrega.numero_expediente,
+          // Usar la fecha y hora del hito para visualización y filtros
+          fecha_inicio: hito.fecha,
+          deliveryTime: hito.hora,
+          briefing_items: hito.items || [] // Para el tooltip
+        });
+      });
+    });
+    return flattened;
   }, [entregasData]);
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    entregas.forEach(os => {
+    allHitos.forEach(os => {
       try {
-        const date = os.fecha_inicio || os.startDate;
+        const date = os.fecha_inicio;
         if (!date) return;
         const month = format(new Date(date), 'yyyy-MM');
         months.add(month);
       } catch (e) {
-        console.error(`Invalid start date for OS ${os.numero_expediente || os.serviceNumber}: ${os.fecha_inicio || os.startDate}`);
+        console.error(`Invalid date for hito ${os.serviceNumber}: ${os.fecha_inicio}`);
       }
     });
     return Array.from(months).sort().reverse();
-  }, [entregas]);
+  }, [allHitos]);
   
   const filteredAndSortedOrders = useMemo(() => {
     const today = startOfToday();
-    const filtered = entregas.filter(os => {
-      const serviceNumber = os.numero_expediente || os.serviceNumber || '';
-      const client = os.cliente_id ? `Cliente ID ${os.cliente_id}` : (os.client || '');
-      const searchMatch = searchTerm.trim() === '' || serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || client.toLowerCase().includes(searchTerm.toLowerCase());
+    const filtered = allHitos.filter(os => {
+      const serviceNumber = os.serviceNumber || '';
+      const client = os.nombre_evento || os.client || (os.cliente_id ? `Cliente ID ${os.cliente_id}` : '');
+      const searchMatch = searchTerm.trim() === '' || 
+                         serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         client.toLowerCase().includes(searchTerm.toLowerCase());
       
       let monthMatch = true;
       if (selectedMonth !== 'all') {
         try {
-          const date = os.fecha_inicio || os.startDate;
+          const date = os.fecha_inicio;
           const osMonth = date ? format(new Date(date), 'yyyy-MM') : '';
           monthMatch = osMonth === selectedMonth;
         } catch (e) {
@@ -82,32 +104,41 @@ export default function PrevisionEntregasPage() {
       let pastEventMatch = true;
       if (!showPastEvents) {
           try {
-              const date = os.fecha_fin || os.endDate;
+              const date = os.fecha_inicio;
               pastEventMatch = date ? !isBefore(new Date(date), today) : true;
           } catch (e) {
               pastEventMatch = true;
           }
       }
 
-      const status = os.estado || os.status;
-      const statusMatch = statusFilter === 'all' || status === statusFilter;
+      const status = (os.estado || os.status || '').toUpperCase();
+      const displayStatus = status === 'EJECUTADO' ? 'ENTREGADO' : status;
+      const statusMatch = statusFilter === 'all' || displayStatus === statusFilter.toUpperCase();
 
       return searchMatch && monthMatch && pastEventMatch && statusMatch;
     });
 
     return filtered.sort((a, b) => {
-        const dateA = a.fecha_inicio || a.startDate;
-        const dateB = b.fecha_inicio || b.startDate;
+        const dateA = a.fecha_inicio;
+        const dateB = b.fecha_inicio;
         return new Date(dateA).getTime() - new Date(dateB).getTime();
     });
 
-  }, [entregas, searchTerm, selectedMonth, showPastEvents, statusFilter]);
+  }, [allHitos, searchTerm, selectedMonth, showPastEvents, statusFilter]);
   
-  const statusVariant: { [key in Entrega['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
-    Borrador: 'secondary',
-    Pendiente: 'outline',
-    Confirmado: 'default',
-    Anulado: 'destructive'
+  const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+    'BORRADOR': 'secondary',
+    'Borrador': 'secondary',
+    'PENDIENTE': 'outline',
+    'Pendiente': 'outline',
+    'CONFIRMADO': 'default',
+    'Confirmado': 'default',
+    'ANULADO': 'destructive',
+    'Anulado': 'destructive',
+    'CANCELADO': 'destructive',
+    'EJECUTADO': 'default',
+    'ENVIADO': 'default',
+    'ENTREGADO': 'default'
   };
 
   if (!isMounted || isLoading) {
@@ -181,7 +212,7 @@ export default function PrevisionEntregasPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
         <div className="flex items-center gap-2 flex-wrap mb-2">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mr-2">Filtrar Estado:</span>
-            {['all', 'Borrador', 'Confirmado', 'Enviado', 'Entregado'].map((status) => (
+            {['all', 'BORRADOR', 'CONFIRMADO', 'ENTREGADO', 'CANCELADO'].map((status) => (
                 <Button 
                     key={status}
                     size="sm" 
@@ -194,7 +225,7 @@ export default function PrevisionEntregasPage() {
                             : "text-muted-foreground hover:bg-amber-500/10 hover:text-amber-700"
                     )}
                 >
-                    {status === 'all' ? 'Todos' : status}
+                    {status === 'all' ? 'Todos' : status.charAt(0) + status.slice(1).toLowerCase()}
                 </Button>
             ))}
         </div>
@@ -212,14 +243,15 @@ export default function PrevisionEntregasPage() {
               <TableBody>
               {filteredAndSortedOrders.length > 0 ? (
                   filteredAndSortedOrders.map(os => {
-                      const serviceNumber = os.numero_expediente || os.serviceNumber;
-                      const client = os.cliente_id ? `Cliente ID ${os.cliente_id}` : os.client;
-                      const startDate = os.fecha_inicio || os.startDate;
-                      const status = os.estado || os.status;
+                      const serviceNumber = os.serviceNumber;
+                      const client = os.nombre_evento || os.client || (os.cliente_id ? `Cliente ID ${os.cliente_id}` : 'Sin cliente');
+                      const startDate = os.fecha_inicio;
+                      const status = (os.estado || os.status || '').toUpperCase();
+                      const displayStatus = status === 'EJECUTADO' ? 'ENTREGADO' : status;
                       const deliveryTime = os.deliveryTime || '';
 
                       return (
-                        <TableRow key={os.id} onClick={() => router.push(`/entregas/pedido/${os.id}`)} className="cursor-pointer group">
+                        <TableRow key={os.id} onClick={() => router.push(`/entregas/pedido/${os.parentExpediente || serviceNumber}`)} className="cursor-pointer group">
                             <TableCell className="font-medium">
                                 <TooltipProvider>
                                     <Tooltip>
@@ -232,7 +264,7 @@ export default function PrevisionEntregasPage() {
                                             <div className="space-y-2">
                                                 <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-2">
                                                     <span className="text-[10px] font-black uppercase tracking-widest text-primary">{serviceNumber}</span>
-                                                    <Badge variant="outline" className="text-[9px] uppercase font-bold h-4">{status}</Badge>
+                                                    <Badge variant="outline" className="text-[9px] uppercase font-bold h-4">{displayStatus}</Badge>
                                                 </div>
                                                 
                                                 {os.briefing_items && os.briefing_items.length > 0 ? (
@@ -266,8 +298,8 @@ export default function PrevisionEntregasPage() {
                             <TableCell>{client}</TableCell>
                             <TableCell>{startDate ? format(new Date(startDate), 'dd/MM/yyyy') : ''} {deliveryTime}</TableCell>
                             <TableCell>
-                            <Badge variant={statusVariant[status as keyof typeof statusVariant] || 'default'}>
-                                {status}
+                            <Badge variant={statusVariant[status] || 'default'}>
+                                {displayStatus}
                             </Badge>
                             </TableCell>
                         </TableRow>

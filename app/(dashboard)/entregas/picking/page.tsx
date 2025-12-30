@@ -71,7 +71,7 @@ export default function PickingEntregasPage() {
     pedidosData.forEach(pedido => {
         const serviceOrder = osMap.get(pedido.osId);
         if (serviceOrder && pedido.hitos) {
-            pedido.hitos.forEach((hito, index) => {
+            pedido.hitos.forEach((hito: EntregaHito, index: number) => {
                 hitosDePicking.push({
                     ...hito,
                     serviceOrder,

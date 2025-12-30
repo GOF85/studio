@@ -149,8 +149,6 @@ export function EspacioForm({ initialData, isEditing = false, readOnly = false }
     return (
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
-                console.error('Validation Errors:', JSON.stringify(errors, null, 2));
-                console.log('Current Form Values:', form.getValues());
                 toast({
                     variant: 'destructive',
                     title: 'Error de validación',

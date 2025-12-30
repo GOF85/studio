@@ -4,18 +4,16 @@ require('dotenv').config({ path: '.env.local' });
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 async function test() {
-  const { data, error } = await supabase.rpc('get_event_list', {
-    p_search: null,
-    p_status: 'all',
-    p_time_filter: 'all',
-    p_show_past: false,
-    p_limit: 10,
-    p_offset: 0
-  });
+  const { data, error } = await supabase.from('entregas').select('*').limit(1);
   if (error) {
     console.error('Error:', error);
+    return;
+  }
+  if (data && data.length > 0) {
+    console.log('Columns:', Object.keys(data[0]));
+    console.log('Sample data:', data[0]);
   } else {
-    console.log('Data:', JSON.stringify(data, null, 2));
+    console.log('No data found in entregas table');
   }
 }
 

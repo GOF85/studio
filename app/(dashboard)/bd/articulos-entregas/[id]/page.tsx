@@ -1,6 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
+import { useMemo } from 'react';
 import { useArticulo, useArticuloPacks } from '@/hooks/use-data-queries';
 import { ArticuloEntregasForm } from '../components/ArticuloEntregasForm';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -12,6 +13,15 @@ export default function EditarArticuloEntregasPage() {
     const { data: articulo, isLoading: isLoadingArticulo } = useArticulo(id);
     const { data: packs = [], isLoading: isLoadingPacks } = useArticuloPacks(id);
 
+    // Combinar artículo con sus packs para el formulario
+    const initialData = useMemo(() => {
+        if (!articulo) return null;
+        return {
+            ...articulo,
+            packs: packs.map(p => ({ erpId: p.erpId, cantidad: p.cantidad }))
+        };
+    }, [articulo, packs]);
+
     if (isLoadingArticulo || isLoadingPacks) {
         return (
             <div className="container mx-auto py-6">
@@ -20,19 +30,13 @@ export default function EditarArticuloEntregasPage() {
         );
     }
 
-    if (!articulo) {
+    if (!articulo || !initialData) {
         return (
             <div className="container mx-auto py-6">
                 <p>Artículo no encontrado.</p>
             </div>
         );
     }
-
-    // Combinar artículo con sus packs para el formulario
-    const initialData = {
-        ...articulo,
-        packs: packs.map(p => ({ erpId: p.erpId, cantidad: p.cantidad }))
-    };
 
     return (
         <main className="container mx-auto py-6">

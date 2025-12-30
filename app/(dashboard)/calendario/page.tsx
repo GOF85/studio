@@ -25,7 +25,8 @@ import {
   Calendar as CalendarIcon,
   Users,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Star
 } from 'lucide-react';
 
 import type { ServiceOrder } from '@/types';
@@ -53,6 +54,7 @@ interface CalendarEvent {
   finalClient: string;
   asistentes: number;
   status: CalendarStatus | string;
+  isVip?: boolean;
   briefingItems?: any[];
   gastronomyCount?: number;
   gastronomyPaxTotal?: number;
@@ -143,9 +145,14 @@ const transformCalendarData = (serviceOrders: ServiceOrder[], briefings: any[]):
       const gastronomyCount = itemsForThisDate.filter((i: any) => i.conGastronomia).length;
       const gastronomyPaxTotal = itemsForThisDate
         .filter((i: any) => i.conGastronomia)
-        .reduce((max: number, item: any) => Math.max(max, Number(item.asistentes) || 0), 0);
+        .reduce((sum: number, item: any) => sum + (Number(item.asistentes) || 0), 0);
       
-      const totalPaxThisDay = itemsForThisDate.reduce((max: number, item: any) => Math.max(max, Number(item.asistentes) || 0), 0);
+      // Si hay servicios con gastronomía, el total de asistentes del día para el badge es la suma de estos.
+      // Si no hay servicios con gastronomía pero hay otros servicios, sumamos todos.
+      // Si no hay servicios en absoluto, usamos el total de la OS.
+      const totalPaxThisDay = gastronomyCount > 0 
+        ? gastronomyPaxTotal 
+        : itemsForThisDate.reduce((sum: number, item: any) => sum + (Number(item.asistentes) || 0), 0);
 
       allEvents.push({
         date: eventDate,
@@ -158,6 +165,7 @@ const transformCalendarData = (serviceOrders: ServiceOrder[], briefings: any[]):
         finalClient: os.finalClient || 'Cliente',
         asistentes: totalPaxThisDay > 0 ? totalPaxThisDay : (os.asistentes || 0),
         status: statusNormalized,
+        isVip: os.isVip || false,
         briefingItems: itemsForThisDate,
         gastronomyCount,
         gastronomyPaxTotal,
@@ -284,7 +292,10 @@ const DayGridCell = memo(function DayGridCell({
                   )}
                 >
                   <div className="flex items-center justify-between gap-1">
-                    <span className="font-black truncate flex-1 tracking-tight uppercase">{firstEvent.space}</span>
+                    <span className="font-black truncate flex-1 tracking-tight uppercase">
+                      {firstEvent.isVip && <Star className="inline-block w-2.5 h-2.5 fill-amber-400 text-amber-400 mr-1 mb-0.5" />}
+                      {firstEvent.space}
+                    </span>
                     <span className="font-mono font-bold text-[8px] opacity-70 shrink-0">{firstEvent.horaInicio}</span>
                   </div>
                   <div className="flex items-center justify-between gap-1 opacity-60">
@@ -304,7 +315,10 @@ const DayGridCell = memo(function DayGridCell({
                   <CardHeader className={cn("py-3 px-4", styles.bg)}>
                     <CardTitle className="text-sm font-black flex justify-between items-center tracking-tight">
                       <div className="flex flex-col">
-                        <span className="uppercase">{firstEvent.space}</span>
+                        <span className="uppercase flex items-center gap-1">
+                          {firstEvent.isVip && <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />}
+                          {firstEvent.space}
+                        </span>
                         <span className="text-[10px] opacity-70 font-mono">OS-{firstEvent.serviceNumber}</span>
                       </div>
                       <div className="flex items-center gap-1.5">

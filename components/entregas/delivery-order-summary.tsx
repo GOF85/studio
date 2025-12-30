@@ -93,8 +93,8 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
   const pvpTotalFinal = pvpTotalProductos + totalPortes + totalPvpCamarero;
 
   return (
-    <div className="sticky top-24 space-y-4">
-        <Card className="max-h-[calc(100vh-20rem)] flex flex-col theme-orange">
+    <div className="sticky top-24 space-y-4 max-h-[calc(100vh-8rem)] overflow-y-auto pr-2 custom-scrollbar">
+        <Card className="flex flex-col theme-orange overflow-hidden">
         <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between p-4">
             <CardTitle className="text-xl font-headline">Resumen de la Entrega</CardTitle>
             {hito.items.length > 0 && isEditing && (
@@ -104,7 +104,7 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
             </Button>
             )}
         </CardHeader>
-        <div className="flex-grow overflow-y-auto min-h-[16rem]">
+        <div className="flex-grow min-h-[8rem]">
             <CardContent className="p-4">
             {hito.items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10 h-full">
@@ -121,7 +121,14 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
                         {items.map((item) => (
                             <li key={item.id} className="flex items-center gap-2">
                             <div className="flex-grow">
-                                <p className="font-medium leading-tight text-sm">{item.nombre}</p>
+                                <div className="flex items-center gap-1.5">
+                                    {item.referencia && (
+                                        <span className="text-[9px] font-black bg-amber-500/10 text-amber-600 px-1 py-0.5 rounded uppercase tracking-widest">
+                                            {item.referencia}
+                                        </span>
+                                    )}
+                                    <p className="font-medium leading-tight text-sm">{item.nombre}</p>
+                                </div>
                                 <p className="text-xs text-muted-foreground">
                                 PVP: {formatCurrency(item.pvp)}
                                 </p>
@@ -146,7 +153,7 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
         {(hito.items.length > 0 || hito.portes > 0 || hito.horasCamarero > 0) && (
             <>
             <Separator />
-            <div className="flex-grow-0 flex-shrink-0 p-4">
+            <div className="flex-grow-0 flex-shrink-0 p-4 bg-muted/10">
                 <div className="mb-2 space-y-2">
                     <Label className="font-semibold text-sm">Servicios Adicionales</Label>
                     <div className="flex justify-between items-center">
@@ -195,7 +202,7 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
             </>
             )}
         </Card>
-        <Card className={cn(horasCamarero > 0 && "border-amber-500 bg-amber-50")}>
+        <Card className={cn("overflow-hidden", horasCamarero > 0 && "border-amber-500 bg-amber-50")}>
             <CardHeader className="py-2">
                 <CardTitle className="text-base font-semibold">Observaciones de la Entrega</CardTitle>
             </CardHeader>

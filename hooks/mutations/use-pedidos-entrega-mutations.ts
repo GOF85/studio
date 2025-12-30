@@ -1,113 +1,35 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';;
+import { supabase, resolveOsId } from '@/lib/supabase';
 import type { PedidoEntrega } from '@/types';
-
-
-
-export function useCreatePedidoEntrega() {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async (pedido: Partial<PedidoEntrega> & { entregaId?: string; tipo?: string; cantidad?: number; observaciones?: string; status?: string }) => {
-            const { data, error } = await supabase
-                .from('pedidos_entrega')
-                .insert({
-                    entrega_id: pedido.entregaId,
-                    evento_id: pedido.osId,
-                    tipo: pedido.tipo,
-                    cantidad: pedido.cantidad,
-                    observaciones: pedido.observaciones,
-                    estado: pedido.status || 'Pendiente',
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pedidos-entrega'] });
-        }
-    });
-}
-
-export function useUpdatePedidoEntrega() {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async ({ id, updates }: { id: string; updates: Partial<PedidoEntrega> & { tipo?: string; cantidad?: number; observaciones?: string; status?: string } }) => {
-            const { data, error } = await supabase
-                .from('pedidos_entrega')
-                .update({
-                    tipo: updates.tipo,
-                    cantidad: updates.cantidad,
-                    observaciones: updates.observaciones,
-                    estado: updates.status,
-                })
-                .eq('id', id)
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pedidos-entrega'] });
-        }
-    });
-}
-
-export function useDeletePedidoEntrega() {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async (id: string) => {
-            const { error } = await supabase
-                .from('pedidos_entrega')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pedidos-entrega'] });
-        }
-    });
-}
-
-export function useUpdatePedidoEntregaStatus() {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async ({ id, status }: { id: string; status: string }) => {
-            const { data, error } = await supabase
-                .from('pedidos_entrega')
-                .update({ estado: status })
-                .eq('id', id)
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pedidos-entrega'] });
-        }
-    });
-}
 
 export function useSyncPedidosEntrega() {
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: async ({ osId, hitos }: { osId: string; hitos: any[] }) => {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
+            
+            let query = supabase.from('entregas').select('*');
+            if (isUuid) {
+                query = query.eq('id', osId);
+            } else {
+                query = query.eq('numero_expediente', osId);
+            }
+
+            const { data: entrega, error: fetchError } = await query.maybeSingle();
+
+            if (fetchError) throw fetchError;
+            if (!entrega) throw new Error('No se encontró la entrega');
+
             const { data, error } = await supabase
-                .from('pedidos_entrega')
-                .upsert({
-                    evento_id: osId,
-                    data: { hitos },
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'evento_id' })
+                .from('entregas')
+                .update({
+                    data: {
+                        ...(typeof entrega.data === 'string' ? JSON.parse(entrega.data) : (entrega.data || {})),
+                        hitos
+                    }
+                })
+                .eq('id', entrega.id)
                 .select()
                 .single();
 
@@ -115,7 +37,8 @@ export function useSyncPedidosEntrega() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pedidos-entrega'] });
+            queryClient.invalidateQueries({ queryKey: ['entregas'] });
+            queryClient.invalidateQueries({ queryKey: ['pedidosEntrega'] });
         }
     });
 }
@@ -125,15 +48,22 @@ export function useUpdateHitoPickingState() {
 
     return useMutation({
         mutationFn: async ({ osId, hitoId, pickingState }: { osId: string; hitoId: string; pickingState: any }) => {
-            const { data: pedido, error: fetchError } = await supabase
-                .from('pedidos_entrega')
-                .select('*')
-                .eq('evento_id', osId)
-                .single();
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
+            
+            let query = supabase.from('entregas').select('*');
+            if (isUuid) {
+                query = query.eq('id', osId);
+            } else {
+                query = query.eq('numero_expediente', osId);
+            }
+
+            const { data: entrega, error: fetchError } = await query.maybeSingle();
 
             if (fetchError) throw fetchError;
+            if (!entrega) throw new Error('No se encontró la entrega');
 
-            const hitos = pedido.data?.hitos || [];
+            const extraData = typeof entrega.data === 'string' ? JSON.parse(entrega.data) : (entrega.data || {});
+            const hitos = extraData.hitos || [];
             const updatedHitos = hitos.map((h: any) => {
                 if (h.id === hitoId) {
                     return { ...h, pickingState };
@@ -142,9 +72,14 @@ export function useUpdateHitoPickingState() {
             });
 
             const { data, error: updateError } = await supabase
-                .from('pedidos_entrega')
-                .update({ data: { ...pedido.data, hitos: updatedHitos } })
-                .eq('id', pedido.id)
+                .from('entregas')
+                .update({ 
+                    data: { 
+                        ...extraData, 
+                        hitos: updatedHitos 
+                    } 
+                })
+                .eq('id', entrega.id)
                 .select()
                 .single();
 
@@ -152,6 +87,7 @@ export function useUpdateHitoPickingState() {
             return data;
         },
         onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['entregas'] });
             queryClient.invalidateQueries({ queryKey: ['pedidosEntrega'] });
         }
     });
@@ -162,15 +98,22 @@ export function useUpdatePartnerStatus() {
 
     return useMutation({
         mutationFn: async ({ osId, hitoId, articuloId, status, comentarios }: { osId: string; hitoId: string; articuloId: string; status: string; comentarios?: string }) => {
-            const { data: pedido, error: fetchError } = await supabase
-                .from('pedidos_entrega')
-                .select('*')
-                .eq('evento_id', osId)
-                .single();
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
+            
+            let query = supabase.from('entregas').select('*');
+            if (isUuid) {
+                query = query.eq('id', osId);
+            } else {
+                query = query.eq('numero_expediente', osId);
+            }
+
+            const { data: entrega, error: fetchError } = await query.maybeSingle();
 
             if (fetchError) throw fetchError;
+            if (!entrega) throw new Error('No se encontró la entrega');
 
-            const hitos = pedido.data?.hitos || [];
+            const extraData = typeof entrega.data === 'string' ? JSON.parse(entrega.data) : (entrega.data || {});
+            const hitos = extraData.hitos || [];
             const updatedHitos = hitos.map((h: any) => {
                 if (h.id === hitoId) {
                     const updatedArticulos = (h.articulos || []).map((a: any) => {
@@ -185,9 +128,14 @@ export function useUpdatePartnerStatus() {
             });
 
             const { data, error: updateError } = await supabase
-                .from('pedidos_entrega')
-                .update({ data: { ...pedido.data, hitos: updatedHitos } })
-                .eq('id', pedido.id)
+                .from('entregas')
+                .update({ 
+                    data: { 
+                        ...extraData, 
+                        hitos: updatedHitos 
+                    } 
+                })
+                .eq('id', entrega.id)
                 .select()
                 .single();
 
@@ -195,6 +143,7 @@ export function useUpdatePartnerStatus() {
             return data;
         },
         onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['entregas'] });
             queryClient.invalidateQueries({ queryKey: ['pedidosEntrega'] });
         }
     });

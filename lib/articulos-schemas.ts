@@ -61,6 +61,7 @@ export const articuloEntregasSchema = z.object({
     referenciaArticuloEntregas: z.string().min(1, 'La referencia es obligatoria'),
     erpId: z.string().optional(),
     producidoPorPartner: z.boolean().default(false),
+    partnerId: z.string().optional(),
     dptEntregas: z.enum(['ALMACEN', 'CPR', 'PARTNER', 'RRHH'], { required_error: 'El departamento es obligatorio' }),
     unidadVenta: z.coerce.number().min(1, 'La unidad de venta debe ser al menos 1').optional(),
     loc: z.string().optional(),

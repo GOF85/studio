@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useEntregas, usePedidosEntrega } from '@/hooks/use-data-queries';
+import { useEntregas } from '@/hooks/use-data-queries';
 
 type CalendarEvent = {
   date: Date;
@@ -56,6 +56,8 @@ const statusVariant: { [key in Entrega['status']]: 'default' | 'secondary' | 'de
   Borrador: 'secondary',
   Pendiente: 'outline',
   Confirmado: 'default',
+  Entregado: 'default',
+  Enviado: 'default',
   Anulado: 'destructive'
 };
 
@@ -66,37 +68,35 @@ export default function CalendarioEntregasPage() {
   const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
   const { data: allEntregasData, isLoading: loadingEntregas } = useEntregas();
-  const { data: allPedidosData, isLoading: loadingPedidos } = usePedidosEntrega();
 
   useEffect(() => {
-    if (loadingEntregas || loadingPedidos || !allEntregasData || !allPedidosData) return;
+    if (loadingEntregas || !allEntregasData) return;
 
     const serviceOrders = allEntregasData;
-    const allPedidos = allPedidosData;
-    
     const allEvents: CalendarEvent[] = [];
     
     serviceOrders.forEach(os => {
-        const pedido = allPedidos.find(p => p.osId === os.id);
-        if (pedido && pedido.hitos) {
-            pedido.hitos.forEach((hito: any) => {
-                 allEvents.push({
-                    date: new Date(hito.fecha),
-                    osId: os.id,
-                    serviceNumber: os.serviceNumber,
-                    horaInicio: hito.hora,
-                    space: hito.lugarEntrega || os.spaceAddress,
-                    finalClient: os.finalClient || os.client,
-                    asistentes: os.asistentes,
-                    status: os.status,
-                });
-            })
-        }
+        const hitos = (os as any).hitos || [];
+        hitos.forEach((hito: any, index: number) => {
+            const hitoIndex = (index + 1).toString().padStart(2, '0');
+            allEvents.push({
+                date: new Date(hito.fecha),
+                osId: os.numero_expediente || os.id,
+                serviceNumber: `${os.numero_expediente}.${hitoIndex}`,
+                horaInicio: hito.hora,
+                space: hito.lugarEntrega || (os as any).spaceAddress || '',
+                finalClient: (os as any).finalClient || (os as any).client || '',
+                asistentes: (os as any).asistentes || 0,
+                status: (os.estado === 'CONFIRMADO' ? 'Confirmado' : 
+                         os.estado === 'CANCELADO' ? 'Anulado' : 
+                         os.estado === 'EJECUTADO' ? 'Entregado' : 'Borrador') as any,
+            });
+        });
     });
 
     setEvents(allEvents);
     setIsMounted(true);
-  }, [allEntregasData, allPedidosData, loadingEntregas, loadingPedidos]);
+  }, [allEntregasData, loadingEntregas]);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -121,7 +121,7 @@ export default function CalendarioEntregasPage() {
   const nextMonth = () => setCurrentDate(add(currentDate, { months: 1 }));
   const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
 
-  if (!isMounted || loadingEntregas || loadingPedidos) {
+  if (!isMounted || loadingEntregas) {
     return <LoadingSkeleton title="Calendario de Entregas" />;
   }
 

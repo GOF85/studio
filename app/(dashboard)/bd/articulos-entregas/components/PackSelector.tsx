@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useArticulosERPPaginated } from '@/hooks/use-data-queries';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -39,30 +40,35 @@ export function PackSelector({
     open,
     onOpenChange,
     onApply,
-    articulosERP,
-    searchTerm,
-    setSearchTerm,
     initialPacks = [],
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onApply: (packs: PackItem[]) => void;
-    articulosERP: ArticuloERP[];
-    searchTerm: string;
-    setSearchTerm: (term: string) => void;
     initialPacks?: PackItem[];
 }) {
     const [selectedPacks, setSelectedPacks] = useState<PackItem[]>(initialPacks);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
 
-    const filteredErpProducts = useMemo(() => {
-        return articulosERP.filter(p =>
-            p && (
-                (p.nombreProductoERP || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (p.nombreProveedor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (p.referenciaProveedor || '').toLowerCase().includes(searchTerm.toLowerCase())
-            )
-        );
-    }, [articulosERP, searchTerm]);
+    useEffect(() => {
+        if (open) {
+            setSelectedPacks(initialPacks);
+        }
+    }, [open, initialPacks]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    const { data: erpData, isLoading } = useArticulosERPPaginated({
+        page: 1,
+        limit: 50,
+        searchTerm: debouncedSearch
+    });
+
+    const filteredErpProducts = erpData?.items || [];
 
     const calculatePrice = useCallback((p: ArticuloERP) => {
         if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
@@ -73,14 +79,14 @@ export function PackSelector({
 
     const handleSelectToggle = useCallback((product: ArticuloERP) => {
         setSelectedPacks(prev => {
-            const existing = prev.find(p => p.erpId === (product.idreferenciaerp || ''));
+            const existing = prev.find(p => p.erpId === product.id);
             if (existing) {
-                return prev.filter(p => p.erpId !== (product.idreferenciaerp || ''));
+                return prev.filter(p => p.erpId !== product.id);
             } else {
                 return [
                     ...prev,
                     {
-                        erpId: product.idreferenciaerp || '',
+                        erpId: product.id,
                         nombreProductoERP: product.nombreProductoERP || '',
                         nombreProveedor: product.nombreProveedor || '',
                         precioCompra: product.precioCompra || 0,
@@ -200,9 +206,9 @@ export function PackSelector({
                             </TableHeader>
                             <TableBody>
                                 {filteredErpProducts.map(p => {
-                                    const isSelected = selectedPacks.some(sp => sp.erpId === (p.idreferenciaerp || ''));
+                                    const isSelected = selectedPacks.some(sp => sp.erpId === p.id);
                                     return (
-                                        <TableRow key={p.idreferenciaerp || p.id}>
+                                        <TableRow key={p.id}>
                                             <TableCell>
                                                 <Checkbox
                                                     checked={isSelected}

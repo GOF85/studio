@@ -13,7 +13,7 @@ import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
 import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
 import { formatCurrency } from '@/lib/utils';
 
-import { useEntrega, usePedidosEntrega, useArticulos, useRecetas } from '@/hooks/use-data-queries';
+import { useEntrega, usePedidosEntrega, useArticulosEntregas, useRecetas } from '@/hooks/use-data-queries';
 import { useSyncPedidosEntrega } from '@/hooks/mutations/use-pedidos-entrega-mutations';
 
 export default function ConfeccionarEntregaPage() {
@@ -24,14 +24,14 @@ export default function ConfeccionarEntregaPage() {
     const osId = searchParams.get('osId') || '';
     const { toast } = useToast();
 
-    const [hito, setHito] = useState<EntregaHito | null>(null);
     const [isMounted, setIsMounted] = useState(false);
-    const [expedicionNumero, setExpedicionNumero] = useState('');
+    const [localHito, setLocalHito] = useState<EntregaHito | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Supabase Hooks
     const { data: currentEntrega, isLoading: loadingEntrega } = useEntrega(osId);
     const { data: pedidosEntregaData, isLoading: loadingPedidos } = usePedidosEntrega(osId);
-    const { data: articulosData } = useArticulos();
+    const { data: articulosData } = useArticulosEntregas();
     const { data: recetasData } = useRecetas();
     const syncPedidosEntrega = useSyncPedidosEntrega();
 
@@ -39,58 +39,75 @@ export default function ConfeccionarEntregaPage() {
     const recetas = useMemo(() => (recetasData || []) as any[], [recetasData]);
     const recetasMap = useMemo(() => new Map(recetas.map(r => [r.id, r])), [recetas]);
 
-    useEffect(() => {
-        if (!osId || !hitoId || loadingEntrega || loadingPedidos) return;
-
-        if (currentEntrega && pedidosEntregaData) {
-            const currentPedido = Array.isArray(pedidosEntregaData) 
-                ? pedidosEntregaData.find((p: any) => p.evento_id === osId) 
-                : null;
+    const { currentPedido, hito, expedicionNumero } = useMemo(() => {
+        if (!currentEntrega || !pedidosEntregaData) return { currentPedido: null, hito: null, expedicionNumero: '' };
+        
+        const pedido = Array.isArray(pedidosEntregaData) 
+            ? pedidosEntregaData.find((p: any) => p.id === currentEntrega.id) 
+            : null;
             
-            const hitos = currentPedido?.hitos || [];
-            const currentHito = hitos.find((h: any) => h.id === hitoId);
-
-            if (currentHito) {
-                setHito(currentHito);
-                const hitoIndex = hitos.findIndex((h: any) => h.id === hitoId);
-                setExpedicionNumero(`${currentEntrega.numero_expediente || currentEntrega.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
-            } else {
-                toast({ variant: "destructive", title: "Error", description: "No se encontró la entrega." });
-                router.push(`/entregas/pedido/${osId}`);
-            }
+        const hitos = pedido?.hitos || [];
+        const foundHito = hitos.find((h: any) => String(h.id) === String(hitoId));
+        
+        let expNum = '';
+        if (foundHito) {
+            const hitoIndex = hitos.findIndex((h: any) => String(h.id) === String(hitoId));
+            expNum = `${currentEntrega.numero_expediente || currentEntrega.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
         }
         
-        setIsMounted(true);
-    }, [osId, hitoId, currentEntrega, pedidosEntregaData, loadingEntrega, loadingPedidos, router, toast]);
-    
-     const handleUpdateHito = async (updatedHito: EntregaHito) => {
-        if (!osId || !hito || !pedidosEntregaData) return;
+        return { currentPedido: pedido, hito: foundHito, expedicionNumero: expNum };
+    }, [currentEntrega, pedidosEntregaData, hitoId]);
 
-        setHito(updatedHito);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    // Sync localHito with hito from query when it first loads
+    useEffect(() => {
+        if (hito && !localHito) {
+            setLocalHito(hito);
+        }
+    }, [hito, localHito]);
+
+    useEffect(() => {
+        if (!osId || !hitoId || loadingEntrega || loadingPedidos || !isMounted) return;
+
+        if (currentEntrega && pedidosEntregaData && !hito) {
+            console.error('[DEBUG] Hito not found:', hitoId, 'Available hitos:', (currentPedido?.hitos || []).map((h: any) => h.id));
+            toast({ variant: "destructive", title: "Error", description: "No se encontró la entrega." });
+            router.push(`/entregas/pedido/${osId}`);
+        }
+    }, [osId, hitoId, currentEntrega, pedidosEntregaData, hito, currentPedido, loadingEntrega, loadingPedidos, router, toast, isMounted]);
+    
+     const handleUpdateHito = (updatedHito: EntregaHito) => {
+        setLocalHito(updatedHito);
+    };
+
+    const handleSave = async () => {
+        if (!osId || !localHito || !currentPedido) return;
         
-        const currentPedido = Array.isArray(pedidosEntregaData) 
-            ? pedidosEntregaData.find((p: any) => p.evento_id === osId) 
-            : null;
+        setIsSaving(true);
+        const hitos = currentPedido.hitos || [];
+        const hitoIndex = hitos.findIndex((h: any) => String(h.id) === String(hitoId));
         
-        if (currentPedido) {
-            const hitos = currentPedido.hitos || [];
-            const hitoIndex = hitos.findIndex((h: any) => h.id === hitoId);
-            if (hitoIndex > -1) {
-                const newHitos = [...hitos];
-                newHitos[hitoIndex] = updatedHito;
-                
-                try {
-                    await syncPedidosEntrega.mutateAsync({ osId, hitos: newHitos });
-                } catch (error) {
-                    console.error('Error syncing hito:', error);
-                    toast({ variant: 'destructive', title: 'Error', description: 'No se pudo sincronizar el cambio.' });
-                }
+        if (hitoIndex > -1) {
+            const newHitos = [...hitos];
+            newHitos[hitoIndex] = localHito;
+            
+            try {
+                await syncPedidosEntrega.mutateAsync({ osId, hitos: newHitos });
+                toast({ title: 'Cambios guardados', description: 'La entrega se ha actualizado correctamente.' });
+            } catch (error) {
+                console.error('Error syncing hito:', error);
+                toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar los cambios.' });
+            } finally {
+                setIsSaving(false);
             }
         }
     };
     
     const handleAddItem = (item: ProductoVenta, quantity: number) => {
-        if(!hito) return;
+        if(!localHito) return;
 
         let itemCoste = 0;
         if (item.producidoPorPartner) {
@@ -102,7 +119,7 @@ export default function ConfeccionarEntregaPage() {
             itemCoste = receta?.costeMateriaPrima || 0;
         }
 
-        const newItems = [...(hito.items || [])];
+        const newItems = [...(localHito.items || [])];
         const existingIndex = newItems.findIndex(i => i.id === item.id);
 
         if (existingIndex > -1) {
@@ -115,9 +132,10 @@ export default function ConfeccionarEntregaPage() {
             pvp: currentEntrega?.tarifa === 'IFEMA' ? (item.pvpIfema || item.pvp) : item.pvp,
             coste: itemCoste,
             categoria: item.categoria,
+            referencia: item.referenciaArticuloEntregas,
           });
         }
-        handleUpdateHito({ ...hito, items: newItems });
+        handleUpdateHito({ ...localHito, items: newItems });
     }
     
     const catalogItems = useMemo(() => {
@@ -129,21 +147,21 @@ export default function ConfeccionarEntregaPage() {
     }, [productosVenta, currentEntrega]);
 
     const totalPedido = useMemo(() => {
-        if (!hito) return 0;
-        const totalProductos = hito.items.reduce((sum, item) => sum + (item.pvp * item.quantity), 0);
+        if (!localHito) return 0;
+        const totalProductos = localHito.items.reduce((sum, item) => sum + (item.pvp * item.quantity), 0);
         const costePorte = currentEntrega?.tarifa === 'IFEMA' ? 95 : 30;
-        const totalPortes = (hito.portes || 0) * costePorte;
+        const totalPortes = (localHito.portes || 0) * costePorte;
         
-        const horasCamarero = hito.horasCamarero || 0;
+        const horasCamarero = localHito.horasCamarero || 0;
         const horasFacturables = horasCamarero > 0 && horasCamarero < 4 ? 4 : horasCamarero;
         const pvpCamareroHora = currentEntrega?.tarifa === 'IFEMA' ? 44.50 : 36.50;
         const totalPvpCamarero = horasFacturables * pvpCamareroHora;
 
         return totalProductos + totalPortes + totalPvpCamarero;
-    }, [hito, currentEntrega]);
+    }, [localHito, currentEntrega]);
 
 
-    if (!isMounted || !currentEntrega || !hito) {
+    if (!isMounted) {
         return <LoadingSkeleton title="Cargando Hoja de Confección..." />;
     }
 
@@ -159,6 +177,10 @@ export default function ConfeccionarEntregaPage() {
                         <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
                             <Package className="h-5 w-5 text-amber-500" />
                         </div>
+                        <div>
+                            <h1 className="text-sm font-black uppercase tracking-tight">Hoja de Confección</h1>
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{expedicionNumero || 'Cargando...'}</p>
+                        </div>
                     </div>
 
                     <div className="flex-1" />
@@ -168,33 +190,50 @@ export default function ConfeccionarEntregaPage() {
                             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">PVP Total Entrega</p>
                             <p className="text-lg font-black text-amber-600">{formatCurrency(totalPedido)}</p>
                         </div>
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-8 text-[10px] font-bold uppercase tracking-wider border-amber-500/20 hover:bg-amber-500/10 hover:text-amber-600 no-print"
-                            onClick={() => router.push(`/entregas/pedido/${osId}`)}
-                        >
-                            Finalizar
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button 
+                                variant="default" 
+                                size="sm" 
+                                className="h-8 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold uppercase tracking-wider no-print"
+                                onClick={handleSave}
+                                disabled={isSaving || !localHito}
+                            >
+                                {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                            </Button>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 text-[10px] font-bold uppercase tracking-wider border-amber-500/20 hover:bg-amber-500/10 hover:text-amber-600 no-print"
+                                onClick={() => router.push(`/entregas/pedido/${osId}`)}
+                            >
+                                Finalizar
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 pb-12">
-                <div className="grid lg:grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                        <UnifiedItemCatalog items={catalogItems} onAddItem={handleAddItem} />
-                    </div>
-                    <div className="space-y-6">
-                        <DeliveryOrderSummary 
-                            entrega={currentEntrega}
-                            hito={hito}
-                            onUpdateHito={handleUpdateHito}
-                            isEditing={true} 
-                        />
+            {!currentEntrega || !localHito ? (
+                <div className="max-w-7xl mx-auto px-4">
+                    <LoadingSkeleton title="Cargando datos de la entrega..." />
+                </div>
+            ) : (
+                <div className="max-w-7xl mx-auto px-4 pb-12">
+                    <div className="grid lg:grid-cols-2 gap-8">
+                        <div className="space-y-6">
+                            <UnifiedItemCatalog items={catalogItems} onAddItem={handleAddItem} />
+                        </div>
+                        <div className="space-y-6">
+                            <DeliveryOrderSummary 
+                                entrega={currentEntrega}
+                                hito={localHito}
+                                onUpdateHito={handleUpdateHito}
+                                isEditing={true} 
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </main>
     );
 }

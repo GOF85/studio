@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { articuloEntregasSchema, type ArticuloEntregasFormValues, type ImagenArticulo } from '@/lib/articulos-schemas';
-import { useUpsertArticulo, useArticulosERP, useDeleteArticulo } from '@/hooks/use-data-queries';
+import { useUpsertArticulo, useArticulosERPByIds, useDeleteArticulo, useProveedores } from '@/hooks/use-data-queries';
 import { useToast } from '@/hooks/use-toast';
 import {
   Form,
@@ -29,12 +29,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Link, X, Loader2, Save, Trash2, ArrowLeft } from 'lucide-react';
-import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
 import { PackSelector, type PackItem } from './PackSelector';
 import { ImageManager } from '@/components/book/images/ImageManager';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
-const DPT_ENTREGAS_OPTIONS = ['ALMACEN', 'CPR', 'PARTNER', 'RRHH'] as const;
+export const DPT_ENTREGAS_OPTIONS = ['ALMACEN', 'CPR', 'PARTNER', 'RRHH'] as const;
+export const CATEGORIAS_ENTREGAS = ['ALMACEN', 'BIO', 'BODEGA', 'GASTRONOMIA', 'OTROS'] as const;
 
 interface ArticuloEntregasFormProps {
   initialData?: any;
@@ -52,15 +52,32 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
 
   const upsertArticulo = useUpsertArticulo();
   const deleteArticulo = useDeleteArticulo();
-  const { data: articulosERP = [] } = useArticulosERP();
+  
+  // Obtener IDs de los packs iniciales para cargar solo esos artículos ERP
+  const initialPackIds = useMemo(() => 
+    initialData?.packs?.map((p: any) => p.erpId).filter(Boolean) || [], 
+    [initialData?.packs]
+  );
+  
+  const { data: articulosERP = [] } = useArticulosERPByIds(initialPackIds);
+  const { data: proveedores = [] } = useProveedores();
+
+  // Mapa para búsqueda rápida de artículos ERP
+  const articulosERPMap = useMemo(() => {
+    const map = new Map<string, any>();
+    articulosERP.forEach(erp => {
+      map.set(erp.id, erp);
+      if (erp.idreferenciaerp) map.set(erp.idreferenciaerp, erp);
+    });
+    return map;
+  }, [articulosERP]);
 
   const form = useForm<ArticuloEntregasFormValues>({
     resolver: zodResolver(articuloEntregasSchema),
     defaultValues: {
       nombre: '',
-      categoria: '',
+      categoria: 'OTROS',
       referenciaArticuloEntregas: '',
-      dptEntregas: undefined,
       precioCoste: 0,
       precioCosteAlquiler: 0,
       precioAlquilerEntregas: 0,
@@ -71,7 +88,13 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
       docDriveUrl: '',
       imagenes: [],
       producidoPorPartner: false,
+      partnerId: '',
       packs: [],
+      loc: '',
+      unidadVenta: 1,
+      stockSeguridad: 0,
+      erpId: '',
+      dptEntregas: 'ALMACEN',
     },
   });
 
@@ -96,8 +119,12 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
         iva: initialData.iva || 10,
         docDriveUrl: initialData.docDriveUrl || '',
         producidoPorPartner: initialData.producidoPorPartner || false,
+        partnerId: initialData.partnerId || '',
         packs: initialData.packs || [],
         erpId: initialData.erpId || '',
+        loc: initialData.loc || '',
+        unidadVenta: initialData.unidadVenta || 1,
+        stockSeguridad: initialData.stockSeguridad || 0,
       });
       if (initialData.imagenes) {
         setImagenes(initialData.imagenes);
@@ -105,31 +132,78 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
     }
   }, [initialData, form]);
 
-  const handlePacksSelect = (packs: PackItem[]) => {
-    setSelectedPacks(packs);
-    form.setValue('packs', packs.map(p => ({ erpId: p.erpId, cantidad: p.cantidad })), { shouldDirty: true });
-    
-    if (packs.length > 0) {
-      const totalCost = packs.reduce((sum, pack) => {
+  // Limpiar partnerId si se desmarca Producido por Partner
+  const producidoPorPartner = form.watch('producidoPorPartner');
+  useEffect(() => {
+    if (!producidoPorPartner) {
+      form.setValue('partnerId', '');
+    }
+  }, [producidoPorPartner, form]);
+
+  // Sincronizar selectedPacks cuando articulosERP e initialData.packs estén disponibles
+  useEffect(() => {
+    if (initialData?.packs && initialData.packs.length > 0 && articulosERP.length > 0 && selectedPacks.length === 0) {
+      const mappedPacks = initialData.packs.map((p: { erpId: string; cantidad: number }) => {
+        const erpProduct = articulosERPMap.get(p.erpId);
+        if (erpProduct) {
+          return {
+            erpId: erpProduct.id,
+            nombreProductoERP: erpProduct.nombreProductoERP,
+            nombreProveedor: erpProduct.nombreProveedor || '',
+            precioCompra: erpProduct.precioCompra || 0,
+            unidadConversion: erpProduct.unidadConversion || 1,
+            descuento: erpProduct.descuento || 0,
+            cantidad: p.cantidad,
+            unidad: erpProduct.unidad || 'UD'
+          };
+        }
+        return null;
+      }).filter(Boolean) as PackItem[];
+      
+      if (mappedPacks.length > 0) {
+        setSelectedPacks(mappedPacks);
+      }
+    }
+  }, [initialData?.packs, articulosERP, articulosERPMap, selectedPacks.length]);
+
+  // Recalcular coste cuando cambian los packs o la unidad de venta
+  const watchedUnidadVenta = form.watch('unidadVenta') || 1;
+  useEffect(() => {
+    if (selectedPacks.length > 0) {
+      const baseCost = selectedPacks.reduce((sum, pack) => {
         const unitPrice = pack.precioCompra / pack.unidadConversion;
         const priceWithDiscount = unitPrice * (1 - pack.descuento / 100);
         return sum + priceWithDiscount * pack.cantidad;
       }, 0);
-      form.setValue('precioCoste', totalCost, { shouldDirty: true });
+      
+      const totalCost = baseCost * watchedUnidadVenta;
+      // Solo actualizar si el valor es diferente para evitar bucles
+      const currentCost = form.getValues('precioCoste');
+      if (Math.abs((currentCost || 0) - totalCost) > 0.0001) {
+        form.setValue('precioCoste', totalCost, { shouldDirty: true });
+      }
     }
+  }, [selectedPacks, watchedUnidadVenta, form]);
+
+  const handlePacksSelect = (packs: PackItem[]) => {
+    setSelectedPacks(packs);
+    form.setValue('packs', packs.map(p => ({ erpId: p.erpId, cantidad: p.cantidad })), { shouldDirty: true });
   };
 
   const onSubmit = async (values: ArticuloEntregasFormValues) => {
     try {
-      await upsertArticulo.mutateAsync({
+      const payload = {
         ...values,
+        categoria: values.categoria as any,
         tipoArticulo: 'entregas',
         imagenes: imagenes,
-      });
+      };
+      await upsertArticulo.mutateAsync(payload as any);
       toast({ title: isEditing ? 'Artículo actualizado' : 'Artículo creado' });
       router.push('/bd/articulos-entregas');
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el artículo.' });
+    } catch (error: any) {
+      console.error('Error in ArticuloEntregasForm onSubmit:', error);
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo guardar el artículo.' });
     }
   };
 
@@ -211,7 +285,7 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {ARTICULO_CATERING_CATEGORIAS.map(cat => (
+                          {CATEGORIAS_ENTREGAS.map(cat => (
                             <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                           ))}
                         </SelectContent>
@@ -265,6 +339,30 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="unidadVenta"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Unidad de Venta</FormLabel>
+                      <FormControl><Input type="number" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="stockSeguridad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stock Seguridad</FormLabel>
+                      <FormControl><Input type="number" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="producidoPorPartner"
@@ -283,6 +381,33 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
                   </FormItem>
                 )}
               />
+
+              {form.watch('producidoPorPartner') && (
+                <FormField
+                  control={form.control}
+                  name="partnerId"
+                  render={({ field }) => (
+                    <FormItem className="animate-in fade-in slide-in-from-top-2 duration-300">
+                      <FormLabel>Proveedor / Partner</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-12 rounded-xl border-border/40 bg-background/40">
+                            <SelectValue placeholder="Seleccionar proveedor..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="rounded-xl border-border/40 shadow-2xl">
+                          {proveedores.map((p: any) => (
+                            <SelectItem key={p.id} value={p.id} className="rounded-lg">
+                              {p.nombreComercial || p.nombreFiscal}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -383,7 +508,7 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
                   <table className="w-full text-sm">
                     <thead className="bg-muted">
                       <tr>
-                        <th className="p-2 text-left">ERP ID</th>
+                        <th className="p-2 text-left">Proveedor</th>
                         <th className="p-2 text-left">Nombre</th>
                         <th className="p-2 text-right">Cantidad</th>
                       </tr>
@@ -391,7 +516,7 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
                     <tbody>
                       {selectedPacks.map(p => (
                         <tr key={p.erpId} className="border-t">
-                          <td className="p-2">{p.erpId}</td>
+                          <td className="p-2">{p.nombreProveedor}</td>
                           <td className="p-2">{p.nombreProductoERP}</td>
                           <td className="p-2 text-right">{p.cantidad} {p.unidad}</td>
                         </tr>
@@ -420,9 +545,9 @@ export function ArticuloEntregasForm({ initialData, isEditing = false }: Articul
       </Form>
 
       <PackSelector
-        isOpen={isPackSelectorOpen}
-        onClose={() => setIsPackSelectorOpen(false)}
-        onSelect={handlePacksSelect}
+        open={isPackSelectorOpen}
+        onOpenChange={setIsPackSelectorOpen}
+        onApply={handlePacksSelect}
         initialPacks={selectedPacks}
       />
 

@@ -393,7 +393,8 @@ export type ArticuloCatering = {
     docDriveUrl?: string | null;
     alergenos?: any[];
     imagenes?: Array<{ id: string; url: string; esPrincipal: boolean; orden: number; descripcion?: string }> | null;
-    pack?: any[];
+    packs?: any[];
+    pack?: any[]; // Legacy
     audit?: any[];
     createdAt?: string;
 }
@@ -1033,6 +1034,8 @@ export type ProductoVenta = {
     erpId?: string;
     exclusivoIfema?: boolean;
     componentes?: ProductoVentaComponente[];
+    referenciaArticuloEntregas?: string;
+    esHabitual?: boolean;
 }
 
 export type PedidoEntregaItem = {
@@ -1042,6 +1045,7 @@ export type PedidoEntregaItem = {
     pvp: number;
     coste: number;
     categoria: CategoriaProductoVenta;
+    referencia?: string;
 };
 export type EntregaHito = {
     id: string;

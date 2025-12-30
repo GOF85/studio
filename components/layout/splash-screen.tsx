@@ -33,7 +33,6 @@ export default function SplashScreen() {
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const { log, logPhase } = useLoadingDebug();
-  const sequenceStartedRef = useRef(false);
   const fadeStartedRef = useRef(false);
 
   const messages = isAdmin ? TECHNICAL_MESSAGES : BUSINESS_MESSAGES;
@@ -54,11 +53,9 @@ export default function SplashScreen() {
     setIsInitialized(true);
   }, []);
 
-  // Secuencia de estados de carga (ejecuta solo una vez)
+  // Secuencia de estados de carga
   useEffect(() => {
-    if (!isInitialized || splashPhase === 'hidden' || sequenceStartedRef.current) return;
-
-    sequenceStartedRef.current = true;
+    if (!isInitialized || splashPhase === 'hidden') return;
 
     const stateSequence: { state: LoadingState; delay: number; progressPercent: number }[] = [
       { state: 'initializing', delay: 500, progressPercent: 15 },
@@ -79,7 +76,7 @@ export default function SplashScreen() {
     return () => {
       timeouts.forEach(timeout => clearTimeout(timeout));
     };
-  }, [isInitialized, splashPhase, isAdmin]);
+  }, [isInitialized, splashPhase, messages]); // Usamos messages como dependencia para reiniciar si cambia el rol
 
   // Fade out y ocultar splash screen cuando esté listo (ejecuta solo una vez)
   useEffect(() => {

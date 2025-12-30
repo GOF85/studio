@@ -15,11 +15,18 @@ interface UnifiedItemCatalogProps {
   onAddItem: (item: ProductoVenta, quantity: number) => void;
 }
 
-function ItemRow({ item, onAdd }: { item: ProductoVenta, onAdd: (item: ProductoVenta) => void }) {
+function ItemRow({ item, onAdd }: { item: any, onAdd: (item: any) => void }) {
     return (
         <div className="flex items-center gap-4 p-2 border-b transition-colors hover:bg-secondary/50">
             <div className="flex-grow">
-                <h3 className="font-semibold text-base">{item.nombre}</h3>
+                <div className="flex items-center gap-2">
+                    {item.referenciaArticuloEntregas && (
+                        <span className="text-[10px] font-black bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded uppercase tracking-widest">
+                            {item.referenciaArticuloEntregas}
+                        </span>
+                    )}
+                    <h3 className="font-semibold text-base">{item.nombre}</h3>
+                </div>
             </div>
             <div className="text-sm font-semibold text-primary w-24 text-right">
                 {formatCurrency(item.pvp)}
@@ -35,12 +42,15 @@ export function UnifiedItemCatalog({ items, onAddItem }: UnifiedItemCatalogProps
   const [searchTerm, setSearchTerm] = useState('');
 
    const groupedAndSortedItems = useMemo(() => {
-    const grouped: { [key: string]: ProductoVenta[] } = {};
+    const grouped: { [key: string]: any[] } = {};
     
-    const filteredItems = items.filter(item => 
-        item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        item.categoria.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredItems = items.filter((item: any) => 
+        searchTerm.length < 2 ? true : (
+            item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            item.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (item.referenciaArticuloEntregas && item.referenciaArticuloEntregas.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
+    ).slice(0, 200); // Limit to 200 items for performance
 
     filteredItems.forEach(item => {
       if (!grouped[item.categoria]) {

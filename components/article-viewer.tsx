@@ -25,14 +25,9 @@ import {
 
 
 function toCSV(data: any[]) {
-  console.log('toCSV called with data length:', data?.length);
-
   if (!data || data.length === 0) {
-    console.warn('No data to convert to CSV');
     return "";
   }
-
-  console.log('First row sample:', data[0]);
 
   // Factusol returns an array of rows, where each row is an array of {columna, dato} objects
   // Extract headers from the first row
@@ -60,23 +55,18 @@ function toCSV(data: any[]) {
   }
 
   const csvContent = csvRows.join('\n');
-  console.log('CSV conversion complete. Rows:', csvRows.length, 'Total length:', csvContent.length);
 
   return csvContent;
 }
 
 
 function downloadCSV(csvContent: string, tableName: string) {
-  console.log('Starting CSV download for table:', tableName);
-  console.log('CSV content length:', csvContent.length);
-
   // Add BOM for UTF-8 to ensure proper encoding in Excel
   const BOM = '\uFEFF';
   const csvWithBOM = BOM + csvContent;
 
   // Create blob
   const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' });
-  console.log('Blob created, size:', blob.size);
 
   const filename = `${tableName}.csv`;
 
@@ -89,12 +79,10 @@ function downloadCSV(csvContent: string, tableName: string) {
 
   // Trigger download immediately (synchronously with user action)
   link.click();
-  console.log('Download triggered for:', filename);
 
   // Cleanup
   setTimeout(() => {
     URL.revokeObjectURL(url);
-    console.log('Cleanup complete');
   }, 100);
 }
 
@@ -145,12 +133,8 @@ export function ArticleViewer() {
         });
         setShowJson(true);
       } else if (action === 'csv') {
-        console.log('CSV action triggered');
-        console.log('Data received:', result.data?.length, 'rows');
-
         // Download CSV on client side
         const csv = toCSV(result.data);
-        console.log('CSV generated, calling downloadCSV...');
 
         downloadCSV(csv, selectedTable);
 

@@ -93,8 +93,8 @@ export default function TransportePortalPage() {
             const pedidoEntrega = pedidosEntregaMap.get(order.osId);
 
             const hitosDetails = (order.hitosIds || []).map(hitoId => {
-                const hito = pedidoEntrega?.hitos.find(h => h.id === hitoId);
-                const hitoIndex = pedidoEntrega?.hitos.findIndex(h => h.id === hitoId) ?? -1;
+                const hito = pedidoEntrega?.hitos.find((h: EntregaHito) => h.id === hitoId);
+                const hitoIndex = pedidoEntrega?.hitos.findIndex((h: EntregaHito) => h.id === hitoId) ?? -1;
                 const expedicionNumero = os ? `${os.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}` : hitoId;
                 return hito ? { ...hito, expedicionNumero } : null;
             }).filter(Boolean) as (EntregaHito & { expedicionNumero: string })[];

@@ -38,35 +38,36 @@ import Papa from 'papaparse';
 import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown, Truck, Search, Check, X } from 'lucide-react';
-import { downloadCSVTemplate, cn } from '@/lib/utils';
+import { Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown, Truck, Search, Check, X, ArrowUpDown } from 'lucide-react';
+import { downloadCSVTemplate, cn, normalizeCategoria } from '@/lib/utils';
 import { useArticulosInfinite, useDeleteArticulo, useBulkDeleteArticulos, useUpsertArticulo } from '@/hooks/use-data-queries';
+import { DPT_ENTREGAS_OPTIONS, CATEGORIAS_ENTREGAS } from './components/ArticuloEntregasForm';
 import { supabase } from '@/lib/supabase';
 import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view';
 import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 import { TableLoadingSplash } from '@/components/layout/table-loading-splash';
 import { Badge } from '@/components/ui/badge';
+import { useIsMobile } from '@/hooks/use-is-mobile';
+import { SearchInput } from './components/SearchInput';
 
-const CSV_HEADERS = ["id", "erp_id", "nombre", "categoria", "referencia_articulo_entregas", "dpt_entregas", "precio_coste", "precio_coste_alquiler", "precio_alquiler_entregas", "precio_venta_entregas", "precio_venta_entregas_ifema", "precio_alquiler_ifema", "iva", "doc_drive_url", "imagenes", "producido_por_partner", "partner_id", "subcategoria", "unidad_venta", "loc", "imagen"];
+const CSV_HEADERS = ["id", "erp_id", "nombre", "categoria", "referencia_articulo_entregas", "dpt_entregas", "precio_coste", "precio_coste_alquiler", "precio_alquiler_entregas", "precio_venta_entregas", "precio_venta_entregas_ifema", "precio_alquiler_ifema", "iva", "doc_drive_url", "imagenes", "producido_por_partner", "partner_id", "subcategoria", "unidad_venta", "loc", "imagen", "stock_seguridad", "pack"];
 
 function ArticulosEntregasPageContent() {
-  const [searchTerm, setSearchTerm] = useState('');
+  const isMobile = useIsMobile();
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
   const [isPartnerFilter, setIsPartnerFilter] = useState(false);
+  const [sortBy, setSortBy] = useState('nombre');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Inline editing state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<{ categoria: string; loc: string }>({
+  const [editValues, setEditValues] = useState<{ categoria: string; dptEntregas: string }>({
     categoria: '',
-    loc: ''
+    dptEntregas: ''
   });
   const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   const { 
     data, 
@@ -78,8 +79,11 @@ function ArticulosEntregasPageContent() {
   } = useArticulosInfinite({
     searchTerm: debouncedSearch,
     categoryFilter,
+    departmentFilter,
     isPartnerFilter,
-    tipoArticulo: 'entregas'
+    tipoArticulo: 'entregas',
+    sortBy,
+    sortOrder
   });
 
   const items = useMemo(() => data?.pages.flatMap(page => page.items) || [], [data]);
@@ -106,7 +110,7 @@ function ArticulosEntregasPageContent() {
     setEditingId(item.id);
     setEditValues({
       categoria: item.categoria,
-      loc: item.loc || ''
+      dptEntregas: (item as any).dptEntregas || ''
     });
   };
 
@@ -118,7 +122,7 @@ function ArticulosEntregasPageContent() {
         .from('articulos')
         .update({
           categoria: editValues.categoria,
-          loc: editValues.loc
+          dpt_entregas: editValues.dptEntregas
         })
         .eq('id', editingId);
 
@@ -135,6 +139,15 @@ function ArticulosEntregasPageContent() {
     }
   };
 
+  const toggleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
   const sentinelRef = useInfiniteScroll({
     fetchNextPage,
     hasNextPage: !!hasNextPage,
@@ -144,8 +157,8 @@ function ArticulosEntregasPageContent() {
 
   const mobileColumns: MobileTableColumn<ArticuloCatering>[] = [
     { key: 'nombre', label: 'Nombre', isTitle: true },
-    { key: 'categoria', label: 'Categoría', render: (item) => <Badge variant="outline" className="rounded-xl bg-primary/5 border-primary/20 text-primary font-black text-[9px] uppercase tracking-widest px-3 py-1">{item.categoria}</Badge> },
-    { key: 'loc', label: 'Localización', render: (item) => <span className="font-bold text-xs uppercase tracking-widest">{item.loc || 'Sin loc.'}</span> },
+    { key: 'categoria', label: 'Categoría', format: (value) => <Badge variant="outline" className="rounded-xl bg-primary/5 border-primary/20 text-primary font-black text-[9px] uppercase tracking-widest px-3 py-1">{value}</Badge> },
+    { key: 'loc', label: 'Localización', format: (value) => <span className="font-bold text-xs uppercase tracking-widest">{value || 'Sin loc.'}</span> },
     { key: 'precioVenta', label: 'Precio Venta', format: (value) => (value as number)?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) || '-' },
   ];
 
@@ -263,14 +276,35 @@ function ArticulosEntregasPageContent() {
           } else if (Array.isArray(item.imagenes)) {
             imagenes = item.imagenes;
           }
+
+          let packs = [];
+          const packsRaw = item.pack || item.packs;
+          if (packsRaw && typeof packsRaw === 'string') {
+            try {
+              packs = JSON.parse(packsRaw);
+            } catch (e) {
+              packs = [];
+            }
+          } else if (Array.isArray(packsRaw)) {
+            packs = packsRaw;
+          }
+
+          // Normalizar categoría para entregas
+          let categoria = (item.categoria || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          if (categoria === 'ALMACEN') categoria = 'ALMACEN';
+          else if (categoria === 'BEBIDA' || categoria === 'BEBIDAS' || categoria === 'BODEGA') categoria = 'BODEGA';
+          else if (categoria === 'GASTRONOMIA') categoria = 'GASTRONOMIA';
+          else if (categoria === 'BIO') categoria = 'BIO';
+          else categoria = 'OTROS';
+
           return {
             id: item.id || crypto.randomUUID(),
             erpId: item.erp_id || null,
             nombre: item.nombre,
-            categoria: item.categoria as any,
+            categoria: categoria as any,
             referenciaArticuloEntregas: item.referencia_articulo_entregas,
-            dptEntregas: item.dpt_entregas || null,
-            precioCoste: parseFloat(item.precio_coste) || 0,
+            dptEntregas: (item.dpt_entregas || 'ALMACEN').toUpperCase() as any,
+            precioCoste: (parseFloat(item.precio_coste) || 0) * (parseFloat(item.unidad_venta) || 1),
             precioCosteAlquiler: parseFloat(item.precio_coste_alquiler) || null,
             precioAlquilerEntregas: parseFloat(item.precio_alquiler_entregas) || 0,
             precioVentaEntregas: parseFloat(item.precio_venta_entregas) || 0,
@@ -285,6 +319,8 @@ function ArticulosEntregasPageContent() {
             unidadVenta: parseFloat(item.unidad_venta) || null,
             loc: item.loc || null,
             imagen: item.imagen || null,
+            stockSeguridad: parseFloat(item.stock_seguridad) || 0,
+            packs: packs,
             tipoArticulo: 'entregas'
           } as ArticuloCatering;
         });
@@ -339,6 +375,8 @@ function ArticulosEntregasPageContent() {
       unidad_venta: item.unidadVenta,
       loc: item.loc,
       imagen: item.imagen,
+      stock_seguridad: item.stockSeguridad || 0,
+      pack: item.packs ? JSON.stringify(item.packs) : '[]',
     }));
 
     const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
@@ -419,24 +457,30 @@ function ArticulosEntregasPageContent() {
         </div>
 
         <div className="mt-8 flex flex-col md:flex-row gap-4 items-center">
-          <div className="relative flex-1 w-full group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/40 group-focus-within:text-primary transition-colors" />
-            <Input
-              placeholder="Buscar por nombre o referencia..."
-              className="pl-12 h-12 bg-background/40 border-border/40 rounded-2xl focus:ring-primary/20 transition-all font-medium"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          <SearchInput 
+            placeholder="Buscar por nombre o referencia..."
+            onSearch={setDebouncedSearch}
+            defaultValue={debouncedSearch}
+          />
           
           <div className="flex items-center gap-3 w-full md:w-auto">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full md:w-[220px] h-12 bg-background/40 border-border/40 rounded-2xl font-bold">
+              <SelectTrigger className="w-full md:w-[180px] h-12 bg-background/40 border-border/40 rounded-2xl font-bold">
                 <SelectValue placeholder="Categoría" />
               </SelectTrigger>
               <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
                 <SelectItem value="all" className="font-bold">Todas las Categorías</SelectItem>
-                {ARTICULO_CATERING_CATEGORIAS.map(c => <SelectItem key={c} value={c} className="font-medium">{c}</SelectItem>)}
+                {CATEGORIAS_ENTREGAS.map(c => <SelectItem key={c} value={c} className="font-medium">{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger className="w-full md:w-[180px] h-12 bg-background/40 border-border/40 rounded-2xl font-bold">
+                <SelectValue placeholder="Departamento" />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
+                <SelectItem value="all" className="font-bold">Todos los Dptos</SelectItem>
+                {DPT_ENTREGAS_OPTIONS.map(d => <SelectItem key={d} value={d} className="font-medium">{d}</SelectItem>)}
               </SelectContent>
             </Select>
 
@@ -454,194 +498,219 @@ function ArticulosEntregasPageContent() {
       </div>
 
       {/* Vista Móvil: Tarjetas Apiladas */}
-      <div className="md:hidden space-y-4">
-        <MobileTableView
-          data={items}
-          columns={mobileColumns}
-          renderActions={(item) => (
-            <div className="flex gap-2 items-center">
-              <Checkbox
-                checked={selectedIds.has(item.id)}
-                onCheckedChange={(e) => handleToggleItem(item.id, e as any)}
-                onClick={(e) => e.stopPropagation()}
-                className="rounded-lg h-5 w-5"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(`/bd/articulos-entregas/${item.id}`)}
-                className="flex-1 rounded-xl border-border/40 font-bold"
-              >
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </Button>
-            </div>
-          )}
-          sentinelRef={sentinelRef}
-          isLoading={isFetchingNextPage}
-          emptyMessage="No se encontraron artículos de entregas."
-        />
-      </div>
-
-      {/* Vista Escritorio: Tabla Premium */}
-      <div className="hidden md:block rounded-[2rem] border border-border/40 bg-card/40 backdrop-blur-md overflow-hidden shadow-2xl">
-        <Table>
-          <TableHeader className="bg-muted/30">
-            <TableRow className="hover:bg-transparent border-border/40 h-16">
-              <TableHead className="w-16 text-center">
+      {isMobile && (
+        <div className="md:hidden space-y-4">
+          <MobileTableView
+            data={items}
+            columns={mobileColumns}
+            renderActions={(item) => (
+              <div className="flex gap-2 items-center">
                 <Checkbox
-                  checked={selectedIds.size === items.length && items.length > 0 ? true : selectedIds.size > 0 ? 'indeterminate' : false}
-                  onCheckedChange={handleToggleAll}
-                  className="rounded-lg h-5 w-5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  checked={selectedIds.has(item.id)}
+                  onCheckedChange={(e) => handleToggleItem(item.id, e as any)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="rounded-lg h-5 w-5"
                 />
-              </TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Nombre del Artículo</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Categoría</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Localización</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Referencia</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Dpto</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 text-right">Precio Venta</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 text-right pr-8">Precio Coste</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.length > 0 ? (
-              items.map(item => {
-                const isSelected = selectedIds.has(item.id);
-                const isEditing = editingId === item.id;
-                return (
-                  <TableRow
-                    key={item.id}
-                    className={cn(
-                      "group cursor-pointer transition-all duration-300 border-border/40 h-20",
-                      isSelected 
-                        ? "bg-primary/5 border-l-4 border-l-primary" 
-                        : "hover:bg-primary/[0.03]",
-                      isEditing && "bg-primary/10"
-                    )}
-                    onClick={() => !isEditing && router.push(`/bd/articulos-entregas/${item.id}`)}
-                  >
-                    <TableCell onClick={(e) => e.stopPropagation()} className="text-center">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => handleToggleItem(item.id)}
-                        className="rounded-lg h-5 w-5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-black text-sm tracking-tight group-hover:text-primary transition-colors">{item.nombre}</span>
-                        <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest mt-0.5">ID: {item.id.slice(0, 8)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {isEditing ? (
-                        <Select 
-                          value={editValues.categoria} 
-                          onValueChange={(val) => setEditValues(prev => ({ ...prev, categoria: val }))}
-                        >
-                          <SelectTrigger className="h-9 w-[140px] bg-background/50 border-border/40 rounded-xl font-bold text-[10px] uppercase tracking-widest">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-xl border-border/40 shadow-2xl">
-                            {ARTICULO_CATERING_CATEGORIAS.map(c => (
-                              <SelectItem key={c} value={c} className="font-bold text-[10px] uppercase tracking-widest">{c}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge 
-                          variant="outline" 
-                          className="rounded-xl bg-background/50 border-border/40 font-black text-[9px] uppercase tracking-widest px-3 py-1 cursor-pointer hover:bg-primary/10 transition-colors"
-                          onClick={() => handleStartEdit(item)}
-                        >
-                          {item.categoria}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {isEditing ? (
-                        <div className="flex items-center gap-2">
-                          <Input 
-                            value={editValues.loc}
-                            onChange={(e) => setEditValues(prev => ({ ...prev, loc: e.target.value }))}
-                            className="h-9 w-[120px] bg-background/50 border-border/40 rounded-xl font-bold text-[10px] uppercase tracking-widest"
-                            placeholder="LOC..."
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveEdit();
-                              if (e.key === 'Escape') setEditingId(null);
-                            }}
-                          />
-                          <div className="flex gap-1">
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              className="h-8 w-8 rounded-lg text-green-500 hover:bg-green-500/10"
-                              onClick={handleSaveEdit}
-                              disabled={isSaving}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              className="h-8 w-8 rounded-lg text-red-500 hover:bg-red-500/10"
-                              onClick={() => setEditingId(null)}
-                              disabled={isSaving}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <span 
-                          className="text-[10px] font-bold text-muted-foreground/60 cursor-pointer hover:text-primary transition-colors uppercase tracking-widest"
-                          onClick={() => handleStartEdit(item)}
-                        >
-                          {item.loc || 'Sin loc.'}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground/60">
-                      {(item as any).referenciaArticuloEntregas || '-'}
-                    </TableCell>
-                    <TableCell className="font-bold text-xs text-muted-foreground/60">
-                      {(item as any).dptEntregas || '-'}
-                    </TableCell>
-                    <TableCell className="text-right font-black text-sm tracking-tight">
-                      {((item as any).precioVentaEntregas || item.precioVenta)?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) || '-'}
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-sm text-muted-foreground/60 pr-8">
-                      {(item as any).precioCoste?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) || '-'}
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            ) : (
-              <TableRow>
-                <TableCell colSpan={7} className="h-64 text-center">
-                  <div className="flex flex-col items-center justify-center text-muted-foreground/30">
-                    <Truck className="h-16 w-16 mb-4 opacity-10" />
-                    <p className="text-lg font-black uppercase tracking-widest">No se encontraron artículos</p>
-                    <p className="text-sm font-medium mt-1">Prueba a cambiar los filtros de búsqueda</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-        {hasNextPage && (
-          <div ref={sentinelRef} className="h-24 flex items-center justify-center p-4 bg-muted/5 border-t border-border/40">
-            {isFetchingNextPage && (
-              <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-background/80 backdrop-blur-md border border-border/40 shadow-xl">
-                <div className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                <span className="text-xs font-black uppercase tracking-widest text-amber-600">Cargando más artículos...</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/bd/articulos-entregas/${item.id}`)}
+                  className="flex-1 rounded-xl border-border/40 font-bold"
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </Button>
               </div>
             )}
-          </div>
-        )}
-      </div>
+            sentinelRef={sentinelRef}
+            isLoading={isFetchingNextPage}
+            emptyMessage="No se encontraron artículos de entregas."
+          />
+        </div>
+      )}
+
+      {/* Vista Escritorio: Tabla Premium */}
+      {!isMobile && (
+        <div className="hidden md:block rounded-[2rem] border border-border/40 bg-card/40 backdrop-blur-md overflow-hidden shadow-2xl">
+          <Table>
+            <TableHeader className="bg-muted/30">
+              <TableRow className="hover:bg-transparent border-border/40 h-16">
+                <TableHead className="w-16 text-center">
+                  <Checkbox
+                    checked={selectedIds.size === items.length && items.length > 0 ? true : selectedIds.size > 0 ? 'indeterminate' : false}
+                    onCheckedChange={handleToggleAll}
+                    className="rounded-lg h-5 w-5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                </TableHead>
+                <TableHead 
+                  className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => toggleSort('nombre')}
+                >
+                  <div className="flex items-center gap-2">
+                    Nombre del Artículo
+                    <ArrowUpDown className={cn("h-3 w-3", sortBy === 'nombre' ? "text-primary" : "opacity-30")} />
+                  </div>
+                </TableHead>
+                <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Categoría</TableHead>
+                <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Localización</TableHead>
+                <TableHead 
+                  className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => toggleSort('referencia_articulo_entregas')}
+                >
+                  <div className="flex items-center gap-2">
+                    Referencia
+                    <ArrowUpDown className={cn("h-3 w-3", sortBy === 'referencia_articulo_entregas' ? "text-primary" : "opacity-30")} />
+                  </div>
+                </TableHead>
+                <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Dpto</TableHead>
+                <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 text-right">Precio Venta</TableHead>
+                <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 text-right pr-8">Precio Coste</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.length > 0 ? (
+                items.map(item => {
+                  const isSelected = selectedIds.has(item.id);
+                  const isEditing = editingId === item.id;
+                  return (
+                    <TableRow
+                      key={item.id}
+                      className={cn(
+                        "group cursor-pointer transition-all duration-300 border-border/40 h-20",
+                        isSelected 
+                          ? "bg-primary/5 border-l-4 border-l-primary" 
+                          : "hover:bg-primary/[0.03]",
+                        isEditing && "bg-primary/10"
+                      )}
+                      onClick={() => !isEditing && router.push(`/bd/articulos-entregas/${item.id}`)}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()} className="text-center">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleItem(item.id)}
+                          className="rounded-lg h-5 w-5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-black text-sm tracking-tight group-hover:text-primary transition-colors">{item.nombre}</span>
+                          <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest mt-0.5">ID: {item.id.slice(0, 8)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {isEditing ? (
+                          <Select 
+                            value={editValues.categoria} 
+                            onValueChange={(val) => setEditValues(prev => ({ ...prev, categoria: val }))}
+                          >
+                            <SelectTrigger className="h-9 w-[140px] bg-background/50 border-border/40 rounded-xl font-bold text-[10px] uppercase tracking-widest">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-border/40 shadow-2xl">
+                              {CATEGORIAS_ENTREGAS.map(c => (
+                                <SelectItem key={c} value={c} className="font-bold text-[10px] uppercase tracking-widest">{c}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge 
+                            variant="outline" 
+                            className="rounded-xl bg-background/50 border-border/40 font-black text-[9px] uppercase tracking-widest px-3 py-1 cursor-pointer hover:bg-primary/10 transition-colors"
+                            onClick={() => handleStartEdit(item)}
+                          >
+                            {item.categoria}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                          {item.loc || 'Sin loc.'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground/60">
+                        {(item as any).referenciaArticuloEntregas || '-'}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2">
+                            <Select 
+                              value={editValues.dptEntregas} 
+                              onValueChange={(val) => setEditValues(prev => ({ ...prev, dptEntregas: val }))}
+                            >
+                              <SelectTrigger className="h-9 w-[120px] bg-background/50 border-border/40 rounded-xl font-bold text-[10px] uppercase tracking-widest">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl border-border/40 shadow-2xl">
+                                {DPT_ENTREGAS_OPTIONS.map(opt => (
+                                  <SelectItem key={opt} value={opt} className="font-bold text-[10px] uppercase tracking-widest">{opt}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <div className="flex gap-1">
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-8 w-8 rounded-lg text-green-500 hover:bg-green-500/10"
+                                onClick={handleSaveEdit}
+                                disabled={isSaving}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-8 w-8 rounded-lg text-red-500 hover:bg-red-500/10"
+                                onClick={() => setEditingId(null)}
+                                disabled={isSaving}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Badge 
+                            variant="outline" 
+                            className="rounded-xl bg-background/50 border-border/40 font-black text-[9px] uppercase tracking-widest px-3 py-1 cursor-pointer hover:bg-primary/10 transition-colors"
+                            onClick={() => handleStartEdit(item)}
+                          >
+                            {(item as any).dptEntregas || '-'}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-black text-sm tracking-tight">
+                        {((item as any).precioVentaEntregas || item.precioVenta)?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) || '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-sm text-muted-foreground/60 pr-8">
+                        {(item as any).precioCoste?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) || '-'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-64 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground/30">
+                      <Truck className="h-16 w-16 mb-4 opacity-10" />
+                      <p className="text-lg font-black uppercase tracking-widest">No se encontraron artículos</p>
+                      <p className="text-sm font-medium mt-1">Prueba a cambiar los filtros de búsqueda</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          {hasNextPage && (
+            <div ref={sentinelRef} className="h-24 flex items-center justify-center p-4 bg-muted/5 border-t border-border/40">
+              {isFetchingNextPage && (
+                <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-background/80 backdrop-blur-md border border-border/40 shadow-xl">
+                  <div className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                  <span className="text-xs font-black uppercase tracking-widest text-amber-600">Cargando más artículos...</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Botón flotante de eliminación masiva */}
       {selectedIds.size > 0 && (

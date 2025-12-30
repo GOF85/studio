@@ -21,13 +21,24 @@ export async function resolveOsId(osId: string): Promise<string> {
     if (osId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
         return osId;
     }
-    // Si es un numero_expediente, buscar el UUID
-    const { data, error } = await supabase
+    
+    // 1. Intentar en la tabla de eventos
+    const { data: eventoData } = await supabase
         .from('eventos')
         .select('id')
         .eq('numero_expediente', osId)
-        .single();
+        .maybeSingle();
 
-    if (error || !data) return osId; // Devolver original si falla
-    return data.id;
+    if (eventoData?.id) return eventoData.id;
+
+    // 2. Intentar en la tabla de entregas
+    const { data: entregaData } = await supabase
+        .from('entregas')
+        .select('id')
+        .eq('numero_expediente', osId)
+        .maybeSingle();
+
+    if (entregaData?.id) return entregaData.id;
+
+    return osId; // Devolver original si no se encuentra en ninguna
 }

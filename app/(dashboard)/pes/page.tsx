@@ -403,8 +403,8 @@ function PESPageInner() {
                             itemsForThisDate.push(item);
                             if (item.conGastronomia) {
                                 gastroCount++;
-                                // Use Max to avoid double counting same people in different services
-                                gastroPax = Math.max(gastroPax, Number(item.asistentes) || 0);
+                                // Sum all attendees for services with gastronomy as requested
+                                gastroPax += Number(item.asistentes) || 0;
                             }
                         }
                     });

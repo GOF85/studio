@@ -476,11 +476,9 @@ function PedidoGastronomiaForm() {
   }
 
   const handleRecalculate = async () => {
-    console.log('handleRecalculate iniciado...')
     try {
       setIsRecalculating(true)
       const currentItems = getValues('items')
-      console.log('Items actuales:', currentItems.length)
 
       if (currentItems.length === 0) {
         toast({
@@ -493,7 +491,6 @@ function PedidoGastronomiaForm() {
 
       // Cargar recetas de Supabase para obtener precios actualizados
       const itemIds = currentItems.filter((i) => i.type === 'item').map((i) => i.id)
-      console.log('Cargando recetas para IDs:', itemIds)
 
       const { data: recetasData, error } = await supabase
         .from('recetas')
@@ -503,7 +500,6 @@ function PedidoGastronomiaForm() {
       if (error) throw error
 
       const recetasMap = new Map((recetasData || []).map((r) => [r.id, r]))
-      console.log('Recetas cargadas:', recetasMap.size)
 
       const updatedItems = currentItems.map((item) => {
         if (item.type === 'separator') return item
@@ -523,7 +519,6 @@ function PedidoGastronomiaForm() {
         }
 
         if (coste !== item.costeMateriaPrimaSnapshot || pvp !== item.precioVentaSnapshot) {
-          console.log('Precio actualizado para:', item.nombre, 'Nuevo PVP:', pvp)
           return {
             ...item,
             costeMateriaPrima: coste,
@@ -536,7 +531,6 @@ function PedidoGastronomiaForm() {
       })
 
       let hasChanges = updatedItems.some((item, idx) => item !== currentItems[idx])
-      console.log('Hay cambios:', hasChanges)
 
       if (hasChanges) {
         // Actualizar todos los items en el formulario

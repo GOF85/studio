@@ -60,44 +60,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 
 import { useEntrega, useUpdateEntrega, useCreateEntrega, usePedidosEntrega, useTransporteOrders, useProveedores, useTiposTransporte, useArticulos } from '@/hooks/use-data-queries';
-import { useSyncPedidosEntrega } from '@/hooks/mutations/use-pedidos-entrega-mutations';
 import { useSyncTransporteOrders } from '@/hooks/mutations/use-transporte-mutations';
-
-// Definición mínima local para osFormSchema
-const osFormSchema = z.object({
-    serviceNumber: z.string().optional(),
-    client: z.string().optional(),
-    asistentes: z.number().min(0).default(1),
-    contact: z.string().optional(),
-    phone: z.string().optional(),
-    email: z.string().optional(),
-    finalClient: z.string().optional(),
-    status: z.enum(['Borrador', 'Confirmado', 'Enviado', 'Entregado', 'Pendiente', 'Anulado']).optional(),
-    tarifa: z.enum(['Empresa', 'IFEMA']).optional(),
-    tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
-    comercial: z.string().optional(),
-    agencyPercentage: z.number().min(0).max(100).default(0),
-    agencyCommissionValue: z.number().min(0).default(0),
-    spacePercentage: z.number().min(0).max(100).default(0),
-    spaceCommissionValue: z.number().min(0).default(0),
-    comisionesAgencia: z.number().min(0).default(0),
-    comisionesCanon: z.number().min(0).default(0),
-    facturacion: z.number().min(0).default(0),
-    plane: z.string().optional(),
-    comments: z.string().optional(),
-    deliveryLocations: z.array(z.string()).optional(),
-    direccionPrincipal: z.string().optional(),
-    startDate: z.date().optional(),
-    endDate: z.date().optional(),
-});
-
-
-export const entregaFormSchema = osFormSchema.extend({
-    // No new fields needed at this level for now
-});
-
-
-export type EntregaFormValues = z.infer<typeof entregaFormSchema>;
+import { entregaFormSchema, type EntregaFormValues } from '@/types/entregas';
 
 const defaultValues: Partial<EntregaFormValues> = {
     serviceNumber: '',
@@ -399,8 +363,8 @@ function TransporteDialog({ onSave, osId, hitos, existingTransportOrders }: { on
 export default function EntregaFormPage() {
     const router = useRouter();
     const params = useParams() ?? {};
-    const id = (params.id as string) || '';
-    const isEditing = id !== 'nuevo';
+    const numero_expediente = (params.numero_expediente as string) || '';
+    const isEditing = numero_expediente !== 'nuevo';
 
     const [isMounted, setIsMounted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -415,14 +379,14 @@ export default function EntregaFormPage() {
     const [endDateOpen, setEndDateOpen] = useState(false);
 
     // Supabase Hooks
-    const { data: currentEntrega, isLoading: loadingEntrega } = useEntrega(isEditing ? id : '');
-    const { data: pedidosEntregaData } = usePedidosEntrega(isEditing ? id : '');
-    const { data: transporteData } = useTransporteOrders(isEditing ? id : '');
+    const { data: currentEntrega, isLoading: loadingEntrega } = useEntrega(isEditing ? numero_expediente : '');
+    const { data: pedidosEntregaData } = usePedidosEntrega(isEditing ? numero_expediente : '');
+    const { data: transporteData } = useTransporteOrders(isEditing ? numero_expediente : '');
     
     const updateEntrega = useUpdateEntrega();
     const createEntrega = useCreateEntrega();
-    const syncPedidosEntrega = useSyncPedidosEntrega();
     const syncTransporteOrders = useSyncTransporteOrders();
+    const { data: articulosData } = useArticulos();
 
     const form = useForm<EntregaFormValues>({
         resolver: zodResolver(entregaFormSchema),
@@ -460,33 +424,45 @@ export default function EntregaFormPage() {
 
     useEffect(() => {
         if (isEditing && currentEntrega) {
+            const extraData = currentEntrega.data || {};
             reset({
                 ...defaultValues,
-                ...currentEntrega,
-                startDate: currentEntrega.startDate ? new Date(currentEntrega.startDate) : undefined,
-                endDate: currentEntrega.endDate ? new Date(currentEntrega.endDate) : undefined,
+                ...extraData,
+                serviceNumber: currentEntrega.numero_expediente || '',
+                client: currentEntrega.nombre_evento || '',
+                startDate: currentEntrega.fecha_inicio ? new Date(currentEntrega.fecha_inicio) : undefined,
+                endDate: currentEntrega.fecha_fin ? new Date(currentEntrega.fecha_fin) : undefined,
+                status: currentEntrega.estado === 'CONFIRMADO' ? 'Confirmado' :
+                        currentEntrega.estado === 'CANCELADO' ? 'Anulado' :
+                        currentEntrega.estado === 'EJECUTADO' ? 'Entregado' : 'Borrador',
+                tarifa: currentEntrega.tarifa === 'IFEMA' ? 'IFEMA' : 'Empresa',
+                facturacion: currentEntrega.facturacion || 0,
+                comisionesAgencia: currentEntrega.comisiones_agencia || 0,
+                comisionesCanon: currentEntrega.comisiones_canon || 0,
             });
             
-            // Find the pedido_entrega record for this OS/Entrega
-            const currentPedido = Array.isArray(pedidosEntregaData) 
-                ? pedidosEntregaData.find((p: any) => p.evento_id === id) 
-                : null;
-            
-            if (currentPedido?.hitos) {
-                setHitos(currentPedido.hitos);
-            } else if (currentPedido?.hitos) {
-                setHitos(currentPedido.hitos);
+            // Load hitos from entrega data or fallback to pedidosEntregaData
+            if (extraData.hitos) {
+                setHitos(extraData.hitos);
+            } else {
+                const currentPedido = Array.isArray(pedidosEntregaData) 
+                    ? pedidosEntregaData.find((p: any) => p.evento_id === numero_expediente || p.evento_id === currentEntrega.id) 
+                    : null;
+                
+                if (currentPedido?.hitos) {
+                    setHitos(currentPedido.hitos);
+                }
             }
 
             if (transporteData) {
-                setTransporteOrders(transporteData.filter((t: any) => t.osId === id));
+                setTransporteOrders(transporteData.filter((t: any) => t.osId === numero_expediente || t.osId === currentEntrega.id));
             }
         } else if (!isEditing) {
             reset(defaultValues);
         }
 
         setIsMounted(true);
-    }, [id, isEditing, currentEntrega, pedidosEntregaData, transporteData, reset]);
+    }, [numero_expediente, isEditing, currentEntrega, pedidosEntregaData, transporteData, reset]);
 
     if (isEditing && loadingEntrega) {
         return <LoadingSkeleton />;
@@ -519,8 +495,6 @@ export default function EntregaFormPage() {
     async function onSubmit(data: EntregaFormValues) {
         setIsLoading(true);
         try {
-            let currentId = id;
-
             // Recalculate commissions just before saving
             const agencyDiscount = pvpTotalHitos * ((data.agencyPercentage || 0) / 100);
             const spaceDiscount = pvpTotalHitos * ((data.spacePercentage || 0) / 100);
@@ -528,19 +502,44 @@ export default function EntregaFormPage() {
             const comisionCanonTotal = spaceDiscount + (data.spaceCommissionValue || 0);
 
             const entregaData: any = {
-                ...data,
-                startDate: data.startDate ? (data.startDate as Date).toISOString() : new Date().toISOString(),
-                endDate: data.endDate ? (data.endDate as Date).toISOString() : new Date().toISOString(),
+                numero_expediente: data.serviceNumber,
+                nombre_evento: data.client || 'Pedido de Entrega',
+                fecha_inicio: data.startDate ? (data.startDate as Date).toISOString() : new Date().toISOString(),
+                fecha_fin: data.endDate ? (data.endDate as Date).toISOString() : new Date().toISOString(),
+                estado: (data.status === 'Confirmado' ? 'CONFIRMADO' : 
+                         data.status === 'Anulado' ? 'CANCELADO' : 
+                         (data.status === 'Enviado' || data.status === 'Entregado') ? 'EJECUTADO' : 'BORRADOR'),
                 vertical: 'Entregas',
-                deliveryTime: hitos?.[0]?.hora || '',
-                space: '',
-                spaceAddress: hitos?.[0]?.lugarEntrega || '',
-                comisionesAgencia: comisionAgenciaTotal,
-                comisionesCanon: comisionCanonTotal,
+                facturacion: pvpTotalHitos,
+                comisiones_agencia: comisionAgenciaTotal,
+                comisiones_canon: comisionCanonTotal,
+                tarifa: data.tarifa === 'IFEMA' ? 'IFEMA' : 'NORMAL',
+                data: {
+                    asistentes: data.asistentes,
+                    contact: data.contact,
+                    phone: data.phone,
+                    email: data.email,
+                    finalClient: data.finalClient,
+                    tipoCliente: data.tipoCliente,
+                    comercial: data.comercial,
+                    agencyPercentage: data.agencyPercentage,
+                    agencyCommissionValue: data.agencyCommissionValue,
+                    spacePercentage: data.spacePercentage,
+                    spaceCommissionValue: data.spaceCommissionValue,
+                    plane: data.plane,
+                    comments: data.comments,
+                    deliveryLocations: data.deliveryLocations,
+                    direccionPrincipal: data.direccionPrincipal,
+                    deliveryTime: hitos?.[0]?.hora || '',
+                    hitos: hitos, // Store hitos here
+                }
             };
 
+            let currentId = numero_expediente;
             if (isEditing) {
-                await updateEntrega.mutateAsync({ id, ...entregaData });
+                const targetId = currentEntrega?.id || numero_expediente;
+                await updateEntrega.mutateAsync({ id: targetId, ...entregaData });
+                currentId = targetId;
                 toast({ description: 'Pedido de entrega actualizado.' });
             } else {
                 const newEntrega = await createEntrega.mutateAsync(entregaData);
@@ -548,14 +547,11 @@ export default function EntregaFormPage() {
                 toast({ description: 'Pedido de entrega creado.' });
             }
 
-            // Sync Hitos (Pedidos Entrega)
-            await syncPedidosEntrega.mutateAsync({ osId: currentId, hitos });
-
             // Sync Transporte
             await syncTransporteOrders.mutateAsync({ osId: currentId, orders: transporteOrders });
 
             if (!isEditing) {
-                router.push(`/entregas/pedido/${currentId}`);
+                router.push(`/entregas/pedido/${data.serviceNumber}`);
             } else {
                 form.reset(getValues()); // Mark form as not dirty
             }
@@ -581,8 +577,6 @@ export default function EntregaFormPage() {
         setTransporteOrders(prev => [...prev, newOrder]);
         toast({ title: 'Transporte Asignado (Recuerda guardar para confirmar)' });
     }
-
-    const { data: articulosData } = useArticulos();
 
     const handlePrintProposal = async (lang: 'es' | 'en') => {
         const osData = form.getValues() as Partial<Entrega>;
@@ -990,7 +984,7 @@ export default function EntregaFormPage() {
                                                 </div>
                                                 <div className="flex items-center gap-1">
                                                     <Button asChild size="sm" className="h-7 text-[10px] font-bold uppercase tracking-wider bg-slate-900 hover:bg-slate-800">
-                                                        <Link href={`/entregas/entrega/${hito.id}?osId=${id}`}>
+                                                        <Link href={`/entregas/entrega/${hito.id}?osId=${numero_expediente}`}>
                                                             Confeccionar
                                                         </Link>
                                                     </Button>
@@ -1022,7 +1016,7 @@ export default function EntregaFormPage() {
                                     <Truck className="h-3.5 w-3.5 text-amber-500" />
                                     Gestión de Transporte
                                 </CardTitle>
-                                <TransporteDialog onSave={handleSaveTransporte} osId={id} hitos={hitos} existingTransportOrders={transporteOrders} />
+                                <TransporteDialog onSave={handleSaveTransporte} osId={numero_expediente} hitos={hitos} existingTransportOrders={transporteOrders} />
                             </CardHeader>
                             <CardContent className="p-0">
                                 <Table>
