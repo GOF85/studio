@@ -2361,7 +2361,6 @@ const mapArticuloToDB = (item: Partial<ArticuloCatering>) => ({
     erp_id: item.erpId || null,
     nombre: item.nombre,
     categoria: item.categoria,
-    familia: item.familia,
     es_habitual: item.esHabitual,
     precio_venta: item.precioVenta,
     precio_alquiler: item.precioAlquiler,
@@ -2510,7 +2509,8 @@ export function useArticulosERPPaginated(options: {
             sortBy,
             sortOrder
         }),
-        initialData
+        initialData: (page === 0 && !searchTerm && (!typeFilter || typeFilter === 'all') && (!providerFilter || providerFilter === 'all')) ? initialData : undefined,
+        staleTime: 1000 * 60 * 5, // 5 minutes
     });
 }
 

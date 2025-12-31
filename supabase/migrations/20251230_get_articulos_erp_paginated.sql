@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION get_articulos_erp_paginated(
     p_search_term text DEFAULT NULL,
     p_type_filter text DEFAULT NULL,
     p_provider_filter text DEFAULT NULL,
-    p_sort_by text DEFAULT 'nombre_producto_erp',
+    p_sort_by text DEFAULT 'nombre',
     p_sort_order text DEFAULT 'asc'
 )
 RETURNS TABLE (
@@ -27,8 +27,8 @@ BEGIN
     v_query := 'SELECT count(*) FROM articulos_erp WHERE true';
     
     IF p_search_term IS NOT NULL AND p_search_term <> '' THEN
-        v_query := v_query || ' AND (nombre_producto_erp ILIKE ' || quote_literal('%' || p_search_term || '%') || 
-                   ' OR idreferenciaerp ILIKE ' || quote_literal('%' || p_search_term || '%') || ')';
+        v_query := v_query || ' AND (nombre ILIKE ' || quote_literal('%' || p_search_term || '%') || 
+                   ' OR erp_id ILIKE ' || quote_literal('%' || p_search_term || '%') || ')';
     END IF;
 
     IF p_type_filter IS NOT NULL AND p_type_filter <> 'all' THEN
@@ -46,8 +46,8 @@ BEGIN
         SELECT * FROM articulos_erp WHERE true';
 
     IF p_search_term IS NOT NULL AND p_search_term <> '' THEN
-        v_query := v_query || ' AND (nombre_producto_erp ILIKE ' || quote_literal('%' || p_search_term || '%') || 
-                   ' OR idreferenciaerp ILIKE ' || quote_literal('%' || p_search_term || '%') || ')';
+        v_query := v_query || ' AND (nombre ILIKE ' || quote_literal('%' || p_search_term || '%') || 
+                   ' OR erp_id ILIKE ' || quote_literal('%' || p_search_term || '%') || ')';
     END IF;
 
     IF p_type_filter IS NOT NULL AND p_type_filter <> 'all' THEN

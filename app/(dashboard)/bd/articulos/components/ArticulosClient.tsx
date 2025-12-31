@@ -68,6 +68,11 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isPartnerFilter, setIsPartnerFilter] = useState(false);
 
+  // Reset page on filter changes
+  useEffect(() => {
+    setPage(0);
+  }, [categoryFilter, isPartnerFilter]);
+
   // Pagination state
   const [page, setPage] = useState(0);
   const pageSize = 20;
@@ -91,15 +96,16 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
   const { 
     data, 
     isLoading, 
+    isFetching,
     refetch
   } = useArticulosPaginated({
     page,
     pageSize,
     searchTerm: debouncedSearch,
     categoryFilter,
-    isPartnerFilter,
+    isPartnerFilter: isPartnerFilter || undefined,
     tipoArticulo: 'micecatering'
-  }, initialData);
+  }, (page === 0 && !debouncedSearch && categoryFilter === 'all' && !isPartnerFilter) ? initialData : undefined);
 
   const items = data?.items || [];
   const totalCount = data?.totalCount || 0;
@@ -427,7 +433,7 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-      <TableLoadingSplash isLoading={isLoading} type="articulos" />
+      <TableLoadingSplash isLoading={isLoading || isFetching} type="articulos" />
       
       {/* Premium Header Section */}
       <div className="relative overflow-hidden rounded-[2.5rem] bg-card/40 backdrop-blur-md border border-border/40 p-8 shadow-2xl">

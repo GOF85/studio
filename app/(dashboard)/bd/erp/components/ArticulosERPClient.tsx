@@ -183,17 +183,17 @@ export function ArticulosERPClient({ initialData }: ArticulosERPClientProps) {
                         const precioFinal = unidadConversion > 0 ? precioConDescuento / unidadConversion : 0;
 
                         const upsertData = {
-                            idreferenciaerp: row.idreferenciaerp,
-                            id_proveedor: row.idProveedor,
+                            erp_id: row.idreferenciaerp,
+                            proveedor_id: row.idProveedor,
                             nombre_proveedor: row.nombreProveedor,
-                            nombre_producto_erp: row.nombreProductoERP,
+                            nombre: row.nombreProductoERP,
                             referencia_proveedor: row.referenciaProveedor,
                             familia_categoria: row.familiaCategoria,
                             precio_compra: precioCompra,
                             descuento: descuento,
                             unidad_conversion: unidadConversion,
                             precio_alquiler: parseCurrency(row.precioAlquiler),
-                            unidad: row.unidad,
+                            unidad_medida: row.unidad,
                             tipo: row.tipo,
                             categoria_mice: row.categoriaMice,
                             alquiler: row.alquiler === 'true' || row.alquiler === true,
@@ -203,7 +203,7 @@ export function ArticulosERPClient({ initialData }: ArticulosERPClientProps) {
 
                         const { error } = await supabase
                             .from('articulos_erp')
-                            .upsert(upsertData, { onConflict: 'idreferenciaerp' });
+                            .upsert(upsertData, { onConflict: 'erp_id' });
 
                         if (error) throw error;
                         successCount++;
@@ -234,40 +234,80 @@ export function ArticulosERPClient({ initialData }: ArticulosERPClientProps) {
         setSyncLog([]);
         setSyncProgress(null);
 
-        const eventSource = new EventSource('/api/sync-erp');
+        const eventSource = new EventSource('/api/factusol/sync-articulos/stream');
         setSyncController(eventSource);
 
         eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            
-            if (data.type === 'log') {
-                setSyncLog(prev => [...prev, data.message].slice(-10));
-            } else if (data.type === 'progress') {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'log') {
+                    setSyncLog(prev => [...prev, data.message].slice(-10));
+                } else if (data.type === 'progress') {
+                    setSyncProgress({
+                        percent: Math.round((data.current / data.total) * 100),
+                        current: data.current,
+                        total: data.total
+                    });
+                } else if (data.type === 'done') {
+                    toast({
+                        title: "Sincronización completada",
+                        description: `Se han procesado ${data.total} artículos.`,
+                    });
+                    eventSource.close();
+                    setIsSyncing(false);
+                    refetch();
+                } else if (data.type === 'error') {
+                    toast({
+                        title: "Error en la sincronización",
+                        description: data.message,
+                        variant: "destructive",
+                    });
+                    eventSource.close();
+                    setIsSyncing(false);
+                }
+            } catch (e) {
+                // Si no es JSON, podría ser un log directo
+                setSyncLog(prev => [...prev, event.data].slice(-10));
+            }
+        };
+
+        // También escuchar eventos específicos si el backend los envía
+        eventSource.addEventListener('log', (event: any) => {
+            try {
+                const data = JSON.parse(event.data);
+                setSyncLog(prev => [...prev, data.message || data].slice(-10));
+            } catch (e) {
+                setSyncLog(prev => [...prev, event.data].slice(-10));
+            }
+        });
+
+        eventSource.addEventListener('progress', (event: any) => {
+            try {
+                const data = JSON.parse(event.data);
                 setSyncProgress({
                     percent: Math.round((data.current / data.total) * 100),
                     current: data.current,
                     total: data.total
                 });
-            } else if (data.type === 'done') {
+            } catch (e) {}
+        });
+
+        eventSource.addEventListener('done', (event: any) => {
+            try {
+                const data = JSON.parse(event.data);
                 toast({
                     title: "Sincronización completada",
                     description: `Se han procesado ${data.total} artículos.`,
                 });
-                eventSource.close();
-                setIsSyncing(false);
-                refetch();
-            } else if (data.type === 'error') {
-                toast({
-                    title: "Error en la sincronización",
-                    description: data.message,
-                    variant: "destructive",
-                });
-                eventSource.close();
-                setIsSyncing(false);
-            }
-        };
+            } catch (e) {}
+            eventSource.close();
+            setIsSyncing(false);
+            refetch();
+        });
 
-        eventSource.onerror = () => {
+        eventSource.onerror = (err) => {
+            console.error('EventSource error:', err);
             eventSource.close();
             setIsSyncing(false);
         };
@@ -340,9 +380,17 @@ export function ArticulosERPClient({ initialData }: ArticulosERPClientProps) {
                                 ) : (
                                     <>
                                         <RefreshCw className="mr-2 h-4 w-4" />
-                                        Sincronizar ERP
+                                        Sincronizar Factusol
                                     </>
                                 )}
+                            </Button>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => window.open('/erp/sync-logs', '_blank')}
+                            >
+                                <History className="mr-2 h-4 w-4" />
+                                Ver Logs
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                                 <FileUp className="mr-2 h-4 w-4" />

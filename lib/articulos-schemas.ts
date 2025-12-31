@@ -15,7 +15,6 @@ export const articuloMicecateringSchema = z.object({
     id: z.string(),
     nombre: z.string().min(1, 'El nombre es requerido'),
     categoria: z.string().min(1, 'La categoría es requerida'),
-    familia: z.string().optional(),
     precioVenta: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
     precioAlquiler: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
     precioReposicion: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),

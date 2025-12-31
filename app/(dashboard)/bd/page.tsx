@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Database, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote, Factory, MapPin, Search, LayoutGrid, ListFilter, FileText } from 'lucide-react';
+import { Database, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote, Factory, MapPin, Search, LayoutGrid, ListFilter, FileText, History } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,7 @@ const generalDatabases: DatabaseEntry[] = [
 const erpDatabases: DatabaseEntry[] = [
   { id: '13', name: 'Base de Datos ERP', description: 'Gestión de precios y productos de proveedores.', path: '/bd/erp', icon: Package },
   { id: '14', name: 'Familias ERP', description: 'Relaciona códigos de familia ERP con Familia y Categoría.', path: '/bd/familiasERP', icon: Layers },
+  { id: 'sync-logs', name: 'Logs de Sincronización', description: 'Historial de sincronizaciones con Factusol.', path: '/erp/sync-logs', icon: History },
 ];
 
 const recursosHumanosDatabases: DatabaseEntry[] = [

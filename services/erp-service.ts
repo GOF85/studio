@@ -10,17 +10,17 @@ export function mapArticuloERPFromDB(item: any): ArticuloERP {
 
     return {
         id: item.id,
-        idreferenciaerp: item.idreferenciaerp,
-        idProveedor: item.id_proveedor,
+        idreferenciaerp: item.erp_id,
+        idProveedor: item.proveedor_id,
         nombreProveedor: item.nombre_proveedor,
-        nombreProductoERP: item.nombre_producto_erp,
+        nombreProductoERP: item.nombre,
         referenciaProveedor: item.referencia_proveedor,
         familiaCategoria: item.familia_categoria,
         precioCompra: precioCompra,
         descuento: descuento,
         unidadConversion: unidadConversion,
         precioAlquiler: Number(item.precio_alquiler) || 0,
-        unidad: item.unidad,
+        unidad: item.unidad_medida,
         tipo: item.tipo,
         categoriaMice: item.categoria_mice,
         alquiler: item.alquiler,
@@ -47,7 +47,7 @@ export async function getArticulosERPPaginated(
         searchTerm,
         typeFilter,
         providerFilter,
-        sortBy = 'nombre_producto_erp',
+        sortBy = 'nombre',
         sortOrder = 'asc'
     } = options;
 

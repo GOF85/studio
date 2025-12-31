@@ -54,7 +54,6 @@ export function ArticuloForm({ initialData, isEditing = false }: { initialData?:
       id: initialData?.id || '',
       nombre: initialData?.nombre || '',
       categoria: initialData?.categoria || '',
-      familia: initialData?.familia || '',
       subcategoria: initialData?.subcategoria || '',
       precioVenta: initialData?.precioVenta || 0,
       precioAlquiler: initialData?.precioAlquiler || 0,
@@ -203,8 +202,11 @@ export function ArticuloForm({ initialData, isEditing = false }: { initialData?:
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {categoriasDisponibles.map(cat => (
-                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          <SelectItem key="ALQUILER" value="Alquiler">ALQUILER</SelectItem>
+                          {categoriasDisponibles
+                            .filter(cat => cat.toLowerCase() !== 'alquiler')
+                            .map(cat => (
+                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown, RefreshCw, ScrollText, Search, Plus, Users, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown, RefreshCw, ScrollText, Search, Plus, Users, ChevronLeft, ChevronRight, X, History } from 'lucide-react';
 import type { Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -79,6 +79,7 @@ export function ProveedoresClient({ initialData }: ProveedoresClientProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -87,6 +88,35 @@ export function ProveedoresClient({ initialData }: ProveedoresClientProps) {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const response = await fetch('/api/factusol/sync-proveedores', {
+        method: 'POST',
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Sincronización completada",
+          description: `Se han sincronizado ${result.count || 0} proveedores.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ['proveedores'] });
+      } else {
+        throw new Error(result.error || 'Error desconocido');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error en la sincronización",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const toggleSelectAll = () => {
     if (selectedIds.size === filteredItems.length) {
@@ -218,6 +248,23 @@ export function ProveedoresClient({ initialData }: ProveedoresClientProps) {
                   Eliminar ({selectedIds.size})
                 </Button>
               )}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSync}
+                disabled={isSyncing}
+              >
+                <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
+                {isSyncing ? 'Sincronizando...' : 'Sincronizar Factusol'}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => window.open('/erp/sync-logs', '_blank')}
+              >
+                <History className="mr-2 h-4 w-4" />
+                Ver Logs
+              </Button>
               <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                 <FileUp className="mr-2 h-4 w-4" />
                 Importar
