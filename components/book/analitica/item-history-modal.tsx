@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { VariacionItem, EscandalloSnapshot } from '@/hooks/use-escandallo-analytics-mejorado';
+import { VariacionItem, EscandalloSnapshot } from '@/hooks/use-escandallo-analytics';
 
 interface ItemHistoryModalProps {
   isOpen: boolean;

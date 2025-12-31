@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { useEscandalloAnalyticsNew } from '@/hooks/use-escandallo-analytics-mejorado';
+import { useEscandalloAnalytics as useEscandalloAnalyticsNew } from '@/hooks/use-escandallo-analytics';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { BarChart3, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { subDays, format } from 'date-fns';

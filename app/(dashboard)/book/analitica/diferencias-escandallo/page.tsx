@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 
 // Hooks & External Components
-import { useEscandalloAnalyticsNew, VariacionItem } from '@/hooks/use-escandallo-analytics-mejorado';
+import { useEscandalloAnalytics as useEscandalloAnalyticsNew, VariacionItem } from '@/hooks/use-escandallo-analytics';
 import { ComparisonTable } from '@/components/book/analitica/comparison-table';
 import { EvolutionChart } from '@/components/book/analitica/evolution-chart'; 
 import { ItemHistoryModal } from '@/components/book/analitica/item-history-modal';

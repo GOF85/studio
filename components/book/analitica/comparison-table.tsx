@@ -12,7 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ArrowUp, ArrowDown, ArrowUpDown, Info, Minus } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
-import { VariacionItem, EscandalloSnapshot } from '@/hooks/use-escandallo-analytics-mejorado';
+import { VariacionItem, EscandalloSnapshot } from '@/hooks/use-escandallo-analytics';
 
 // Tipos de ordenación local
 type SortBy = 'nombre' | 'startPrice' | 'endPrice' | 'diff' | 'percent';
