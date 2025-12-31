@@ -14,6 +14,8 @@ import {
   sub,
   startOfWeek,
   endOfWeek,
+  startOfToday,
+  isBefore,
   parse,
   parseISO,
   isValid
@@ -26,7 +28,9 @@ import {
   Users,
   Clock,
   AlertCircle,
-  Star
+  Star,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 import type { ServiceOrder } from '@/types';
@@ -35,6 +39,8 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import SplashScreen from '@/components/layout/splash-screen';
 import { DayExpandedBottomSheet } from '@/components/calendar/day-expanded-bottom-sheet';
 import { cn } from '@/lib/utils';
@@ -623,6 +629,7 @@ function CalendarioServiciosPageInner() {
   }, [dateParam]);
 
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [showPast, setShowPast] = useState(false);
 
   // --- DATA FETCHING ---
   const fetchRange = useMemo(() => {
@@ -662,6 +669,15 @@ function CalendarioServiciosPageInner() {
 
     return eachDayOfInterval({ start: startDate, end: endDate });
   }, [currentDate, viewMode]);
+
+  // Agrupar por semanas para colapsar pasadas
+  const weeks = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < calendarDays.length; i += 7) {
+      result.push(calendarDays.slice(i, i + 7));
+    }
+    return result;
+  }, [calendarDays]);
 
   // Agrupación
   const eventsByDay = useMemo(() => {
@@ -761,8 +777,26 @@ function CalendarioServiciosPageInner() {
 
             <div className="flex-1" />
 
-            <div className="flex items-center gap-3">
-            {/* Navegación Mes/Semana */}
+            <div className="flex items-center gap-4">
+              {/* Toggle Ver Pasados */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/40 hover:bg-muted/80 transition-colors cursor-pointer group" onClick={() => setShowPast(!showPast)}>
+                <div className={cn(
+                  "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                  showPast ? "bg-indigo-600 border-indigo-600 text-white" : "border-muted-foreground/40 bg-background"
+                )}>
+                  {showPast && <div className="w-2 h-2 bg-white rounded-full" />}
+                </div>
+                <span className={cn(
+                  "text-[10px] font-black uppercase tracking-widest transition-colors",
+                  showPast ? "text-indigo-600" : "text-muted-foreground group-hover:text-foreground"
+                )}>
+                  Ver pasados
+                </span>
+              </div>
+
+              <div className="h-4 w-[1px] bg-border/40 mx-1" />
+
+              {/* Navegación Mes/Semana */}
             <div className="flex items-center bg-muted/50 border border-border/40 rounded-lg p-0.5">
               <Button variant="ghost" size="icon" onClick={() => handleMonthChange('prev')} className="h-7 w-7 hover:bg-indigo-500/10 rounded-md">
                 <ChevronLeft className="h-4 w-4" />
@@ -831,7 +865,12 @@ function CalendarioServiciosPageInner() {
             {/* VISTA AGENDA */}
             {viewMode === 'agenda' && (
               <AgendaView
-                allDays={calendarDays.filter(d => isSameMonth(d, currentDate))}
+                allDays={calendarDays.filter(d => {
+                  const isCurrentMonth = isSameMonth(d, currentDate);
+                  if (!isCurrentMonth) return false;
+                  if (!showPast && isBefore(d, startOfToday()) && !isSameDay(d, startOfToday())) return false;
+                  return true;
+                })}
                 eventsByDay={eventsByDay}
                 router={router}
               />
@@ -840,8 +879,8 @@ function CalendarioServiciosPageInner() {
             {/* VISTA GRID (MES O SEMANA) */}
             {(viewMode === 'grid' || viewMode === 'week') && (
               <div className={cn(
-                "border border-border/40 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-card/40 backdrop-blur-md overflow-hidden flex flex-col flex-1 transition-all duration-500",
-                viewMode === 'week' ? "min-h-[800px]" : "min-h-[700px]"
+                "border border-border/40 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-card/40 backdrop-blur-md overflow-hidden flex flex-col transition-all duration-500",
+                viewMode === 'week' ? "min-h-[800px] flex-1" : (showPast ? "min-h-[700px] flex-1" : "h-auto")
               )}>
                 {/* Grid Header */}
                 <div className="grid grid-cols-7 border-b border-border/40 bg-muted/30 divide-x divide-border/40">
@@ -853,18 +892,24 @@ function CalendarioServiciosPageInner() {
                 </div>
 
                 {/* Grid Body */}
-                <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-border/40 flex-1 bg-transparent">
-                  {calendarDays.map((day) => (
-                    <DayGridCell
-                      key={day.toISOString()}
-                      day={day}
-                      dayOsEvents={eventsByDay[format(day, 'yyyy-MM-dd')] || {}}
-                      currentDate={currentDate}
-                      onViewDetails={handleDayClick}
-                      router={router}
-                      viewMode={viewMode}
-                    />
-                  ))}
+                <div className="grid grid-cols-7 divide-x divide-y divide-border/40 bg-transparent">
+                  {weeks.map((week, weekIdx) => {
+                    const isPastWeek = !showPast && viewMode === 'grid' && week.every(day => isBefore(day, startOfToday()) && !isSameDay(day, startOfToday()));
+                    
+                    if (isPastWeek) return null;
+
+                    return week.map((day) => (
+                      <DayGridCell
+                        key={day.toISOString()}
+                        day={day}
+                        dayOsEvents={eventsByDay[format(day, 'yyyy-MM-dd')] || {}}
+                        currentDate={currentDate}
+                        onViewDetails={handleDayClick}
+                        router={router}
+                        viewMode={viewMode}
+                      />
+                    ));
+                  })}
                 </div>
               </div>
             )}

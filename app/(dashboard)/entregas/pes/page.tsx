@@ -2,12 +2,16 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo, Suspense, Fragment } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { format, parseISO, isBefore, startOfToday } from 'date-fns';
+import { format, parseISO, isBefore, startOfToday, startOfWeek, endOfWeek, isWithinInterval, addWeeks, isSameWeek, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Package, ClipboardList, Search, Filter, Eye, EyeOff, Plus, Truck, Clock, User } from 'lucide-react';
+import { 
+  PlusCircle, Package, ClipboardList, Search, Filter, 
+  Eye, EyeOff, Plus, Truck, Clock, User, MapPin, 
+  CalendarDays, Star, AlertTriangle, Phone, ChevronRight
+} from 'lucide-react';
 import type { Entrega } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,20 +30,208 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 
 import { useEntregas } from '@/hooks/use-data-queries';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
+
+// --- HELPERS & TYPES ---
+
+type TimeFilter = 'all' | 'today' | 'this_week' | 'next_week' | 'future';
+
+const STATUS_CONFIG: Record<string, { color: string, label: string, border: string, bg: string }> = {
+    'CONFIRMADO': { color: 'text-emerald-700', label: 'Confirmado', border: 'border-emerald-500', bg: 'bg-emerald-50' },
+    'PENDIENTE': { color: 'text-amber-700', label: 'Pendiente', border: 'border-amber-500', bg: 'bg-amber-50' },
+    'BORRADOR': { color: 'text-slate-600', label: 'Borrador', border: 'border-slate-300', bg: 'bg-slate-50' },
+    'CANCELADO': { color: 'text-red-700', label: 'Cancelado', border: 'border-red-500', bg: 'bg-red-50' },
+    'EJECUTADO': { color: 'text-blue-700', label: 'Entregado', border: 'border-blue-500', bg: 'bg-blue-50' },
+};
+
+// --- COMPONENTES LOCALES ---
+
+const DeliveryMobileCard = memo(({ hito }: { hito: any }) => {
+    const status = (hito.estado || hito.status || 'BORRADOR').toUpperCase();
+    const displayStatus = status === 'EJECUTADO' ? 'EJECUTADO' : status;
+    const statusConfig = STATUS_CONFIG[displayStatus] || STATUS_CONFIG['BORRADOR'];
+    const date = hito.fecha_inicio ? parseISO(hito.fecha_inicio) : new Date();
+
+    return (
+        <Link href={`/entregas/pedido/${hito.parentExpediente || hito.serviceNumber}`} className="block">
+            <Card className={cn(
+                "overflow-hidden transition-all active:scale-[0.98] mb-3",
+                "border-l-4 shadow-sm",
+                statusConfig.border
+            )}>
+                <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-3">
+                            <div className="flex flex-col">
+                                <span className="text-2xl font-bold leading-none text-foreground">
+                                    {format(date, 'd')}
+                                </span>
+                                <span className="text-xs uppercase font-bold text-muted-foreground">
+                                    {format(date, 'MMM', { locale: es })}
+                                </span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-primary">{hito.serviceNumber}</span>
+                                <span className="text-xs font-bold text-muted-foreground">{hito.deliveryTime}</span>
+                            </div>
+                        </div>
+                        <Badge variant="outline" className={cn("text-[10px] uppercase font-bold", statusConfig.color, statusConfig.bg)}>
+                            {statusConfig.label}
+                        </Badge>
+                    </div>
+
+                    <div className="mb-3">
+                        <h3 className="text-base font-bold leading-tight mb-1 text-foreground">
+                            {hito.nombre_evento}
+                        </h3>
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <MapPin className="w-3.5 h-3.5" />
+                            <span className="truncate">{hito.lugarEntrega || 'Sin dirección'}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-dashed">
+                        <div className="flex gap-3 text-sm">
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Package className="w-4 h-4" />
+                                <span className="font-medium text-foreground">
+                                    {hito.briefing_items?.length || 0} bultos
+                                </span>
+                            </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                </CardContent>
+            </Card>
+        </Link>
+    );
+});
+DeliveryMobileCard.displayName = 'DeliveryMobileCard';
+
+const DayHeader = memo(({ dateKey, eventsCount }: { 
+    dateKey: string, 
+    eventsCount: number
+}) => (
+    <TableRow className="bg-muted/30 hover:bg-muted/30 border-y">
+        <TableCell colSpan={5} className="py-2 px-4">
+            <div className="flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                <span className="font-bold text-sm text-foreground">
+                    {dateKey !== 'unknown' ? format(parseISO(dateKey), "EEEE d 'de' MMMM", { locale: es }) : 'Fecha desconocida'}
+                </span>
+                <Badge variant="secondary" className="text-[10px] h-5 ml-2">{eventsCount} pedidos</Badge>
+            </div>
+        </TableCell>
+    </TableRow>
+));
+DayHeader.displayName = 'DayHeader';
+
+const DeliveryRow = memo(({ hito, onClick }: { 
+    hito: any, 
+    onClick: () => void 
+}) => {
+    const status = (hito.estado || hito.status || 'BORRADOR').toUpperCase();
+    const displayStatus = status === 'EJECUTADO' ? 'EJECUTADO' : status;
+    const statusConfig = STATUS_CONFIG[displayStatus] || STATUS_CONFIG['BORRADOR'];
+
+    return (
+        <TableRow
+            className="group cursor-pointer hover:bg-muted/50"
+            onClick={onClick}
+        >
+            <TableCell className="font-black text-sm text-foreground tracking-tight">
+                {hito.serviceNumber}
+            </TableCell>
+            <TableCell>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div className="flex flex-col">
+                            <span className="text-sm font-bold text-foreground">{hito.nombre_evento}</span>
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <MapPin className="w-3 h-3" /> {hito.lugarEntrega || 'Sin dirección'}
+                            </span>
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="start" className="w-80 p-0 overflow-hidden shadow-xl border-muted-foreground/20">
+                        <div className="bg-muted/50 p-3 border-b">
+                            <div className="flex justify-between items-start mb-1">
+                                <h4 className="font-bold text-sm">{hito.nombre_evento}</h4>
+                                <Badge variant="outline" className="text-[10px]">{hito.serviceNumber}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <MapPin className="w-3 h-3" /> {hito.lugarEntrega}
+                            </p>
+                        </div>
+                        <div className="p-3 space-y-3">
+                            {hito.briefing_items && hito.briefing_items.length > 0 ? (
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Contenido del Pedido</p>
+                                    {hito.briefing_items.map((item: any, idx: number) => (
+                                        <div key={idx} className="flex items-start gap-2 text-xs border-l-2 border-primary/20 pl-2 py-0.5">
+                                            <span className="font-bold text-primary">{item.quantity}x</span>
+                                            <span>{item.nombre}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-muted-foreground italic py-2">No hay detalles disponibles.</p>
+                            )}
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+            </TableCell>
+            <TableCell className="text-sm text-muted-foreground">
+                {hito.deliveryTime}
+            </TableCell>
+            <TableCell className="text-center font-medium">
+                {hito.briefing_items?.length || 0}
+            </TableCell>
+            <TableCell className="text-right">
+                <Badge
+                    variant="outline"
+                    className={cn(
+                        "text-[10px] font-black uppercase tracking-widest",
+                        statusConfig.bg,
+                        statusConfig.color
+                    )}
+                >
+                    {statusConfig.label}
+                </Badge>
+            </TableCell>
+        </TableRow>
+    );
+});
+DeliveryRow.displayName = 'DeliveryRow';
 
 export default function PrevisionEntregasPage() {
-  const { data: entregasData, isLoading } = useEntregas();
+  const { data: entregasData, isLoading, refetch } = useEntregas();
   const [isMounted, setIsMounted] = useState(false);
   
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [searchParams]);
+
+  usePullToRefresh({ onRefresh: async () => { await refetch(); } });
+
   // URL-driven state
   const searchTerm = searchParams.get('q') || '';
-  const selectedMonth = searchParams.get('month') || format(new Date(), 'yyyy-MM');
+  const timeFilter = (searchParams.get('time') as TimeFilter) || 'all';
   const showPastEvents = searchParams.get('past') === 'true';
   const statusFilter = searchParams.get('status') || 'all';
 
@@ -70,93 +262,81 @@ export default function PrevisionEntregasPage() {
         flattened.push({
           ...entrega,
           ...hito,
-          id: `${entrega.id}-${hito.id || index}`, // ID único para la fila
+          id: `${entrega.id}-${hito.id || index}`,
           serviceNumber: `${entrega.numero_expediente}.${hitoIndex}`,
           parentExpediente: entrega.numero_expediente,
-          // Usar la fecha y hora del hito para visualización y filtros
           fecha_inicio: hito.fecha,
           deliveryTime: hito.hora,
-          briefing_items: hito.items || [] // Para el tooltip
+          briefing_items: hito.items || []
         });
       });
     });
     return flattened;
   }, [entregasData]);
 
-  const availableMonths = useMemo(() => {
-    const months = new Set<string>();
-    allHitos.forEach(os => {
-      try {
-        const date = os.fecha_inicio;
-        if (!date) return;
-        const month = format(new Date(date), 'yyyy-MM');
-        months.add(month);
-      } catch (e) {
-        console.error(`Invalid date for hito ${os.serviceNumber}: ${os.fecha_inicio}`);
-      }
-    });
-    return Array.from(months).sort().reverse();
-  }, [allHitos]);
-  
   const filteredAndSortedOrders = useMemo(() => {
     const today = startOfToday();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+    const nextWeekStart = addWeeks(weekStart, 1);
+    const nextWeekEnd = endOfWeek(nextWeekStart, { weekStartsOn: 1 });
+
     const filtered = allHitos.filter(os => {
       const serviceNumber = os.serviceNumber || '';
-      const client = os.nombre_evento || os.client || (os.cliente_id ? `Cliente ID ${os.cliente_id}` : '');
+      const client = os.nombre_evento || os.client || '';
       const searchMatch = searchTerm.trim() === '' || 
                          serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          client.toLowerCase().includes(searchTerm.toLowerCase());
       
-      let monthMatch = true;
-      if (selectedMonth !== 'all') {
-        try {
-          const date = os.fecha_inicio;
-          const osMonth = date ? format(new Date(date), 'yyyy-MM') : '';
-          monthMatch = osMonth === selectedMonth;
-        } catch (e) {
-          monthMatch = false;
-        }
+      let timeMatch = true;
+      if (os.fecha_inicio) {
+          const date = parseISO(os.fecha_inicio);
+          if (timeFilter === 'today') {
+              timeMatch = date.getTime() === today.getTime();
+          } else if (timeFilter === 'this_week') {
+              timeMatch = isWithinInterval(date, { start: weekStart, end: weekEnd });
+          } else if (timeFilter === 'next_week') {
+              timeMatch = isWithinInterval(date, { start: nextWeekStart, end: nextWeekEnd });
+          } else if (timeFilter === 'future') {
+              timeMatch = !isBefore(date, today);
+          }
       }
       
       let pastEventMatch = true;
-      if (!showPastEvents) {
+      if (!showPastEvents && timeFilter === 'all') {
           try {
-              const date = os.fecha_inicio;
-              pastEventMatch = date ? !isBefore(new Date(date), today) : true;
+              const date = os.fecha_inicio ? parseISO(os.fecha_inicio) : null;
+              pastEventMatch = date ? !isBefore(date, today) : true;
           } catch (e) {
               pastEventMatch = true;
           }
       }
 
       const status = (os.estado || os.status || '').toUpperCase();
-      const displayStatus = status === 'EJECUTADO' ? 'ENTREGADO' : status;
+      const displayStatus = status === 'EJECUTADO' ? 'EJECUTADO' : status;
       const statusMatch = statusFilter === 'all' || displayStatus === statusFilter.toUpperCase();
 
-      return searchMatch && monthMatch && pastEventMatch && statusMatch;
+      return searchMatch && timeMatch && pastEventMatch && statusMatch;
     });
 
     return filtered.sort((a, b) => {
         const dateA = a.fecha_inicio || '';
         const dateB = b.fecha_inicio || '';
-        return dateA.localeCompare(dateB);
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        return (a.deliveryTime || '').localeCompare(b.deliveryTime || '');
     });
 
-  }, [allHitos, searchTerm, selectedMonth, showPastEvents, statusFilter]);
-  
-  const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-    'BORRADOR': 'secondary',
-    'Borrador': 'secondary',
-    'PENDIENTE': 'outline',
-    'Pendiente': 'outline',
-    'CONFIRMADO': 'default',
-    'Confirmado': 'default',
-    'ANULADO': 'destructive',
-    'Anulado': 'destructive',
-    'CANCELADO': 'destructive',
-    'EJECUTADO': 'default',
-    'ENVIADO': 'default',
-    'ENTREGADO': 'default'
-  };
+  }, [allHitos, searchTerm, timeFilter, showPastEvents, statusFilter]);
+
+  const groupedOrders = useMemo(() => {
+      const groups: Record<string, any[]> = {};
+      filteredAndSortedOrders.forEach(order => {
+          const dateKey = order.fecha_inicio || 'unknown';
+          if (!groups[dateKey]) groups[dateKey] = [];
+          groups[dateKey].push(order);
+      });
+      return groups;
+  }, [filteredAndSortedOrders]);
 
   if (!isMounted || isLoading) {
     return <LoadingSkeleton title="Cargando Previsión de Entregas..." />;
@@ -167,9 +347,13 @@ export default function PrevisionEntregasPage() {
       {/* Header Premium Sticky */}
       <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
           <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
-              <div className="flex items-center">
+              <div className="flex items-center gap-3">
                   <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
                       <ClipboardList className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <div className="flex flex-col">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none">Listado</span>
+                      <span className="text-xs font-bold text-foreground leading-none mt-1">Previsión de Entregas</span>
                   </div>
               </div>
 
@@ -186,20 +370,40 @@ export default function PrevisionEntregasPage() {
               </div>
 
               <div className="flex items-center gap-3">
+                  <Tabs
+                      value={timeFilter}
+                      onValueChange={(v) => updateFilters({ time: v })}
+                      className="w-full lg:w-auto"
+                  >
+                      <TabsList className="h-8 bg-muted/50 border border-border/40 rounded-lg p-1 w-full lg:w-auto overflow-x-auto no-scrollbar flex justify-start lg:justify-center">
+                          <TabsTrigger value="all" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-amber-600 data-[state=active]:text-white h-6 flex-1 lg:flex-none">Todo</TabsTrigger>
+                          <TabsTrigger value="today" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-amber-600 data-[state=active]:text-white h-6 flex-1 lg:flex-none">Hoy</TabsTrigger>
+                          <TabsTrigger value="this_week" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-amber-600 data-[state=active]:text-white h-6 flex-1 lg:flex-none">Semana</TabsTrigger>
+                          <TabsTrigger value="next_week" className="text-[9px] font-black uppercase tracking-widest px-3 rounded-md data-[state=active]:bg-amber-600 data-[state=active]:text-white h-6 flex-1 lg:flex-none">Próxima</TabsTrigger>
+                      </TabsList>
+                  </Tabs>
 
-                  <Select value={selectedMonth} onValueChange={(val) => updateFilters({ month: val })}>
-                      <SelectTrigger className="h-8 w-[180px] text-[10px] font-black uppercase tracking-widest border-border/40 bg-background/50">
-                        <SelectValue placeholder="Mes" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border/40 shadow-2xl backdrop-blur-xl bg-background/80">
-                        <SelectItem value="all" className="text-[10px] font-bold uppercase">Todos los meses</SelectItem>
-                        {availableMonths.map(month => (
-                            <SelectItem key={month} value={month} className="text-[10px] font-bold uppercase">
-                            {format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
-                            </SelectItem>
-                        ))}
-                      </SelectContent>
-                  </Select>
+                  <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className={cn("h-8 text-[10px] font-black uppercase tracking-widest border-border/40 bg-background/50", statusFilter !== 'all' && "border-amber-500/50 bg-amber-500/5 text-amber-700")}>
+                              <Filter className="w-3.5 h-3.5 mr-2" />
+                              {statusFilter === 'all' ? 'Estado' : STATUS_CONFIG[statusFilter]?.label || statusFilter}
+                          </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="rounded-xl border-border/40 p-2 shadow-2xl backdrop-blur-xl bg-background/80">
+                          <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 px-2 py-1.5">Filtrar por Estado</DropdownMenuLabel>
+                          <DropdownMenuSeparator className="bg-border/40" />
+                          <DropdownMenuItem onClick={() => updateFilters({ status: 'all' })} className="rounded-lg p-2 font-bold text-xs">
+                              Todos
+                          </DropdownMenuItem>
+                          {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                              <DropdownMenuItem key={key} onClick={() => updateFilters({ status: key })} className="rounded-lg p-2 font-bold text-xs">
+                                  <span className={cn("w-2 h-2 rounded-full mr-2", config.bg.replace('bg-', 'bg-').replace('/50', ''))} style={{ backgroundColor: 'currentColor' }} />
+                                  {config.label}
+                              </DropdownMenuItem>
+                          ))}
+                      </DropdownMenuContent>
+                  </DropdownMenu>
 
                   <Button
                       variant="outline"
@@ -226,151 +430,67 @@ export default function PrevisionEntregasPage() {
           </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-        <div className="flex items-center gap-2 flex-wrap mb-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mr-2">Filtrar Estado:</span>
-            {['all', 'BORRADOR', 'CONFIRMADO', 'ENTREGADO', 'CANCELADO'].map((status) => (
-                <Button 
-                    key={status}
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => updateFilters({ status: status })}
-                    className={cn(
-                        "h-7 px-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all",
-                        statusFilter === status 
-                            ? "bg-amber-600 text-white shadow-sm" 
-                            : "text-muted-foreground hover:bg-amber-500/10 hover:text-amber-700"
-                    )}
-                >
-                    {status === 'all' ? 'Todos' : status.charAt(0) + status.slice(1).toLowerCase()}
-                </Button>
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
+        {/* Mobile View */}
+        <div className="md:hidden space-y-6">
+            {Object.entries(groupedOrders).map(([date, orders]) => (
+                <div key={date}>
+                    <div className="sticky top-[112px] z-10 bg-background/95 backdrop-blur py-2 mb-2 border-b flex items-center justify-between">
+                        <span className="font-bold text-sm text-foreground">
+                            {date !== 'unknown' ? format(parseISO(date), "EEEE d 'de' MMMM", { locale: es }) : 'Fecha desconocida'}
+                        </span>
+                        <Badge variant="secondary" className="text-[10px]">{orders.length}</Badge>
+                    </div>
+                    {orders.map(order => (
+                        <DeliveryMobileCard key={order.id} hito={order} />
+                    ))}
+                </div>
             ))}
+            {filteredAndSortedOrders.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                    <Package className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p>No se encontraron pedidos</p>
+                </div>
+            )}
         </div>
 
-        <div className="bg-background/40 backdrop-blur-sm border border-border/40 rounded-xl overflow-hidden">
-          <Table>
-              <TableHeader>
-              <TableRow>
-                  <TableHead>Nº Pedido</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Fecha Entrega</TableHead>
-                  <TableHead>Estado</TableHead>
-              </TableRow>
-              </TableHeader>
-              <TableBody>
-              {filteredAndSortedOrders.length > 0 ? (
-                  filteredAndSortedOrders.map(os => {
-                      const serviceNumber = os.serviceNumber;
-                      const client = os.nombre_evento || os.client || (os.cliente_id ? `Cliente ID ${os.cliente_id}` : 'Sin cliente');
-                      const startDate = os.fecha_inicio;
-                      const status = (os.estado || os.status || '').toUpperCase();
-                      const displayStatus = status === 'EJECUTADO' ? 'ENTREGADO' : status;
-                      const deliveryTime = os.deliveryTime || '';
-
-                      return (
-                        <TableRow key={os.id} onClick={() => router.push(`/entregas/pedido/${os.parentExpediente || serviceNumber}`)} className="cursor-pointer group">
-                            <TableCell className="font-medium">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <span className="hover:underline decoration-primary/30 underline-offset-4">
-                                                {serviceNumber}
-                                            </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent className="p-4 w-80 bg-popover/95 backdrop-blur-md border-border/50 shadow-2xl rounded-2xl">
-                                            <div className="space-y-4">
-                                                {/* Header */}
-                                                <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-3">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-primary">{serviceNumber}</span>
-                                                        <span className="text-[9px] text-muted-foreground font-medium truncate max-w-[150px]">{os.nombre_evento}</span>
-                                                    </div>
-                                                    <Badge variant="outline" className="text-[9px] uppercase font-bold h-5 px-2 border-primary/20 bg-primary/5">{displayStatus}</Badge>
-                                                </div>
-
-                                                {/* Delivery Info */}
-                                                <div className="space-y-1.5">
-                                                    <div className="flex items-start gap-2">
-                                                        <div className="p-1 rounded bg-amber-500/10 mt-0.5">
-                                                            <Truck className="h-3 w-3 text-amber-600" />
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <p className="text-[10px] font-bold uppercase leading-tight">{os.lugarEntrega || 'Sin dirección'}</p>
-                                                            <p className="text-[9px] text-muted-foreground">{os.localizacion || 'Sin localización específica'}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-4 ml-7">
-                                                        <div className="flex items-center gap-1">
-                                                            <Clock className="h-3 w-3 text-muted-foreground" />
-                                                            <span className="text-[9px] font-medium">{os.hora}</span>
-                                                        </div>
-                                                        {os.contacto && (
-                                                            <div className="flex items-center gap-1">
-                                                                <User className="h-3 w-3 text-muted-foreground" />
-                                                                <span className="text-[9px] font-medium truncate max-w-[100px]">{os.contacto}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Items List */}
-                                                <div className="space-y-2">
-                                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2">
-                                                        <Package className="h-3 w-3" />
-                                                        Contenido del Pedido
-                                                    </p>
-                                                    <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
-                                                        {os.briefing_items && os.briefing_items.length > 0 ? (
-                                                            os.briefing_items.map((item: any, idx: number) => (
-                                                                <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-muted/30 border border-border/20">
-                                                                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded min-w-[20px] text-center">
-                                                                        {item.quantity}
-                                                                    </span>
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <p className="text-[10px] font-bold leading-tight truncate">{item.nombre}</p>
-                                                                        <p className="text-[8px] text-muted-foreground uppercase tracking-tighter">Ref: {item.referencia || 'N/A'}</p>
-                                                                    </div>
-                                                                </div>
-                                                            ))
-                                                        ) : (
-                                                            <p className="text-[10px] text-muted-foreground italic py-1">No hay artículos en este pedido</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Observations */}
-                                                {os.observaciones && (
-                                                    <div className="pt-2 border-t border-border/40">
-                                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/70 mb-1">Observaciones</p>
-                                                        <p className="text-[10px] text-muted-foreground italic leading-relaxed">
-                                                            "{os.observaciones}"
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </TableCell>
-                            <TableCell>{client}</TableCell>
-                            <TableCell>{startDate ? format(new Date(startDate), 'dd/MM/yyyy') : ''} {deliveryTime}</TableCell>
-                            <TableCell>
-                            <Badge variant={statusVariant[status] || 'default'}>
-                                {displayStatus}
-                            </Badge>
-                            </TableCell>
-                        </TableRow>
-                      );
-                  })
-              ) : (
-                  <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
-                      No hay pedidos de entrega que coincidan con los filtros.
-                  </TableCell>
-                  </TableRow>
-              )}
-              </TableBody>
-          </Table>
+        {/* Desktop View */}
+        <div className="hidden md:block border rounded-xl bg-card/40 backdrop-blur-sm shadow-sm overflow-hidden">
+          <TooltipProvider>
+            <Table>
+                <TableHeader className="bg-muted/40">
+                    <TableRow>
+                        <TableHead className="w-[150px]">Nº Pedido</TableHead>
+                        <TableHead>Evento / Cliente</TableHead>
+                        <TableHead className="w-[120px]">Hora</TableHead>
+                        <TableHead className="w-[100px] text-center">Bultos</TableHead>
+                        <TableHead className="w-[150px] text-right">Estado</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                {Object.entries(groupedOrders).length > 0 ? (
+                    Object.entries(groupedOrders).map(([dateKey, orders]) => (
+                        <Fragment key={dateKey}>
+                            <DayHeader dateKey={dateKey} eventsCount={orders.length} />
+                            {orders.map(order => (
+                                <DeliveryRow 
+                                    key={order.id} 
+                                    hito={order} 
+                                    onClick={() => router.push(`/entregas/pedido/${order.parentExpediente || order.serviceNumber}`)} 
+                                />
+                            ))}
+                        </Fragment>
+                    ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                            No hay pedidos de entrega que coincidan con los filtros.
+                        </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
+          </TooltipProvider>
         </div>
       </div>
     </main>

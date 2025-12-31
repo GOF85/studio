@@ -1,1 +1,0 @@
-Error listing tables: Could not find the table 'public.pg_catalog.pg_tables' in the schema cache

@@ -99,12 +99,6 @@ export function Header() {
           </h1>
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">
-          <Button asChild className="bg-emerald-700 text-white hover:bg-emerald-800 h-8 text-xs md:text-sm md:h-9">
-            <Link href="/">
-              <UtensilsCrossed className="mr-1 md:mr-2 h-4 w-4 md:h-5 md:w-5" />
-              <span className="hidden sm:inline">Catering</span>
-            </Link>
-          </Button>
           <UserMenu />
         </nav>
       </div>
