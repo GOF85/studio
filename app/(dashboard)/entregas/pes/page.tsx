@@ -215,7 +215,7 @@ const DeliveryRow = memo(({ hito, onClick }: {
 });
 DeliveryRow.displayName = 'DeliveryRow';
 
-export default function PrevisionEntregasPage() {
+function PrevisionEntregasClient() {
   const { data: entregasData, isLoading, refetch } = useEntregas();
   const [isMounted, setIsMounted] = useState(false);
   
@@ -494,5 +494,13 @@ export default function PrevisionEntregasPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function PrevisionEntregasPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton title="Cargando Previsión de Entregas..." />}>
+      <PrevisionEntregasClient />
+    </Suspense>
   );
 }

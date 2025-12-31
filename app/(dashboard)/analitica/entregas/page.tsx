@@ -45,7 +45,17 @@ import {
     useProveedores,
     useArticulos,
     useTiposTransporte,
-    useProveedoresTransporte
+    useProveedoresTransporte,
+} from '@/hooks/use-data-queries';
+
+// Definición de tipo para la data de analítica
+interface AnaliticaItem {
+    os: Entrega;
+    costeTotal: number;
+    pvpTotal: number;
+    pvpIfemaTotal: number;
+    costesPorCategoria: { [key: string]: number };
+    productos: {
         id: string;
         nombre: string;
         categoria: CategoriaProductoVenta;

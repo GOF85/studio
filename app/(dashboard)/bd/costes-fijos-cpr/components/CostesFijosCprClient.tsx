@@ -18,7 +18,7 @@ import {
     DialogTitle, 
     DialogFooter,
     DialogDescription
-} from "@/dialog";
+} from "@/components/ui/dialog";
 import { 
     AlertDialog, 
     AlertDialogAction, 

@@ -13,7 +13,7 @@ import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { cn } from '@/lib/utils';
 import { commercialItems, planningItems, coreOpsItems, reportingItems, adminItems, type MenuItem } from '@/lib/nav-config';
 import { ServiceOrderSearch } from '@/components/dashboard/service-order-search';
-import { useDashboardMetrics } from '@/hooks/use-dashboard-metrics';
+import { useDashboardMetrics, type DashboardMetrics } from '@/hooks/use-dashboard-metrics';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     Dialog,
@@ -75,15 +75,6 @@ function MiniNavItem({ item }: { item: MenuItem }) {
 }
 
 // --- TIPOS ---
-
-interface DashboardMetrics {
-    eventosHoy: number;
-    serviciosHoy: number;
-    paxHoy: number;
-    eventosSemana: number;
-    serviciosSemana: number;
-    paxSemana: number;
-}
 
 // --- PÁGINA PRINCIPAL ---
 
