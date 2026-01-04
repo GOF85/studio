@@ -13,6 +13,7 @@ import {
   Loader2,
   Trash2,
   FileText,
+  Wine,
 } from 'lucide-react'
 import type {
   MaterialOrder,
@@ -70,6 +71,8 @@ import {
   usePickingSheets,
   useReturnSheets,
 } from '@/hooks/use-data-queries'
+import { useObjetivosGasto, useObjetivosGastoPlantillas } from '@/hooks/use-objetivos-gasto'
+// replaced local Bottle with lucide `Wine` icon
 import {
   useUpdateMaterialOrderItem,
   useDeleteMaterialOrderItem,
@@ -130,13 +133,13 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto border rounded-lg border-border/40">
           <Table>
-            <TableHeader>
+              <TableHeader>
               <TableRow className="bg-muted/30 border-b border-border/40">
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Fecha</TableHead>
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Hora</TableHead>
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Descripción</TableHead>
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Observaciones</TableHead>
-                <TableHead className="h-10 px-4 text-right text-[10px] font-black uppercase tracking-widest">PAX</TableHead>
+                <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Fecha</TableHead>
+                <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Hora</TableHead>
+                <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Descripción</TableHead>
+                <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Observaciones</TableHead>
+                <TableHead className="h-7 px-2 text-right text-[10px] font-black uppercase tracking-widest">PAX</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -149,26 +152,26 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
                       item.conGastronomia ? 'bg-orange-500/[0.03] hover:bg-orange-500/[0.06]' : 'hover:bg-muted/30'
                     )}
                   >
-                    <TableCell className="py-2 px-4 text-[11px] font-medium text-muted-foreground">
+                    <TableCell className="py-1 px-2 text-[11px] font-medium text-muted-foreground">
                       {format(new Date(item.fecha), 'dd/MM/yyyy')}
                     </TableCell>
-                    <TableCell className="py-2 px-4 text-[11px] font-bold">
+                    <TableCell className="py-1 px-2 text-[11px] font-bold">
                       {item.horaInicio} - {item.horaFin}
                     </TableCell>
-                    <TableCell className="py-2 px-4 text-[11px] font-bold uppercase tracking-wider">
+                    <TableCell className="py-1 px-2 text-[11px] font-bold uppercase tracking-wider">
                       {item.descripcion}
                     </TableCell>
-                    <TableCell className="py-2 px-4 text-[11px] text-muted-foreground italic">
+                    <TableCell className="py-1 px-2 text-[11px] text-muted-foreground italic">
                       {item.comentarios}
                     </TableCell>
-                    <TableCell className="py-2 px-4 text-right font-mono text-[11px]">
+                    <TableCell className="py-1 px-2 text-right font-mono text-[11px]">
                       {item.asistentes}
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-[11px] text-muted-foreground">
+                  <TableCell colSpan={5} className="h-20 text-center text-[11px] text-muted-foreground">
                     No hay servicios en el briefing.
                   </TableCell>
                 </TableRow>
@@ -209,22 +212,22 @@ function StatusCard({
       onClick={onClick}
     >
       <div className={cn("absolute top-0 left-0 w-1 h-full", accentColor)} />
-      <CardHeader className="pb-2 py-4">
-        <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground group-hover:text-foreground transition-colors">
+      <CardHeader className="py-1 px-2">
+        <CardTitle className="text-[9px] font-black uppercase tracking-[0.12em] text-muted-foreground group-hover:text-foreground transition-colors">
           {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="pb-4">
+      <CardContent className="py-1 px-2">
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-black tracking-tight">{items}</span>
-          <span className="text-[10px] font-bold uppercase text-muted-foreground/60">Referencias</span>
+          <span className="text-lg font-black tracking-tight">{items}</span>
+          <span className="text-[9px] font-bold uppercase text-muted-foreground/60">Referencias</span>
         </div>
-        <div className="mt-2 flex flex-col gap-0.5">
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">
+        <div className="mt-0.5 flex flex-col gap-0.5">
+          <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">
             <span>Artículos</span>
             <span className="text-foreground/70">{totalQuantity.toLocaleString('es-ES')}</span>
           </div>
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">
+          <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">
             <span>Valoración</span>
             <span className="text-foreground/70">{formatCurrency(totalValue)}</span>
           </div>
@@ -251,6 +254,9 @@ export default function BodegaPage() {
 
   const updateMutation = useUpdateMaterialOrderItem()
   const deleteMutation = useDeleteMaterialOrderItem()
+
+  const { data: objetivos } = useObjetivosGasto(serviceOrder?.id)
+  const { data: plantillas } = useObjetivosGastoPlantillas()
 
   const handleItemChange = async (itemId: string, field: 'quantity' | 'price', value: number, orderId?: string) => {
     try {
@@ -427,18 +433,18 @@ export default function BodegaPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 border-b border-border/40">
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Artículo</TableHead>
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Solicita</TableHead>
-                <TableHead className="h-10 px-4 text-right text-[10px] font-black uppercase tracking-widest">Cantidad</TableHead>
+                <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Artículo</TableHead>
+                <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Solicita</TableHead>
+                <TableHead className="h-7 px-2 text-right text-[10px] font-black uppercase tracking-widest">Cantidad</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length > 0 ? (
                 items.map((item, index) => (
                   <TableRow key={`${item.itemCode}-${index}`} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
-                    <TableCell className="py-2 px-4 text-[11px] font-bold uppercase tracking-wider">{item.description}</TableCell>
-                    <TableCell className="py-2 px-4 text-[11px] text-muted-foreground">{item.solicita}</TableCell>
-                    <TableCell className="py-2 px-4 text-right font-mono text-[11px] font-bold">{item.quantity}</TableCell>
+                    <TableCell className="py-1 px-2 text-[11px] font-bold uppercase tracking-wider">{item.description}</TableCell>
+                    <TableCell className="py-1 px-2 text-[11px] text-muted-foreground">{item.solicita}</TableCell>
+                    <TableCell className="py-1 px-2 text-right font-mono text-[11px] font-bold">{item.quantity}</TableCell>
                   </TableRow>
                 ))
               ) : (
@@ -473,11 +479,11 @@ export default function BodegaPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 border-b border-border/40">
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Artículo</TableHead>
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Cantidad</TableHead>
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Cant. Cajas</TableHead>
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Valoración</TableHead>
-                <TableHead className="h-10 px-4 text-right text-[10px] font-black uppercase tracking-widest">Estado</TableHead>
+                <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Artículo</TableHead>
+                <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Cantidad</TableHead>
+                <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Cant. Cajas</TableHead>
+                <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Valoración</TableHead>
+                <TableHead className="h-7 px-2 text-right text-[10px] font-black uppercase tracking-widest">Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -491,11 +497,11 @@ export default function BodegaPage() {
                     : '-'
                 return (
                   <TableRow key={`${item.itemCode}-${index}`} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
-                    <TableCell className="py-2 px-4 text-[11px] font-bold uppercase tracking-wider">{item.description}</TableCell>
-                    <TableCell className="py-2 px-4 text-[11px] font-mono">{item.quantity}</TableCell>
-                    <TableCell className="py-2 px-4 text-[11px] font-mono text-muted-foreground">{cajas}</TableCell>
-                    <TableCell className="py-2 px-4 text-[11px] font-mono">{formatCurrency(item.quantity * (item.price || 0))}</TableCell>
-                    <TableCell className="py-2 px-4 text-right">
+                      <TableCell className="py-1 px-2 text-[11px] font-bold uppercase tracking-wider">{item.description}</TableCell>
+                      <TableCell className="py-1 px-2 text-[11px] font-mono">{item.quantity}</TableCell>
+                      <TableCell className="py-1 px-2 text-[11px] font-mono text-muted-foreground">{cajas}</TableCell>
+                      <TableCell className="py-1 px-2 text-[11px] font-mono">{formatCurrency(item.quantity * (item.price || 0))}</TableCell>
+                      <TableCell className="py-1 px-2 text-right">
                       <Badge 
                         variant={isBlocked ? 'destructive' : 'default'}
                         className="text-[9px] font-black uppercase tracking-widest px-2 py-0 h-5"
@@ -519,6 +525,23 @@ export default function BodegaPage() {
     )
   }
 
+  const presupuestoBodega = useMemo(() => {
+    const safe = materialOrders || []
+    return safe.reduce((acc: number, o: any) => acc + (o.total || 0), 0)
+  }, [materialOrders])
+
+  const objetivoBodega = useMemo(() => {
+    const objetivoTemplate = objetivos || plantillas?.find((p: any) => p.nombre?.toLowerCase() === 'micecatering')
+    const objetivoPct = (objetivoTemplate?.bodega || 0) / 100
+    const facturacionNeta = (serviceOrder?.facturacion as number) || 0
+    return facturacionNeta * objetivoPct
+  }, [objetivos, plantillas, serviceOrder])
+
+  const desviacionBodegaPct = useMemo(() => {
+    if (!objetivoBodega || objetivoBodega === 0) return 0
+    return ((presupuestoBodega - objetivoBodega) / objetivoBodega) * 100
+  }, [presupuestoBodega, objetivoBodega])
+
   if (isLoadingOS || isLoadingMaterials || isLoadingPicking || isLoadingReturns) {
     return <LoadingSkeleton title="Cargando Módulo de Bodega..." />
   }
@@ -526,17 +549,36 @@ export default function BodegaPage() {
   return (
     <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
       {/* Header Premium Sticky */}
-      <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
-          <div className="flex items-center">
-            <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
-              <Soup className="h-5 w-5 text-blue-500" />
+      <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-2">
+        <div className="max-w-7xl mx-auto px-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center h-10">
+              <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <Wine className="h-5 w-5 text-blue-500" />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6 text-sm">
+              <div className="flex flex-col items-end justify-center leading-none">
+                  <div className="text-[9px] font-black uppercase text-muted-foreground">Presupuesto</div>
+                <div className="font-bold text-sm">{presupuestoBodega.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+              </div>
+
+              <div className="flex flex-col items-end justify-center leading-none">
+                <div className="text-[9px] font-black uppercase text-muted-foreground">Objetivo</div>
+                <div className="font-bold text-sm">{objetivoBodega.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+              </div>
+
+              <div className="flex flex-col items-end justify-center leading-none">
+                <div className="text-[9px] font-black uppercase text-muted-foreground">Desviación</div>
+                <div className={cn('font-bold text-sm', desviacionBodegaPct > 0 ? 'text-red-500' : 'text-emerald-600')}>
+                  {isFinite(desviacionBodegaPct) ? `${desviacionBodegaPct.toFixed(2)}%` : '-'}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex-1" />
-
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 mt-2 md:justify-end justify-center">
             <Dialog>
               <DialogTrigger asChild>
                 <Button 
@@ -546,19 +588,30 @@ export default function BodegaPage() {
                   className="h-8 text-[10px] font-black uppercase tracking-widest border-border/40 hover:bg-blue-500/5"
                 >
                   <Eye className="mr-2 h-3.5 w-3.5" />
-                  Resumen Artículos
+                    <span className="hidden md:inline">Resumen Artículos</span>
+                    <span className="inline md:hidden">Artículos</span>
                 </Button>
               </DialogTrigger>
               {renderSummaryModal()}
             </Dialog>
-            <BriefingSummaryDialog osId={osId} />
+            <div>
+              <div className="hidden md:block">
+                <BriefingSummaryDialog osId={osId} />
+              </div>
+              <div className="block md:hidden">
+                <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest border-border/40 hover:bg-blue-500/5">
+                  <span>Briefing</span>
+                </Button>
+              </div>
+            </div>
             <Button 
               asChild
               className="h-8 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
             >
               <Link href={`/pedidos?osId=${osId}&type=Bodega`}>
                 <PlusCircle className="mr-2 h-3.5 w-3.5" />
-                Nuevo Pedido
+                <span className="hidden md:inline">Nuevo Pedido</span>
+                <span className="inline md:hidden">Pedido</span>
               </Link>
             </Button>
           </div>
@@ -598,12 +651,12 @@ export default function BodegaPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30 border-b border-border/40">
-                  <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Artículo</TableHead>
-                  <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Solicita</TableHead>
-                  <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Fecha Entrega</TableHead>
-                  <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest w-32">Cantidad</TableHead>
-                  <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Valoración</TableHead>
-                  <TableHead className="h-10 px-4 w-10"></TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Artículo</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Solicita</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Fecha Entrega</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest w-32">Cantidad</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Valoración</TableHead>
+                  <TableHead className="h-7 px-2 w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -612,14 +665,14 @@ export default function BodegaPage() {
                     .sort((a, b) => (a.solicita || '').localeCompare(b.solicita || ''))
                     .map((item) => (
                       <TableRow key={item.itemCode + item.orderId} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
-                        <TableCell className="py-2 px-4 text-[11px] font-bold uppercase tracking-wider">{item.description}</TableCell>
-                        <TableCell className="py-2 px-4 text-[11px] text-muted-foreground">{item.solicita}</TableCell>
-                        <TableCell className="py-2 px-4 text-[11px] font-mono">
+                          <TableCell className="py-1 px-2 text-[11px] font-bold uppercase tracking-wider">{item.description}</TableCell>
+                          <TableCell className="py-1 px-2 text-[11px] text-muted-foreground">{item.solicita}</TableCell>
+                          <TableCell className="py-1 px-2 text-[11px] font-mono">
                           {item.deliveryDate
                             ? format(new Date(item.deliveryDate), 'dd/MM/yyyy')
                             : ''}
                         </TableCell>
-                        <TableCell className="py-2 px-4">
+                          <TableCell className="py-1 px-2">
                           <Input
                             type="number"
                             value={item.quantity}
@@ -629,8 +682,8 @@ export default function BodegaPage() {
                             className="w-20 h-7 text-[11px] font-mono bg-transparent border-border/40"
                           />
                         </TableCell>
-                        <TableCell className="py-2 px-4 text-[11px] font-mono">{formatCurrency(item.quantity * (item.price || 0))}</TableCell>
-                        <TableCell className="py-2 px-4">
+                          <TableCell className="py-1 px-2 text-[11px] font-mono">{formatCurrency(item.quantity * (item.price || 0))}</TableCell>
+                          <TableCell className="py-1 px-2">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -657,24 +710,24 @@ export default function BodegaPage() {
 
       <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden">
         <div className="absolute top-0 left-0 w-1 h-full bg-muted-foreground/20" />
-        <CardHeader className="py-4 border-b border-border/40">
-          <CardTitle className="text-[12px] font-black uppercase tracking-widest">Consulta de Pedidos en Preparación o Listos</CardTitle>
+        <CardHeader className="py-1 px-2 border-b border-border/40">
+          <CardTitle className="text-[11px] font-black uppercase tracking-widest">Consulta de Pedidos en Preparación o Listos</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30 border-b border-border/40">
-                  <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Hoja Picking</TableHead>
-                  <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Estado</TableHead>
-                  <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-widest">Contenido</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Hoja Picking</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Estado</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Contenido</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {blockedOrders.length > 0 ? (
                   blockedOrders.map((order) => (
                     <TableRow key={order.sheetId} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
-                      <TableCell className="py-2 px-4">
+                      <TableCell className="py-1 px-2">
                         <Link
                           href={`/almacen/picking/${order.sheetId}`}
                           className="text-blue-600 dark:text-blue-400 hover:underline text-[11px] font-bold font-mono"
@@ -682,7 +735,7 @@ export default function BodegaPage() {
                           {order.sheetId}
                         </Link>
                       </TableCell>
-                      <TableCell className="py-2 px-4">
+                      <TableCell className="py-1 px-2">
                         <Badge 
                           variant="outline"
                           className="text-[9px] font-black uppercase tracking-widest px-2 py-0 h-5 border-border/40"
@@ -690,7 +743,7 @@ export default function BodegaPage() {
                           {order.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-2 px-4 text-[11px] text-muted-foreground italic">
+                      <TableCell className="py-1 px-2 text-[11px] text-muted-foreground italic">
                         {order.items.map((i) => `${i.quantity}x ${i.description}`).join(', ')}
                       </TableCell>
                     </TableRow>

@@ -25,19 +25,22 @@ export default function SpaceDetailsDialog({ open, onOpenChange, name, address }
           {address ? (
             <div>
               <p className="text-sm text-muted-foreground mb-1">Dirección</p>
-              <p className="text-sm">{address}</p>
+              <p className="text-sm mb-2">{address}</p>
+              <div className="rounded overflow-hidden border border-muted-foreground/10">
+                <iframe
+                  title="Mapa Google Maps"
+                  width="100%"
+                  height="180"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`}
+                ></iframe>
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">Sin dirección disponible</p>
-          )}
-        </div>
-
-        <div className="mt-4 flex justify-end">
-          {mapsUrl && (
-            <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
-              <ExternalLink className="h-4 w-4" />
-              Abrir en Google Maps
-            </a>
           )}
         </div>
       </DialogContent>

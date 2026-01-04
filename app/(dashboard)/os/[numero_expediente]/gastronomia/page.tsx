@@ -4,7 +4,8 @@ import { useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Users, Calendar, Clock, Utensils } from 'lucide-react'
+import { Users, Calendar, Clock, Wine } from 'lucide-react'
+import { useMaterialOrders } from '@/hooks/use-data-queries'
 import type {
   ServiceOrder,
   ComercialBriefing,
@@ -144,6 +145,25 @@ export default function GastronomiaPage() {
     return safeOrders.reduce((acc, o: any) => acc + (o.total || 0), 0)
   }, [gastronomyOrders])
 
+  // Bodega CTA: presupuesto/objetivo for Bodega module (used in header)
+  const { data: materialOrders = [] } = useMaterialOrders(serviceOrder?.id, 'Bodega')
+  const presupuestoBodega = useMemo(() => {
+    const safe = materialOrders || []
+    return safe.reduce((acc: number, o: any) => acc + (o.total || 0), 0)
+  }, [materialOrders])
+
+  const objetivoBodega = useMemo(() => {
+    const objetivoTemplate = objetivos || plantillas?.find((p: any) => p.nombre?.toLowerCase() === 'micecatering')
+    const objetivoPct = (objetivoTemplate?.bodega || 0) / 100
+    const facturacionNeta = (serviceOrder?.facturacion as number) || 0
+    return facturacionNeta * objetivoPct
+  }, [objetivos, plantillas, serviceOrder])
+
+  const desviacionBodegaPct = useMemo(() => {
+    if (!objetivoBodega || objetivoBodega === 0) return 0
+    return ((presupuestoBodega - objetivoBodega) / objetivoBodega) * 100
+  }, [presupuestoBodega, objetivoBodega])
+
   const objetivoValue = useMemo(() => {
     const objetivoTemplate = objetivos || plantillas?.find((p: any) => p.nombre?.toLowerCase() === 'micecatering')
     const objetivoPct = (objetivoTemplate?.gastronomia || 0) / 100
@@ -164,48 +184,65 @@ export default function GastronomiaPage() {
     <div className="space-y-2">
       {/* Header Premium Sticky */}
       <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-2">
-        <div className="max-w-7xl mx-auto px-3 py-2 flex items-center justify-between gap-4">
-          <div className="flex items-center h-12">
-            <Utensils className="h-6 w-6 text-emerald-800" aria-hidden="true" />
-          </div>
-
-          <div className="flex items-center gap-6 text-sm">
-            <div className="flex flex-col items-end justify-center leading-none">
-              <div className="text-[9px] font-black uppercase text-muted-foreground">Presupuesto</div>
-              <div className="font-bold text-sm">{presupuesto.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+        <div className="max-w-7xl mx-auto px-3 py-1">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center h-10">
+              <Wine className="h-6 w-6 text-emerald-800" aria-hidden="true" />
             </div>
 
-            <div className="flex flex-col items-end justify-center leading-none">
-              <div className="text-[9px] font-black uppercase text-muted-foreground">Objetivo</div>
-              <div className="font-bold text-sm">{objetivoValue.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
-            </div>
+            <div className="flex items-center gap-6 text-sm">
+              <div className="flex flex-col items-end justify-center leading-none">
+                <div className="text-[9px] font-black uppercase text-muted-foreground">Presupuesto</div>
+                <div className="font-bold text-sm">{presupuestoBodega.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+              </div>
 
-            <div className="flex flex-col items-end justify-center leading-none">
-              <div className="text-[9px] font-black uppercase text-muted-foreground">Desviación</div>
-              <div className={cn('font-bold text-sm', desviacionPct > 0 ? 'text-red-500' : 'text-emerald-600')}>
-                {isFinite(desviacionPct) ? `${desviacionPct.toFixed(2)}%` : '-'}
+              <div className="flex flex-col items-end justify-center leading-none">
+                <div className="text-[9px] font-black uppercase text-muted-foreground">Objetivo</div>
+                <div className="font-bold text-sm">{objetivoBodega.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+              </div>
+
+              <div className="flex flex-col items-end justify-center leading-none">
+                <div className="text-[9px] font-black uppercase text-muted-foreground">Desviación</div>
+                <div className={cn('font-bold text-sm', desviacionBodegaPct > 0 ? 'text-red-500' : 'text-emerald-600')}>
+                  {isFinite(desviacionBodegaPct) ? `${desviacionBodegaPct.toFixed(2)}%` : '-'}
+                </div>
               </div>
             </div>
+          </div>
+
+          <div className="flex items-center gap-3 mt-2 md:justify-end justify-center">
+            <Button variant="outline" size="sm" className="h-8 text-[12px]">
+              <span className="hidden md:inline">Resumen Artículos</span>
+              <span className="inline md:hidden">Artículos</span>
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-[12px]">
+              <span className="hidden md:inline">Resumen Briefing</span>
+              <span className="inline md:hidden">Briefing</span>
+            </Button>
+            <Button variant="default" size="sm" className="h-8 text-[12px]">
+              <span className="hidden md:inline">Nuevo Pedido</span>
+              <span className="inline md:hidden">Pedido</span>
+            </Button>
           </div>
         </div>
       </div>
 
       <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
         <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
-        <CardHeader className="py-2 px-3 border-b border-border/40 bg-muted/10">
+        <CardHeader className="py-1 px-2 border-b border-border/40 bg-muted/10">
           <CardTitle className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
             Pedidos Gastronomía
           </CardTitle>
         </CardHeader>
         <CardContent className="p-1">
           {/* Vista Móvil: Tarjetas Apiladas */}
-          <div className="md:hidden p-1 space-y-1">
+          <div className="md:hidden p-1 space-y-0.5">
             <MobileTableView
               data={sortedBriefingItems}
               columns={mobileColumns}
               compact
-              cardClassName="p-1 gap-1"
-              className="space-y-1"
+              cardClassName="p-1 gap-0.5"
+              className="space-y-0.5"
               onCardClick={(item) => router.push(`/os/${osId}/gastronomia/${item.id}`)}
               sentinelRef={sentinelRef}
               isLoading={false}
@@ -218,12 +255,12 @@ export default function GastronomiaPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30 border-b border-border/40">
-                  <TableHead className="h-8 px-2 text-[10px] font-black uppercase tracking-widest">Fecha</TableHead>
-                  <TableHead className="h-8 px-2 text-[10px] font-black uppercase tracking-widest">Hora</TableHead>
-                  <TableHead className="h-8 px-2 text-[10px] font-black uppercase tracking-widest">Descripción</TableHead>
-                  <TableHead className="h-8 px-2 text-[10px] font-black uppercase tracking-widest">PAX</TableHead>
-                  <TableHead className="h-8 px-2 text-[10px] font-black uppercase tracking-widest">Comentarios</TableHead>
-                  <TableHead className="h-8 px-2 text-right text-[10px] font-black uppercase tracking-widest">Estado</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Fecha</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Hora</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Descripción</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">PAX</TableHead>
+                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Comentarios</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[10px] font-black uppercase tracking-widest">Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
