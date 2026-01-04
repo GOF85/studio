@@ -12,6 +12,7 @@ export interface ResponsableBadgeProps {
   telefono?: string;
   email?: string;
   showTooltip?: boolean;
+  compact?: boolean;
 }
 
 // Extraer iniciales del nombre
@@ -73,6 +74,7 @@ const ResponsableBadgeComponent = ({
   telefono,
   email,
   showTooltip = true,
+  compact = false,
 }: ResponsableBadgeProps) => {
   const isMobile = useIsMobile();
   
@@ -86,7 +88,7 @@ const ResponsableBadgeComponent = ({
       <Badge
         variant="outline"
         className={cn(
-          'h-6 px-2 text-xs font-medium rounded-full border',
+          compact ? 'h-5 px-1 text-[10px] font-medium rounded-full border' : 'h-6 px-2 text-xs font-medium rounded-full border',
           'bg-amber-50 dark:bg-amber-950/30',
           'text-amber-700 dark:text-amber-300',
           'border-amber-300 dark:border-amber-700'
@@ -101,7 +103,7 @@ const ResponsableBadgeComponent = ({
     <Badge
       variant="outline"
       className={cn(
-        'h-6 w-6 p-0 flex items-center justify-center text-xs font-bold rounded-full border cursor-default',
+        compact ? 'h-5 w-5 p-0 flex items-center justify-center text-[10px] font-bold rounded-full border cursor-default' : 'h-6 w-6 p-0 flex items-center justify-center text-xs font-bold rounded-full border cursor-default',
         'transition-transform duration-200 hover:scale-110',
         styles.bg,
         styles.text,

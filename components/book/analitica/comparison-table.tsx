@@ -239,10 +239,10 @@ export function ComparisonTable({
                             "text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border",
                             item.tipo === 'receta' ? "bg-blue-50 text-blue-700 border-blue-100" :
                             item.tipo === 'elaboracion' ? "bg-amber-50 text-amber-700 border-amber-100" :
-                            item.tipo === 'articulo_erp' ? "bg-purple-50 text-purple-700 border-purple-100" :
+                            (item.tipo as any) === 'articulo_erp' ? "bg-purple-50 text-purple-700 border-purple-100" :
                             "bg-slate-50 text-slate-700 border-slate-100"
                         )}>
-                            {item.tipo === 'articulo_erp' ? 'ART. ERP' : item.tipo}
+                            {(item.tipo as any) === 'articulo_erp' ? 'ART. ERP' : item.tipo}
                         </span>
 
                         {/* Subtítulo Contextual */}
@@ -256,7 +256,7 @@ export function ComparisonTable({
                                 {item.categoria}
                             </span>
                         )}
-                        {item.tipo === 'articulo_erp' && item.categoria && (
+                        {(item.tipo as any) === 'articulo_erp' && item.categoria && (
                             <span className="text-[10px] text-muted-foreground">
                                 Fam: {item.categoria}
                             </span>

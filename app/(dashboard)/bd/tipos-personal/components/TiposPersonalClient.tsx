@@ -94,7 +94,14 @@ export function TiposPersonalClient({ initialData }: TiposPersonalClientProps) {
       toast({ variant: 'destructive', title: 'No hay datos' });
       return;
     }
-    const csv = Papa.unparse(items, { columns: CSV_HEADERS });
+    const exportItems = items.map(i => ({
+      id: i.id,
+      proveedorId: i.proveedorId,
+      nombreProveedor: i.nombreProveedor || '',
+      categoria: i.categoria,
+      precioHora: i.precioHora,
+    }));
+    const csv = Papa.unparse(exportItems, { columns: CSV_HEADERS });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

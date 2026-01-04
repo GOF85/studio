@@ -26,6 +26,38 @@ export const osFormSchema = z.object({
     direccionPrincipal: z.string().optional(),
     startDate: z.date().optional(),
     endDate: z.date().optional(),
+    id: z.string().optional(),
+    // Additional fields used by the OS info form
+    space: z.string().optional(),
+    spaceAddress: z.string().optional(),
+    spaceContact: z.string().optional(),
+    spacePhone: z.string().optional(),
+    spaceMail: z.string().optional(),
+    respMetre: z.string().optional(),
+    respMetrePhone: z.string().optional(),
+    respMetreMail: z.string().optional(),
+    respPase: z.string().optional(),
+    respPasePhone: z.string().optional(),
+    respPaseMail: z.string().optional(),
+    respCocinaPase: z.string().optional(),
+    respCocinaPasePhone: z.string().optional(),
+    respCocinaPaseMail: z.string().optional(),
+    respCocinaCPR: z.string().optional(),
+    respCocinaCPRPhone: z.string().optional(),
+    respCocinaCPRMail: z.string().optional(),
+    respProjectManager: z.string().optional(),
+    respProjectManagerPhone: z.string().optional(),
+    respProjectManagerMail: z.string().optional(),
+    comercialAsiste: z.boolean().optional(),
+    comercialPhone: z.string().optional(),
+    comercialMail: z.string().optional(),
+    rrhhAsiste: z.boolean().optional(),
+    respRRHH: z.string().optional(),
+    respRRHHPhone: z.string().optional(),
+    respRRHHMail: z.string().optional(),
+    isVip: z.boolean().optional(),
+    cateringVertical: z.enum(['Recurrente', 'Grandes Eventos', 'Gran Cuenta']).optional(),
+    anulacionMotivo: z.string().optional(),
 });
 
 export const entregaFormSchema = osFormSchema.extend({
@@ -33,3 +65,6 @@ export const entregaFormSchema = osFormSchema.extend({
 });
 
 export type EntregaFormValues = z.infer<typeof entregaFormSchema>;
+
+// Alias expected by some pages/components
+export type OsFormValues = z.infer<typeof osFormSchema>;

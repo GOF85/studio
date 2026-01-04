@@ -332,8 +332,7 @@ export function CategoriasRecetasClient({ initialData }: CategoriasRecetasClient
                   </Button>
                 </div>
               )}
-              selectedIds={selectedIds}
-              onToggleSelect={handleToggleSelect}
+            
             />
           </div>
         </div>

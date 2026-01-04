@@ -173,11 +173,14 @@ export function BorrarOsClient({ initialCounts }: BorrarOsClientProps) {
             .limit(1000);
 
         if (!error && data) {
-            setItems(data.map(item => ({
-                id: item[db.idField || 'id'],
-                label: String(item[db.labelField || 'id']),
-                checked: false
-            })));
+            setItems((data as any[]).map((item) => {
+                const row = item as Record<string, any>;
+                return {
+                    id: String(row[db.idField || 'id']),
+                    label: String(row[db.labelField || 'id']),
+                    checked: false,
+                } as ItemToDelete;
+            }));
         }
         setLoadingItems(false);
     };

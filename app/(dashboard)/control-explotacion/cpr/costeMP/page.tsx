@@ -55,7 +55,7 @@ function CosteMPPageInner() {
             allServiceOrders
                 .filter(os => {
                     try {
-                        const osDate = new Date(os.startDate);
+                        const osDate = os.startDate ? new Date(os.startDate) : new Date();
                         return os.status === 'Confirmado' && isWithinInterval(osDate, { start: rangeStart, end: rangeEnd });
                     } catch (e) { return false; }
                 })
@@ -73,7 +73,7 @@ function CosteMPPageInner() {
                     if (receta) {
                         const costeTotalItem = (receta.costeMateriaPrima || 0) * (item.quantity || 0);
                         costesMPDetallados.push({
-                            fecha: os?.startDate || new Date().toISOString(),
+                            fecha: os?.startDate ? (typeof os.startDate === 'string' ? os.startDate : new Date(os.startDate).toISOString()) : new Date().toISOString(),
                             osId: os?.id || 'N/A',
                             osNumber: os?.serviceNumber || 'N/A',
                             referencia: receta.nombre,

@@ -444,21 +444,22 @@ function PickingPageContent() {
                       if (cantidadNecesaria < 0.01) return;
       
                       let existing = necesidadesHito.get(elabInfo.id);
-                      if (!existing) {
-                        existing = {
-                          elaboracionId: elabInfo.id,
-                          elaboracionNombre: elabInfo.nombre,
-                          cantidadNecesaria: 0,
-                          cantidadAsignada: 0,
-                          unidad: elabInfo.unidadProduccion,
-                          tipoExpedicion: elabInfo.tipoExpedicion,
-                          recetas: [],
-                          lotesDisponibles: [],
-                          alergenos: []
-                        };
-                        necesidadesHito.set(elabInfo.id, existing);
-                      }
-                      existing.cantidadNecesaria += cantidadNecesaria;
+                                            if (!existing) {
+                                                existing = {
+                                                    elaboracionId: elabInfo.id,
+                                                    elaboracionNombre: elabInfo.nombre,
+                                                    cantidadNecesaria: 0,
+                                                    cantidadAsignada: 0,
+                                                    unidad: elabInfo.unidadProduccion,
+                                                    tipoExpedicion: (['REFRIGERADO','CONGELADO','SECO'] as const).includes(elabInfo.tipoExpedicion as any) ? (elabInfo.tipoExpedicion as any) : undefined,
+                                                    recetas: [],
+                                                    lotesDisponibles: [],
+                                                    alergenos: []
+                                                };
+                                                necesidadesHito.set(elabInfo.id, existing);
+                                            }
+                                            // existing is ensured above
+                                            (existing as any).cantidadNecesaria += cantidadNecesaria;
                     }
                   });
                 }

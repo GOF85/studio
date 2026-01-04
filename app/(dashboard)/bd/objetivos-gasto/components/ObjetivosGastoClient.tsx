@@ -33,7 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Pencil, Trash2, Search, Target, Menu, FileUp, FileDown, Check, X, Settings2 } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Search, Target, Menu, FileUp, FileDown, Check, X, Settings2, Loader2 } from 'lucide-react';
 import type { ObjetivosGasto } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
@@ -332,11 +332,29 @@ export function ObjetivosGastoClient({ initialData }: ObjetivosGastoClientProps)
             <MobileTableView
               data={filteredItems}
               columns={mobileColumns}
-              onEdit={(item) => {
-                setEditingItem(item);
-                setIsDialogOpen(true);
-              }}
-              onDelete={(item) => setItemToDelete(item)}
+              renderActions={(item) => (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setEditingItem(item);
+                      setIsDialogOpen(true);
+                    }}
+                    className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary transition-all"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setItemToDelete(item)}
+                    className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-all"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             />
           </div>
         </div>

@@ -79,8 +79,8 @@ export default function EditarFormatoExpedicionPage() {
               <div className="flex gap-2">
                 <Button variant="outline" type="button" onClick={() => router.push('/bd/formatos-expedicion')}> <X className="mr-2" /> Cancelar</Button>
                 <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2" /> Borrar</Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                <Button type="submit" disabled={upsertMutation.isPending}>
+                  {upsertMutation.isPending ? <Loader2 className="animate-spin" /> : <Save />}
                   <span className="ml-2">Guardar Cambios</span>
                 </Button>
               </div>

@@ -97,7 +97,7 @@ export function RecetaSelector({ onSelect }: RecetaSelectorProps) {
                 setRecetas(transformedRecetas);
 
                 // Extract unique categories from recipes
-                const uniqueCategories = [...new Set(transformedRecetas.map(r => r.categoria))];
+                const uniqueCategories = Array.from(new Set(transformedRecetas.map(r => r.categoria)));
                 const categoriasList: CategoriaReceta[] = uniqueCategories.map((cat, idx) => ({
                     id: `cat-${idx}`,
                     nombre: cat,

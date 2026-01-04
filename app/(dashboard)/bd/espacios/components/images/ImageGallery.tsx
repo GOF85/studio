@@ -22,7 +22,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Star, GripVertical, Maximize2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import type { ImagenEspacio } from '@/types/espacios';
 
 interface SortableImageProps {
@@ -72,6 +72,7 @@ function SortableImage({ imagen, onDelete, onSetPrincipal }: SortableImageProps)
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-black/90 border-none">
+                        <DialogTitle className="sr-only">Vista completa</DialogTitle>
                         <img
                             src={imagen.url}
                             alt={imagen.descripcion || 'Vista completa'}

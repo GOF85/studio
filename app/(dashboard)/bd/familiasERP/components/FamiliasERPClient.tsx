@@ -105,7 +105,8 @@ export function FamiliasERPClient({ initialData }: FamiliasERPClientProps) {
         }));
 
         try {
-          await upsertFamilia.mutateAsync(importedData);
+          // upsert each record individually to match the expected mutation input
+          await Promise.all(importedData.map((rec: any) => upsertFamilia.mutateAsync(rec)));
           toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
         } catch (error: any) {
           toast({ variant: 'destructive', title: 'Error de importación', description: error.message });

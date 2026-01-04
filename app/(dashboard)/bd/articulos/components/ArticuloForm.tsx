@@ -38,6 +38,7 @@ export function ArticuloForm({ initialData, isEditing = false }: { initialData?:
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   const [isErpSelectorOpen, setIsErpSelectorOpen] = useState(false);
+  // Permitir arrays de string o de objeto para robustez
   const [imagenes, setImagenes] = useState<ImagenArticulo[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -79,7 +80,17 @@ export function ArticuloForm({ initialData, isEditing = false }: { initialData?:
   useEffect(() => {
     setIsMounted(true);
     if (initialData?.imagenes) {
-      setImagenes(initialData.imagenes);
+      // Si es array de string, conviértelo a objeto mínimo
+      if (Array.isArray(initialData.imagenes) && typeof initialData.imagenes[0] === 'string') {
+        setImagenes(initialData.imagenes.map((url: string, idx: number) => ({
+          id: url,
+          url,
+          esPrincipal: idx === 0,
+          orden: idx
+        })));
+      } else {
+        setImagenes(initialData.imagenes);
+      }
     }
   }, [initialData]);
 

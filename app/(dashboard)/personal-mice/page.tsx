@@ -79,14 +79,14 @@ export default function PersonalMicePage() {
         (os && os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()));
 
       let dateMatch = true;
-      if (dateRange?.from && os && os.startDate) {
-          const osDate = new Date(os.startDate);
+        if (dateRange?.from && os && os.startDate) {
+          const osDate = os.startDate ? new Date(os.startDate) : new Date();
           if(dateRange.to) {
-              dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+            dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
           } else {
-              dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+            dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
           }
-      }
+        }
 
       return searchMatch && dateMatch;
     });

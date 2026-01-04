@@ -116,15 +116,16 @@ function PedidoAtipicoPageInner() {
         }
 
         const finalOrder = {
-            ...data,
-            fecha: format(data.fecha, 'yyyy-MM-dd'),
+          ...data,
+          fecha: format(data.fecha, 'yyyy-MM-dd'),
+          osId: evento.id,
         };
 
         if (isEditing && orderId) {
-            await updateAtipico.mutateAsync({ ...finalOrder, id: orderId });
+          await updateAtipico.mutateAsync({ ...finalOrder, id: orderId, osId: evento.id });
         } else {
             const { id, ...newOrder } = finalOrder;
-            await createAtipico.mutateAsync(newOrder);
+          await createAtipico.mutateAsync(newOrder as any);
         }
         
         router.push(`/os/${osId}/atipicos`);

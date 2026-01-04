@@ -3,6 +3,8 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import ImageViewer from '@/components/ui/image-viewer';
+import { getThumbnail, getImageList } from '@/lib/image-utils';
 import { Plus } from 'lucide-react';
 
 import type { CateringItem } from '@/types';
@@ -18,6 +20,9 @@ interface ItemCardProps {
 
 export function ItemCard({ item, onAddItem }: ItemCardProps) {
   const [quantity, setQuantity] = useState(1);
+  const [isOpen, setIsOpen] = useState(false);
+  const thumb = getThumbnail(item.imagenes || item.imageUrl || item.images || item);
+  const imagesList = getImageList(item.imagenes || item.imageUrl || item.images || item);
 
   const handleAddClick = () => {
     if (quantity > 0) {
@@ -29,13 +34,13 @@ export function ItemCard({ item, onAddItem }: ItemCardProps) {
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
       <CardHeader className="p-0">
         <div className="relative aspect-[4/3] w-full">
-          <Image
-            src={item.imageUrl}
-            alt={item.description}
-            fill
-            className="object-cover"
-            data-ai-hint={item.imageHint}
-          />
+          {thumb ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={thumb} alt={item.description} className="object-cover w-full h-full cursor-zoom-in" onClick={() => setIsOpen(true)} data-ai-hint={item.imageHint} />
+          ) : (
+            <Image src={item.imageUrl} alt={item.description} fill className="object-cover" data-ai-hint={item.imageHint} />
+          )}
+          <ImageViewer images={imagesList} startIndex={0} open={isOpen} onOpenChange={setIsOpen} />
         </div>
       </CardHeader>
       <CardContent className="p-4 flex-grow">

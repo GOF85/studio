@@ -72,7 +72,7 @@ export function SettingsDialog({ open, onOpenChange, onSave }: SettingsDialogPro
   }, [isSettingsLoaded, settings, form]);
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    saveSettings(values as ApiSettings);
+    saveSettings();
     onSave?.();
     onOpenChange(false);
   }

@@ -10,5 +10,5 @@ export default async function ServiceOrdersPage() {
     pageSize: 20
   });
 
-  return <OSClient initialData={initialData} />;
+  return <OSClient initialData={initialData as any} />;
 }

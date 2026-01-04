@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 
 import type { ServiceOrder, Personal } from '@/types'
+import { osFormSchema, type OsFormValues } from '@/types/entregas'
 import type { EspacioV2, ContactoEspacio } from '@/types/espacios'
 import { CATERING_VERTICALES } from '@/types'
 import { cn } from '@/lib/utils'
@@ -111,69 +112,7 @@ const AnulacionDisplay = () => {
   )
 }
 
-// --- SCHEMA ---
-export const osFormSchema = z.object({
-  id: z.string().min(1),
-  serviceNumber: z.string().min(1, 'El Nº de Servicio es obligatorio'),
-  startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
-  client: z.string().min(1, 'El cliente es obligatorio.'),
-  tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
-  asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
-  // CORRECCIÓN 1: Spread del array readonly para evitar error de tipo
-  cateringVertical: z.enum([...CATERING_VERTICALES] as [string, ...string[]], {
-    required_error: 'La vertical de catering es obligatoria.',
-  }),
-  contact: z.string().optional().default(''),
-  phone: z.string().optional().default(''),
-  finalClient: z.string().optional().default(''),
-  endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
-  space: z.string().optional().default(''),
-  spaceAddress: z.string().optional().default(''),
-  spaceContact: z.string().optional().default(''),
-  spacePhone: z.string().optional().default(''),
-  spaceMail: z.string().email().optional().or(z.literal('')),
-  respMetre: z.string().optional().default(''),
-  respMetrePhone: z.string().optional().default(''),
-  respMetreMail: z.string().email().optional().or(z.literal('')),
-  respCocinaCPR: z.string().optional().default(''),
-  respCocinaCPRPhone: z.string().optional().default(''),
-  respCocinaCPRMail: z.string().email().optional().or(z.literal('')),
-  respPase: z.string().optional().default(''),
-  respPasePhone: z.string().optional().default(''),
-  respPaseMail: z.string().email().optional().or(z.literal('')),
-  respCocinaPase: z.string().optional().default(''),
-  respCocinaPasePhone: z.string().optional().default(''),
-  respCocinaPaseMail: z.string().email().optional().or(z.literal('')),
-  respProjectManager: z.string().optional().default(''),
-  respProjectManagerPhone: z.string().optional().default(''),
-  respProjectManagerMail: z.string().email().optional().or(z.literal('')),
-  comercialAsiste: z.boolean().optional().default(false),
-  comercial: z.string().optional().default(''),
-  comercialPhone: z.string().optional().default(''),
-  comercialMail: z.string().email().optional().or(z.literal('')),
-  rrhhAsiste: z.boolean().optional().default(false),
-  respRRHH: z.string().optional().default(''),
-  respRRHHPhone: z.string().optional().default(''),
-  respRRHHMail: z.string().email().optional().or(z.literal('')),
-  agencyPercentage: z.coerce.number().optional().default(0),
-  agencyCommissionValue: z.coerce.number().optional().default(0),
-  spacePercentage: z.coerce.number().optional().default(0),
-  spaceCommissionValue: z.coerce.number().optional().default(0),
-  comisionesAgencia: z.coerce.number().optional().default(0),
-  comisionesCanon: z.coerce.number().optional().default(0),
-  facturacion: z.coerce.number().optional().default(0),
-  plane: z.string().optional().default(''),
-  comments: z.string().optional().default(''),
-  status: z.enum(['Borrador', 'Pendiente', 'Confirmado', 'Anulado']).default('Borrador'),
-  anulacionMotivo: z.string().optional(),
-  deliveryLocations: z.array(z.string()).optional().default([]),
-  objetivoGastoId: z.string().optional(),
-  direccionPrincipal: z.string().optional().default(''),
-  isVip: z.boolean().optional().default(false),
-  email: z.string().email().optional().or(z.literal('')),
-})
-
-export type OsFormValues = z.infer<typeof osFormSchema>
+// Using shared `osFormSchema` and `OsFormValues` from types/entregas
 
 const defaultValues: Partial<OsFormValues> = {
   serviceNumber: '',
@@ -523,6 +462,7 @@ export default function InfoPage() {
       reset({
         ...defaultValues,
         ...serviceOrder,
+        status: (serviceOrder.status as any) ?? defaultValues.status,
         startDate: serviceOrder.startDate ? new Date(serviceOrder.startDate) : new Date(),
         endDate: serviceOrder.endDate ? new Date(serviceOrder.endDate) : new Date(),
       })
@@ -595,9 +535,11 @@ export default function InfoPage() {
         toast({ description: message, duration: 2000 })
         router.push(`/os/${result.numero_expediente}/info`)
       } else {
-        await updateEventoMutation.mutateAsync(safeData)
+        // ensure id is present when updating
+        const payload = { ...(safeData as any), id: (serviceOrder && serviceOrder.id) || osId } as any
+        await updateEventoMutation.mutateAsync(payload)
         toast({ description: message, duration: 2000 })
-        reset(safeData)
+        reset(payload)
       }
     } catch (err: any) {
       console.error('Error saving OS:', err)
@@ -695,8 +637,8 @@ export default function InfoPage() {
                     control={form.control}
                     name="status"
                     render={({ field }) => (
-                      <FormItem>
-                        <Select onValueChange={handleStatusChange} value={field.value}>
+                        <FormItem>
+                        <Select onValueChange={(v) => handleStatusChange(v as any)} value={field.value}>
                           <FormControl>
                             <SelectTrigger
                               className={cn(

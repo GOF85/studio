@@ -89,8 +89,8 @@ export default function GestionPersonalPage() {
         reset({ 
             entregas: entregasData.map(e => ({
                 ...e, 
-                fecha: new Date(e.fecha),
-                personalAsignado: Array.isArray(e.personalAsignado) ? e.personalAsignado : []
+                fecha: new Date((e as any).fecha),
+                personalAsignado: Array.isArray((e as any).personalAsignado) ? (e as any).personalAsignado : []
             })) 
         });
         setIsMounted(true);

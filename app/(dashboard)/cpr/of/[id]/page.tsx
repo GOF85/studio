@@ -283,7 +283,9 @@ export default function OfDetailPage() {
                 cantidadTotal: data.cantidadTotal,
                 unidad: selectedElaboracion.unidadProduccion,
                 partidaAsignada: selectedElaboracion.partidaProduccion,
-                tipoExpedicion: selectedElaboracion.tipoExpedicion,
+                                tipoExpedicion: (['REFRIGERADO','CONGELADO','SECO'] as const).includes(selectedElaboracion.tipoExpedicion as any)
+                                    ? (selectedElaboracion.tipoExpedicion as any)
+                                    : undefined,
                 estado: 'Pendiente',
                 osIDs: [],
                 incidencia: false,

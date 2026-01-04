@@ -42,3 +42,32 @@ export async function resolveOsId(osId: string): Promise<string> {
 
     return osId; // Devolver original si no se encuentra en ninguna
 }
+
+// Construye una expresión segura para PostgREST `.or()` cuando se busca por OS.
+// Si `targetId` es distinto del `osId` (es decir, se resolvió a UUID), retorna
+// `os_id.eq.<uuid>,os_id.eq.<original>` para abarcar ambos casos.
+// Si no se resolvió (targetId === osId) asumimos que tenemos un `numero_expediente`
+// y devolvemos una expresión que comprueba `os_id` y `numero_expediente`.
+export function buildOsOr(osId: string, targetId: string) {
+    if (!osId) return '';
+    if (targetId && targetId !== osId) {
+        return `os_id.eq.${targetId},os_id.eq.${osId}`;
+    }
+    // fallback: only match by os_id (avoid adding numero_expediente which
+    // may not exist in all tables and can cause 400 Bad Request)
+    return `os_id.eq.${targetId}`;
+}
+
+// Generic builder for PostgREST `.or()` expressions for a given field.
+// field: the DB column to compare (eg 'os_id' or 'evento_id')
+// osId: original identifier passed by the UI (could be UUID or numero_expediente)
+// targetId: resolved UUID (or same as osId if not resolved)
+export function buildFieldOr(field: string, osId: string, targetId: string) {
+    if (!osId) return '';
+    if (targetId && targetId !== osId) {
+        return `${field}.eq.${targetId},${field}.eq.${osId}`;
+    }
+    // fallback: only match the field to the targetId. Avoid adding
+    // numero_expediente to prevent errors on tables without that column.
+    return `${field}.eq.${targetId}`;
+}

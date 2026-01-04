@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { FileText, Search, Trash2, Package, PlusCircle, Pencil } from 'lucide-react';
+import { FileText, Search, Trash2, Package, PlusCircle, Pencil, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

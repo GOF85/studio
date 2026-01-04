@@ -219,9 +219,9 @@ function PrevisionEntregasClient() {
   const { data: entregasData, isLoading, refetch } = useEntregas();
   const [isMounted, setIsMounted] = useState(false);
   
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams() ?? new URLSearchParams();
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });

@@ -435,22 +435,21 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       <TableLoadingSplash isLoading={isLoading || isFetching} type="articulos" />
       
-      {/* Premium Header Section */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-card/40 backdrop-blur-md border border-border/40 p-8 shadow-2xl">
-        <div className="absolute top-0 right-0 -mt-24 -mr-24 w-96 h-96 bg-primary/10 rounded-full blur-[100px]" />
-        
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="p-4 rounded-[2rem] bg-primary/10 text-primary shadow-inner">
-              <Package className="h-8 w-8" />
+      {/* Header ultra compacto en desktop */}
+      <div className="relative overflow-hidden rounded-xl bg-card/40 backdrop-blur-md border border-border/40 p-3 shadow-md mt-2 mb-2">
+        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-primary/10 rounded-full blur-[60px]" />
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-primary/10 text-primary shadow-inner">
+              <Package className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tighter text-foreground">Artículos MICE</h1>
-              <p className="text-sm font-medium text-muted-foreground/70">Gestión de inventario y tarifas de catering</p>
+              <h1 className="text-xl font-black tracking-tight text-foreground leading-tight">Artículos MICE</h1>
+              <p className="text-xs font-medium text-muted-foreground/70 leading-tight">Gestión de inventario y tarifas de catering</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
               <Button 
                 variant="destructive" 
@@ -501,40 +500,42 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col md:flex-row gap-4 items-center">
+        <div className="mt-2 flex flex-col md:flex-row gap-2 items-center">
           <div className="relative flex-1 w-full group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/40 group-focus-within:text-primary transition-colors" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors" />
             <Input
-              placeholder="Buscar por nombre o ID..."
-              className="pl-12 h-12 bg-background/40 border-border/40 rounded-2xl focus:ring-primary/20 transition-all font-medium"
+              placeholder="Buscar por nombre..."
+              className="pl-9 h-8 bg-background/40 border-border/40 rounded-lg focus:ring-primary/20 transition-all font-medium text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-2 w-full md:w-auto">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full md:w-[220px] h-12 bg-background/40 border-border/40 rounded-2xl font-bold">
+              <SelectTrigger className="w-full md:w-[280px] h-8 bg-background/40 border-border/40 rounded-lg font-bold text-xs">
                 <SelectValue placeholder="Categoría" />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
-                <SelectItem value="all" className="font-bold">Todas las Categorías</SelectItem>
+              <SelectContent className="rounded-lg border-border/40 shadow-xl">
+                <SelectItem value="all" className="font-bold text-xs">Todas las Categorías</SelectItem>
                 {categoriasDisponibles.map(c => (
-                  <SelectItem key={c} value={c} className="font-medium">
+                  <SelectItem key={c} value={c} className="font-medium text-xs">
                     {normalizeCategoria(c)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-
-            <div className="flex items-center gap-3 px-4 h-12 rounded-2xl bg-background/40 border border-border/40 hover:border-primary/30 transition-colors cursor-pointer group">
-              <Checkbox 
-                id="partner-filter" 
-                checked={isPartnerFilter} 
+            <div className="flex items-center gap-2 px-2 h-8 rounded-lg bg-background/40 border border-border/40 hover:border-primary/30 transition-colors group">
+              <Checkbox
+                id="partner-filter"
+                checked={isPartnerFilter}
                 onCheckedChange={(checked) => setIsPartnerFilter(Boolean(checked))}
-                className="rounded-lg h-5 w-5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                className="rounded h-4 w-4 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                tabIndex={0}
+                disabled={false}
               />
-              <label htmlFor="partner-filter" className="text-xs font-black text-muted-foreground/70 group-hover:text-primary cursor-pointer select-none uppercase tracking-widest">Partner</label>
+              <label htmlFor="partner-filter" className="text-[10px] font-black text-muted-foreground/70 group-hover:text-primary cursor-pointer select-none uppercase tracking-widest" style={{ pointerEvents: 'auto' }}>
+                Partner
+              </label>
             </div>
           </div>
         </div>
@@ -570,24 +571,24 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
       </div>
 
       {/* Vista Escritorio: Tabla Premium */}
-      <div className="hidden md:block rounded-[2rem] border border-border/40 bg-card/40 backdrop-blur-md overflow-hidden shadow-2xl">
+      <div className="hidden md:block rounded-xl border border-border/40 bg-card/40 backdrop-blur-md overflow-hidden shadow-xl">
         <Table>
           <TableHeader className="bg-muted/30">
-            <TableRow className="hover:bg-transparent border-border/40 h-16">
-              <TableHead className="w-16 text-center">
+            <TableRow className="hover:bg-transparent border-border/40 h-10">
+              <TableHead className="w-10 text-center p-1 align-middle">
                 <Checkbox
                   checked={selectedIds.size === items.length && items.length > 0 ? true : selectedIds.size > 0 ? 'indeterminate' : false}
                   onCheckedChange={handleToggleAll}
-                  className="rounded-lg h-5 w-5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  className="rounded h-4 w-4 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
               </TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Nombre del Artículo</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Categoría</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Subcategoría</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50">Localización</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 text-right">PVP</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 text-right">Alquiler</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 text-right pr-8">Reposición</TableHead>
+              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 p-1">Nombre</TableHead>
+              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 p-1">Categoría</TableHead>
+              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 p-1">Subcat.</TableHead>
+              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 p-1">Loc.</TableHead>
+              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 text-right p-1">PVP</TableHead>
+              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 text-right p-1">Alquiler</TableHead>
+              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 text-right p-1 pr-4">Repos.</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -599,26 +600,48 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
                   <TableRow
                     key={item.id}
                     className={cn(
-                      "group cursor-pointer transition-all duration-300 border-border/40 h-20",
+                      "group cursor-pointer transition-all duration-200 border-border/40 h-10 text-xs align-middle",
                       isSelected 
-                        ? "bg-primary/5 border-l-4 border-l-primary" 
+                        ? "bg-primary/5 border-l-2 border-l-primary" 
                         : "hover:bg-primary/[0.03]",
                       item.tipoArticulo === 'entregas' && !isSelected && "bg-orange-50/30",
                       isEditing && "bg-primary/10"
                     )}
+                    style={{ lineHeight: 1.1, padding: 0 }}
                     onClick={() => !isEditing && router.push(`/bd/articulos/${item.id}`)}
                   >
-                    <TableCell onClick={(e) => e.stopPropagation()} className="text-center">
+                    <TableCell onClick={(e) => e.stopPropagation()} className="text-center p-1 align-middle">
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => handleToggleItem(item.id)}
-                        className="rounded-lg h-5 w-5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        className="rounded h-4 w-4 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                       />
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-black text-sm tracking-tight group-hover:text-primary transition-colors">{item.nombre}</span>
-                        <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest mt-0.5">ID: {item.erpId || item.id.slice(0, 8)}</span>
+                    <TableCell className="p-1 align-middle">
+                      <div className="relative group">
+                        <span className="font-bold text-xs tracking-tight group-hover:text-primary transition-colors leading-tight cursor-pointer">
+                          {item.nombre}
+                        </span>
+                        {/* Tooltip imagen principal */}
+                        {Array.isArray(item.imagenes) && item.imagenes.length > 0 && (
+                          <div className="absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 hidden group-hover:flex flex-col items-center">
+                            <div className="rounded-lg shadow-lg border border-border/40 bg-background p-1">
+                              <img
+                                src={(() => {
+                                  const imgs = item.imagenes;
+                                  if (!imgs || imgs.length === 0) return '';
+                                  if (typeof imgs[0] === 'string') return imgs[0];
+                                  const principal = imgs.find((img: any) => img?.esPrincipal);
+                                  if (principal) return principal?.url || '';
+                                  return imgs[0]?.url || '';
+                                })()}
+                                alt={item.nombre}
+                                className="max-w-[180px] max-h-[120px] object-contain"
+                                style={{ minWidth: 80, minHeight: 60 }}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>

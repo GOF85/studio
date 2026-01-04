@@ -65,7 +65,9 @@ export default function PickingPage() {
         const serviceOrder = osMap.get(briefing.osId);
         if (serviceOrder && briefing.items) {
             briefing.items.forEach((hito, index) => {
-                const pickingState = pickingStates[hito.id];
+                const pickingState = Array.isArray(pickingStates)
+                    ? pickingStates.find(p => p.osId === serviceOrder.id)
+                    : (pickingStates as Record<string, PickingState>)[hito.id];
                 hitosDePicking.push({
                     ...hito,
                     serviceOrder,
@@ -105,7 +107,9 @@ export default function PickingPage() {
           if (totalItems === 0) {
               progress = { checked: 0, total: 0, percentage: 100, isComplete: true };
           } else {
-              const hitoPickingState = pickingStates[hito.id];
+                            const hitoPickingState = Array.isArray(pickingStates)
+                                ? pickingStates.find(p => p.osId === hito.serviceOrder.id)
+                                : (pickingStates as Record<string, PickingState>)[hito.id];
               const elaboracionesAsignadas = new Set<string>();
 
               if (hitoPickingState?.itemStates) {

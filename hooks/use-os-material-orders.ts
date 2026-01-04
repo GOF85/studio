@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { supabase, resolveOsId } from '@/lib/supabase';
+import { supabase, resolveOsId, buildOsOr } from '@/lib/supabase';
 import type { MaterialOrder } from '@/types';
 
 export const useOSMaterialOrders = () => {
@@ -8,10 +8,13 @@ export const useOSMaterialOrders = () => {
             const targetId = await resolveOsId(osId);
             let query = supabase.from('material_orders').select('*');
             
-            if (targetId !== osId) {
-                query = query.or(`os_id.eq.${targetId},os_id.eq.${osId}`);
+            if (targetId && targetId !== osId) {
+                const orExpr = buildOsOr(osId, targetId);
+                query = query.or(orExpr);
             } else {
-                query = query.eq('os_id', targetId);
+                // If we couldn't resolve to a UUID, filter by numero_expediente
+                // to avoid passing a non-UUID value to a UUID-typed os_id column.
+                query = query.eq('numero_expediente', osId);
             }
 
             if (type) {

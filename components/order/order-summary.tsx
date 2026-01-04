@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import Image from 'next/image';
+// Use native <img> to avoid next/image remote domain restrictions
 import { ShoppingCart, Trash2, Minus, Plus, Calendar as CalendarIcon, FilePlus } from 'lucide-react';
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
@@ -64,10 +64,13 @@ interface OrderSummaryProps {
   orderType: string | null;
 }
 
-function isValidHttpUrl(string: string) {
+function isValidImageUrl(string: string) {
+  if (!string || typeof string !== 'string') return false;
+  const s = string.trim();
+  if (s.startsWith('/') || s.startsWith('//') || s.startsWith('data:') || s.startsWith('blob:')) return true;
   try {
-    const url = new URL(string);
-    return url.protocol === "http:" || url.protocol === "https:";
+    const url = new URL(s);
+    return url.protocol === 'http:' || url.protocol === 'https:';
   } catch (_) {
     return false;
   }
@@ -75,6 +78,7 @@ function isValidHttpUrl(string: string) {
 
 export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, serviceOrder, onAddLocation, existingOrderData, orderType }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
+  const [modalImage, setModalImage] = useState<string | null>(null);
   const [isReviewOpen, setReviewOpen] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
   const [deliveryTime, setDeliveryTime] = useState('');
@@ -102,6 +106,15 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
       }
     }
   }, [serviceOrder, isEditing, existingOrderData]);
+
+  useEffect(() => {
+    if (!modalImage) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setModalImage(null);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [modalImage]);
   
   const locationOptions = useMemo(() => {
     return serviceOrder?.deliveryLocations?.map(loc => ({ label: loc, value: loc })) || [];
@@ -109,6 +122,10 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
 
 
   const subtotal = useMemo(() => {
+    // Si es alquiler, usar precio_alquiler si existe
+    if (isRental) {
+      return items.reduce((acc, item) => acc + (typeof item.price === 'number' ? item.price : 0) * item.quantity, 0);
+    }
     return items.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0);
   }, [items]);
 
@@ -176,7 +193,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
           ) : (
               <ul className="space-y-4">
                 {items.map((item) => {
-                  const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : null;
+                  const imageUrl = isValidImageUrl(item.imageUrl) ? item.imageUrl : null;
                   const handleStepClick = (step: number) => {
                       const newQuantity = item.quantity + (step * (item.unidadVenta || 1));
                       onUpdateQuantity(item.itemCode, Math.max(0, newQuantity));
@@ -184,12 +201,22 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                   return (
                   <li key={item.itemCode} className="flex items-center gap-4">
                     <div className="relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-muted flex items-center justify-center">
-                      {imageUrl ? (
-                        <Image src={imageUrl} alt={item.description} fill className="object-cover" data-ai-hint={item.imageHint}/>
-                      ) : (
-                        <div className="text-[10px] text-muted-foreground font-bold text-center px-1">SIN FOTO</div>
-                      )}
-                    </div>
+                          {imageUrl ? (
+                            <>
+                              <img onClick={() => setModalImage(imageUrl)} src={imageUrl} alt={item.description} className="object-cover w-full h-full cursor-zoom-in" data-ai-hint={item.imageHint} />
+                              {modalImage && (
+                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 transition-opacity duration-200" onClick={() => setModalImage(null)}>
+                                  <div className="max-w-[95%] max-h-[95%] p-4 transform transition-transform duration-200 scale-95" onClick={(e) => e.stopPropagation()}>
+                                    <img src={modalImage} alt={item.description} className="max-w-full max-h-full object-contain rounded shadow-lg" />
+                                    <button aria-label="Cerrar" onClick={() => setModalImage(null)} className="absolute top-4 right-4 text-white bg-black/30 rounded-full p-1">✕</button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="text-[10px] text-muted-foreground font-bold text-center px-1">SIN FOTO</div>
+                          )}
+                        </div>
                     <div className="flex-grow">
                       <p className="font-medium leading-tight">{item.description}</p>
                       <p className="text-sm text-muted-foreground">

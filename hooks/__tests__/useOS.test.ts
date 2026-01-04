@@ -4,7 +4,7 @@ import { useOS } from '../useOS';
 import type { ServiceOrder } from '@/types';
 import * as supabaseModule from '../../lib/supabase';
 
-const mockOrder: ServiceOrder = {
+const mockOrder: any = {
   id: '1',
   serviceNumber: 'EXP-1',
   client: 'Cliente',
@@ -48,7 +48,7 @@ vi.mock('../../lib/supabase', () => ({
       eq: function () { return { single: () => ({ data: mockOrder, error: null }) }; },
       single: function () { return { data: mockOrder, error: null }; }
     })
-  })
+  }) as any
 }));
 
 describe('useOS', () => {
@@ -70,7 +70,7 @@ describe('useOS', () => {
         eq: function () { return { single: () => ({ data: null, error: { message: 'Error supabase' } }) }; },
         single: function () { return { data: null, error: { message: 'Error supabase' } }; }
       })
-    });
+    } as any);
     const { result } = renderHook(() => useOS('EXP-2'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.evento).toBeNull();

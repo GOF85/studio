@@ -9,7 +9,9 @@ vi.mock('../../lib/supabase', () => ({
       select: function () { return this; },
       eq: function () { return { data: [{ id: 1, os_id: 'os1' }], error: null }; }
     })
-  })
+  }) as any,
+  resolveOsId: async (id: string) => id,
+  buildFieldOr: (field: string, a: string, b: string) => `${field}.eq.${a},${field}.eq.${b}`
 }));
 
 describe('useModuleData', () => {
@@ -30,7 +32,7 @@ describe('useModuleData', () => {
         select: function () { return this; },
         eq: function () { return { data: null, error: { message: 'Error supabase' } }; }
       })
-    });
+    } as any);
     const { result } = renderHook(() => useModuleData('os2', 'tabla'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.data).toEqual([]);

@@ -136,8 +136,8 @@ export default function IncidenciasPickingPage() {
 
                     // 2. Mark incidence as resolved in the picking sheet
                     const sheet = allSheets.find(s => s.id === sheetId);
-                    if (sheet && sheet.itemStates[item.itemCode]) {
-                        const newItemStates = { ...sheet.itemStates };
+                    if (sheet?.itemStates?.[item.itemCode]) {
+                        const newItemStates = { ...(sheet.itemStates || {}) };
                         newItemStates[item.itemCode] = { ...newItemStates[item.itemCode], resolved: true };
                         
                         const { error: sheetError } = await supabase
@@ -201,8 +201,8 @@ export default function IncidenciasPickingPage() {
 
             // 2. Mark the original incidence as resolved
             const sheet = allSheets.find(s => s.id === resolvingIncident.sheetId);
-            if (sheet && sheet.itemStates[resolvingIncident.item.itemCode]) {
-                const newItemStates = { ...sheet.itemStates };
+            if (sheet?.itemStates?.[resolvingIncident.item.itemCode]) {
+                const newItemStates = { ...(sheet.itemStates || {}) };
                 newItemStates[resolvingIncident.item.itemCode] = { ...newItemStates[resolvingIncident.item.itemCode], resolved: true };
                 
                 const { error: sheetError } = await supabase

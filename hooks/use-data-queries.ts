@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { supabase, resolveOsId } from '@/lib/supabase';
+import { supabase, resolveOsId, buildOsOr, buildFieldOr } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeCategoria } from '@/lib/utils';
 import {
@@ -73,10 +73,11 @@ export function useComercialAjustes(osId?: string) {
         queryFn: async () => {
             if (!osId) return [];
             const targetId = await resolveOsId(osId);
+            const orExpr = buildOsOr(osId, targetId);
             const { data, error } = await supabase
                 .from('comercial_ajustes')
                 .select('*')
-                .or(`os_id.eq.${targetId},os_id.eq.${osId}`);
+                .or(orExpr);
             if (error) throw error;
             return (data || []).map(a => ({
                 id: a.id,
@@ -96,7 +97,8 @@ export function useUpdateComercialAjustes() {
         mutationFn: async ({ osId, ajustes }: { osId: string, ajustes: any[] }) => {
             const targetId = await resolveOsId(osId);
             // First delete existing
-            await supabase.from('comercial_ajustes').delete().or(`os_id.eq.${targetId},os_id.eq.${osId}`);
+            const orExpr = buildOsOr(osId, targetId);
+            await supabase.from('comercial_ajustes').delete().or(orExpr);
             // Then insert new
             if (ajustes.length > 0) {
                 const { error } = await supabase
@@ -242,7 +244,6 @@ function mapEvento(data: any): ServiceOrder {
         deliveryLocations: data.delivery_locations ? (typeof data.delivery_locations === 'string' ? JSON.parse(data.delivery_locations) : data.delivery_locations) : [],
         objetivoGastoId: data.objetivo_gasto_id || undefined,
         anulacionMotivo: data.anulacion_motivo || undefined,
-        isVip: data.is_vip || false,
     } as ServiceOrder;
 }
 
@@ -384,6 +385,9 @@ export function useEvento(idOrNumber?: string) {
             }
 
             const { data, error } = await query.maybeSingle();
+
+            // Debugging: log queries and responses to help trace missing OS
+            // debug logs removed for production
 
             if (error) {
                 throw error;
@@ -731,15 +735,16 @@ export function usePruebaMenu(osId: string) {
             if (!osId) return null;
             let query = supabase.from('pruebas_menu').select('*');
 
+            // Normalize: pruebas_menu stores the `numero_expediente` in `os_id`.
             if (osId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
                 const { data: os } = await supabase.from('eventos').select('numero_expediente').eq('id', osId).single();
                 if (os) {
-                    query = query.eq('os_id', os.numero_expediente);
+                    query = query.eq('numero_expediente', os.numero_expediente);
                 } else {
                     return null;
                 }
             } else {
-                query = query.eq('os_id', osId);
+                query = query.eq('numero_expediente', osId);
             }
 
             const { data, error } = await query.maybeSingle();
@@ -1440,10 +1445,9 @@ export function useMaterialOrders(eventoId?: string, categoria?: string) {
                 // To be safe, we resolve both and query with an OR or just use the resolved one.
                 
                 const targetId = await resolveOsId(eventoId);
-                
-                // Try to match either the UUID or the original eventoId (which might be the numero_expediente)
-                if (targetId !== eventoId) {
-                    query = query.or(`os_id.eq.${targetId},os_id.eq.${eventoId}`);
+                const orExpr = buildOsOr(eventoId, targetId);
+                if (orExpr) {
+                    query = query.or(orExpr);
                 } else {
                     query = query.eq('os_id', targetId);
                 }
@@ -1908,12 +1912,12 @@ export function usePruebasMenu(osId?: string) {
                 // Si recibimos un UUID, primero buscamos el numero_expediente
                 const { data: os } = await supabase.from('eventos').select('numero_expediente').eq('id', osId).single();
                 if (os) {
-                    query = query.eq('os_id', os.numero_expediente);
+                    query = query.eq('numero_expediente', os.numero_expediente);
                 } else {
                     return [];
                 }
             } else {
-                query = query.eq('os_id', osId);
+                query = query.eq('numero_expediente', osId);
             }
 
             const { data, error } = await query;
@@ -2290,7 +2294,8 @@ export function useComercialBriefings(osId?: string) {
                 const targetId = osId ? await resolveOsId(osId) : null;
                 let query = supabase.from('comercial_briefings').select('*');
                 if (targetId) {
-                    query = query.or(`os_id.eq.${targetId},os_id.eq.${osId}`);
+                    const orExpr = buildOsOr(osId || '', targetId);
+                    if (orExpr) query = query.or(orExpr);
                 }
                 const { data, error } = await query;
 
@@ -2712,11 +2717,18 @@ export function usePickingSheets(osId?: string) {
                 .select('*, eventos(*)');
 
             if (osId) {
+                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
                 const targetId = await resolveOsId(osId);
-                if (targetId !== osId) {
-                    query = query.or(`evento_id.eq.${targetId},evento_id.eq.${osId}`);
+                const orExpr = buildFieldOr('evento_id', osId, targetId);
+                if (isUuid) {
+                    // Caller provided a UUID — query by evento_id directly
+                    query = query.eq('evento_id', osId);
+                } else if (targetId && targetId !== osId) {
+                    // We resolved a UUID for this numero_expediente — query by evento_id OR numero_expediente
+                    query = query.or(orExpr);
                 } else {
-                    query = query.eq('evento_id', targetId);
+                    // Can't safely query evento_id with a non-UUID
+                    return [];
                 }
             }
 
@@ -2852,11 +2864,15 @@ export function useReturnSheets(osId?: string) {
                 .from('hojas_retorno')
                 .select('*, eventos(*)');
 
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
             const targetId = await resolveOsId(osId);
-            if (targetId !== osId) {
-                query = query.or(`evento_id.eq.${targetId},evento_id.eq.${osId}`);
+            const orExpr = buildFieldOr('evento_id', osId, targetId);
+            if (isUuid) {
+                query = query.eq('evento_id', osId);
+            } else if (targetId && targetId !== osId) {
+                query = query.or(orExpr);
             } else {
-                query = query.eq('evento_id', targetId);
+                return [];
             }
 
             const { data, error } = await query;
@@ -4226,6 +4242,8 @@ export function useSyncArticulosWithERP() {
                         ...art, // Mantenemos todos los campos originales (nombre, tipo_articulo, etc.)
                         precio_venta: parseFloat(calculatedPvp.toFixed(4)),
                         precio_reposicion: parseFloat(calculatedPvp.toFixed(4)),
+                        // Copiar precio de alquiler desde el ERP si existe
+                        precio_alquiler: Number(erpArt.precio_alquiler) || 0,
                         categoria: erpArt.categoria_mice || erpArt.categoria,
                         subcategoria: erpArt.tipo || erpArt.familia_categoria,
                     });

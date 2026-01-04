@@ -188,7 +188,7 @@ export function CSVImporter({ onClose, onSuccess }: CSVImporterProps) {
                 variant: errorCount > 0 ? 'default' : 'default', // TODO: Success variant?
             });
 
-            onSuccess();
+            if (onSuccess) onSuccess();
         } catch (error) {
             toast({
                 variant: 'destructive',

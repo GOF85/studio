@@ -6,21 +6,25 @@ import { useCallback } from 'react';
  * Replace with more advanced logic if needed.
  */
 export function useLoadingDebug() {
-  // Log a message to the console
-  const log = useCallback((msg: string) => {
+  // Log a message to the console (accept multiple args)
+  const log = useCallback((...args: any[]) => {
+    // logging disabled in production build; no-op in any env to avoid noisy output
+    return;
+  }, []);
+
+  // Log a phase change (accept multiple args)
+  const logPhase = useCallback((...args: any[]) => {
+    // no-op
+    return;
+  }, []);
+
+  // Log an error
+  const logError = useCallback((...args: any[]) => {
     if (process.env.NODE_ENV !== 'production') {
       // eslint-disable-next-line no-console
-      console.debug('[SplashScreen][DEBUG]', msg);
+      console.error('[SplashScreen][ERROR]', ...args);
     }
   }, []);
 
-  // Log a phase change
-  const logPhase = useCallback((phase: string) => {
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.debug(`[SplashScreen][PHASE] ${phase}`);
-    }
-  }, []);
-
-  return { log, logPhase };
+  return { log, logPhase, logError };
 }

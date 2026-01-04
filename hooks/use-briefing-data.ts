@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, resolveOsId } from '@/lib/supabase';
+import { supabase, resolveOsId, buildOsOr } from '@/lib/supabase';
 import type { ComercialBriefing, ComercialAjuste, GastronomyOrder } from '@/types';
 
 // Hook para manejar Briefings Comerciales
@@ -9,13 +9,24 @@ export const useComercialBriefing = (osId?: string) => {
         queryFn: async () => {
             if (!osId) return { osId: '', items: [] };
             
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
             const targetId = await resolveOsId(osId);
-            
-            const { data, error } = await supabase
-                .from('comercial_briefings')
-                .select('*')
-                .or(`os_id.eq.${targetId},os_id.eq.${osId}`)
-                .single();
+            const orExpr = buildOsOr(osId, targetId);
+            let result;
+            if (isUuid) {
+                result = await supabase.from('comercial_briefings').select('*').eq('os_id', osId).single();
+            } else if (targetId && targetId !== osId) {
+                // Some tables store the OS under `numero_expediente` instead of `os_id`.
+                // If we resolved a UUID (targetId) different from the original osId (string),
+                // include `numero_expediente` in the OR expression so we match both cases.
+                const extendedOr = orExpr ? `${orExpr},numero_expediente.eq.${osId}` : `numero_expediente.eq.${osId}`;
+                result = await supabase.from('comercial_briefings').select('*').or(extendedOr).single();
+            } else {
+                result = await supabase.from('comercial_briefings').select('*').eq('numero_expediente', osId).single();
+            }
+            const { data, error } = result;
+
+            // debug logs removed for production
 
             if (error && error.code !== 'PGRST116') throw error;
             return data ? {
@@ -57,12 +68,20 @@ export const useComercialAjustes = (osId?: string) => {
         queryFn: async () => {
             if (!osId) return [];
             
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
             const targetId = await resolveOsId(osId);
-            
-            const { data, error } = await supabase
-                .from('comercial_ajustes')
-                .select('*')
-                .or(`os_id.eq.${targetId},os_id.eq.${osId}`);
+            const orExpr = buildOsOr(osId, targetId);
+            const result = isUuid
+                ? await supabase.from('comercial_ajustes').select('*').eq('os_id', osId)
+                : (targetId && targetId !== osId
+                    ? await (async () => {
+                        const extendedOr = orExpr ? `${orExpr},numero_expediente.eq.${osId}` : `numero_expediente.eq.${osId}`;
+                        return await supabase.from('comercial_ajustes').select('*').or(extendedOr);
+                      })()
+                    : await supabase.from('comercial_ajustes').select('*').eq('numero_expediente', osId));
+            const { data, error } = result;
+
+            // debug logs removed for production
 
             if (error) throw error;
             return (data || []).map(a => ({
@@ -125,12 +144,15 @@ export const useGastronomyOrders = (osId?: string) => {
         queryFn: async () => {
             if (!osId) return [];
             
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
             const targetId = await resolveOsId(osId);
-            
-            const { data, error } = await supabase
-                .from('gastronomia_orders')
-                .select('*')
-                .or(`os_id.eq.${targetId},os_id.eq.${osId}`);
+            const orExpr = buildOsOr(osId, targetId);
+            const result = isUuid
+                ? await supabase.from('gastronomia_orders').select('*').eq('os_id', osId)
+                : (targetId && targetId !== osId
+                    ? await supabase.from('gastronomia_orders').select('*').or(orExpr)
+                    : await supabase.from('gastronomia_orders').select('*').eq('numero_expediente', osId));
+            const { data, error } = result;
 
             if (error) throw error;
             return (data || []).map(o => ({
@@ -149,13 +171,18 @@ export const useGastronomyOrder = (osId: string, briefingItemId: string) => {
     return useQuery({
         queryKey: ['gastronomyOrder', osId, briefingItemId],
         queryFn: async () => {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
             const targetId = await resolveOsId(osId);
-            const { data, error } = await supabase
-                .from('gastronomia_orders')
-                .select('*')
-                .or(`os_id.eq.${targetId},os_id.eq.${osId}`)
-                .eq('briefing_item_id', briefingItemId)
-                .single();
+            const orExpr = buildOsOr(osId, targetId);
+            let result;
+            if (isUuid) {
+                result = await supabase.from('gastronomia_orders').select('*').eq('os_id', osId).eq('briefing_item_id', briefingItemId).single();
+            } else if (targetId && targetId !== osId) {
+                result = await supabase.from('gastronomia_orders').select('*').or(orExpr).eq('briefing_item_id', briefingItemId).single();
+            } else {
+                result = await supabase.from('gastronomia_orders').select('*').eq('numero_expediente', osId).eq('briefing_item_id', briefingItemId).single();
+            }
+            const { data, error } = result;
 
             if (error && error.code !== 'PGRST116') throw error;
             return data ? {
@@ -201,12 +228,15 @@ export const useDeleteGastronomyOrder = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ osId, briefingItemId }: { osId: string, briefingItemId: string }) => {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
             const targetId = await resolveOsId(osId);
-            const { error } = await supabase
-                .from('gastronomia_orders')
-                .delete()
-                .or(`os_id.eq.${targetId},os_id.eq.${osId}`)
-                .eq('briefing_item_id', briefingItemId);
+            const orExpr = buildOsOr(osId, targetId);
+            const result = isUuid
+                ? await supabase.from('gastronomia_orders').delete().eq('os_id', osId).eq('briefing_item_id', briefingItemId)
+                : (targetId && targetId !== osId
+                    ? await supabase.from('gastronomia_orders').delete().or(orExpr).eq('briefing_item_id', briefingItemId)
+                    : await supabase.from('gastronomia_orders').delete().eq('numero_expediente', osId).eq('briefing_item_id', briefingItemId));
+            const { error } = result;
 
             if (error) throw error;
         },

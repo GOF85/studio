@@ -5,10 +5,11 @@ import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { OrderItem, MaterialOrder, ServiceOrder, PedidoPlantilla, ArticuloCatering, AlquilerDBItem, Precio, CateringItem, Proveedor } from '@/types';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
+import OsHeader from '@/components/os/OsHeader';
 import { OrderSummary, type ExistingOrderData } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Briefcase, FilePlus2, FileText } from 'lucide-react';
+import { Briefcase, FilePlus2, FileText, Warehouse, Wine, Leaf, Archive, Snowflake } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ObjectiveDisplay } from '@/components/os/objective-display';
 import { useOSMaterialOrders } from '@/hooks/use-os-material-orders';
@@ -47,15 +48,21 @@ function PedidosPageInner() {
   const rentalProviders = useMemo(() => {
     if (!allProveedores) return [];
     if (orderType === 'Alquiler') {
-        return allProveedores.filter(p => p.nombreComercial && p.nombreComercial.length > 0);
+      // Filtrar proveedores que tengan 'Alquiler' en tiposServicio
+      const alquilerIds = new Set(
+        tiposServicio
+          .filter(t => Array.isArray(t.tipos) && t.tipos.some((tipo: string) => tipo.toLowerCase() === 'alquiler'))
+          .map(t => t.proveedor_id)
+      );
+      return allProveedores.filter(p => alquilerIds.has(p.id));
     }
     if (orderType === 'Hielo') {
-        const providersWithHielo = new Set(
-            tiposServicio
-                .filter(t => t.tipos?.some((tipo: string) => tipo.toLowerCase() === 'hielo'))
-                .map(t => t.proveedor_id)
-        );
-        return allProveedores.filter(p => providersWithHielo.has(p.id));
+      const providersWithHielo = new Set(
+        tiposServicio
+          .filter(t => t.tipos?.some((tipo: string) => tipo.toLowerCase() === 'hielo'))
+          .map(t => t.proveedor_id)
+      );
+      return allProveedores.filter(p => providersWithHielo.has(p.id));
     }
     return [];
   }, [allProveedores, orderType, tiposServicio]);
@@ -64,57 +71,77 @@ function PedidosPageInner() {
     if (!allArticulos || !orderType) return [];
 
     const filteredArticulos = allArticulos.filter(item => item && item.id && item.nombre);
-    
     let itemsToLoad: CateringItem[] = [];
 
-    if (orderType === 'Alquiler') {
-        itemsToLoad = filteredArticulos
-            .filter(p => p.producidoPorPartner)
-            .map(p => ({ 
-                ...p, 
-                itemCode: p.id, 
-                description: p.nombre, 
-                price: p.precioAlquiler, 
-                stock: 999, 
-                imageUrl: p.imagen || '', 
-                imageHint: p.nombre, 
-                category: p.categoria,
-                tipo: p.subcategoria || p.tipo || undefined,
-                unidadVenta: p.unidadVenta ?? undefined
-            }));
-    } else if (orderType === 'Hielo') {
-        itemsToLoad = filteredArticulos
-            .filter(p => p.subcategoria?.toUpperCase() === '00HIELO' && p.tipoArticulo === 'micecatering')
-            .map(p => ({
-                ...p,
-                itemCode: p.id,
-                description: p.nombre,
-                price: p.precioVenta,
-                stock: 999,
-                imageUrl: p.imagen || '',
-                imageHint: p.nombre,
-                tipo: p.subcategoria || p.tipo || undefined,
-                unidadVenta: p.unidadVenta ?? undefined,
-                category: p.categoria,
-            }));
-    } else {
-        const typeMap = { 'Almacen': 'Almacén', 'Bodega': 'Bebida', 'Bio': 'Bio' };
-        const filterType = typeMap[orderType as keyof typeof typeMap];
+    function getThumbnail(articulo: any) {
+      if (Array.isArray(articulo.imagenes) && articulo.imagenes.length > 0) {
+        const first = articulo.imagenes[0];
+        // soportar tanto array de strings (urls) como array de objetos { url, esPrincipal }
+        if (typeof first === 'string') return first;
+        const principal = articulo.imagenes.find((img: any) => img && img.esPrincipal) || first;
+        if (principal && (principal.url || typeof principal === 'string')) return principal.url || principal;
+      }
+      if (articulo.imagen && typeof articulo.imagen === 'string') return articulo.imagen;
+      return '';
+    }
 
-        itemsToLoad = filteredArticulos
-            .filter(p => p.categoria === filterType)
-            .map(p => ({
-                ...p,
-                itemCode: p.id,
-                description: p.nombre,
-                price: orderType === 'Almacen' ? p.precioAlquiler : p.precioVenta,
-                stock: 999,
-                imageUrl: p.imagen || '',
-                imageHint: p.nombre,
-                tipo: p.subcategoria || p.tipo || undefined,
-                unidadVenta: p.unidadVenta ?? undefined,
-                category: p.categoria,
-            }));
+    function getImageList(articulo: any) {
+      if (Array.isArray(articulo.imagenes) && articulo.imagenes.length > 0) {
+        return articulo.imagenes.map((img: any) => (typeof img === 'string' ? img : img?.url)).filter(Boolean);
+      }
+      if (articulo.imagen && typeof articulo.imagen === 'string') return [articulo.imagen];
+      return [];
+    }
+
+    if (orderType === 'Alquiler') {
+      itemsToLoad = filteredArticulos
+        .filter(p => p.producidoPorPartner)
+          .map(p => ({ 
+          ...p, 
+          itemCode: p.id, 
+          description: p.nombre, 
+          price: typeof p.precioAlquiler === 'number' ? p.precioAlquiler : 0, 
+          stock: 999, 
+          imageUrl: getThumbnail(p), 
+          images: getImageList(p),
+          imageHint: p.nombre, 
+          category: p.categoria,
+          tipo: p.subcategoria || p.tipo || undefined,
+          unidadVenta: p.unidadVenta ?? undefined
+        }));
+    } else if (orderType === 'Hielo') {
+      itemsToLoad = filteredArticulos
+        .filter(p => p.subcategoria?.toUpperCase() === '00HIELO' && p.tipoArticulo === 'micecatering')
+        .map(p => ({
+          ...p,
+          itemCode: p.id,
+          description: p.nombre,
+          price: p.precioVenta,
+          stock: 999,
+          imageUrl: getThumbnail(p),
+          imageHint: p.nombre,
+          tipo: p.subcategoria || p.tipo || undefined,
+          unidadVenta: p.unidadVenta ?? undefined,
+          category: p.categoria,
+        }));
+    } else {
+      const typeMap = { 'Almacen': 'Almacén', 'Bodega': 'Bebida', 'Bio': 'Bio' };
+      const filterType = typeMap[orderType as keyof typeof typeMap];
+
+      itemsToLoad = filteredArticulos
+        .filter(p => p.categoria === filterType)
+        .map(p => ({
+          ...p,
+          itemCode: p.id,
+          description: p.nombre,
+          price: orderType === 'Almacen' ? p.precioAlquiler : p.precioVenta,
+          stock: 999,
+          imageUrl: getThumbnail(p),
+          imageHint: p.nombre,
+          tipo: p.subcategoria || p.tipo || undefined,
+          unidadVenta: p.unidadVenta ?? undefined,
+          category: p.categoria,
+        }));
     }
     return itemsToLoad.filter(item => item && item.description && item.itemCode);
   }, [allArticulos, orderType]);
@@ -352,33 +379,21 @@ function PedidosPageInner() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background/30">
-      {/* Header Premium Sticky */}
-      <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
-              <div className="flex items-center">
-                  <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-                      <FilePlus2 className="h-5 w-5 text-indigo-500" />
-                  </div>
-              </div>
-
-              <div className="flex-1" />
-
-              <div className="flex items-center gap-3">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => router.back()}
-                    className="h-8 text-[10px] font-black uppercase tracking-widest border-border/40 bg-background/50"
-                  >
-                    Cancelar
-                  </Button>
-                  <div className="h-4 w-[1px] bg-border/40 mx-1" />
-                  <Badge variant="outline" className="h-6 rounded-full border-indigo-500/20 bg-indigo-500/5 text-indigo-700 font-black text-[9px] uppercase tracking-widest px-2">
-                      {orderItems.length} Artículos
-                  </Badge>
-              </div>
+          {/* Reusable OS header with subtitle */}
+          <div>
+            {/* Use centralized OsHeader for consistent look; pass subtitle based on orderType */}
+            {/* Dynamically import to avoid client/server mismatch if necessary */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <div className="sticky top-12 z-30">
+              {/* simple wrapper that renders OsHeader with subtitle/icon */}
+              {/* Map orderType to subtitle */}
+              <OsHeader
+                osId={osId}
+                subtitle={orderType ? (orderType === 'Almacen' ? 'Catálogo de Artículos de almacén' : (orderType === 'Bodega' ? 'Catálogo de Artículos de bebida' : (orderType === 'Bio' ? 'Catálogo de Artículos Bio' : 'Catálogo de Artículos'))) : 'Catálogo de Artículos'}
+                subtitleIcon={orderType === 'Almacen' ? <Warehouse className="h-5 w-5 text-indigo-600" /> : orderType === 'Bodega' ? <Wine className="h-5 w-5 text-indigo-600" /> : orderType === 'Bio' ? <Leaf className="h-5 w-5 text-indigo-600" /> : orderType === 'Alquiler' ? <Archive className="h-5 w-5 text-indigo-600" /> : orderType === 'Hielo' ? <Snowflake className="h-5 w-5 text-indigo-600" /> : <FilePlus2 className="h-5 w-5 text-indigo-600" />}
+              />
+            </div>
           </div>
-      </div>
 
       <main className="flex-grow container mx-auto px-4 py-0">
         <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8">

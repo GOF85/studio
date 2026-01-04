@@ -191,7 +191,7 @@ export function useCprOfLogic() {
                         if (!necesidad) {
                             necesidad = {
                                 id, nombre: elab.nombre, cantidadNecesariaTotal: 0, unidad: elab.unidadProduccion,
-                                osIDs: new Set(), partida: elab.partidaProduccion, tipoExpedicion: elab.tipoExpedicion,
+                                osIDs: new Set(), partida: elab.partidaProduccion, tipoExpedicion: (['REFRIGERADO','CONGELADO','SECO'] as const).includes(elab.tipoExpedicion as any) ? (elab.tipoExpedicion as any) : undefined,
                                 stockDisponible: 0, cantidadPlanificada: 0, desgloseDiario: [], cantidadNeta: 0,
                                 recetas: [], desgloseCompleto: [],
                             };
@@ -199,17 +199,17 @@ export function useCprOfLogic() {
                         }
 
                         const cantidadNecesaria = (item.quantity || 1) * elabEnReceta.cantidad;
-                        necesidad.cantidadNecesariaTotal += cantidadNecesaria;
-                        necesidad.osIDs.add(gastroOrder.osId);
+                        (necesidad as any).cantidadNecesariaTotal += cantidadNecesaria;
+                        (necesidad as any).osIDs.add(gastroOrder.osId);
 
-                        if (!necesidad.recetas.includes(receta.nombre)) necesidad.recetas.push(receta.nombre);
+                        if (!(necesidad as any).recetas.includes(receta.nombre)) (necesidad as any).recetas.push(receta.nombre);
 
-                        const desglose = necesidad.desgloseDiario.find(d => d.fecha === fechaKey);
+                        const desglose = (necesidad as any).desgloseDiario.find((d: any) => d.fecha === fechaKey);
                         if (desglose) desglose.cantidad += cantidadNecesaria;
-                        else necesidad.desgloseDiario.push({ fecha: fechaKey, cantidad: cantidadNecesaria });
+                        else (necesidad as any).desgloseDiario.push({ fecha: fechaKey, cantidad: cantidadNecesaria });
 
                         const hito = briefing.items.find(h => h.id === gastroOrder.id);
-                        necesidad.desgloseCompleto.push({
+                        (necesidad as any).desgloseCompleto.push({
                             osId: os.id, osNumber: os.serviceNumber, osSpace: os.space, hitoId: hito?.id || '',
                             hitoDescripcion: hito?.descripcion || '', fechaHito: hito?.fecha || '', recetaId: receta.id,
                             recetaNombre: receta.nombre, cantidadReceta: item.quantity || 1, cantidadNecesaria: cantidadNecesaria

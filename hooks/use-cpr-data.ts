@@ -135,12 +135,17 @@ export function useCprOsData(osId?: string) {
         queryFn: async () => {
             if (!osId) return null;
             
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
             const targetId = await resolveOsId(osId);
-            const { data, error } = await supabase
-                .from('cpr_os_data')
-                .select('*')
-                .eq('os_id', targetId)
-                .single();
+            let query;
+            if (isUuid) {
+                query = supabase.from('cpr_os_data').select('*').eq('os_id', osId).single();
+            } else if (targetId && targetId !== osId) {
+                query = supabase.from('cpr_os_data').select('*').eq('os_id', targetId).single();
+            } else {
+                query = supabase.from('cpr_os_data').select('*').eq('numero_expediente', osId).single();
+            }
+            const { data, error } = await query;
             
             if (error && error.code !== 'PGRST116') throw error;
             
@@ -482,11 +487,15 @@ export function useUpdateCprPickingState() {
     return useMutation({
         mutationFn: async (state: Partial<PickingState> & { osId: string }) => {
             // Primero buscamos si ya existe un estado para esta OS
-            const { data: existing } = await supabase
-                .from('cpr_picking_states')
-                .select('id')
-                .eq('os_id', state.osId)
-                .maybeSingle();
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(state.osId);
+            const targetId = await resolveOsId(state.osId);
+            const existingQuery = isUuid
+                ? supabase.from('cpr_picking_states').select('id').eq('os_id', state.osId).maybeSingle()
+                : (targetId && targetId !== state.osId
+                    ? supabase.from('cpr_picking_states').select('id').eq('os_id', targetId).maybeSingle()
+                    : supabase.from('cpr_picking_states').select('id').eq('numero_expediente', state.osId).maybeSingle());
+
+            const { data: existing } = await existingQuery;
 
             const updateData: any = {
                 os_id: state.osId,

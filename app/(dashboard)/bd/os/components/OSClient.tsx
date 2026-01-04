@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useEventosPaginated } from '@/hooks/use-data-queries';
-import { supabase } from '@/lib/supabase';
+import { supabase, resolveOsId, buildFieldOr } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -107,18 +107,30 @@ export function OSClient({ initialData }: OSClientProps) {
                 // 1. Resolve UUID if needed (some IDs might be expediente number)
                 // Ideally we work with UUIDs. useEventos returns UUID as id.
 
-                // 2. Delete from tables with os_id
-                await Promise.all(TABLES_WITH_OS_ID.map(table =>
-                    supabase.from(table).delete().eq('os_id', id)
-                ));
+                // Resolve possible UUID for id
+                const targetId = await resolveOsId(id);
 
-                // 3. Delete from tables with evento_id
-                await Promise.all(TABLES_WITH_EVENTO_ID.map(table =>
-                    supabase.from(table).delete().eq('evento_id', id)
-                ));
+                // 2. Delete from tables with os_id using safe OR expressions
+                await Promise.all(TABLES_WITH_OS_ID.map(table => {
+                    if (targetId && targetId !== id) {
+                        const orExpr = buildFieldOr('os_id', id, targetId);
+                        return supabase.from(table).delete().or(orExpr);
+                    }
+                    // Fallback: delete by numero_expediente when we couldn't resolve a UUID
+                    return supabase.from(table).delete().eq('numero_expediente', id);
+                }));
+
+                // 3. Delete from tables with evento_id using safe OR expressions
+                await Promise.all(TABLES_WITH_EVENTO_ID.map(table => {
+                    if (targetId && targetId !== id) {
+                        const orExpr = buildFieldOr('evento_id', id, targetId);
+                        return supabase.from(table).delete().or(orExpr);
+                    }
+                    return supabase.from(table).delete().eq('numero_expediente', id);
+                }));
 
                 // 4. Delete the event itself
-                const { error } = await supabase.from('eventos').delete().eq('id', id);
+                const { error } = await supabase.from('eventos').delete().eq('id', targetId);
                 if (error) throw error;
 
                 successCount++;

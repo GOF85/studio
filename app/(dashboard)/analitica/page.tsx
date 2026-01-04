@@ -130,7 +130,7 @@ export default function AnaliticaDashboardPage() {
         const toDate = dateRange?.to || fromDate;
         if (!fromDate) return { cateringData: null, entregasData: null, totals: {}, cateringVerticalsData: {} };
 
-        const dateFilter = (dateStr: string) => isWithinInterval(new Date(dateStr), { start: startOfDay(fromDate), end: endOfDay(toDate || fromDate) });
+        const dateFilter = (dateStr?: string | Date) => dateStr ? isWithinInterval(new Date(dateStr as any), { start: startOfDay(fromDate), end: endOfDay(toDate || fromDate) }) : false;
 
         // --- CATERING CALCULATION ---
         const cateringOrders = allServiceOrders.filter(os => os.vertical !== 'Entregas' && os.status === 'Confirmado' && dateFilter(os.startDate));
@@ -160,7 +160,9 @@ export default function AnaliticaDashboardPage() {
             }, 0);
             costeOS += (allPruebasMenu.find((p: any) => p.evento_id === os.id) as any)?.coste_prueba_menu || 0;
 
-            const personalExterno = allPersonalExterno.find((p: any) => p.evento_id === os.id);
+            const personalExterno = Array.isArray(allPersonalExterno)
+                ? allPersonalExterno.find((p: any) => p.evento_id === os.id)
+                : (allPersonalExterno && (allPersonalExterno as any).evento_id === os.id ? allPersonalExterno : undefined);
             if (personalExterno && personalExterno.turnos) {
                 const costeTurnos = (personalExterno.turnos as any[]).reduce((s, turno) => {
                     return s + (turno.asignaciones || []).reduce((sA: number, a: any) => {
@@ -395,7 +397,7 @@ export default function AnaliticaDashboardPage() {
                                 <TableCell className="text-right font-black text-lg">{formatCurrency(totals.totalFacturacion)}</TableCell>
                                 <TableCell className="text-right font-black text-lg">{formatCurrency(totals.totalCoste)}</TableCell>
                                 <TableCell className="text-right font-black text-lg text-emerald-600">{formatCurrency(totals.rentabilidad)}</TableCell>
-                                <TableCell className="text-right pr-8 font-black text-lg text-primary">{formatPercentage(totals.margen / 100)}</TableCell>
+                                <TableCell className="text-right pr-8 font-black text-lg text-primary">{formatPercentage((totals?.margen || 0) / 100)}</TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>

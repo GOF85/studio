@@ -160,8 +160,8 @@ export default function AnaliticaCateringPage() {
         const toDate = endOfDay(dateRange.to || dateRange.from);
 
         return allPedidosData.filter(p => {
-            const osDate = new Date(p.os.startDate || '');
-            const isInDateRange = isWithinInterval(osDate, { start: fromDate, end: toDate });
+            const osDate = p.os?.startDate ? new Date(p.os.startDate) : undefined;
+            const isInDateRange = osDate ? isWithinInterval(osDate, { start: fromDate, end: toDate }) : false;
             const matchesEspacio = espacioFilter === 'all' || p.os.space === espacioFilter;
             const matchesComercial = comercialFilter === 'all' || p.os.comercial === comercialFilter;
             const matchesCliente = clienteFilter === 'all' || p.os.client === clienteFilter;
@@ -368,7 +368,7 @@ export default function AnaliticaCateringPage() {
                                     {pedidosFiltrados.map((p) => {
                                         const margin = p.pvpFinal - p.costeTotal;
                                         const marginPct = p.pvpFinal > 0 ? margin / p.pvpFinal : 0;
-                                        const osDate = new Date(p.os.startDate || '');
+                                        const osDate = p.os?.startDate ? new Date(p.os.startDate) : undefined;
                                         return (
                                             <TableRow key={p.os.id} className="border-border/40 hover:bg-primary/5 transition-colors group">
                                                 <TableCell className="font-mono text-xs font-bold text-primary">
@@ -376,7 +376,7 @@ export default function AnaliticaCateringPage() {
                                                 </TableCell>
                                                 <TableCell className="text-xs font-semibold uppercase truncate max-w-[150px]">{p.os.client}</TableCell>
                                                 <TableCell className="text-xs">{p.os.space}</TableCell>
-                                                <TableCell className="text-xs">{format(osDate, 'dd/MM/yyyy')}</TableCell>
+                                                <TableCell className="text-xs">{osDate ? format(osDate, 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                                 <TableCell className="text-right text-xs font-bold">{formatCurrency(p.pvpFinal)}</TableCell>
                                                 <TableCell className="text-right text-xs font-bold">{formatCurrency(p.costeTotal)}</TableCell>
                                                 <TableCell className={cn("text-right pr-6 text-xs font-black", marginPct < 0 ? 'text-destructive' : 'text-emerald-600')}>

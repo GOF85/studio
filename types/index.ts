@@ -48,6 +48,8 @@ export type CateringItem = {
     stock: number;
     imageUrl: string;
     imageHint: string;
+    imagenes?: string[] | Array<{ id?: string; url: string; esPrincipal?: boolean; orden?: number }> | null;
+    images?: string[] | Array<{ id?: string; url: string; esPrincipal?: boolean; orden?: number }> | null;
     category: string;
     tipo?: string;
     unidadVenta?: number;
@@ -502,6 +504,7 @@ export type HieloOrder = {
     items: { id: string; producto: string; precio: number; cantidad: number }[];
     total: number;
     status: 'Pendiente' | 'Confirmado' | 'En reparto' | 'Entregado';
+    observaciones?: string;
 };
 
 export type DecoracionDBItem = {

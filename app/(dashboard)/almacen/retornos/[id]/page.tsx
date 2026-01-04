@@ -231,12 +231,12 @@ export default function RetornoSheetPage() {
         <div>
             <div className="flex items-center justify-between mb-4">
                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-base">{sheet.os.serviceNumber}</Badge>
-                    <span className="text-lg font-semibold">{sheet.os.client}</span>
+                    <Badge variant="outline" className="text-base">{localSheet.os.serviceNumber}</Badge>
+                    <span className="text-lg font-semibold">{localSheet.os.client}</span>
                  </div>
                  <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={() => setShowResetConfirm(true)}><RotateCcw className="mr-2"/>Reiniciar</Button>
-                    <Button onClick={handleComplete} disabled={sheet.status === 'Completado'}><Check className="mr-2"/>Marcar como Completado</Button>
+                    <Button onClick={handleComplete} disabled={localSheet.status === 'Completado'}><Check className="mr-2"/>Marcar como Completado</Button>
                  </div>
             </div>
             
@@ -319,9 +319,9 @@ export default function RetornoSheetPage() {
                                                             <DialogTitle>Registrar Incidencia: {item.description}</DialogTitle>
                                                             <DialogDescription>Describe el problema, como roturas, pérdidas, etc.</DialogDescription>
                                                         </DialogHeader>
-                                                        <Textarea 
+                                                            <Textarea 
                                                             id={`comment-${item.itemKey}`}
-                                                            defaultValue={sheet.itemStates[item.itemKey]?.incidentComment}
+                                                            defaultValue={localSheet.itemStates[item.itemKey]?.incidentComment}
                                                             placeholder="Ej: Se devolvieron 3 copas rotas."
                                                             rows={4}
                                                             onBlur={(e) => handleAddIncidencia(item, e.target.value)}
@@ -339,7 +339,7 @@ export default function RetornoSheetPage() {
                 </Card>
             ))}
              <div className="mt-6 flex justify-end">
-                <Button onClick={handleComplete} disabled={sheet.status === 'Completado'} size="lg">
+                <Button onClick={handleComplete} disabled={localSheet.status === 'Completado'} size="lg">
                     <Check className="mr-2" />
                     Marcar como Completado
                 </Button>

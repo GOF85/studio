@@ -482,7 +482,8 @@ export default function PortalPersonalPage() {
                     });
                     await updatePersonalExterno.mutateAsync({
                         osId: pedido.osId,
-                        turnos: updatedTurnos
+                        turnos: updatedTurnos,
+                        status: (pedido as any).status || 'Pendiente'
                     });
                 }
             }

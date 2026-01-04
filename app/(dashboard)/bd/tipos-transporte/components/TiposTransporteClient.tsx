@@ -35,7 +35,7 @@ export function TiposTransporteClient({ initialData }: TiposTransporteClientProp
     return tipos.filter(t => 
       t.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (t.descripcion && t.descripcion.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (t.proveedor?.nombre_comercial && t.proveedor.nombre_comercial.toLowerCase().includes(searchTerm.toLowerCase()))
+      ((t.proveedor?.nombreProveedor || t.proveedor?.nombre) && (t.proveedor?.nombreProveedor || t.proveedor?.nombre).toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [tipos, searchTerm]);
 
@@ -131,7 +131,7 @@ export function TiposTransporteClient({ initialData }: TiposTransporteClientProp
                     <span className="font-black text-sm tracking-tight group-hover:text-orange-600 transition-colors">{tipo.nombre}</span>
                   </TableCell>
                   <TableCell>
-                    <span className="text-xs font-bold text-muted-foreground">{tipo.proveedor?.nombre_comercial || 'Sin proveedor'}</span>
+                    <span className="text-xs font-bold text-muted-foreground">{tipo.proveedor?.nombreProveedor || tipo.proveedor?.nombre || 'Sin proveedor'}</span>
                   </TableCell>
                   <TableCell>
                     <span className="font-black text-sm text-foreground">{formatCurrency(tipo.precio_base)}</span>
@@ -206,7 +206,7 @@ export function TiposTransporteClient({ initialData }: TiposTransporteClientProp
                 <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
                   <SelectItem value="none">Sin proveedor</SelectItem>
                   {proveedoresTransporte?.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.nombre_comercial}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>{p.nombreProveedor || p.nombre}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

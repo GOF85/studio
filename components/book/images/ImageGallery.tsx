@@ -143,6 +143,12 @@ export function ImageGallery({ imagenes, onReorder, onDelete, onSetPrincipal, ch
         }
     }
 
+    // Robustez: aceptar array de string o de objeto
+    const normalizadas = imagenes.map((img: any, idx: number) =>
+        typeof img === 'string'
+            ? { id: img, url: img, esPrincipal: idx === 0, orden: idx }
+            : img
+    );
     return (
         <DndContext
             sensors={sensors}
@@ -150,12 +156,12 @@ export function ImageGallery({ imagenes, onReorder, onDelete, onSetPrincipal, ch
             onDragEnd={handleDragEnd}
         >
             <SortableContext
-                items={imagenes.map(img => img.id)}
+                items={normalizadas.map(img => img.id)}
                 strategy={rectSortingStrategy}
             >
                 <div className={cn("grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4", className)}>
                     {children}
-                    {imagenes.map((imagen) => (
+                    {normalizadas.map((imagen) => (
                         <SortableImage
                             key={imagen.id}
                             imagen={imagen}

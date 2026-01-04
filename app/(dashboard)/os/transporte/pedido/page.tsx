@@ -111,7 +111,7 @@ function PedidoTransportePageInner() {
       proveedorId: selectedProvider.id,
       proveedorNombre: selectedProvider.nombre,
       tipoTransporte: selectedProvider.nombre,
-      precio: selectedProvider.precio_base || 0,
+      precio: selectedProvider.precio || 0,
       lugarRecogida: data.lugarRecogida,
       horaRecogida: data.horaRecogida,
       lugarEntrega: data.lugarEntrega,
@@ -208,7 +208,7 @@ function PedidoTransportePageInner() {
                              <FormItem>
                                 <FormLabel>Precio Base</FormLabel>
                                 <FormControl>
-                                    <Input value={selectedProvider ? (selectedProvider.precio_base || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'N/A'} readOnly />
+                                    <Input value={selectedProvider ? (selectedProvider.precio || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'N/A'} readOnly />
                                 </FormControl>
                             </FormItem>
                         </div>

@@ -11,12 +11,17 @@ export function useAtipicos(osId: string) {
     queryKey: ['atipicos', osId],
     queryFn: async () => {
       if (!osId) return [];
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
       const targetId = await resolveOsId(osId);
-      const { data, error } = await supabase
-        .from('atipico_orders')
-        .select('*')
-        .eq('os_id', targetId)
-        .order('fecha', { ascending: false });
+      let result;
+      if (isUuid) {
+        result = await supabase.from('atipico_orders').select('*').eq('os_id', osId).order('fecha', { ascending: false });
+      } else if (targetId && targetId !== osId) {
+        result = await supabase.from('atipico_orders').select('*').eq('os_id', targetId).order('fecha', { ascending: false });
+      } else {
+        result = await supabase.from('atipico_orders').select('*').eq('numero_expediente', osId).order('fecha', { ascending: false });
+      }
+      const { data, error } = result;
 
       if (error) throw error;
       return data as AtipicoOrder[];

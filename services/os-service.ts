@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { ServiceOrder } from '@/types';
 
-export function mapEvento(data: any): ServiceOrder {
+export function mapEvento(data: any): Partial<ServiceOrder> {
   let responsables: any = {};
   try {
     responsables = typeof data.responsables === 'string'
@@ -36,26 +36,6 @@ export function mapEvento(data: any): ServiceOrder {
     contact: data.contact || '',
     phone: data.phone || '',
     email: data.email || '',
-    responsables,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-    numero_expediente: data.numero_expediente,
-    cliente: data.cliente,
-    cliente_final: data.cliente_final,
-    start_date: data.start_date,
-    end_date: data.end_date,
-    is_vip: data.is_vip,
-    tipo_cliente: data.tipo_cliente,
-    catering_vertical: data.catering_vertical,
-    comercial_phone: data.comercial_phone,
-    comercial_mail: data.comercial_mail,
-    comercial_asiste: data.comercial_asiste,
-    space_address: data.space_address,
-    space_contact: data.space_contact,
-    space_phone: data.space_phone,
-    space_mail: data.space_mail,
-    created_at: data.created_at,
-    updated_at: data.updated_at,
   };
 }
 
@@ -119,19 +99,42 @@ export async function deleteEvento(supabase: SupabaseClient, id: string) {
     'personal_externo_ajustes'
   ];
 
-  // Delete from tables with os_id
-  for (const table of TABLES_WITH_OS_ID) {
-    await supabase.from(table).delete().eq('os_id', id);
+  // Resolve the target ID using the provided Supabase client so we can build safe filters
+  let targetId = id;
+  // If id looks like UUID, keep it. Otherwise try to resolve via eventos/entregas
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  if (!isUuid) {
+    const { data: eventoData } = await supabase.from('eventos').select('id').eq('numero_expediente', id).maybeSingle();
+    if (eventoData?.id) targetId = eventoData.id;
+    else {
+      const { data: entregaData } = await supabase.from('entregas').select('id').eq('numero_expediente', id).maybeSingle();
+      if (entregaData?.id) targetId = entregaData.id;
+    }
   }
 
-  // Delete from tables with evento_id
+  // Delete from tables with os_id using safe .or() expressions
+  for (const table of TABLES_WITH_OS_ID) {
+    const orExpr = `os_id.eq.${targetId},numero_expediente.eq.${id}`;
+    await supabase.from(table).delete().or(orExpr);
+  }
+
+  // Delete from tables with evento_id — use targetId when possible
   for (const table of TABLES_WITH_EVENTO_ID) {
-    await supabase.from(table).delete().eq('evento_id', id);
+    if (targetId && targetId !== id) {
+      await supabase.from(table).delete().or(`evento_id.eq.${targetId},evento_id.eq.${id}`);
+    } else {
+      await supabase.from(table).delete().eq('numero_expediente', id);
+    }
   }
 
   // Finally delete the event itself
-  const { error } = await supabase.from('eventos').delete().eq('id', id);
-  if (error) throw error;
+  if (targetId && targetId !== id) {
+    const { error } = await supabase.from('eventos').delete().eq('id', targetId);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('eventos').delete().eq('numero_expediente', id);
+    if (error) throw error;
+  }
 }
 
 export async function deleteEventosBulk(supabase: SupabaseClient, ids: string[]) {

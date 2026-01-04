@@ -150,7 +150,7 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
             )}
             </CardContent>
         </div>
-        {(hito.items.length > 0 || hito.portes > 0 || hito.horasCamarero > 0) && (
+        {(hito.items.length > 0 || (hito.portes ?? 0) > 0 || (hito.horasCamarero ?? 0) > 0) && (
             <>
             <Separator />
             <div className="flex-grow-0 flex-shrink-0 p-4 bg-muted/10">

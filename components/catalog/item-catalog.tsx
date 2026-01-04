@@ -1,8 +1,10 @@
 
 
-'use client';
+ 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import type { CSSProperties } from 'react';
+import { FixedSizeList as List } from 'react-window';
 import type { CateringItem, OrderItem, PedidoPlantilla, Proveedor } from '@/types';
 import { ItemListItem } from './item-list-item';
 import { AssistantDialog } from '../order/assistant-dialog';
@@ -74,7 +76,8 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
       }
       
       const isRental = orderType === 'Alquiler';
-      const rentalProviderMatch = !isRental || (selectedProviderId ? (item as any).partnerId === selectedProviderId : true);
+      // For rentals, require an explicit provider selection to show items.
+      const rentalProviderMatch = !isRental || (selectedProviderId ? (item as any).partnerId === selectedProviderId : false);
 
       const matchesType = selectedType === 'all' || item.tipo === selectedType;
       const matchesSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) || item.itemCode.toLowerCase().includes(searchTerm.toLowerCase());
@@ -98,11 +101,50 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
     return Object.entries(grouped).sort(([groupA], [groupB]) => groupA.localeCompare(groupB));
   }, [items, searchTerm, selectedType, orderType, selectedProviderId]);
 
+  // Flatten into headers + items for virtualization
+  const flatList = useMemo(() => {
+    const flat: Array<any> = [];
+    groupedAndSortedItems.forEach(([type, items]) => {
+      flat.push({ kind: 'header', label: type });
+      items.forEach(it => flat.push({ kind: 'item', item: it }));
+    });
+    return flat;
+  }, [groupedAndSortedItems]);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [listHeight, setListHeight] = useState(600);
+  const [stickyLabel, setStickyLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    function updateHeight() {
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      // leave space for header/footer; pick a sensible default
+      const available = window.innerHeight - rect.top - 120;
+      setListHeight(Math.max(300, Math.min(available, 1200)));
+    }
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
+
+  // Precompute stable handlers for adding items to reduce re-renders (from flatList)
+  const addHandlers = useMemo(() => {
+    const map = new Map<string, (qty: number) => void>();
+    flatList.forEach(entry => {
+      if (entry.kind === 'item') {
+        map.set(entry.item.itemCode, (qty: number) => onAddItem(entry.item, qty));
+      }
+    });
+    return map;
+  }, [flatList, onAddItem]);
+
 
   return (
     <section>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
-        <h2 className="text-3xl font-headline font-bold tracking-tight">Catálogo de Artículos</h2>
+        <h2 className="text-3xl font-headline font-bold tracking-tight lg:hidden">Catálogo de Artículos</h2>
         <div className="flex gap-2">
             {plantillas && plantillas.length > 0 && <TemplateSelectorDialog plantillas={plantillas} onSelect={onApplyTemplate} />}
             {/* {orderType !== 'Alquiler' && <AssistantDialog onAddSuggestedItem={onAddItem} />} */}
@@ -144,21 +186,51 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
           </SelectContent>
         </Select>
       </div>
-      <div className="border rounded-lg overflow-y-auto max-h-[calc(100vh-20rem)]">
-        {groupedAndSortedItems.length > 0 ? (
-          <div className="divide-y">
-            {groupedAndSortedItems.map(([type, items]) => (
-                <div key={type}>
-                    <h3 className="font-bold bg-muted/50 p-2 sticky top-0">{type}</h3>
-                    {items.map((item, index) => {
-                       const orderedItem = orderItems.find(oi => oi.itemCode === item.itemCode);
-                       const availableStock = item.stock - (orderedItem?.quantity || 0);
-                       return (
-                         <ItemListItem key={`${item.itemCode}-${index}`} item={{...item, stock: availableStock}} onAddItem={(quantity) => onAddItem(item, quantity)} orderType={orderType} />
-                       )
-                    })}
-                </div>
-            ))}
+      <div ref={containerRef} className="border rounded-lg overflow-hidden">
+        {flatList.length > 0 ? (
+          <div className="relative">
+            {/* Sticky category header */}
+            {stickyLabel && (
+              <div className="sticky top-12 z-20 bg-background/60 backdrop-blur-md border-b border-border/40 px-3 py-2">
+                <div className="max-w-full font-bold">{stickyLabel}</div>
+              </div>
+            )}
+            <List
+              height={listHeight}
+              itemCount={flatList.length}
+              itemSize={54}
+              width="100%"
+              onScroll={({ scrollOffset }) => {
+                const idx = Math.max(0, Math.floor(scrollOffset / 54));
+                // find nearest header at or before idx
+                for (let i = idx; i >= 0; i--) {
+                  const e = flatList[i];
+                  if (e && e.kind === 'header') {
+                    if (stickyLabel !== e.label) setStickyLabel(e.label);
+                    break;
+                  }
+                }
+              }}
+            >
+              {({ index, style }: { index: number; style: CSSProperties }) => {
+                const entry = flatList[index];
+                if (entry.kind === 'header') {
+                  // reserve space for header (we render floating header separately)
+                  return (
+                    <div style={style} className="p-2 font-bold bg-muted/50 border-b opacity-0">{/* placeholder */}</div>
+                  );
+                }
+                const item = entry.item;
+                const orderedItem = orderItems.find(oi => oi.itemCode === item.itemCode);
+                const availableStock = item.stock - (orderedItem?.quantity || 0);
+                const handler = addHandlers.get(item.itemCode) || ((q: number) => onAddItem(item, q));
+                return (
+                  <div style={style} className="border-b">
+                    <ItemListItem item={{...item, stock: availableStock}} onAddItem={handler} orderType={orderType} />
+                  </div>
+                );
+              }}
+            </List>
           </div>
         ) : (
           <p className="text-center text-muted-foreground p-8">

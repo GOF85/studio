@@ -174,9 +174,9 @@ function CprControlExplotacionPageInner() {
             allServiceOrders
                 .filter(os => {
                     try {
-                        const osDate = new Date(os.startDate);
+                        const osDate = os.startDate ? new Date(os.startDate) : new Date();
                         // Check for both 'Confirmado' and 'CONFIRMADO' to be safe
-                        const isConfirmed = os.status === 'Confirmado' || os.status === 'CONFIRMADO';
+                        const isConfirmed = String(os.status).toLowerCase() === 'confirmado';
                         return isConfirmed && isWithinInterval(osDate, { start: rangeStart, end: rangeEnd });
                     } catch (e) { return false; }
                 })
@@ -291,8 +291,8 @@ function CprControlExplotacionPageInner() {
             const osIdsEnRango = new Set(
                 allServiceOrders.filter(os => {
                     try {
-                        const osDate = new Date(os.startDate);
-                        const isConfirmed = os.status === 'Confirmado' || os.status === 'CONFIRMADO';
+                        const osDate = os.startDate ? new Date(os.startDate) : new Date();
+                        const isConfirmed = String(os.status).toLowerCase() === 'confirmado';
                         return isConfirmed && isWithinInterval(osDate, { start: rangeStart, end: rangeEnd });
                     } catch (e) { return false; }
                 }).map(os => os.id)

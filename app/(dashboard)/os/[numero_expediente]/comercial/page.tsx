@@ -26,7 +26,7 @@ import type {
   TipoServicio,
   ComercialAjuste,
 } from '@/types'
-import { osFormSchema, type OsFormValues } from '@/app/(dashboard)/os/[numero_expediente]/info/page'
+import { osFormSchema, type OsFormValues } from '@/types/entregas'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -128,20 +128,20 @@ const FinancialSummary = memo(({ totalBriefing, totalAjustes, facturacionFinal, 
     <Card className="bg-background/60 backdrop-blur-md border-border/40 shadow-sm overflow-hidden">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="financial-summary" className="border-none">
-          <AccordionTrigger className="hover:no-underline py-4 px-6 border-b border-border/40">
-            <div className="flex items-center justify-between w-full pr-4">
-              <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-foreground/80">
+          <AccordionTrigger className="hover:no-underline py-2 px-3 border-b border-border/40">
+            <div className="flex items-center justify-between w-full pr-2">
+              <CardTitle className="text-xs font-black uppercase tracking-[0.08em] text-foreground/80">
                 Resumen Económico
               </CardTitle>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Neta:</span>
-                <span className="text-sm font-black text-blue-600 dark:text-blue-400">
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Neta:</span>
+                <span className="text-xl md:text-2xl font-extrabold text-blue-600 dark:text-blue-400">
                   {facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                 </span>
               </div>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="p-6 space-y-6">
+          <AccordionContent className="p-2 space-y-3">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Briefing</span>
@@ -162,8 +162,8 @@ const FinancialSummary = memo(({ totalBriefing, totalAjustes, facturacionFinal, 
 
             <Separator className="bg-border/40" />
 
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="space-y-4">
                   <div className="flex flex-col gap-1.5">
                     <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Comisión Agencia</span>
@@ -241,22 +241,20 @@ const FinancialSummary = memo(({ totalBriefing, totalAjustes, facturacionFinal, 
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">Facturación Neta</span>
-                  <Euro className="h-3 w-3 text-blue-500/50" />
+              <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">Facturación Neta</div>
+                  <div className="text-lg md:text-xl font-black text-blue-600 dark:text-blue-400">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
                 </div>
-                <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                  {facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                </div>
+                <Euro className="h-4 w-4 text-blue-500/50 ml-2" />
               </div>
 
               <Button
                 type="button"
                 onClick={onSave}
-                className="w-full h-9 bg-foreground text-background hover:bg-foreground/90 font-black text-[10px] uppercase tracking-widest transition-all active:scale-[0.98]"
+                className="w-full h-8 bg-foreground text-background hover:bg-foreground/90 font-black text-[10px] uppercase tracking-widest transition-all active:scale-[0.98]"
               >
-                Actualizar Financieros
+                Actualizar
               </Button>
             </div>
           </AccordionContent>
@@ -593,26 +591,23 @@ export default function ComercialPage() {
   }
 
   return (
-    <main className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <main className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Briefing Section */}
         <Card className="lg:col-span-2 bg-background/60 backdrop-blur-md border-border/40 shadow-sm overflow-hidden">
-          <CardHeader className="py-4 px-6 flex flex-row items-center justify-between border-b border-border/40">
-            <div className="flex flex-col">
-              <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-foreground/80">
-                Briefing del Evento
+          <CardHeader className="py-3 px-4 flex flex-row items-center justify-between border-b border-border/40">
+            <div className="flex items-center gap-3 min-w-0">
+              <CardTitle className="text-lg font-black tracking-tight text-foreground/90 whitespace-nowrap truncate">
+                Briefing
               </CardTitle>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">
-                Cronograma y servicios
-              </p>
             </div>
             <Button
               onClick={handleNewClick}
               size="sm"
-              className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-widest transition-all duration-200 active:scale-95"
+              className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-all duration-150 active:scale-95 flex items-center gap-2 whitespace-nowrap"
             >
-              <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
-              Añadir Servicio
+              <PlusCircle className="h-3 w-3" />
+              <span className="text-sm font-bold">Añadir</span>
             </Button>
           </CardHeader>
           <CardContent className="p-0">
@@ -620,19 +615,19 @@ export default function ComercialPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-border/40">
-                    <TableHead className="h-10 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground pl-6">Fecha</TableHead>
-                    <TableHead className="h-10 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Horario</TableHead>
-                    <TableHead className="h-10 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Descripción</TableHead>
-                    <TableHead className="h-10 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Sala</TableHead>
-                    <TableHead className="h-10 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">PAX</TableHead>
-                    <TableHead className="h-10 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">P.U.</TableHead>
-                    <TableHead className="h-10 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right pr-6">Total</TableHead>
+                    <TableHead className="h-8 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground pl-4">Fecha</TableHead>
+                    <TableHead className="h-8 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground">Horario</TableHead>
+                    <TableHead className="h-8 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground">Descripción</TableHead>
+                    <TableHead className="h-8 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground">Sala</TableHead>
+                    <TableHead className="h-8 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground text-center">PAX</TableHead>
+                    <TableHead className="h-8 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground text-right">P.U.</TableHead>
+                    <TableHead className="h-8 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground text-right pr-4">Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sortedBriefingItems.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-32 text-center text-muted-foreground text-xs font-medium italic">
+                      <TableCell colSpan={7} className="h-28 text-center text-muted-foreground text-xs font-medium italic">
                         No hay servicios definidos para este evento
                       </TableCell>
                     </TableRow>
@@ -643,7 +638,7 @@ export default function ComercialPage() {
                         className="group cursor-pointer hover:bg-muted/10 transition-colors border-b border-border/20"
                         onClick={() => handleRowClick(item)}
                       >
-                        <TableCell className="py-3 pl-6">
+                        <TableCell className="py-2 pl-4">
                           <div className="flex flex-col">
                             <span className="text-[11px] font-bold text-foreground">
                               {format(new Date(item.fecha), 'dd MMM', { locale: es })}
@@ -653,28 +648,21 @@ export default function ComercialPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="py-3">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-black text-blue-600 dark:text-blue-400">
-                              {item.horaInicio}
-                            </span>
-                            <span className="text-[9px] font-bold text-muted-foreground/50">-</span>
-                            <span className="text-[11px] font-bold text-muted-foreground">
-                              {item.horaFin}
-                            </span>
-                          </div>
+                        <TableCell className="py-2">
+                            <div className="flex flex-col items-start">
+                              <span className="text-[11px] font-black text-blue-600 dark:text-blue-400 leading-tight">{item.horaInicio}</span>
+                              <span className="text-[10px] font-medium text-muted-foreground leading-tight">{item.horaFin}</span>
+                            </div>
                         </TableCell>
-                        <TableCell className="py-3">
+                        <TableCell className="py-2">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
+                              {item.conGastronomia && (
+                                <Utensils className="h-4 w-4 text-emerald-600" />
+                              )}
                               <span className="text-[11px] font-bold text-foreground group-hover:text-emerald-600 transition-colors">
                                 {item.descripcion}
                               </span>
-                              {item.conGastronomia && (
-                                <div className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[8px] font-black uppercase tracking-tighter text-emerald-600">
-                                  Gastro
-                                </div>
-                              )}
                             </div>
                             {item.comentarios && (
                               <span className="text-[10px] text-muted-foreground italic line-clamp-1">
@@ -683,26 +671,26 @@ export default function ComercialPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="py-3">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <TableCell className="py-2">
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
                             {item.sala || '-'}
                           </span>
                         </TableCell>
-                        <TableCell className="py-3 text-center">
-                          <span className="text-[11px] font-black text-foreground">
+                        <TableCell className="py-2 text-center">
+                          <span className="text-[10px] font-black text-foreground">
                             {item.asistentes}
                           </span>
                         </TableCell>
-                        <TableCell className="py-3 text-right">
-                          <span className="text-[11px] font-medium text-muted-foreground">
+                        <TableCell className="py-2 text-right">
+                          <span className="text-[10px] font-medium text-muted-foreground">
                             {item.precioUnitario.toLocaleString('es-ES', {
                               style: 'currency',
                               currency: 'EUR',
                             })}
                           </span>
                         </TableCell>
-                        <TableCell className="py-3 text-right pr-6">
-                          <span className="text-[11px] font-black text-foreground">
+                        <TableCell className="py-2 text-right pr-4">
+                          <span className="text-[10px] font-black text-foreground">
                             {(
                               item.asistentes * item.precioUnitario +
                               (item.importeFijo || 0)
@@ -716,10 +704,10 @@ export default function ComercialPage() {
                 {sortedBriefingItems.length > 0 && (
                   <TableFooter className="bg-transparent border-t border-border/40">
                     <TableRow>
-                      <TableCell colSpan={6} className="py-3 pl-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                      <TableCell colSpan={6} className="py-2 pl-4 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground">
                         Subtotal Briefing
                       </TableCell>
-                      <TableCell className="py-3 text-right pr-6 text-sm font-black text-foreground">
+                      <TableCell className="py-2 text-right pr-4 text-sm font-black text-foreground">
                         {totalBriefing.toLocaleString('es-ES', {
                           style: 'currency',
                           currency: 'EUR',
@@ -746,28 +734,33 @@ export default function ComercialPage() {
 
           {/* Ajustes Section */}
           <Card className="bg-background/60 backdrop-blur-md border-border/40 shadow-sm overflow-hidden">
-            <CardHeader className="py-4 px-6 border-b border-border/40">
-              <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-foreground/80">
-                Ajustes y Extras
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="ajustes-extras" className="border-none">
+                <AccordionTrigger className="hover:no-underline py-2 px-3 border-b border-border/20">
+                  <div className="flex items-center justify-between w-full pr-2">
+                    <CardTitle className="text-xs font-black uppercase tracking-[0.12em] text-foreground/80">
+                      Ajustes y Extras
+                    </CardTitle>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="p-0">
+                  <CardContent className="p-1">
+                    <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent border-b border-border/40">
-                    <TableHead className="h-10 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground pl-6">Concepto</TableHead>
-                    <TableHead className="h-10 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right pr-6">Importe</TableHead>
-                    <TableHead className="h-10 w-10"></TableHead>
+                  <TableRow className="hover:bg-transparent border-b border-border/20">
+                    <TableHead className="h-8 text-[9px] font-black uppercase tracking-[0.12em] text-muted-foreground pl-4">Concepto</TableHead>
+                    <TableHead className="h-8 text-[9px] font-black uppercase tracking-[0.12em] text-muted-foreground text-right pr-4">Importe</TableHead>
+                    <TableHead className="h-8 w-8"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {ajustes?.map((ajuste) => (
                     <TableRow key={ajuste.id} className="hover:bg-muted/10 border-b border-border/20">
-                      <TableCell className="py-2 pl-6 text-[11px] font-medium">{ajuste.concepto}</TableCell>
-                      <TableCell className="py-2 text-right pr-6 text-[11px] font-bold">
+                      <TableCell className="py-1 pl-4 text-[10px] font-medium">{ajuste.concepto}</TableCell>
+                      <TableCell className="py-1 text-right pr-4 text-[10px] font-bold">
                         {ajuste.importe.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                       </TableCell>
-                      <TableCell className="py-2 pr-4">
+                      <TableCell className="py-1 pr-2">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -779,38 +772,41 @@ export default function ComercialPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className="bg-transparent border-t border-border/40">
-                    <TableCell className="py-3 pl-6">
+                  <TableRow className="bg-transparent border-t border-border/20">
+                    <TableCell className="py-2 pl-4">
                       <Input
                         placeholder="Nuevo concepto..."
                         ref={nuevoAjusteConceptoRef}
-                        className="h-8 text-[11px] bg-background/50 border-border/40"
+                        className="h-7 text-[10px] bg-background/50 border-border/20"
                       />
                     </TableCell>
-                    <TableCell className="py-3 pr-6">
+                    <TableCell className="py-2 pr-4">
                       <div className="relative">
                         <Input
                           type="number"
                           placeholder="0.00"
                           ref={nuevoAjusteImporteRef}
-                          className="h-8 text-[11px] bg-background/50 border-border/40 pr-6 text-right"
+                          className="h-7 text-[10px] bg-background/50 border-border/20 pr-6 text-right"
                         />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">€</span>
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-muted-foreground">€</span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-3 pr-4">
+                    <TableCell className="py-2 pr-2">
                       <Button
                         size="icon"
-                        className="h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                        className="h-7 w-7 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                         onClick={handleAddAjuste}
                       >
-                        <PlusCircle className="h-4 w-4" />
+                        <PlusCircle className="h-3.5 w-3.5" />
                       </Button>
                     </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
-            </CardContent>
+                  </CardContent>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </Card>
         </div>
       </div>

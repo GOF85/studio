@@ -1,6 +1,7 @@
 import React from "react";
 import { useEffect, useState, useCallback } from 'react';
 import { getSupabaseClient } from '../lib/supabase';
+import { resolveOsId, buildFieldOr } from '../lib/supabase';
 
 interface UseModuleDataResult<T> {
   data: T[];
@@ -15,14 +16,16 @@ export function useModuleData<T = any>(os_id: string, tableName: string): UseMod
   const [error, setError] = useState<string | null>(null);
   const [refreshIndex, setRefreshIndex] = useState(0);
 
-  const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await getSupabaseClient()
-        .from(tableName)
-        .select('*')
-        .eq('os_id', os_id);
+        const targetId = await resolveOsId(os_id);
+        const orExpr = buildFieldOr('os_id', os_id, targetId);
+        let query = getSupabaseClient().from(tableName).select('*');
+        if (targetId && targetId !== os_id) query = query.or(orExpr);
+        else query = query.eq('numero_expediente', os_id);
+        const { data, error } = await query;
       if (error) {
         setError(error.message);
         setData([]);

@@ -64,7 +64,7 @@ export default function BookInformePage() {
             serviceOrders
                 .filter(os => {
                     try {
-                        const osDate = new Date(os.startDate);
+                        const osDate = os.startDate ? new Date(os.startDate) : new Date();
                         return isWithinInterval(osDate, { start: startOfCurrentYear, end: endOfCurrentYear });
                     } catch (e) { return false; }
                 })

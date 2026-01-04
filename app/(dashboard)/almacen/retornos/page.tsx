@@ -59,22 +59,23 @@ export default function GestionRetornosPage() {
         return serviceOrders
             .filter(os => os.status === 'Confirmado')
             .filter(os => {
-                const osDate = new Date(os.endDate); // We filter by end date for returns
-                
+                if (!os.endDate) return false;
+                const osDate = os.endDate ? new Date(os.endDate) : undefined; // We filter by end date for returns
+
                 let isInDateRange = true;
                 if (dateRange?.from) {
-                    isInDateRange = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
+                    isInDateRange = osDate ? isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) }) : false;
                 }
 
                 const matchesSearch = os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                     os.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                     (os.finalClient || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-                const isPastEvent = isPast(osDate);
+                const isPastEvent = osDate ? isPast(osDate) : false;
                 const pastEventMatch = showPastEvents || !isPastEvent;
                 
                 return isInDateRange && matchesSearch && pastEventMatch;
-            }).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+            }).sort((a, b) => (a.endDate ? new Date(a.endDate).getTime() : 0) - (b.endDate ? new Date(b.endDate).getTime() : 0));
     }, [serviceOrders, dateRange, searchTerm, showPastEvents]);
     
     const getReturnStatus = (osId: string): ReturnSheet['status'] => {
@@ -161,7 +162,7 @@ export default function GestionRetornosPage() {
                                         <TableRow key={os.id} onClick={() => router.push(`/almacen/retornos/${os.id}`)} className="cursor-pointer">
                                             <TableCell><Badge variant="outline">{os.serviceNumber}</Badge></TableCell>
                                             <TableCell>{os.client}{os.finalClient && ` - ${os.finalClient}`}</TableCell>
-                                            <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>{os.endDate ? format(new Date(os.endDate), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                             <TableCell>
                                                 <Badge variant={getStatusVariant(status)}>{status}</Badge>
                                             </TableCell>

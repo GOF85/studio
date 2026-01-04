@@ -9,6 +9,9 @@ vi.mock('../../lib/supabase', () => ({
       single: function () { return { data: { numero_expediente: 'EXP123' }, error: null }; }
     })
   })
+  ,
+  resolveOsId: async (id: string) => id,
+  buildFieldOr: (field: string, a: string, b: string) => `${field}.eq.${a},${field}.eq.${b}`
 }));
 import { useOS } from '../../hooks/useOS';
 import { useModuleData } from '../../hooks/useModuleData';
@@ -22,7 +25,7 @@ describe('Hooks principales', () => {
     const { result } = renderHook(() => useOS('EXP123'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.evento).toBeDefined();
-    expect(result.current.evento?.numero_expediente || result.current.evento?.serviceNumber).toBeDefined();
+    expect((result.current.evento as any)?.numero_expediente || result.current.evento?.serviceNumber).toBeDefined();
   });
 
   it('useModuleData debe retornar datos satélite para un os_id', async () => {

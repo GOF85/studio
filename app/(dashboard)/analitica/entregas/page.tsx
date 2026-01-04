@@ -272,8 +272,8 @@ export default function AnaliticaEntregasPage() {
         const toDate = endOfDay(dateRange.to || dateRange.from);
 
         return allPedidosData.filter(p => {
-            const osDate = new Date(p.os.startDate);
-            const isInDateRange = isWithinInterval(osDate, { start: fromDate, end: toDate });
+            const osDate = p.os?.startDate ? new Date(p.os.startDate) : undefined;
+            const isInDateRange = osDate ? isWithinInterval(osDate, { start: fromDate, end: toDate }) : false;
             const matchesTarifa = tarifaFilter === 'all' || p.os.tarifa === tarifaFilter;
             return isInDateRange && matchesTarifa;
         });
@@ -362,8 +362,8 @@ export default function AnaliticaEntregasPage() {
 
         const byProvider: { [key: string]: { name: string; coste: number; count: number; id: string } } = {};
         transportOrdersSelected.forEach(t => {
-            const providerName = t.nombreProveedor || 'Otros';
-            const providerId = t.tipoTransporteId || 'other';
+            const providerName = (t as any).proveedorNombre || 'Otros';
+            const providerId = (t as any).tipoTransporte || 'other';
             if (!byProvider[providerId]) byProvider[providerId] = { name: providerName, coste: 0, count: 0, id: providerId };
             byProvider[providerId].coste += (t.precio || 0);
             byProvider[providerId].count++;
@@ -631,7 +631,7 @@ export default function AnaliticaEntregasPage() {
                                                     <Link href={`/os/${p.os.id}/cta-explotacion`}>{p.os.serviceNumber}</Link>
                                                 </TableCell>
                                                 <TableCell className="text-xs font-medium uppercase tracking-tight">{p.os.client}</TableCell>
-                                                <TableCell className="text-xs font-medium">{format(new Date(p.os.startDate), 'dd MMM yyyy', { locale: es })}</TableCell>
+                                                <TableCell className="text-xs font-medium">{p.os?.startDate ? format(new Date(p.os.startDate), 'dd MMM yyyy', { locale: es }) : 'N/A'}</TableCell>
                                                 <TableCell className="text-right text-xs font-bold">{formatCurrency(pvp)}</TableCell>
                                                 <TableCell className="text-right text-xs font-bold">{formatCurrency(p.costeTotal)}</TableCell>
                                                 <TableCell className={cn("text-right pr-6 text-xs font-black", marginPct < 0 ? 'text-destructive' : 'text-emerald-600')}>

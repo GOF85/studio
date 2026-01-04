@@ -84,7 +84,7 @@ function DiferenciasEscandalloPageInner() {
   const searchParams = useSearchParams() ?? new URLSearchParams();
 
   // 1. Estado URL-Driven
-  const activeTab = (searchParams.get('tab') || 'recetas') as 'recetas' | 'elaboraciones' | 'ingredientes' | 'articulos';
+    const activeTab = (searchParams.get('tab') || 'recetas') as 'recetas' | 'elaboraciones' | 'ingredientes';
   
   const dateFromParam = searchParams.get('dateFrom');
   const dateToParam = searchParams.get('dateTo');
@@ -106,7 +106,7 @@ function DiferenciasEscandalloPageInner() {
   const isValidRange = isValidDateRange(dateFrom, dateTo);
 
   // 2. Fetch de Datos
-  const { data, snapshots, isLoading, loadingMessage, error, calculateHistory } = useEscandalloAnalyticsNew(activeTab, dateFrom, dateTo);
+    const { data, snapshots, isLoading, loadingMessage, error } = useEscandalloAnalyticsNew(activeTab, dateFrom, dateTo);
 
   // 3. Cálculos
   const summaryStats = useMemo(() => calculateSummaryStats(data), [data]);
@@ -308,7 +308,6 @@ function DiferenciasEscandalloPageInner() {
             isOpen={!!selectedItem} 
             onClose={() => setSelectedItem(null)} 
             item={selectedItem} 
-            calculateHistory={calculateHistory}
         />
 
       </div>

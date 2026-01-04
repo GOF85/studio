@@ -20,7 +20,7 @@ interface ItemHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   item: VariacionItem | null;
-  calculateHistory: (item: VariacionItem) => EscandalloSnapshot[];
+  calculateHistory?: (item: VariacionItem) => EscandalloSnapshot[];
 }
 
 export function ItemHistoryModal({ isOpen, onClose, item, calculateHistory }: ItemHistoryModalProps) {
@@ -32,7 +32,7 @@ export function ItemHistoryModal({ isOpen, onClose, item, calculateHistory }: It
       setLoading(true);
       // Timeout para no bloquear la animación de apertura del modal
       setTimeout(() => {
-          const data = calculateHistory(item);
+          const data = calculateHistory ? calculateHistory(item) : [];
           setHistory(data);
           setLoading(false);
       }, 50);
