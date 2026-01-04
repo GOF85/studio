@@ -441,6 +441,14 @@ export type GastronomyOrderItem = {
     comentarios?: string;
 }
 
+export type AllergenItem = {
+    id: string; // allergen ID, e.g., 'gluten', 'huevos'
+}
+
+export type GastronomyOrderItemWithAllergens = GastronomyOrderItem & {
+    alergenosDeclarados?: AllergenItem[];
+}
+
 
 export type ComercialBriefingItem = {
     id: string;
@@ -471,6 +479,11 @@ export type GastronomyOrder = {
     status: GastronomyOrderStatus;
     items: GastronomyOrderItem[];
     total: number;
+    // Allergen-specific fields
+    asistentesAlergenos?: number;
+    itemsAlergenos?: Array<GastronomyOrderItem & { aprobadoCocina?: boolean }>;
+    totalAlergenos?: number;
+    comentariosAlergenos?: string;
 }
 
 export type TransporteOrder = {

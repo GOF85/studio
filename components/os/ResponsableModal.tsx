@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { Mail, Phone, Copy, User, Users, UserCog, ChefHat, Briefcase, Building2 } from "lucide-react";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Mail, Phone, User, ChefHat, HandPlatter, PencilRuler, ReceiptEuro, IdCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Responsable {
@@ -23,29 +23,44 @@ interface ResponsableModalProps {
 }
 
 export default function ResponsableModal({ open, onOpenChange, responsables, numeroExpediente }: ResponsableModalProps) {
+  // Icono por rol
+  function getRolIcon(rol: string | undefined) {
+    switch ((rol || '').toLowerCase()) {
+      case 'metre': return <HandPlatter className="h-5 w-5 text-amber-600 flex-shrink-0" />;
+      case 'pase': return <ChefHat className="h-5 w-5 text-amber-600 flex-shrink-0" />;
+      case 'project manager': return <PencilRuler className="h-5 w-5 text-amber-600 flex-shrink-0" />;
+      case 'comercial': return <ReceiptEuro className="h-5 w-5 text-amber-600 flex-shrink-0" />;
+      case 'cocina pase': return <ChefHat className="h-5 w-5 text-amber-600 flex-shrink-0" />;
+      case 'cocina cpr': return <ChefHat className="h-5 w-5 text-amber-600 flex-shrink-0" />;
+      case 'rrhh': return <IdCard className="h-5 w-5 text-amber-600 flex-shrink-0" />;
+      default: return <User className="h-5 w-5 text-amber-600 flex-shrink-0" />;
+    }
+  }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm w-full p-2 sm:p-4">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="max-w-sm w-full p-2 sm:p-3 rounded-lg">
+        <DialogHeader className="mb-1">
+          <DialogTitle className="text-base font-bold">
             {`Responsables OS${numeroExpediente ? ' ' + numeroExpediente : ''}`}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-2 mt-2">
+        <div className="space-y-1">
           {responsables.map((resp, i) => (
-            <div key={i} className="flex items-center gap-3 p-2 rounded bg-muted/40 border border-border">
-              <User className="h-6 w-6 text-amber-600 flex-shrink-0" />
+            <div key={i} className="flex items-start gap-2 p-1 rounded border border-border bg-muted/30">
+              {getRolIcon(resp.rol)}
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-xs truncate">{resp.nombre} {resp.apellido}</div>
-                {resp.rol && <div className="text-[11px] text-muted-foreground font-medium">{resp.rol}</div>}
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                  <span className="truncate">{resp.nombre} {resp.apellido}</span>
+                  {resp.rol && <span className="font-normal text-[11px] text-muted-foreground">| {resp.rol}</span>}
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
                   {resp.telefono && (
-                    <a href={`tel:${resp.telefono}`} className="flex items-center gap-1 text-emerald-700 hover:underline text-xs">
+                    <a href={`tel:${resp.telefono}`} className="flex items-center gap-1 text-emerald-700 hover:underline">
                       <Phone className="h-4 w-4" /> {resp.telefono}
                     </a>
                   )}
                   {resp.mail && (
-                    <a href={`mailto:${resp.mail}`} className="flex items-center gap-1 text-blue-700 hover:underline text-xs">
+                    <a href={`mailto:${resp.mail}`} className="flex items-center gap-1 text-blue-700 hover:underline">
                       <Mail className="h-4 w-4" /> {resp.mail}
                     </a>
                   )}
@@ -54,10 +69,6 @@ export default function ResponsableModal({ open, onOpenChange, responsables, num
             </div>
           ))}
         </div>
-        <DialogClose asChild>
-          <button className="mt-2 w-full py-2 rounded bg-amber-600 text-white font-bold hover:bg-amber-700 transition text-sm" type="button">Cerrar</button>
-        </DialogClose>
-
       </DialogContent>
     </Dialog>
   );

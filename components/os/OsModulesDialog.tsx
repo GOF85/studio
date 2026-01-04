@@ -2,7 +2,7 @@
 
 import React, { useId } from 'react';
 import Link from 'next/link';
-import { ClipboardList, FileText, Coffee, Package, Zap, Warehouse, Box, Wrench, Users, User, Truck } from 'lucide-react';
+import { ClipboardList, FileText, ReceiptEuro, Utensils, Snowflake, Warehouse, Boxes, Flower, Blocks, Users, User, Truck, Package, BookCheck, Wine } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { useEvento } from '@/hooks/use-data-queries';
 
@@ -15,26 +15,26 @@ export default function OsModulesDialog({ osId, triggerClassName, trigger }: { o
     { key: 'sep1', separator: true },
 
     { key: 'info', title: 'Info', icon: ClipboardList },
-    { key: 'comercial', title: 'Comercial', icon: ClipboardList },
+    { key: 'comercial', title: 'Comercial', icon: ReceiptEuro },
     { key: 'cta-explotacion', title: 'Cuenta explotación', icon: FileText },
     { key: 'sep2', separator: true },
 
-    { key: 'gastronomia', title: 'Gastronomía', icon: Coffee },
-    { key: 'bodega', title: 'Bodega', icon: Package },
-    { key: 'hielo', title: 'Hielo', icon: Zap },
+    { key: 'gastronomia', title: 'Gastronomía', icon: Utensils },
+    { key: 'bodega', title: 'Bodega', icon: Wine },
+    { key: 'hielo', title: 'Hielo', icon: Snowflake },
     { key: 'almacen', title: 'Almacén', icon: Warehouse },
-    { key: 'alquiler', title: 'Alquiler', icon: Box },
-    { key: 'decoracion', title: 'Decoración', icon: Wrench },
-    { key: 'atipicos', title: 'Atípicos', icon: Wrench },
-    { key: 'personal-mice', title: 'Personal MICE', icon: Users },
-    { key: 'personal-externo', title: 'Personal externo', icon: User },
+    { key: 'alquiler', title: 'Alquiler', icon: Boxes },
+    { key: 'decoracion', title: 'Decoración', icon: Flower },
+    { key: 'atipicos', title: 'Atípicos', icon: Blocks },
+    { key: 'personal-mice', title: 'Personal MICE', icon: User },
+    { key: 'personal-externo', title: 'Personal externo', icon: Users },
     { key: 'transporte', title: 'Transporte', icon: Truck },
     { key: 'sep3', separator: true },
 
     { key: 'logistica', title: 'Logística', icon: Package },
     { key: 'sep4', separator: true },
 
-    { key: 'prueba-menu', title: 'Prueba Menú', icon: FileText },
+    { key: 'prueba-menu', title: 'Prueba Menú', icon: BookCheck },
   ];
 
   return (

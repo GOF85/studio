@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Users, Calendar, Clock, Wine } from 'lucide-react'
+import { Users, Calendar, Clock, Utensils, CirclePlus, ListCheck } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { useMaterialOrders } from '@/hooks/use-data-queries'
 import type {
   ServiceOrder,
@@ -31,6 +32,7 @@ import { cn } from '@/lib/utils'
 import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view'
 import { useInfiniteScroll } from '@/hooks/use-infinite-scroll'
 import { useComercialBriefing, useGastronomyOrders } from '@/hooks/use-briefing-data'
+import { useComercialBriefings } from '@/hooks/use-data-queries'
 import { useObjetivosGasto, useObjetivosGastoPlantillas } from '@/hooks/use-objetivos-gasto'
 import { useEvento } from '@/hooks/use-data-queries'
 
@@ -61,6 +63,15 @@ export default function GastronomiaPage() {
   const { data: gastronomyOrders, isLoading: isLoadingOrders } = useGastronomyOrders(
     serviceOrder?.id || osId,
   )
+
+  // Estado para el modal de resumen briefing
+  const [openResumenBriefing, setOpenResumenBriefing] = useState(false)
+
+  // Obtener todos los servicios del briefing comercial (no solo gastronomía)
+  const { data: allBriefings } = useComercialBriefings(serviceOrder?.id || osId)
+  const allBriefingItems = useMemo(() => {
+    return allBriefings?.[0]?.items || []
+  }, [allBriefings])
 
   const briefingItems = useMemo(() => {
     if (!briefing?.items) return []
@@ -176,6 +187,11 @@ export default function GastronomiaPage() {
     return ((presupuesto - objetivoValue) / objetivoValue) * 100
   }, [presupuesto, objetivoValue])
 
+  // Cambiar el título de la página
+  useEffect(() => {
+    document.title = 'OS Gastronomía'
+  }, [])
+
   if (isLoading) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />
   }
@@ -187,7 +203,7 @@ export default function GastronomiaPage() {
         <div className="max-w-7xl mx-auto px-3 py-1">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center h-10">
-              <Wine className="h-6 w-6 text-emerald-800" aria-hidden="true" />
+              <Utensils className="h-6 w-6 text-emerald-800" aria-hidden="true" />
             </div>
 
             <div className="flex items-center gap-6 text-sm">
@@ -210,18 +226,21 @@ export default function GastronomiaPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 mt-2 md:justify-end justify-center">
-            <Button variant="outline" size="sm" className="h-8 text-[12px]">
-              <span className="hidden md:inline">Resumen Artículos</span>
-              <span className="inline md:hidden">Artículos</span>
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 text-[12px]">
+          <div className="flex items-center gap-3 mt-2 justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-[12px]"
+              onClick={() => setOpenResumenBriefing(true)}
+            >
+              <ListCheck className="h-3.5 w-3.5 mr-1" />
               <span className="hidden md:inline">Resumen Briefing</span>
-              <span className="inline md:hidden">Briefing</span>
+              <span className="inline md:hidden">Resumen Briefing</span>
             </Button>
             <Button variant="default" size="sm" className="h-8 text-[12px]">
+              <CirclePlus className="h-3.5 w-3.5 mr-1" />
               <span className="hidden md:inline">Nuevo Pedido</span>
-              <span className="inline md:hidden">Pedido</span>
+              <span className="inline md:hidden">Nuevo Pedido</span>
             </Button>
           </div>
         </div>
@@ -230,9 +249,13 @@ export default function GastronomiaPage() {
       <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
         <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
         <CardHeader className="py-1 px-2 border-b border-border/40 bg-muted/10">
-          <CardTitle className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
-            Pedidos Gastronomía
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Utensils className="h-4 w-4 text-emerald-800 hidden md:block" />
+            <CardTitle className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+              <span className="hidden md:inline">Pedidos Gastronomía CPR</span>
+              <span className="inline md:hidden">Pedidos Gastronomía</span>
+            </CardTitle>
+          </div>
         </CardHeader>
         <CardContent className="p-1">
           {/* Vista Móvil: Tarjetas Apiladas */}
@@ -313,6 +336,48 @@ export default function GastronomiaPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal Resumen Briefing */}
+      <Dialog open={openResumenBriefing} onOpenChange={setOpenResumenBriefing}>
+        <DialogContent className="max-w-lg w-full p-0 rounded-lg">
+          <DialogHeader className="px-4 pt-4 pb-2">
+            <DialogTitle className="text-base font-bold">Resumen de Servicios del Evento</DialogTitle>
+            <DialogClose className="absolute right-4 top-4" />
+          </DialogHeader>
+          <div className="px-2 pb-4 max-h-[70vh] overflow-y-auto">
+            {allBriefingItems.length === 0 ? (
+              <div className="text-center text-muted-foreground text-sm py-8">No hay servicios en el briefing comercial.</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {allBriefingItems.map((item) => (
+                  <div key={item.id} className={cn("rounded-lg border border-border p-2 flex flex-col gap-1 text-xs shadow-sm", item.conGastronomia ? 'bg-emerald-50 border-emerald-200' : 'bg-background')}>
+                    <div className="flex flex-wrap items-center gap-2 justify-between">
+                      <div className="font-bold text-[13px] flex-1 truncate flex items-center gap-2">{item.conGastronomia && <Utensils className="h-4 w-4 text-emerald-700 flex-shrink-0" />}{item.descripcion}</div>
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Users className="h-3 w-3" />
+                        <span>{item.asistentes}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[12px] text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>{format(new Date(item.fecha), 'dd/MM/yyyy')}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>{item.horaInicio} - {item.horaFin}</span>
+                      </div>
+                    </div>
+                    {item.comentarios && (
+                      <div className="text-[12px] text-muted-foreground italic truncate">{item.comentarios}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

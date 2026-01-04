@@ -160,7 +160,11 @@ export const useGastronomyOrders = (osId?: string) => {
                 osId: o.os_id,
                 status: o.status,
                 items: o.items || [],
-                total: o.total
+                total: o.total,
+                asistentesAlergenos: o.asistentes_alergenos || 0,
+                itemsAlergenos: o.items_alergenos || [],
+                totalAlergenos: o.total_alergenos || 0,
+                comentariosAlergenos: o.comentarios_alergenos || '',
             })) as GastronomyOrder[];
         },
         enabled: !!osId
@@ -190,8 +194,12 @@ export const useGastronomyOrder = (osId: string, briefingItemId: string) => {
                 osId: data.os_id,
                 status: data.status,
                 items: data.items || [],
-                total: data.total
-            } as GastronomyOrder : { id: briefingItemId, osId: targetId, status: 'Pendiente', items: [], total: 0 };
+                total: data.total,
+                asistentesAlergenos: data.asistentes_alergenos || 0,
+                itemsAlergenos: data.items_alergenos || [],
+                totalAlergenos: data.total_alergenos || 0,
+                comentariosAlergenos: data.comentarios_alergenos || '',
+            } as GastronomyOrder : { id: briefingItemId, osId: targetId, status: 'Pendiente', items: [], total: 0, asistentesAlergenos: 0, itemsAlergenos: [], totalAlergenos: 0, comentariosAlergenos: '' };
         },
         enabled: !!osId && !!briefingItemId
     });
@@ -209,7 +217,11 @@ export const useUpdateGastronomyOrder = () => {
                     os_id: targetId,
                     status: order.status,
                     items: order.items,
-                    total: order.total
+                    total: order.total,
+                    asistentes_alergenos: order.asistentesAlergenos || 0,
+                    items_alergenos: order.itemsAlergenos || [],
+                    total_alergenos: order.totalAlergenos || 0,
+                    comentarios_alergenos: order.comentariosAlergenos || '',
                 }, { onConflict: 'os_id,briefing_item_id' })
                 .select()
                 .single();

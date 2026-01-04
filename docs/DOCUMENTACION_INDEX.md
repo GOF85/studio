@@ -302,6 +302,46 @@ npm run dev 2>&1 | grep -i middleware
 
 ---
 
+## �️ SISTEMA DE MENÚ CON ALÉRGENOS (Nuevo - 4 Enero 2026)
+
+### Quick Links
+- **[ALLERGEN_SYSTEM_SETUP.md](ALLERGEN_SYSTEM_SETUP.md)** - Guía de deployment e instalación
+- **[ALLERGEN_SYSTEM_ARCHITECTURE.md](ALLERGEN_SYSTEM_ARCHITECTURE.md)** - Documentación técnica completa
+- **[ALLERGEN_SYSTEM_LOGIC.md](ALLERGEN_SYSTEM_LOGIC.md)** - Lógica de asistentes, ratios y cálculos
+- **[ALLERGEN_SYSTEM_UI_VISUAL.md](ALLERGEN_SYSTEM_UI_VISUAL.md)** ⭐ **NUEVO** - Visualización UI y ejemplos paso a paso
+
+### Resumen
+Sistema de menú paralelo para gestionar composiciones regulares y sin alérgenos de forma independiente:
+
+**Características**:
+- ✅ Doble menú: Regular | Alérgenos (tarjetas independientes)
+- ✅ Aprobación por cocina (✓ checkbox per item)
+- ✅ Tracking de costos y rentabilidad separado
+- ✅ 12 alérgenos estándar predefinidos
+- ✅ Dashboard de profitabilidad con gráficos
+- ✅ Notificaciones de cambios en tiempo real
+- ✅ **NUEVO**: Cálculo correcto de asistentes (Total - Alérgenos = Genéricos)
+- ✅ **NUEVO**: Ratios independientes por menú
+
+**Componentes Nuevos**:
+- `/lib/allergen-constants.ts` - Definiciones de alérgenos
+- `/components/gastro/allergen-info-modal.tsx` - Modal de detalles
+- `/components/gastro/cost-breakdown-modal.tsx` - Análisis de costos
+- `/components/gastro/dual-composition-cards.tsx` - Tarjetas duales
+- `/components/gastro/allergen-status-badge.tsx` - Badge de estado
+- `/hooks/use-gastronomy-order-changes.ts` - Detección de cambios
+- `/supabase/migrations/20260104_add_allergen_fields.sql` - Migración DB
+
+**Archivos Modificados**:
+- `/types/index.ts` - Extended GastronomyOrder type
+- `/hooks/use-briefing-data.ts` - Updated mutation (FIXED: Now maps allergen fields)
+- `/app/(dashboard)/os/[numero_expediente]/gastronomia/[briefingItemId]/page.tsx` - Form + Logic refactored
+- `/app/(dashboard)/os/[numero_expediente]/gastronomia/reportes/page.tsx` - New reports page
+
+**Estado**: ✅ Listo para testing (requiere migración DB)
+
+---
+
 ## 🎯 PRÓXIMO PASO
 
 **Recomendado**: Abre [START_HERE.md](START_HERE.md) ahora.
@@ -315,8 +355,9 @@ rm -rf .next && npm run dev
 ---
 
 **Creado**: 16 Diciembre 2025  
-**Total de documentación**: 7 archivos  
-**Tiempo total de lectura**: 5 minutos (si todo está OK)  
+**Actualizado**: 4 Enero 2026  
+**Total de documentación**: 7 archivos + 2 allergen docs  
+**Tiempo total de lectura**: 5-10 minutos (si todo está OK)  
 **Complejidad**: Fácil  
 
 ¿Listo? 🚀 →  [START_HERE.md](START_HERE.md)
