@@ -333,7 +333,7 @@ const ResponsablesTitle = memo(() => {
         <h3 className="text-sm font-black uppercase tracking-[0.1em] text-foreground/70">Responsables</h3>
       </div>
       {(metre || pase || pm) && (
-        <div className="flex gap-4">
+        <div className="hidden md:flex gap-4">
           {metre && (
             <div className="flex flex-col items-end">
               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Metre</span>
@@ -599,15 +599,12 @@ export default function InfoPage() {
             className="space-y-6"
           >
             <Card className="bg-background/60 backdrop-blur-md border-border/40 shadow-sm overflow-hidden">
-              <CardHeader className="py-4 px-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 bg-muted/30">
-                <div className="flex items-center gap-6">
-                  <div className="flex flex-col">
+              <CardHeader className="py-3 px-4 md:py-4 md:px-6 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 border-b border-border/40 bg-muted/30">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center">
                     <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-foreground/80">
-                      Datos del Servicio
+                      Info. OS
                     </CardTitle>
-                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">
-                      Información general y logística
-                    </p>
                   </div>
                   <FormField
                     control={form.control}
@@ -673,11 +670,18 @@ export default function InfoPage() {
                     className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-900/20 transition-all duration-200 active:scale-95"
                   >
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Crear OS'}</span>
+                    {isEditing ? (
+                      <>
+                        <span className="hidden sm:inline ml-2">Guardar Cambios</span>
+                        <span className="inline sm:hidden ml-2">Guardar</span>
+                      </>
+                    ) : (
+                      <span className="ml-2">Crear OS</span>
+                    )}
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-6 space-y-8">
+              <CardContent className="p-4 space-y-6 md:p-6 md:space-y-8">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-y-6 gap-x-4">
                   <FormField
                     control={form.control}

@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useId } from 'react';
 import Link from 'next/link';
 import { ClipboardList, FileText, Coffee, Package, Zap, Warehouse, Box, Wrench, Users, User, Truck } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
@@ -8,6 +8,8 @@ import { useEvento } from '@/hooks/use-data-queries';
 
 export default function OsModulesDialog({ osId, triggerClassName, trigger }: { osId: string; triggerClassName?: string; trigger?: React.ReactNode }) {
   const { data: evento } = useEvento(osId);
+  const reactId = useId();
+  const contentId = `os-modules-${osId}-${reactId}`;
 
   const menu = [
     { key: 'sep1', separator: true },
@@ -47,7 +49,7 @@ export default function OsModulesDialog({ osId, triggerClassName, trigger }: { o
         )}
       </SheetTrigger>
 
-      <SheetContent side="left" className="w-80 h-full p-0">
+      <SheetContent id={contentId} side="left" className="w-80 h-full p-0">
         <div className="flex flex-col h-full">
           <SheetHeader className="px-4 py-4">
             <div className="flex items-center justify-between">

@@ -45,6 +45,10 @@ interface MobileTableViewProps<T = any> {
    * Función para renderizar acciones (botones) en cada tarjeta
    */
   renderActions?: (row: T, index: number) => ReactNode;
+  /** Click handler when tapping the whole card (mobile) */
+  onCardClick?: (row: T, index: number) => void;
+  /** Compact mode reduces paddings and vertical spacing */
+  compact?: boolean;
   /**
    * Clase CSS adicional para el contenedor
    */
@@ -74,6 +78,8 @@ export function MobileTableView<T extends Record<string, any>>({
   data,
   columns,
   renderActions,
+  onCardClick,
+  compact = false,
   className,
   cardClassName,
   isLoading = false,
@@ -104,20 +110,27 @@ export function MobileTableView<T extends Record<string, any>>({
         return (
           <div
             key={index}
+            role={onCardClick ? 'button' : undefined}
+            onClick={onCardClick ? (() => onCardClick(row, index)) : undefined}
             className={cn(
-              'bg-card text-card-foreground rounded-xl border shadow-sm p-4 flex flex-col gap-3',
+              'bg-card text-card-foreground rounded-xl border shadow-sm',
+              compact ? 'p-1 flex flex-col gap-1' : 'p-4 flex flex-col gap-3',
+              onCardClick && 'cursor-pointer',
               cardClassName
             )}
           >
             {/* Título principal */}
             {titleValue && (
-              <div className="font-semibold text-base pb-2 border-b">
+              <div className={cn(
+                'font-semibold',
+                compact ? 'text-xs pb-0' : 'text-base pb-2 border-b'
+              )}>
                 {titleValue}
               </div>
             )}
 
             {/* Campos */}
-            <div className="space-y-2">
+            <div className={compact ? 'space-y-0.5' : 'space-y-2'}>
               {visibleColumns
                 .filter((col) => col !== titleColumn)
                 .map((column) => {
@@ -130,10 +143,15 @@ export function MobileTableView<T extends Record<string, any>>({
 
                   return (
                     <div key={column.key} className="flex justify-between items-start gap-2">
-                      <span className="text-muted-foreground text-sm font-medium min-w-[100px]">
-                        {column.label}:
-                      </span>
-                      <span className="text-sm text-right flex-1 break-words">
+                      {column.label ? (
+                        <span className="text-muted-foreground text-sm font-medium min-w-[100px]">
+                          {column.label}:
+                        </span>
+                      ) : null}
+                      <span className={cn(
+                        'text-sm break-words',
+                        column.label ? 'text-right flex-1' : 'w-full'
+                      )}>
                         {formattedValue}
                       </span>
                     </div>
