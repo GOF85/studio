@@ -20,6 +20,13 @@ import {
   RefreshCw,
   GripVertical,
   ArrowLeft,
+  AlertCircle,
+  BarChart3,
+  Calendar,
+  Clock,
+  Building2,
+  MapPin,
+  NotebookPen,
 } from 'lucide-react'
 import { format, differenceInMinutes, parse, startOfDay } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -53,6 +60,7 @@ import type {
   ArticuloERP,
   IngredienteInterno,
   Elaboracion,
+  CategoriaReceta,
 } from '@/types'
 import { supabase } from '@/lib/supabase'
 import {
@@ -84,6 +92,7 @@ import { useToast } from '@/hooks/use-toast'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -111,6 +120,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton'
 import { formatCurrency, formatNumber, cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { RecetaSelector } from '@/components/os/gastronomia/receta-selector'
+import { EditGastronomiaPlateModal } from '@/components/os/gastronomia/edit-gastronomia-plate-modal'
 import { DualCompositionCards } from '@/components/gastro/dual-composition-cards'
 import { useGastronomyOrderChanges } from '@/hooks/use-gastronomy-order-changes'
 
@@ -118,12 +128,18 @@ const gastroItemSchema = z.object({
   id: z.string(), // Receta ID
   type: z.enum(['item', 'separator']),
   nombre: z.string(),
+  categoria: z.string().optional(),
   costeMateriaPrimaSnapshot: z.number().optional(),
   precioVentaSnapshot: z.number().optional(),
   costeMateriaPrima: z.number().optional(),
   precioVenta: z.number().optional(),
   quantity: z.coerce.number().optional(),
   comentarios: z.string().optional(),
+  alergenos: z.array(z.any()).optional(),
+  alergenosMetadata: z.object({
+    presentes: z.array(z.string()),
+    trazas: z.array(z.string())
+  }).optional(),
   alergenosDeclarados: z.array(z.object({ id: z.string() })).optional(),
   aprobadoCocina: z.boolean().optional(),
 })
@@ -185,103 +201,71 @@ const GastroInfoBar = memo(({ asistentes, asistentesAlergenos = 0 }: { asistente
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
       {/* Card 1: Asistentes */}
-      <Card className="h-[70px] bg-background/60 backdrop-blur-md border-border/40 overflow-hidden relative">
+      <Card className="h-auto bg-background/60 backdrop-blur-md border-border/40 overflow-hidden relative">
         <div className="absolute top-0 left-0 w-1 h-full bg-slate-500" />
         <CardHeader className="pb-0 py-0.5 px-2">
           <div className="flex justify-between items-baseline gap-1">
             <CardTitle className="text-[13px] font-black uppercase tracking-widest leading-none">Asistentes</CardTitle>
             <div className="flex items-center gap-0.5">
-              <span className="text-2xl font-black text-slate-700 dark:text-slate-300 leading-none">{asistentes}</span>
-              <User className="w-5 h-5 text-slate-500 flex-shrink-0" />
+              <span className="text-2xl font-black text-black dark:text-white leading-none">{asistentes}</span>
+              <User className="w-5 h-5 text-black dark:text-white flex-shrink-0" />
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-2 pt-0.5 space-y-0">
-          <div className="text-[12px] font-medium text-muted-foreground leading-tight">
-            Genérico: <span className="font-bold text-foreground">{asistentesGenericos}</span>
-          </div>
-          {asistentes > asistentesGenericos && (
-            <div className="text-[12px] font-medium text-muted-foreground leading-tight">
-              Alérgeno: <span className="font-bold text-red-600 dark:text-red-400">{asistentes - asistentesGenericos}</span>
-            </div>
-          )}
+        <CardContent className="p-1.5 pt-0">
         </CardContent>
       </Card>
 
       {/* Card 2: Coste Pedido */}
-      <Card className="h-[70px] bg-background/60 backdrop-blur-md border-border/40 overflow-hidden relative">
+      <Card className="h-auto bg-background/60 backdrop-blur-md border-border/40 overflow-hidden relative">
         <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
         <CardHeader className="pb-0 py-0.5 px-2">
           <div className="flex justify-between items-baseline gap-1">
             <CardTitle className="text-[13px] font-black uppercase tracking-widest leading-none">Coste Pedido</CardTitle>
-            <span className="text-2xl font-black text-orange-600 dark:text-orange-400 leading-none">
+            <span className="text-2xl font-black text-black dark:text-white leading-none">
               {(totalPedido + allergenTotal).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 })}
             </span>
           </div>
         </CardHeader>
-        <CardContent className="p-2 pt-0.5 space-y-0">
-          <div className="text-[12px] font-medium text-muted-foreground leading-tight">
-            Genérico: <span className="font-bold text-foreground">{totalPedido.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 })}</span>
-          </div>
-          {allergenTotal > 0 && (
-            <div className="text-[12px] font-medium text-muted-foreground leading-tight">
-              Alérgeno: <span className="font-bold text-red-600 dark:text-red-400">{allergenTotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 })}</span>
-            </div>
-          )}
+        <CardContent className="p-1.5 pt-0">
         </CardContent>
       </Card>
 
       {/* Card 3: Coste por Pax */}
-      <Card className="h-[70px] bg-background/60 backdrop-blur-md border-border/40 overflow-hidden relative">
+      <Card className="h-auto bg-background/60 backdrop-blur-md border-border/40 overflow-hidden relative">
         <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
         <CardHeader className="pb-0 py-0.5 px-2">
           <div className="flex justify-between items-baseline gap-1">
             <CardTitle className="text-[13px] font-black uppercase tracking-widest leading-none">Coste/Pax</CardTitle>
             <div className="flex items-center gap-1">
-              <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 leading-none">
+              <span className="text-2xl font-black text-black dark:text-white leading-none">
                 {((totalPedido + allergenTotal) / asistentes).toFixed(2)}€
               </span>
               <span className="text-lg font-light text-muted-foreground">/</span>
-              <User className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+              <User className="w-5 h-5 text-black dark:text-white flex-shrink-0" />
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-2 pt-0.5 space-y-0">
-          <div className="text-[12px] font-medium text-muted-foreground leading-tight">
-            Genérico: <span className="font-bold text-foreground">{(totalPedido / asistentesGenericos).toFixed(2)}€</span>
-          </div>
-          {allergenTotal > 0 && asistentes > asistentesGenericos && (
-            <div className="text-[12px] font-medium text-muted-foreground leading-tight">
-              Alérgeno: <span className="font-bold text-red-600 dark:text-red-400">{(allergenTotal / (asistentes - asistentesGenericos)).toFixed(2)}€</span>
-            </div>
-          )}
+        <CardContent className="p-1.5 pt-0">
         </CardContent>
       </Card>
 
       {/* Card 4: Ratios */}
-      <Card className="h-[70px] bg-background/60 backdrop-blur-md border-border/40 overflow-hidden relative">
+      <Card className="h-auto bg-background/60 backdrop-blur-md border-border/40 overflow-hidden relative">
         <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
         <CardHeader className="pb-0 py-0.5 px-2">
           <div className="flex justify-between items-baseline gap-1">
             <CardTitle className="text-[13px] font-black uppercase tracking-widest leading-none">Ratios</CardTitle>
             <div className="flex items-center gap-1">
-              <span className="text-2xl font-black text-blue-600 dark:text-blue-400 leading-none">
-                {((totalPedido + allergenTotal) / asistentes).toFixed(2)}
+              <span className="text-2xl font-black text-black dark:text-white leading-none">
+                {ratioGenericos.toFixed(2)}
               </span>
               <span className="text-lg font-light text-muted-foreground">/</span>
-              <User className="w-5 h-5 text-blue-500 flex-shrink-0" />
+              <User className="w-5 h-5 text-black dark:text-white flex-shrink-0" />
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-2 pt-0.5 space-y-0">
-          <div className="text-[12px] font-medium text-muted-foreground leading-tight">
-            Genérico: <span className="font-bold text-foreground">{ratioGenericos.toFixed(2)}</span>
-          </div>
-          {ratioAlergenos > 0 && (
-            <div className="text-[12px] font-medium text-muted-foreground leading-tight">
-              Alérgeno: <span className="font-bold text-red-600 dark:text-red-400">{ratioAlergenos.toFixed(2)}</span>
-            </div>
-          )}
+        <CardContent className="p-1.5 pt-0">
         </CardContent>
       </Card>
     </div>
@@ -295,12 +279,16 @@ const SortableRow = memo(({
   id,
   index,
   field,
+  watchedItem,
   control,
   remove,
   setEditingComment,
   formatCurrency,
   update,
+  allergenUpdate,
   onEditSeparator,
+  onEditPlate,
+  editingMenu,
 }: any) => {
   // Deshabilitar completamente el sortable cuando estamos editando
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -317,91 +305,97 @@ const SortableRow = memo(({
   return (
     <TableRow
       ref={setNodeRef}
-      style={style}
-      className={field.type === 'separator' ? 'bg-muted/50 hover:bg-muted/80' : ''}
+      style={{
+        ...style,
+        backgroundColor: field.type === 'separator' ? (document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)') : style.backgroundColor
+      }}
+      className={field.type === 'separator' ? 'border-b-2 border-gray-200 dark:border-slate-700' : ''}
     >
       {field.type === 'separator' ? (
         <>
-          <TableCell className="w-8 flex items-center">
+          <TableCell className="w-5 md:w-8 p-0.5 md:p-1">
             <button
               {...attributes}
               {...listeners}
-              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1"
-              title="Arrastra para reordenar"
+              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-0 md:p-1"
+              title="Arrastra"
             >
-              <GripVertical className="h-4 w-4" />
+              <GripVertical className="h-2.5 md:h-4 w-2.5 md:w-4" />
             </button>
           </TableCell>
           <TableCell
-            className="flex-1 min-w-96 cursor-pointer hover:underline font-bold text-lg"
-            onClick={() => onEditSeparator({ index, nombre: field.nombre })}
+            className="px-0.5 md:px-3 py-0.5 md:py-2 min-w-[60px] md:min-w-[140px] cursor-pointer hover:underline font-bold text-[7px] md:text-base line-clamp-1"
+            onClick={() => onEditSeparator({ index, nombre: field.nombre, menu: editingMenu })}
           >
             {field.nombre}
           </TableCell>
           <TableCell colSpan={3}></TableCell>
-          <TableCell className="text-right w-16">
+          <TableCell className="text-right px-0.5 md:px-3 py-0.5 md:py-2">
             <Button
               variant="ghost"
               size="icon"
-              className="text-destructive"
+              className="text-destructive h-5 md:h-8 w-5 md:w-8 p-0"
               onClick={() => remove(index)}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-2.5 md:h-4 w-2.5 md:w-4" />
             </Button>
           </TableCell>
         </>
       ) : (
         <>
-          <TableCell className="w-8 flex items-center">
+          <TableCell className="w-5 md:w-8 p-0.5 md:p-1">
             <button
               {...attributes}
               {...listeners}
-              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1"
-              title="Arrastra para reordenar"
+              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-0 md:p-1"
+              title="Arrastra"
             >
-              <GripVertical className="h-4 w-4" />
+              <GripVertical className="h-2.5 md:h-4 w-2.5 md:w-4" />
             </button>
           </TableCell>
-          <TableCell className="flex-1 min-w-96">{field.nombre}</TableCell>
-          <TableCell className="w-24">
+          <TableCell className={`px-0.5 md:px-3 py-0.5 md:py-2 min-w-[60px] md:min-w-[140px] text-[7px] md:text-sm font-medium line-clamp-1 flex items-center gap-1 ${watchedItem?.id?.toString().startsWith('manual-') ? 'cursor-pointer hover:underline hover:text-blue-600 bg-yellow-100/50 dark:bg-yellow-900/20' : ''}`} onClick={() => { if (watchedItem?.id?.toString().startsWith('manual-')) { onEditPlate(watchedItem, editingMenu); } }} >
+            {watchedItem?.id?.toString().startsWith('manual-') && <AlertCircle className="h-3 md:h-4 w-3 md:w-4 text-yellow-600 dark:text-yellow-500 flex-shrink-0" />}
+            <span>{field.nombre}</span>
+          </TableCell>
+          <TableCell className="px-0.5 md:px-3 py-0.5 md:py-2 text-center">
             <FormField
               control={control}
-              name={`items.${index}.quantity`}
+              name={`${editingMenu === 'alergenos' ? 'itemsAlergenos' : 'items'}.${index}.quantity`}
               render={({ field: quantityField }) => (
                 <Input
                   type="number"
                   {...quantityField}
                   onChange={(e) => quantityField.onChange(parseInt(e.target.value, 10) || 0)}
-                  className="w-20 h-8"
+                  className="w-8 md:w-16 h-6 md:h-8 text-center text-[8px] md:text-sm font-semibold p-0.5 md:p-2 mx-auto"
                 />
               )}
             />
           </TableCell>
-          <TableCell className="w-24 text-right">
+          <TableCell className="px-0.5 md:px-3 py-0.5 md:py-2 text-right text-[7px] md:text-xs font-medium">
             {formatCurrency(field.precioVentaSnapshot || field.precioVenta || 0)}
           </TableCell>
-          <TableCell className="w-32 text-right font-semibold">
+          <TableCell className="px-0.5 md:px-3 py-0.5 md:py-2 text-right font-semibold text-[7px] md:text-xs">
             {formatCurrency(
               (field.precioVentaSnapshot || field.precioVenta || 0) * (field.quantity || 0),
             )}
           </TableCell>
-          <TableCell className="text-right w-24">
-            <div className="flex items-center justify-end gap-1">
+          <TableCell className="px-0.5 md:px-3 py-0.5 md:py-2 text-right">
+            <div className="flex items-center justify-end gap-0.5">
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground h-8 w-8"
+                className="text-muted-foreground h-5 md:h-8 w-5 md:w-8 p-0"
                 onClick={() => setEditingComment({ index, text: field.comentarios || '' })}
               >
-                <MessageSquare className={`h-4 w-4 ${field.comentarios ? 'text-primary' : ''}`} />
+                <MessageSquare className={`h-2.5 md:h-4 w-2.5 md:w-4 ${field.comentarios ? 'text-primary' : ''}`} />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-destructive h-8 w-8"
+                className="text-destructive h-5 md:h-8 w-5 md:w-8 p-0"
                 onClick={() => remove(index)}
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-2.5 md:h-4 w-2.5 md:w-4" />
               </Button>
             </div>
           </TableCell>
@@ -416,12 +410,16 @@ function PedidoGastronomiaForm() {
   const osId = (params.numero_expediente as string) || ''
   const briefingItemId = (params.briefingItemId as string) || ''
 
-  const [isSelectorOpen, setIsSelectorOpen] = useState(false)
+  const [isSelectorOpen, setIsSelectorOpen] = useState<false | 'regular' | 'alergenos'>(false)
   const [editingComment, setEditingComment] = useState<{ index: number; text: string } | null>(null)
   const [editingSeparator, setEditingSeparator] = useState<{
     index: number
     nombre: string
+    menu?: 'regular' | 'alergenos'
   } | null>(null)
+  const [editingPlate, setEditingPlate] = useState<GastronomyOrderItem | null>(null)
+  const [editingMenu, setEditingMenu] = useState<'regular' | 'alergenos'>('regular')
+  const [categorias, setCategorias] = useState<CategoriaReceta[]>([])
 
   const router = useRouter()
   const { toast } = useToast()
@@ -435,6 +433,25 @@ function PedidoGastronomiaForm() {
     serviceOrder?.id || osId,
   )
   const updateOrderMutation = useUpdateGastronomyOrder()
+
+  // Cargar categorías de Supabase
+  useEffect(() => {
+    const loadCategorias = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('categorias_recetas')
+          .select('*')
+          .order('nombre', { ascending: true });
+        
+        if (error) throw error;
+        setCategorias((data || []) as CategoriaReceta[]);
+      } catch (error) {
+        console.error('Error loading categorías:', error);
+      }
+    };
+    
+    loadCategorias();
+  }, []);
 
   const briefingItem = useMemo(() => {
     return briefing?.items?.find((item) => item.id === briefingItemId) || null
@@ -477,11 +494,21 @@ function PedidoGastronomiaForm() {
   // Sincronizar formulario con datos cargados
   useEffect(() => {
     if (gastroOrder) {
+      // Normalizar IDs a string para asegurar detección de platos manuales
+      const normalizeItems = (items: any[]) => 
+        items.map(item => ({
+          ...item,
+          id: item.id?.toString() // Convertir ID a string
+        }))
+      
+      const normalizedItems = normalizeItems(gastroOrder.items || [])
+      const normalizedAllergenItems = normalizeItems(gastroOrder.itemsAlergenos || [])
+      
       reset({
-        items: gastroOrder.items || [],
+        items: normalizedItems,
         status: gastroOrder.status || 'Pendiente',
         asistentesAlergenos: gastroOrder.asistentesAlergenos || 0,
-        itemsAlergenos: gastroOrder.itemsAlergenos || [],
+        itemsAlergenos: normalizedAllergenItems,
         comentariosAlergenos: gastroOrder.comentariosAlergenos || '',
       })
     }
@@ -532,8 +559,8 @@ function PedidoGastronomiaForm() {
   const [isRecalculating, setIsRecalculating] = useState(false)
   const isLoading = isLoadingBriefing || isLoadingOrders || updateOrderMutation.isPending || isRecalculating
 
-  const onAddReceta = (receta: Receta) => {
-    // Usar coste_venta directamente de Supabase, fallback a costeMateriaPrima si no existe
+  // Actualizar la lógica para saber a qué menú añadir el plato
+  const onAddReceta = (receta: Receta, targetMenu: 'regular' | 'alergenos' = 'regular') => {
     let coste = receta.costeMateriaPrima || 0
     let pvp = receta.precioVenta || 0
 
@@ -543,19 +570,72 @@ function PedidoGastronomiaForm() {
       pvp = coste * (1 + margen / 100)
     }
 
-    append({
+    const newItem = {
       id: receta.id,
-      type: 'item',
+      type: 'item' as const,
       nombre: receta.nombre,
       costeMateriaPrima: coste,
       precioVenta: pvp,
       costeMateriaPrimaSnapshot: coste,
       precioVentaSnapshot: pvp,
-      quantity: briefingItem?.asistentes || 1,
+      quantity: targetMenu === 'regular' ? (briefingItem?.asistentes || 1) : (watch('asistentesAlergenos') || 1),
       comentarios: '',
-    })
+      aprobadoCocina: targetMenu === 'alergenos' ? false : undefined,
+    }
+
+    if (targetMenu === 'regular') {
+      append(newItem)
+      toast({ title: 'Plato añadido al menú regular' })
+    } else {
+      allergenAppend(newItem)
+      toast({ title: 'Plato alérgeno añadido' })
+    }
+
     setIsSelectorOpen(false)
-    toast({ title: 'Receta añadida' })
+  }
+
+  const handleUpdatePlate = (updatedPlate: GastronomyOrderItem) => {
+    if (!editingPlate) return;
+
+    // Buscar el índice del plato en el array correspondiente
+    const isRegular = editingMenu === 'regular';
+    const array = getValues(isRegular ? 'items' : 'itemsAlergenos') || [];
+    const itemIndex = array.findIndex((item: any) => item.id === editingPlate.id);
+
+    if (itemIndex !== -1) {
+      const updatedItem = {
+        ...array[itemIndex],
+        nombre: updatedPlate.nombre,
+        precioVenta: updatedPlate.precioVenta,
+        precioVentaSnapshot: updatedPlate.precioVentaSnapshot,
+        costeMateriaPrima: updatedPlate.costeMateriaPrima,
+        costeMateriaPrimaSnapshot: updatedPlate.costeMateriaPrimaSnapshot,
+        categoria: updatedPlate.categoria,
+        alergenos: updatedPlate.alergenos,
+        alergenosMetadata: updatedPlate.alergenosMetadata,
+      };
+
+      // Usar la función update de useFieldArray para mejor rendimiento
+      if (isRegular) {
+        update(itemIndex, updatedItem);
+      } else {
+        allergenUpdate(itemIndex, updatedItem);
+      }
+
+      toast({ title: '✓ Plato actualizado' });
+    }
+
+    setEditingPlate(null);
+  }
+
+  const handleOpenEditPlate = (plate: GastronomyOrderItem, menu: 'regular' | 'alergenos') => {
+    if (!plate?.id?.toString().startsWith('manual-')) return;
+    
+    const array = menu === 'regular' ? (getValues('items') || []) : (getValues('itemsAlergenos') || []);
+    const updatedPlate = array.find((item: any) => item.id === plate.id) || plate;
+    
+    setEditingPlate(updatedPlate);
+    setEditingMenu(menu);
   }
 
   const handleRecalculate = async () => {
@@ -723,58 +803,117 @@ function PedidoGastronomiaForm() {
     }
   }
 
+  const handleSaveSeparatorAllergen = () => {
+    if (editingSeparator) {
+      const currentItems = getValues('itemsAlergenos')
+      currentItems[editingSeparator.index].nombre = editingSeparator.nombre
+      allergenUpdate(editingSeparator.index, currentItems[editingSeparator.index])
+      setEditingSeparator(null)
+      toast({ title: 'Separador actualizado.' })
+    }
+  }
+
+  const [commentModalOpen, setCommentModalOpen] = useState(false)
+
   if (isLoading || !briefingItem) {
     return <LoadingSkeleton title="Cargando pedido de gastronomía..." />
   }
 
   return (
-    <main className="space-y-4">
+    <main className="space-y-4 pb-28 md:pb-4">
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Header Premium Sticky */}
           <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-4">
-            <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-4">
-              <div className="flex items-center">
-                <div className="p-2 rounded-xl bg-orange-500/10 border border-orange-500/20">
-                  <Utensils className="h-5 w-5 text-orange-500" />
+            <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 md:py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
+              {/* Left Section: Service Name */}
+              <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => router.push(`/os/${osId}/gastronomia`)}
+                  className="p-1.5 md:p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex-shrink-0 hover:bg-emerald-500/20 transition-colors"
+                  title="Ir a gastronomía"
+                >
+                  <Utensils className="h-4 md:h-5 w-4 md:w-5 text-emerald-600 dark:text-emerald-400" />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="hidden md:flex md:items-center gap-4 text-sm font-bold text-foreground">
+                    <span className="truncate text-3xl font-black text-foreground">{briefingItem?.descripcion}</span>
+                    {briefingItem?.fecha && (
+                      <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <Calendar className="w-4 h-4" />
+                        <span className="truncate">{format(new Date(briefingItem.fecha), 'dd/MM', { locale: es })}</span>
+                      </div>
+                    )}
+                    {briefingItem?.horaInicio && (
+                      <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <Clock className="w-4 h-4" />
+                        <span className="truncate">{briefingItem.horaInicio}</span>
+                      </div>
+                    )}
+                    {serviceOrder?.space && (
+                      <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <Building2 className="w-4 h-4" />
+                        <span className="truncate">{serviceOrder.space}</span>
+                      </div>
+                    )}
+                    {briefingItem?.sala && (
+                      <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <MapPin className="w-4 h-4" />
+                        <span className="truncate">S.{briefingItem.sala}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex md:hidden flex-wrap gap-0.5 sm:gap-1 text-[8px] sm:text-[9px] text-muted-foreground">
+                    {briefingItem?.fecha && (
+                      <span className="truncate">{format(new Date(briefingItem.fecha), 'dd/MM', { locale: es })}</span>
+                    )}
+                    {briefingItem?.horaInicio && (
+                      <span className="hidden sm:inline truncate">{briefingItem.horaInicio}</span>
+                    )}
+                    {briefingItem?.sala && (
+                      <span className="hidden sm:inline truncate">S.{briefingItem.sala}</span>
+                    )}
+                  </div>
                 </div>
               </div>
-
-              <div className="flex-1" />
-
-              <div className="flex items-center gap-2 no-print">
-                <Button
+              {briefingItem?.comentarios && (
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRecalculate}
-                  disabled={isLoading}
-                  className="h-8 text-[10px] font-black uppercase tracking-widest border-border/40 hover:bg-orange-500/5"
+                  onClick={() => setCommentModalOpen(true)}
+                  className="text-amber-600 dark:text-amber-400 hover:underline font-semibold text-xs md:hidden"
+                  title="Hay comentario"
                 >
-                  <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isLoading && "animate-spin")} />
-                  Recalcular
-                </Button>
+                  💬 Nota
+                </button>
+              )}
+
+              <div className="flex-1 hidden md:block" />
+
+              <div className="flex items-center gap-1 no-print">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setCostBreakdownOpen(true)}
-                  className="h-8 text-[10px] font-black uppercase tracking-widest border-border/40 hover:bg-blue-500/5"
+                  className="h-8 md:h-9 gap-1.5 md:gap-2 text-[9px] md:text-xs font-black uppercase tracking-widest border-border/40 hover:bg-blue-500/5 px-2 md:px-3 hidden sm:flex"
+                  title="Ver desglose de costes"
                 >
-                  📊 Desglose
+                  <BarChart3 className="h-4 md:h-5 w-4 md:w-5" />
+                  <span className="hidden md:inline">Desglose</span>
                 </Button>
                 <Button 
                   type="submit" 
                   size="sm"
                   disabled={!formState.isDirty || updateOrderMutation.isPending}
-                  className="h-8 text-[10px] font-black uppercase tracking-widest bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-600/20"
+                  className="hidden md:flex h-8 text-[10px] font-black uppercase tracking-widest bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-600/20"
                 >
                   {updateOrderMutation.isPending ? (
-                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <Save className="mr-2 h-3.5 w-3.5" />
+                    <Save className="h-3.5 w-3.5" />
                   )}
-                  Guardar Pedido
+                  <span className="ml-1">Guardar</span>
                 </Button>
               </div>
             </div>
@@ -783,127 +922,133 @@ function PedidoGastronomiaForm() {
           {/* Info Bar Premium */}
           <GastroInfoBar asistentes={briefingItem.asistentes} asistentesAlergenos={watch('asistentesAlergenos')} />
 
-          {/* Allergen PAX Input - Horizontal Compact */}
-          <div className="bg-background/60 backdrop-blur-md border border-border/40 rounded-lg p-3 space-y-3">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-0.5 h-5 bg-red-500 rounded-full" />
-                <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">🔴 Alérgenos</span>
-              </div>
-              <FormField
-                control={control}
-                name="asistentesAlergenos"
-                render={({ field }) => (
-                  <FormItem className="flex-1 max-w-xs">
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
-                        className="h-8 text-sm font-bold"
-                        placeholder="0"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            {/* Comentarios Alérgenos */}
-            <FormField
-              control={control}
-              name="comentariosAlergenos"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    Detalles de Alérgenos
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      placeholder="Especifica los alérgenos, ingredientes sensibles y precauciones..."
-                      className="min-h-20 text-sm resize-none"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Dual Composition Cards */}
-          <DualCompositionCards
-            regularLabel="Menú Regular"
-            allergenLabel="Menú Alérgeno 🔴"
-            showAllergenCard={watch('asistentesAlergenos') > 0}
-            regularContent={
-              <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden border-0 shadow-none">
-                <div className="flex items-center justify-between p-4 border-b border-border/40 bg-orange-500/5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-1 h-6 rounded-full bg-orange-500" />
-                    <CardTitle className="text-[12px] font-black uppercase tracking-widest">Composición del Menú</CardTitle>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addSeparator('Nuevo Separador')}
-                      className="text-[10px] font-black uppercase tracking-widest h-8"
-                    >
-                      + Separador
-                    </Button>
-                    <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                      <DialogTrigger asChild>
-                        <Button 
-                          type="button" 
-                          size="sm"
-                          className="bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black uppercase tracking-widest h-8"
-                        >
-                          <PlusCircle className="mr-2 h-3.5 w-3.5" />
-                          Añadir Plato
-                        </Button>
-                      </DialogTrigger>
-                      <RecetaSelector onSelect={onAddReceta} />
-                    </Dialog>
+          {/* Notas del Briefing Comercial */}
+          {briefingItem.comentarios && (
+            <Card className="bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/50 mb-4 shadow-none">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-3">
+                  <NotebookPen className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-600/70 dark:text-blue-400/70">Comentarios</span>
+                    <p className="text-xs text-blue-900 dark:text-blue-200 whitespace-pre-wrap">{briefingItem.comentarios}</p>
                   </div>
                 </div>
-                <CardContent className="p-0">
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <Table>
-                      <TableHeader className="bg-muted/30">
-                        <TableRow className="hover:bg-transparent border-border/40">
-                          <TableHead className="w-8"></TableHead>
-                          <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Referencia / Separador</TableHead>
-                          <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-center w-24">Cantidad</TableHead>
-                          <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right w-24">PVP</TableHead>
-                          <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right w-32">Total</TableHead>
-                          <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right w-24">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <SortableContext
-                          items={fields.map((f) => f.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {fields.length > 0 ? (
-                            fields.map((field, index) => (
-                              <SortableRow
-                                key={field.id}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Menú Regular */}
+          <Card className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 overflow-x-auto shadow-none">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border-b border-border/40 bg-emerald-500/5 gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-6 rounded-full bg-emerald-500" />
+                <div className="flex flex-col gap-0">
+                  <div className="flex flex-wrap items-center gap-4 md:gap-6">
+                    {/* Asistentes - con espacio separador */}
+                    <div className="flex items-center gap-1.5 pr-4 border-r border-emerald-200 dark:border-emerald-800">
+                      <CardTitle className="text-[12px] font-black uppercase tracking-widest">Menú General</CardTitle>
+                      <div className="flex items-center gap-0.5">
+                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">×{Math.max(0, (briefingItem?.asistentes || 0) - (watch('asistentesAlergenos') || 0))}</span>
+                        <User className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                      </div>
+                    </div>
+                    
+                    {/* Info en línea - Desktop */}
+                    <div className="hidden md:flex items-center gap-6 text-xs font-semibold">
+                      {/* Coste */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">Coste:</span>
+                        <span className="text-emerald-700 dark:text-emerald-400">{formatCurrency((watchedItems || []).filter((i: any) => i.type === 'item').reduce((acc: number, item: any) => acc + ((item.precioVentaSnapshot ?? item.precioVenta ?? 0) * (item.quantity || 0)), 0))}</span>
+                      </div>
+                      
+                      {/* Coste/Pax */}
+                      <div className="flex items-center gap-0.5">
+                        <span className="text-muted-foreground">Coste/Pax:</span>
+                        <span className="text-emerald-700 dark:text-emerald-400">{Math.max(0, (briefingItem?.asistentes || 0) - (watch('asistentesAlergenos') || 0)) > 0 ? formatCurrency(((watchedItems || []).filter((i: any) => i.type === 'item').reduce((acc: number, item: any) => acc + ((item.precioVentaSnapshot ?? item.precioVenta ?? 0) * (item.quantity || 0)), 0)) / Math.max(1, (briefingItem?.asistentes || 0) - (watch('asistentesAlergenos') || 0))) : formatCurrency(0)}</span>
+                        <span className="text-muted-foreground">/</span>
+                        <User className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                      </div>
+                      
+                      {/* Ratio */}
+                      <div className="flex items-center gap-0.5">
+                        <span className="text-muted-foreground">Ratio:</span>
+                        <span className="text-emerald-700 dark:text-emerald-400">{Math.max(0, (briefingItem?.asistentes || 0) - (watch('asistentesAlergenos') || 0)) > 0 ? ((watchedItems || []).filter((i: any) => i.type === 'item').reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) / Math.max(1, (briefingItem?.asistentes || 0) - (watch('asistentesAlergenos') || 0))).toFixed(2) : '0.00'}</span>
+                        <span className="text-muted-foreground">/</span>
+                        <User className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                      </div>
+                      
+                      {/* Total ud. */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">Total ud.:</span>
+                        <span className="text-emerald-700 dark:text-emerald-400">{(watchedItems || []).filter((i: any) => i.type === 'item').reduce((acc: number, item: any) => acc + (item.quantity || 0), 0)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addSeparator('Separador')}
+                  className="text-[10px] font-black uppercase tracking-widest h-8"
+                >
+                  + Separador
+                </Button>
+                <Dialog open={isSelectorOpen === 'regular'} onOpenChange={(isOpen) => setIsSelectorOpen(isOpen ? 'regular' : false)}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      type="button" 
+                      size="sm"
+                      className="bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black uppercase tracking-widest h-8"
+                    >
+                      <PlusCircle className="mr-2 h-3.5 w-3.5" />
+                      Añadir Plato
+                    </Button>
+                  </DialogTrigger>
+                  <RecetaSelector onSelect={(receta) => onAddReceta(receta, 'regular')} />
+                </Dialog>
+              </div>
+            </div>
+            <CardContent className="p-0">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow className="hover:bg-transparent border-border/40">
+                      <TableHead className="w-5 md:w-8 p-0.5 md:p-2"></TableHead>
+                      <TableHead className="h-8 md:h-10 px-0.5 md:px-3 py-0.5 md:py-2 text-[7px] md:text-[10px] font-black uppercase tracking-wider text-muted-foreground min-w-[60px] md:min-w-[140px]">Plato</TableHead>
+                      <TableHead className="h-8 md:h-10 px-0.5 md:px-3 py-0.5 md:py-2 text-[7px] md:text-[10px] font-black uppercase tracking-wider text-muted-foreground text-center">Ud.</TableHead>
+                      <TableHead className="h-8 md:h-10 px-0.5 md:px-3 py-0.5 md:py-2 text-[7px] md:text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right">P/U</TableHead>
+                      <TableHead className="h-8 md:h-10 px-0.5 md:px-3 py-0.5 md:py-2 text-[7px] md:text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right">Total</TableHead>
+                      <TableHead className="h-8 md:h-10 px-0.5 md:px-3 py-0.5 md:py-2 text-[7px] md:text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right">Acc.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <SortableContext
+                      items={fields.map((f) => f.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {fields.length > 0 ? (
+                        fields.map((field, index) => (
+                          <SortableRow
+                            key={field.id}
                             id={field.id}
                             index={index}
                             field={field}
+                            watchedItem={watchedItems?.[index]}
                             control={control}
                             remove={remove}
                             update={update}
+                            allergenUpdate={allergenUpdate}
                             setEditingComment={setEditingComment}
                             onEditSeparator={setEditingSeparator}
+                            onEditPlate={handleOpenEditPlate}
+                            editingMenu="regular"
                             formatCurrency={formatCurrency}
                           />
                         ))
@@ -919,166 +1064,271 @@ function PedidoGastronomiaForm() {
                 </Table>
               </DndContext>
             </CardContent>
-              </Card>
-            }
-            allergenContent={
-              <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden border-0 shadow-none">
-                <div className="flex items-center justify-between p-4 border-b border-border/40 bg-red-500/5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-1 h-6 rounded-full bg-red-500" />
-                    <CardTitle className="text-[12px] font-black uppercase tracking-widest">Composición Alérgeno</CardTitle>
+          </Card>
+
+          {/* Allergen PAX Input - Compact 2-Column Layout */}
+          {watch('asistentesAlergenos') > 0 && (
+            <div className="bg-background/60 backdrop-blur-md border border-border/40 rounded-lg p-3">
+              <div className="grid grid-cols-12 gap-4">
+                {/* Column 1: 15% - Asistentes Alérgicos */}
+                <div className="col-span-2 space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-0.5 h-4 bg-red-500 rounded-full" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">🔴 Asistentes Alérgicos</span>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        allergenAppend({
-                          id: `sep-${Date.now()}`,
-                          type: 'separator',
-                          nombre: 'Nuevo Separador',
-                        })
-                      }}
-                      className="text-[10px] font-black uppercase tracking-widest h-8"
-                    >
-                      + Separador
-                    </Button>
-                    <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                      <DialogTrigger asChild>
-                        <Button 
-                          type="button" 
-                          size="sm"
-                          className="bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-widest h-8"
-                        >
-                          <PlusCircle className="mr-2 h-3.5 w-3.5" />
-                          Añadir Plato 🔴
-                        </Button>
-                      </DialogTrigger>
-                      <RecetaSelector onSelect={(receta) => {
-                        const coste = receta.costeMateriaPrima || 0
-                        let pvp = receta.precioVenta || 0
-                        if (pvp === 0 && coste > 0) {
-                          const margen = receta.porcentajeCosteProduccion || 30
-                          pvp = coste * (1 + margen / 100)
-                        }
-                        allergenAppend({
-                          id: receta.id,
-                          type: 'item',
-                          nombre: receta.nombre,
-                          costeMateriaPrima: coste,
-                          precioVenta: pvp,
-                          costeMateriaPrimaSnapshot: coste,
-                          precioVentaSnapshot: pvp,
-                          quantity: watch('asistentesAlergenos') || 1,
-                          comentarios: '',
-                          aprobadoCocina: false,
-                        })
-                        setIsSelectorOpen(false)
-                        toast({ title: 'Plato alérgeno añadido' })
-                      }} />
-                    </Dialog>
+                  <FormField
+                    control={control}
+                    name="asistentesAlergenos"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+                            className="h-7 text-xs font-bold"
+                            placeholder="0"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Column 2: 85% - Detalles de Alérgenos */}
+                <div className="col-span-10">
+                  <FormField
+                    control={control}
+                    name="comentariosAlergenos"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            placeholder="Especifica los alérgenos, ingredientes sensibles..."
+                            className="min-h-10 text-xs resize-none"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Show input only when no allergens yet */}
+          {watch('asistentesAlergenos') === 0 && (
+            <div className="bg-background/60 backdrop-blur-md border border-border/40 rounded-lg p-3">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-0.5 h-5 bg-red-500 rounded-full" />
+                  <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">🔴 Alérgenos</span>
+                </div>
+                <FormField
+                  control={control}
+                  name="asistentesAlergenos"
+                  render={({ field }) => (
+                    <FormItem className="flex-1 max-w-xs">
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+                          className="h-8 text-sm font-bold"
+                          placeholder="0"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Menú Alérgeno - Solo si hay asistentes alérgenos */}
+          {watch('asistentesAlergenos') > 0 && (
+            <Card className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 overflow-x-auto shadow-none">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border-b border-border/40 bg-red-500/5 gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-6 rounded-full bg-red-500" />
+                  <div className="flex flex-col gap-0">
+                    <div className="flex flex-wrap items-center gap-4 md:gap-6">
+                      {/* Asistentes - con espacio separador */}
+                      <div className="flex items-center gap-1.5 pr-4 border-r border-red-200 dark:border-red-800">
+                        <CardTitle className="text-[12px] font-black uppercase tracking-widest">Menú Alérgeno</CardTitle>
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-xs font-bold text-red-700 dark:text-red-400">×{watch('asistentesAlergenos') || 0}</span>
+                          <User className="w-4 h-4 text-red-700 dark:text-red-400" />
+                        </div>
+                      </div>
+                      
+                      {/* Info en línea - Desktop */}
+                      <div className="hidden md:flex items-center gap-6 text-xs font-semibold">
+                        {/* Coste */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">Coste:</span>
+                          <span className="text-red-700 dark:text-red-400">{formatCurrency((watchedAllergenItems || []).filter((i: any) => i.type === 'item').reduce((acc: number, item: any) => acc + ((item.precioVenta ?? 0) * (item.quantity || 0)), 0))}</span>
+                        </div>
+                        
+                        {/* Coste/Pax */}
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-muted-foreground">Coste/Pax:</span>
+                          <span className="text-red-700 dark:text-red-400">{(watch('asistentesAlergenos') || 0) > 0 ? formatCurrency(((watchedAllergenItems || []).filter((i: any) => i.type === 'item').reduce((acc: number, item: any) => acc + ((item.precioVenta ?? 0) * (item.quantity || 0)), 0)) / (watch('asistentesAlergenos') || 1)) : formatCurrency(0)}</span>
+                          <span className="text-muted-foreground">/</span>
+                          <User className="w-3.5 h-3.5 text-red-700 dark:text-red-400" />
+                        </div>
+                        
+                        {/* Ratio */}
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-muted-foreground">Ratio:</span>
+                          <span className="text-red-700 dark:text-red-400">{(watch('asistentesAlergenos') || 0) > 0 ? ((watchedAllergenItems || []).filter((i: any) => i.type === 'item').reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) / (watch('asistentesAlergenos') || 1)).toFixed(2) : '0.00'}</span>
+                          <span className="text-muted-foreground">/</span>
+                          <User className="w-3.5 h-3.5 text-red-700 dark:text-red-400" />
+                        </div>
+                        
+                        {/* Total ud. */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">Total ud.:</span>
+                          <span className="text-red-700 dark:text-red-400">{(watchedAllergenItems || []).filter((i: any) => i.type === 'item').reduce((acc: number, item: any) => acc + (item.quantity || 0), 0)}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <CardContent className="p-0">
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={(event) => {
-                      const { active, over } = event
-                      if (over && active.id !== over.id) {
-                        const oldIndex = allergenFields.findIndex((f) => f.id === active.id)
-                        const newIndex = allergenFields.findIndex((f) => f.id === over.id)
-                        if (oldIndex !== -1 && newIndex !== -1) {
-                          allergenMove(oldIndex, newIndex)
-                        }
-                      }
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      allergenAppend({
+                        id: `sep-${Date.now()}`,
+                        type: 'separator',
+                        nombre: 'Nuevo Separador',
+                      })
                     }}
+                    className="text-[10px] font-black uppercase tracking-widest h-8"
                   >
-                    <Table>
-                      <TableHeader className="bg-muted/30">
-                        <TableRow className="hover:bg-transparent border-border/40">
-                          <TableHead className="w-8"></TableHead>
-                          <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Referencia / Separador</TableHead>
-                          <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-center w-24">Cantidad</TableHead>
-                          <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right w-24">PVP</TableHead>
-                          <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right w-32">Total</TableHead>
-                          <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right w-24">✓</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <SortableContext
-                          items={allergenFields.map((f) => f.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {allergenFields.length > 0 ? (
-                            allergenFields.map((field, index) => (
-                              <TableRow key={field.id} className="border-border/40">
-                                <TableCell className="w-8 py-2 px-0">
-                                  <button
-                                    type="button"
-                                    className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1"
-                                    title="Arrastra para reordenar"
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                  </button>
-                                </TableCell>
-                                <TableCell className="flex-1 min-w-96">{field.nombre}</TableCell>
-                                <TableCell className="w-24">
-                                  <FormField
-                                    control={control}
-                                    name={`itemsAlergenos.${index}.quantity`}
-                                    render={({ field: quantityField }) => (
-                                      <Input
-                                        type="number"
-                                        {...quantityField}
-                                        onChange={(e) => quantityField.onChange(parseInt(e.target.value, 10) || 0)}
-                                        className="w-20 h-8"
-                                      />
-                                    )}
-                                  />
-                                </TableCell>
-                                <TableCell className="w-24 text-right">
-                                  {formatCurrency(field.precioVenta || 0)}
-                                </TableCell>
-                                <TableCell className="w-32 text-right font-semibold">
-                                  {formatCurrency(
-                                    (field.precioVenta || 0) * (field.quantity || 0),
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-center w-24">
-                                  <FormField
-                                    control={control}
-                                    name={`itemsAlergenos.${index}.aprobadoCocina`}
-                                    render={({ field: checkField }) => (
-                                      <Checkbox
-                                        checked={checkField.value || false}
-                                        onCheckedChange={checkField.onChange}
-                                        className="mx-auto"
-                                        title="Aprobado por cocina"
-                                      />
-                                    )}
-                                  />
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center h-24 text-[11px] text-muted-foreground uppercase tracking-widest">
-                                No hay platos alérgenos en este pedido.
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </SortableContext>
-                      </TableBody>
-                    </Table>
-                  </DndContext>
-                </CardContent>
-              </Card>
-            }
-          />
+                    + Separador
+                  </Button>
+                  <Dialog open={isSelectorOpen === 'alergenos'} onOpenChange={(isOpen) => setIsSelectorOpen(isOpen ? 'alergenos' : false)}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        type="button" 
+                        size="sm"
+                        className="bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-widest h-8"
+                      >
+                        <PlusCircle className="mr-2 h-3.5 w-3.5" />
+                        Añadir Plato 🔴
+                      </Button>
+                    </DialogTrigger>
+                    <RecetaSelector onSelect={(receta) => onAddReceta(receta, 'alergenos')} />
+                  </Dialog>
+                </div>
+              </div>
+              <CardContent className="p-0">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event) => {
+                    const { active, over } = event
+                    if (over && active.id !== over.id) {
+                      const oldIndex = allergenFields.findIndex((f) => f.id === active.id)
+                      const newIndex = allergenFields.findIndex((f) => f.id === over.id)
+                      if (oldIndex !== -1 && newIndex !== -1) {
+                        allergenMove(oldIndex, newIndex)
+                      }
+                    }
+                  }}
+                >
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow className="hover:bg-transparent border-border/40">
+                        <TableHead className="w-5 md:w-8 p-0.5 md:p-2"></TableHead>
+                        <TableHead className="h-8 md:h-10 px-0.5 md:px-3 py-0.5 md:py-2 text-[7px] md:text-[10px] font-black uppercase tracking-wider text-muted-foreground min-w-[60px] md:min-w-[140px]">Plato</TableHead>
+                        <TableHead className="h-8 md:h-10 px-0.5 md:px-3 py-0.5 md:py-2 text-[7px] md:text-[10px] font-black uppercase tracking-wider text-muted-foreground text-center">Ud.</TableHead>
+                        <TableHead className="h-8 md:h-10 px-0.5 md:px-3 py-0.5 md:py-2 text-[7px] md:text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right">P/U</TableHead>
+                        <TableHead className="h-8 md:h-10 px-0.5 md:px-3 py-0.5 md:py-2 text-[7px] md:text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right">Total</TableHead>
+                        <TableHead className="h-8 md:h-10 px-0.5 md:px-3 py-0.5 md:py-2 text-[7px] md:text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right">Acc.</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <SortableContext
+                        items={allergenFields.map((f) => f.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {allergenFields.length > 0 ? (
+                          allergenFields.map((field, index) => (
+                            <SortableRow
+                              key={field.id}
+                              id={field.id}
+                              index={index}
+                              field={field}
+                              watchedItem={watchedAllergenItems?.[index]}
+                              control={control}
+                              remove={allergenRemove}
+                              update={update}
+                              allergenUpdate={allergenUpdate}
+                              setEditingComment={setEditingComment}
+                              onEditSeparator={setEditingSeparator}
+                              onEditPlate={handleOpenEditPlate}
+                              editingMenu="alergenos"
+                              formatCurrency={formatCurrency}
+                            />
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center h-24 text-[10px] md:text-[11px] text-muted-foreground uppercase tracking-widest">
+                              No hay platos alérgenos en este pedido.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </SortableContext>
+                    </TableBody>
+                  </Table>
+                </DndContext>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Floating Save Button for Mobile */}
+          <div className="fixed bottom-4 right-4 md:hidden z-50 flex gap-2">
+            <Button 
+              type="submit" 
+              disabled={!formState.isDirty || updateOrderMutation.isPending}
+              className="bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-black uppercase tracking-widest h-9 px-3 shadow-lg shadow-orange-600/30"
+            >
+              {updateOrderMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </form>
       </Form>
+
+      {/* Comment Modal */}
+      <Dialog open={commentModalOpen} onOpenChange={setCommentModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Comentario del Servicio</DialogTitle>
+            <DialogDescription>Notas adicionales registradas en el briefing para este servicio.</DialogDescription>
+          </DialogHeader>
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <p className="text-sm text-foreground whitespace-pre-wrap">{briefingItem?.comentarios}</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setCommentModalOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!editingComment} onOpenChange={(isOpen) => !isOpen && setEditingComment(null)}>
         <DialogContent>
@@ -1086,6 +1336,7 @@ function PedidoGastronomiaForm() {
             <DialogTitle>
               Observaciones para: {editingComment ? watchedItems[editingComment.index].nombre : ''}
             </DialogTitle>
+            <DialogDescription>Añade detalles o requerimientos específicos para este plato.</DialogDescription>
           </DialogHeader>
           <Textarea
             value={editingComment?.text || ''}
@@ -1111,6 +1362,7 @@ function PedidoGastronomiaForm() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar separador</DialogTitle>
+            <DialogDescription>Modifica el nombre del separador para organizar tu menú.</DialogDescription>
           </DialogHeader>
           <Input
             value={editingSeparator?.nombre || ''}
@@ -1124,7 +1376,9 @@ function PedidoGastronomiaForm() {
             <Button variant="secondary" onClick={() => setEditingSeparator(null)}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveSeparator}>Guardar</Button>
+            <Button onClick={() => editingSeparator?.menu === 'alergenos' ? handleSaveSeparatorAllergen() : handleSaveSeparator()}>
+              Guardar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1134,7 +1388,7 @@ function PedidoGastronomiaForm() {
         <DialogContent className="max-w-sm w-full rounded-lg">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Desglose de Costos</DialogTitle>
-            <div className="sr-only">Análisis detallado de costos por menú y asistentes</div>
+            <DialogDescription>Análisis detallado de costos por menú y asistentes</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {/* Regular Menu */}
@@ -1207,6 +1461,16 @@ function PedidoGastronomiaForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de edición de platos */}
+      <EditGastronomiaPlateModal
+        key={editingPlate?.id}
+        isOpen={!!editingPlate}
+        plate={editingPlate}
+        categorias={categorias}
+        onSave={handleUpdatePlate}
+        onClose={() => setEditingPlate(null)}
+      />
     </main>
   )
 }

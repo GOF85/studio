@@ -8,7 +8,6 @@ export function useMaterialModuleData(osId: string, type: 'Almacen' | 'Bodega' |
         queryFn: async () => {
             const targetId = await resolveOsId(osId);
             const osFilter = buildOsOr(osId, targetId);
-            const eventoFilter = buildFieldOr('evento_id', osId, targetId);
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
 
             const [
@@ -20,8 +19,8 @@ export function useMaterialModuleData(osId: string, type: 'Almacen' | 'Bodega' |
                 { data: devoluciones }
             ] = await Promise.all([
                 isUuid ? supabase.from('material_orders').select('*').eq('evento_id', osId).eq('type', type) : (targetId && targetId !== osId ? supabase.from('material_orders').select('*').or(osFilter).eq('type', type) : supabase.from('material_orders').select('*').eq('numero_expediente', osId).eq('type', type)),
-                isUuid ? supabase.from('hojas_picking').select('*').eq('evento_id', osId) : (targetId && targetId !== osId ? supabase.from('hojas_picking').select('*').or(eventoFilter) : Promise.resolve({ data: [] })),
-                isUuid ? supabase.from('hojas_retorno').select('*').eq('evento_id', osId) : (targetId && targetId !== osId ? supabase.from('hojas_retorno').select('*').or(eventoFilter) : Promise.resolve({ data: [] })),
+                isUuid ? supabase.from('hojas_picking').select('*').eq('os_id', osId) : (targetId && targetId !== osId ? supabase.from('hojas_picking').select('*').or(osFilter) : Promise.resolve({ data: [] })),
+                isUuid ? supabase.from('hojas_retorno').select('*').eq('os_id', osId) : (targetId && targetId !== osId ? supabase.from('hojas_retorno').select('*').or(osFilter) : Promise.resolve({ data: [] })),
                 isUuid ? supabase.from('comercial_briefings').select('*').eq('evento_id', osId).maybeSingle() : (targetId && targetId !== osId ? supabase.from('comercial_briefings').select('*').or(osFilter).maybeSingle() : supabase.from('comercial_briefings').select('*').eq('numero_expediente', osId).maybeSingle()),
                 isUuid ? supabase.from('os_mermas').select('*').eq('evento_id', osId) : (targetId && targetId !== osId ? supabase.from('os_mermas').select('*').or(osFilter) : supabase.from('os_mermas').select('*').eq('numero_expediente', osId)),
                 isUuid ? supabase.from('os_devoluciones').select('*').eq('evento_id', osId) : (targetId && targetId !== osId ? supabase.from('os_devoluciones').select('*').or(osFilter) : supabase.from('os_devoluciones').select('*').eq('numero_expediente', osId))
@@ -44,19 +43,19 @@ export function useMaterialModuleData(osId: string, type: 'Almacen' | 'Bodega' |
                 })) as MaterialOrder[],
                 pickingSheets: (pickingSheets || []).map(p => ({
                     id: p.id,
-                    osId: p.evento_id,
-                    status: p.estado,
-                    items: p.items || [],
+                    osId: p.os_id,
+                    status: p.data?.status || 'Pendiente',
+                    items: p.data?.items || [],
                     fechaNecesidad: p.data?.fecha || p.data?.fechaNecesidad || '',
                     createdAt: p.created_at,
                     updatedAt: p.updated_at
                 })) as PickingSheet[],
                 returnSheets: (returnSheets || []).map(p => ({
                     id: p.id,
-                    osId: p.evento_id,
-                    items: p.items || [],
+                    osId: p.os_id,
+                    items: p.data?.items || [],
                     itemStates: p.data?.itemStates || {},
-                    status: p.estado
+                    status: p.data?.status || 'Pendiente'
                 })) as any[],
                 briefing: briefing ? {
                     osId: briefing.os_id,

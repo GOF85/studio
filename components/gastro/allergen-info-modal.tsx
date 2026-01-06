@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Info } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ALLERGEN_LIST, type AllergendId } from '@/lib/allergen-constants'
@@ -58,6 +58,9 @@ export function AllergenInfoModal({ allergenIds, dishName, trigger = 'icon' }: A
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-base font-bold">Información de Alérgenos</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Lista de alérgenos presentes para el plato {dishName || 'seleccionado'}.
+                </DialogDescription>
                 {dishName && <p className="text-xs text-muted-foreground mt-1">{dishName}</p>}
               </div>
               <DialogClose className="h-6 w-6" />

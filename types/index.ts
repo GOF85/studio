@@ -436,9 +436,14 @@ export type GastronomyOrderItem = {
     nombre: string;
     categoria?: string;
     costeMateriaPrima?: number; // Snapshot of the cost at the time of adding
+    costeMateriaPrimaSnapshot?: number;
     precioVenta?: number; // Snapshot of the price at the time of adding
+    precioVentaSnapshot?: number;
     quantity?: number;
     comentarios?: string;
+    alergenos?: Alergeno[];
+    alergenosMetadata?: { presentes: Alergeno[]; trazas: Alergeno[] };
+    aprobadoCocina?: boolean;
 }
 
 export type AllergenItem = {
@@ -885,6 +890,7 @@ export type Receta = {
     costeMateriaPrima?: number;
     precioVenta?: number;
     alergenos?: Alergeno[];
+    alergenosMetadata?: { presentes: Alergeno[]; trazas: Alergeno[] };
     requiereRevision?: boolean;
     comentarioRevision?: string;
     fechaRevision?: string;

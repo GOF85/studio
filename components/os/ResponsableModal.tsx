@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Mail, Phone, User, ChefHat, HandPlatter, PencilRuler, ReceiptEuro, IdCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +43,9 @@ export default function ResponsableModal({ open, onOpenChange, responsables, num
           <DialogTitle className="text-base font-bold">
             {`Responsables OS${numeroExpediente ? ' ' + numeroExpediente : ''}`}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Información de contacto de los responsables de esta orden de servicio.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-1">
           {responsables.map((resp, i) => (

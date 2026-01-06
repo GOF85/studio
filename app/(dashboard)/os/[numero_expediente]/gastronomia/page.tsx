@@ -4,8 +4,8 @@ import { useMemo, useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Users, Calendar, Clock, Utensils, CirclePlus, ListCheck } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Users, Calendar, Clock, Utensils, ListCheck } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from '@/components/ui/dialog'
 import { useMaterialOrders } from '@/hooks/use-data-queries'
 import type {
   ServiceOrder,
@@ -31,10 +31,14 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton'
 import { cn } from '@/lib/utils'
 import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view'
 import { useInfiniteScroll } from '@/hooks/use-infinite-scroll'
-import { useComercialBriefing, useGastronomyOrders } from '@/hooks/use-briefing-data'
+import { useComercialBriefing, useGastronomyOrders, useStaffOrders, useUpdateStaffOrder, type GastronomyStaffOrder } from '@/hooks/use-briefing-data'
 import { useComercialBriefings } from '@/hooks/use-data-queries'
 import { useObjetivosGasto, useObjetivosGastoPlantillas } from '@/hooks/use-objetivos-gasto'
 import { useEvento } from '@/hooks/use-data-queries'
+import { RecetaSelector } from '@/components/os/gastronomia/receta-selector'
+import { DialogTrigger } from '@/components/ui/dialog'
+import { PlusCircle, Trash2, Plus } from 'lucide-react'
+import type { Receta } from '@/types'
 
 const statusVariant: {
   [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive'
@@ -63,9 +67,15 @@ export default function GastronomiaPage() {
   const { data: gastronomyOrders, isLoading: isLoadingOrders } = useGastronomyOrders(
     serviceOrder?.id || osId,
   )
+  
+  const { data: existingStaffOrders, isLoading: isLoadingStaff } = useStaffOrders(serviceOrder?.id || osId)
+  const updateStaffOrderMutation = useUpdateStaffOrder()
 
   // Estado para el modal de resumen briefing
   const [openResumenBriefing, setOpenResumenBriefing] = useState(false)
+  
+  // Estado para pedido de personal (comida staff)
+  const [isSelectorOpen, setIsSelectorOpen] = useState<string | false>(false)
 
   // Obtener todos los servicios del briefing comercial (no solo gastronomía)
   const { data: allBriefings } = useComercialBriefings(serviceOrder?.id || osId)
@@ -88,7 +98,16 @@ export default function GastronomiaPage() {
       })
   }, [briefing, gastronomyOrders])
 
-  const isLoading = isLoadingBriefing || isLoadingOrders
+  // Extraer días únicos del briefing
+  const uniqueDays = useMemo(() => {
+    const days = new Set<string>()
+    allBriefingItems.forEach((item) => {
+      days.add(item.fecha)
+    })
+    return Array.from(days).sort()
+  }, [allBriefingItems])
+
+  const isLoading = isLoadingBriefing || isLoadingOrders || isLoadingStaff
 
   const sortedBriefingItems = useMemo(() => {
     return [...briefingItems].sort((a, b) => {
@@ -153,8 +172,10 @@ export default function GastronomiaPage() {
 
   const presupuesto = useMemo(() => {
     const safeOrders = gastronomyOrders || []
-    return safeOrders.reduce((acc, o: any) => acc + (o.total || 0), 0)
-  }, [gastronomyOrders])
+    const gastroTotal = safeOrders.reduce((acc, o: any) => acc + (o.total || 0), 0)
+    const staffTotal = (existingStaffOrders || []).reduce((acc, order) => acc + (order.total || 0), 0)
+    return gastroTotal + staffTotal
+  }, [gastronomyOrders, existingStaffOrders])
 
   // Bodega CTA: presupuesto/objetivo for Bodega module (used in header)
   const { data: materialOrders = [] } = useMaterialOrders(serviceOrder?.id, 'Bodega')
@@ -192,79 +213,152 @@ export default function GastronomiaPage() {
     document.title = 'OS Gastronomía'
   }, [])
 
+  // Funciones para gestionar líneas de personal
+  const onAddRecetaToStaff = async (receta: Receta, fecha: string) => {
+    const currentOrder = (existingStaffOrders || []).find(o => o.fecha === fecha) || {
+      osId: serviceOrder?.id || osId,
+      fecha,
+      items: [],
+      total: 0
+    }
+
+    const newItem: GastronomyOrderItem = {
+      id: receta.id,
+      type: 'item',
+      nombre: receta.nombre,
+      precioVenta: receta.precioVenta || 0,
+      precioVentaSnapshot: receta.precioVenta || 0,
+      costeMateriaPrima: receta.costeMateriaPrima || 0,
+      costeMateriaPrimaSnapshot: receta.costeMateriaPrima || 0,
+      quantity: 1,
+    }
+
+    const updatedItems = [...currentOrder.items, newItem]
+    const updatedTotal = updatedItems.reduce((acc, item) => acc + (item.precioVenta || 0) * (item.quantity || 0), 0)
+
+    try {
+      await updateStaffOrderMutation.mutateAsync({
+        ...currentOrder,
+        items: updatedItems,
+        total: updatedTotal
+      })
+      toast({ title: 'Plato añadido al staff' })
+      setIsSelectorOpen(false)
+    } catch (error) {
+      toast({ title: 'Error al añadir plato', variant: 'destructive' })
+    }
+  }
+
+  const removeStaffItem = async (fecha: string, itemId: string) => {
+    const currentOrder = (existingStaffOrders || []).find(o => o.fecha === fecha)
+    if (!currentOrder) return
+
+    const updatedItems = currentOrder.items.filter(i => i.id !== itemId)
+    const updatedTotal = updatedItems.reduce((acc, item) => acc + (item.precioVenta || 0) * (item.quantity || 0), 0)
+
+    try {
+      await updateStaffOrderMutation.mutateAsync({
+        ...currentOrder,
+        items: updatedItems,
+        total: updatedTotal
+      })
+      toast({ title: 'Plato eliminado' })
+    } catch (error) {
+      toast({ title: 'Error al eliminar plato', variant: 'destructive' })
+    }
+  }
+
+  const updateStaffItemQuantity = async (fecha: string, itemId: string, quantity: number) => {
+    const currentOrder = (existingStaffOrders || []).find(o => o.fecha === fecha)
+    if (!currentOrder) return
+
+    const updatedItems = currentOrder.items.map(i => i.id === itemId ? { ...i, quantity } : i)
+    const updatedTotal = updatedItems.reduce((acc, item) => acc + (item.precioVenta || 0) * (item.quantity || 0), 0)
+
+    try {
+      await updateStaffOrderMutation.mutateAsync({
+        ...currentOrder,
+        items: updatedItems,
+        total: updatedTotal
+      })
+    } catch (error) {
+      toast({ title: 'Error al actualizar cantidad', variant: 'destructive' })
+    }
+  }
+
+  const linesForDay = (fecha: string) => {
+    const order = (existingStaffOrders || []).find(o => o.fecha === fecha)
+    return order?.items || []
+  }
+
+  const totalForDay = (fecha: string) => {
+    const order = (existingStaffOrders || []).find(o => o.fecha === fecha)
+    return order?.total || 0
+  }
+
   if (isLoading) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       {/* Header Premium Sticky */}
       <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-2">
         <div className="max-w-7xl mx-auto px-3 py-1">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center h-10">
-              <Utensils className="h-6 w-6 text-emerald-800" aria-hidden="true" />
+          <div className="flex items-center justify-between gap-2 min-h-10">
+            <div className="flex items-center h-8 gap-2">
+              <Utensils className="h-5 w-5 text-emerald-800" aria-hidden="true" />
+              <h1 className="text-sm md:text-base font-bold text-emerald-900 tracking-tight">Gastronomía</h1>
             </div>
-
-            <div className="flex items-center gap-6 text-sm">
-              <div className="flex flex-col items-end justify-center leading-none">
-                <div className="text-[9px] font-black uppercase text-muted-foreground">Presupuesto</div>
-                <div className="font-bold text-sm">{presupuestoBodega.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+            <div className="flex items-center gap-3 text-xs md:gap-6 md:text-sm">
+              <div className="flex flex-col items-end justify-center leading-none min-w-[60px]">
+                <div className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground">Presupuesto</div>
+                <div className="font-bold text-xs md:text-sm">{presupuesto.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
               </div>
-
-              <div className="flex flex-col items-end justify-center leading-none">
-                <div className="text-[9px] font-black uppercase text-muted-foreground">Objetivo</div>
-                <div className="font-bold text-sm">{objetivoBodega.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+              <div className="flex flex-col items-end justify-center leading-none min-w-[60px]">
+                <div className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground">Objetivo</div>
+                <div className="font-bold text-xs md:text-sm">{objetivoValue.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
               </div>
-
-              <div className="flex flex-col items-end justify-center leading-none">
-                <div className="text-[9px] font-black uppercase text-muted-foreground">Desviación</div>
-                <div className={cn('font-bold text-sm', desviacionBodegaPct > 0 ? 'text-red-500' : 'text-emerald-600')}>
-                  {isFinite(desviacionBodegaPct) ? `${desviacionBodegaPct.toFixed(2)}%` : '-'}
+              <div className="flex flex-col items-end justify-center leading-none min-w-[60px]">
+                <div className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground">Desviación</div>
+                <div className={cn('font-bold text-xs md:text-sm', desviacionPct > 0 ? 'text-red-500' : 'text-emerald-600')}>
+                  {isFinite(desviacionPct) ? `${desviacionPct.toFixed(2)}%` : '-'}
                 </div>
               </div>
+              {/* Botón Resumen Briefing a la derecha, solo icono en mobile, texto en desktop */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 md:h-8 px-2 md:px-3 text-[12px] ml-2"
+                onClick={() => setOpenResumenBriefing(true)}
+              >
+                <ListCheck className="h-4 w-4 md:h-3.5 md:w-3.5 mr-0 md:mr-1" />
+                <span className="hidden md:inline">Resumen Briefing</span>
+              </Button>
             </div>
-          </div>
-
-          <div className="flex items-center gap-3 mt-2 justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-[12px]"
-              onClick={() => setOpenResumenBriefing(true)}
-            >
-              <ListCheck className="h-3.5 w-3.5 mr-1" />
-              <span className="hidden md:inline">Resumen Briefing</span>
-              <span className="inline md:hidden">Resumen Briefing</span>
-            </Button>
-            <Button variant="default" size="sm" className="h-8 text-[12px]">
-              <CirclePlus className="h-3.5 w-3.5 mr-1" />
-              <span className="hidden md:inline">Nuevo Pedido</span>
-              <span className="inline md:hidden">Nuevo Pedido</span>
-            </Button>
           </div>
         </div>
       </div>
 
       <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
         <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
-        <CardHeader className="py-1 px-2 border-b border-border/40 bg-muted/10">
-          <div className="flex items-center gap-2">
+        <CardHeader className="py-1 px-2 md:py-2 md:px-3 border-b border-border/40 bg-muted/10">
+          <div className="flex items-center gap-1 md:gap-2">
             <Utensils className="h-4 w-4 text-emerald-800 hidden md:block" />
-            <CardTitle className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+            <CardTitle className="text-xs md:text-sm font-black uppercase tracking-tight md:tracking-widest text-muted-foreground">
               <span className="hidden md:inline">Pedidos Gastronomía CPR</span>
               <span className="inline md:hidden">Pedidos Gastronomía</span>
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="p-1">
+        <CardContent className="p-0.5 md:p-1">
           {/* Vista Móvil: Tarjetas Apiladas */}
-          <div className="md:hidden p-1 space-y-0.5">
+          <div className="md:hidden p-0.5 space-y-0.5">
             <MobileTableView
               data={sortedBriefingItems}
               columns={mobileColumns}
               compact
-              cardClassName="p-1 gap-0.5"
+              cardClassName="p-0.5 gap-0.5"
               className="space-y-0.5"
               onCardClick={(item) => router.push(`/os/${osId}/gastronomia/${item.id}`)}
               sentinelRef={sentinelRef}
@@ -278,12 +372,12 @@ export default function GastronomiaPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30 border-b border-border/40">
-                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Fecha</TableHead>
-                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Hora</TableHead>
-                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Descripción</TableHead>
-                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">PAX</TableHead>
-                  <TableHead className="h-7 px-2 text-[10px] font-black uppercase tracking-widest">Comentarios</TableHead>
-                  <TableHead className="h-7 px-2 text-right text-[10px] font-black uppercase tracking-widest">Estado</TableHead>
+                  <TableHead className="h-8 px-2 text-[10px] md:text-xs font-black uppercase tracking-widest">Fecha</TableHead>
+                  <TableHead className="h-8 px-2 text-[10px] md:text-xs font-black uppercase tracking-widest">Hora</TableHead>
+                  <TableHead className="h-8 px-2 text-[10px] md:text-xs font-black uppercase tracking-widest">Descripción</TableHead>
+                  <TableHead className="h-8 px-2 text-[10px] md:text-xs font-black uppercase tracking-widest">PAX</TableHead>
+                  <TableHead className="h-8 px-2 text-[10px] md:text-xs font-black uppercase tracking-widest">Comentarios</TableHead>
+                  <TableHead className="h-8 px-2 text-right text-[10px] md:text-xs font-black uppercase tracking-widest">Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -298,25 +392,25 @@ export default function GastronomiaPage() {
                           'bg-orange-500/5 hover:bg-orange-500/10',
                       )}
                     >
-                      <TableCell className="py-1 px-2 text-[11px] font-medium text-muted-foreground">
+                      <TableCell className="py-2 px-2 text-xs font-medium text-muted-foreground">
                         {format(new Date(item.fecha), 'dd/MM/yyyy')}
                       </TableCell>
-                      <TableCell className="py-1 px-2 text-[11px] font-bold">
+                      <TableCell className="py-2 px-2 text-xs font-bold">
                         {item.horaInicio}
                       </TableCell>
-                      <TableCell className="py-1 px-2 min-w-[200px] text-[11px] font-bold uppercase tracking-wider">
+                      <TableCell className="py-2 px-2 min-w-[120px] text-xs font-bold uppercase tracking-wider">
                         {item.descripcion}
                       </TableCell>
-                      <TableCell className="py-1 px-2 text-[11px] font-mono">
+                      <TableCell className="py-2 px-2 text-xs font-mono">
                         {item.asistentes}
                       </TableCell>
-                      <TableCell className="py-1 px-2 min-w-[200px] text-[11px] text-muted-foreground italic">
+                      <TableCell className="py-2 px-2 min-w-[120px] text-xs text-muted-foreground italic">
                         {item.comentarios || '-'}
                       </TableCell>
-                      <TableCell className="py-1 px-2 text-right">
+                      <TableCell className="py-2 px-2 text-right">
                         <Badge
                           variant={statusVariant[item.gastro_status || 'Pendiente']}
-                          className="text-[9px] font-black uppercase tracking-widest px-2 py-0 h-5"
+                          className="text-[9px] md:text-[10px] font-black uppercase tracking-widest px-2 py-0.5 h-6"
                         >
                           {item.gastro_status || 'Pendiente'}
                         </Badge>
@@ -325,7 +419,7 @@ export default function GastronomiaPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-20 text-center text-[11px] text-muted-foreground">
+                    <TableCell colSpan={6} className="h-16 text-center text-[10px] text-muted-foreground">
                       No hay pedidos de gastronomía. Activa la opción "Con gastronomía" en los hitos
                       del briefing comercial.
                     </TableCell>
@@ -337,11 +431,127 @@ export default function GastronomiaPage() {
         </CardContent>
       </Card>
 
+      {/* Tarjeta Pedido de Personal */}
+      <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+        <CardHeader className="py-1 px-2 md:py-2 md:px-3 border-b border-border/40 bg-muted/10">
+          <div className="flex items-center gap-1 md:gap-2">
+            <Utensils className="h-4 w-4 text-blue-800 hidden md:block" />
+            <CardTitle className="text-xs md:text-sm font-black uppercase tracking-tight md:tracking-widest text-muted-foreground">
+              Pedido de Personal (Staff)
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0.5 md:p-1">
+          {uniqueDays.length === 0 ? (
+            <div className="p-4 text-center text-muted-foreground text-sm">
+              No hay días de evento para agregar personal.
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {uniqueDays.map((día) => {
+                const linesInDay = linesForDay(día)
+                const dayTotal = totalForDay(día)
+
+                return (
+                  <div key={día} className="border border-border/40 rounded-lg overflow-hidden bg-background/40">
+                    {/* Header del día */}
+                    <div className="bg-muted/30 px-3 py-1.5 flex items-center justify-between border-b border-border/40">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-tight text-foreground/80">
+                          {format(new Date(día), 'EEEE, d MMMM yyyy', { locale: es })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-[10px] md:text-sm font-bold text-blue-600">
+                             {dayTotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                          </span>
+                        </div>
+                        <Dialog open={isSelectorOpen === día} onOpenChange={(open) => setIsSelectorOpen(open ? día : false)}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="default" 
+                              size="icon" 
+                              className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all hover:scale-110 active:scale-95 border-2 border-white"
+                            >
+                              <Plus className="h-5 w-5 stroke-[3]" />
+                            </Button>
+                          </DialogTrigger>
+                          <RecetaSelector onSelect={(receta) => {
+                            onAddRecetaToStaff(receta, día)
+                            setIsSelectorOpen(false)
+                          }} />
+                        </Dialog>
+                      </div>
+                    </div>
+
+                    {/* Contenido (siempre visible) */}
+                    <div className="p-1.5 space-y-1.5">
+                      {linesInDay.length > 0 ? (
+                        <div className="space-y-1">
+                          {linesInDay.map((line) => {
+                            const unitPrice = line.precioVentaSnapshot || line.precioVenta || 0
+                            const totalPrice = unitPrice * (line.quantity || 0)
+                            return (
+                              <div
+                                key={line.id}
+                                className="grid grid-cols-12 items-center bg-background px-3 py-2 rounded border border-border/40 text-[10px] md:text-[11px] gap-2 shadow-sm"
+                              >
+                                <div className="col-span-12 md:col-span-5 font-bold text-foreground">
+                                  {line.nombre}
+                                </div>
+                                <div className="col-span-6 md:col-span-3 flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={line.quantity}
+                                    onChange={(e) => updateStaffItemQuantity(día, line.id, parseInt(e.target.value) || 0)}
+                                    className="w-12 h-7 text-center border border-border rounded font-mono text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                                  />
+                                  <span className="text-muted-foreground whitespace-nowrap">
+                                    × {unitPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                  </span>
+                                </div>
+                                <div className="col-span-4 md:col-span-3 text-right font-bold text-blue-600 text-xs">
+                                  {totalPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                </div>
+                                <div className="col-span-2 md:col-span-1 text-right">
+                                  <button 
+                                    onClick={() => removeStaffItem(día, line.id)} 
+                                    className="text-red-400 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50"
+                                    title="Eliminar plato"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div className="py-4 text-center text-[11px] text-muted-foreground italic bg-muted/5 rounded border border-dashed border-border/40">
+                          No hay platos asignados. Pulsa el botón "+" para añadir comida de staff.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Modal Resumen Briefing */}
       <Dialog open={openResumenBriefing} onOpenChange={setOpenResumenBriefing}>
         <DialogContent className="max-w-lg w-full p-0 rounded-lg">
           <DialogHeader className="px-4 pt-4 pb-2">
             <DialogTitle className="text-base font-bold">Resumen de Servicios del Evento</DialogTitle>
+            <DialogDescription className="sr-only">
+              Muestra todos los servicios registrados en el briefing comercial para este evento.
+            </DialogDescription>
             <DialogClose className="absolute right-4 top-4" />
           </DialogHeader>
           <div className="px-2 pb-4 max-h-[70vh] overflow-y-auto">

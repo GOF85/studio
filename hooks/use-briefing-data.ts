@@ -1,6 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, resolveOsId, buildOsOr } from '@/lib/supabase';
-import type { ComercialBriefing, ComercialAjuste, GastronomyOrder } from '@/types';
+import { supabase, resolveOsId, buildFieldOr, buildOsOr } from '@/lib/supabase';
+import type { ComercialBriefing, ComercialAjuste, GastronomyOrder, GastronomyOrderItem } from '@/types';
+
+export interface GastronomyStaffOrder {
+    id?: string;
+    osId: string;
+    fecha: string;
+    items: GastronomyOrderItem[];
+    total: number;
+}
 
 // Hook para manejar Briefings Comerciales
 export const useComercialBriefing = (osId?: string) => {
@@ -148,10 +156,10 @@ export const useGastronomyOrders = (osId?: string) => {
             const targetId = await resolveOsId(osId);
             const orExpr = buildOsOr(osId, targetId);
             const result = isUuid
-                ? await supabase.from('gastronomia_orders').select('*').eq('os_id', osId)
+                ? await supabase.from('gastronomia_orders').select('*').eq('os_id', osId).order('updated_at', { ascending: false })
                 : (targetId && targetId !== osId
-                    ? await supabase.from('gastronomia_orders').select('*').or(orExpr)
-                    : await supabase.from('gastronomia_orders').select('*').eq('numero_expediente', osId));
+                    ? await supabase.from('gastronomia_orders').select('*').or(orExpr).order('updated_at', { ascending: false })
+                    : await supabase.from('gastronomia_orders').select('*').eq('os_id', osId).order('updated_at', { ascending: false }));
             const { data, error } = result;
 
             if (error) throw error;
@@ -180,11 +188,13 @@ export const useGastronomyOrder = (osId: string, briefingItemId: string) => {
             const orExpr = buildOsOr(osId, targetId);
             let result;
             if (isUuid) {
-                result = await supabase.from('gastronomia_orders').select('*').eq('os_id', osId).eq('briefing_item_id', briefingItemId).single();
+                result = await supabase.from('gastronomia_orders').select('*').eq('os_id', osId).eq('briefing_item_id', briefingItemId).order('updated_at', { ascending: false }).limit(1).maybeSingle();
             } else if (targetId && targetId !== osId) {
-                result = await supabase.from('gastronomia_orders').select('*').or(orExpr).eq('briefing_item_id', briefingItemId).single();
+                // Use buildFieldOr to check both original ID and resolved UUID
+                const fieldOr = buildFieldOr('os_id', osId, targetId);
+                result = await supabase.from('gastronomia_orders').select('*').or(fieldOr).eq('briefing_item_id', briefingItemId).order('updated_at', { ascending: false }).limit(1).maybeSingle();
             } else {
-                result = await supabase.from('gastronomia_orders').select('*').eq('numero_expediente', osId).eq('briefing_item_id', briefingItemId).single();
+                result = await supabase.from('gastronomia_orders').select('*').eq('os_id', osId).eq('briefing_item_id', briefingItemId).order('updated_at', { ascending: false }).limit(1).maybeSingle();
             }
             const { data, error } = result;
 
@@ -210,19 +220,21 @@ export const useUpdateGastronomyOrder = () => {
     return useMutation({
         mutationFn: async (order: GastronomyOrder) => {
             const targetId = await resolveOsId(order.osId);
+            const payload = {
+                briefing_item_id: order.id,
+                os_id: targetId,
+                status: order.status,
+                items: order.items,
+                total: order.total,
+                asistentes_alergenos: order.asistentesAlergenos || 0,
+                items_alergenos: order.itemsAlergenos || [],
+                total_alergenos: order.totalAlergenos || 0,
+                comentarios_alergenos: order.comentariosAlergenos || '',
+            };
+            
             const { data, error } = await supabase
                 .from('gastronomia_orders')
-                .upsert({
-                    briefing_item_id: order.id,
-                    os_id: targetId,
-                    status: order.status,
-                    items: order.items,
-                    total: order.total,
-                    asistentes_alergenos: order.asistentesAlergenos || 0,
-                    items_alergenos: order.itemsAlergenos || [],
-                    total_alergenos: order.totalAlergenos || 0,
-                    comentarios_alergenos: order.comentariosAlergenos || '',
-                }, { onConflict: 'os_id,briefing_item_id' })
+                .upsert(payload, { onConflict: 'os_id,briefing_item_id' })
                 .select()
                 .single();
 
@@ -255,6 +267,56 @@ export const useDeleteGastronomyOrder = () => {
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['gastronomyOrders', variables.osId] });
             queryClient.invalidateQueries({ queryKey: ['gastronomyOrder', variables.osId, variables.briefingItemId] });
+        }
+    });
+};
+
+export const useStaffOrders = (osId: string) => {
+    return useQuery({
+        queryKey: ['staffOrders', osId],
+        queryFn: async () => {
+            const targetId = await resolveOsId(osId);
+            const { data, error } = await supabase
+                .from('gastronomia_staff_orders')
+                .select('*')
+                .eq('os_id', targetId);
+
+            if (error) throw error;
+            return (data || []).map(o => ({
+                id: o.id,
+                osId: o.os_id,
+                fecha: o.fecha,
+                items: o.items || [],
+                total: o.total,
+            })) as GastronomyStaffOrder[];
+        },
+        enabled: !!osId
+    });
+};
+
+export const useUpdateStaffOrder = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (order: GastronomyStaffOrder) => {
+            const targetId = await resolveOsId(order.osId);
+            const payload = {
+                os_id: targetId,
+                fecha: order.fecha,
+                items: order.items,
+                total: order.total,
+            };
+            
+            const { data, error } = await supabase
+                .from('gastronomia_staff_orders')
+                .upsert(payload, { onConflict: 'os_id,fecha' })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['staffOrders', variables.osId] });
         }
     });
 };

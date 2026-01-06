@@ -556,6 +556,7 @@ export default function BodegaPage() {
               <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
                   <Wine className="h-5 w-5 text-blue-500" />
               </div>
+              <h1 className="ml-3 text-[14px] font-black uppercase tracking-widest">Bodega</h1>
             </div>
 
             <div className="flex items-center gap-6 text-sm">

@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ExternalLink } from 'lucide-react';
 
 type Props = {
@@ -19,6 +19,9 @@ export default function SpaceDetailsDialog({ open, onOpenChange, name, address }
       <DialogContent className="p-4 max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-lg">{name || 'Espacio'}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Localización y detalles del espacio del evento.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="mt-3">

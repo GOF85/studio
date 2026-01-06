@@ -2714,20 +2714,20 @@ export function usePickingSheets(osId?: string) {
         queryFn: async () => {
             let query = supabase
                 .from('hojas_picking')
-                .select('*, eventos(*)');
+                .select('*');
 
             if (osId) {
                 const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
                 const targetId = await resolveOsId(osId);
-                const orExpr = buildFieldOr('evento_id', osId, targetId);
+                const orExpr = buildFieldOr('os_id', osId, targetId);
                 if (isUuid) {
-                    // Caller provided a UUID — query by evento_id directly
-                    query = query.eq('evento_id', osId);
+                    // Caller provided a UUID — query by os_id directly
+                    query = query.eq('os_id', osId);
                 } else if (targetId && targetId !== osId) {
-                    // We resolved a UUID for this numero_expediente — query by evento_id OR numero_expediente
+                    // We resolved a UUID for this numero_expediente — query by os_id OR numero_expediente
                     query = query.or(orExpr);
                 } else {
-                    // Can't safely query evento_id with a non-UUID
+                    // Can't safely query os_id with a non-UUID
                     return [];
                 }
             }
@@ -2735,24 +2735,49 @@ export function usePickingSheets(osId?: string) {
             const { data, error } = await query;
             if (error) throw error;
 
+            if (!data || data.length === 0) return [];
+
+            // Fetch events to map OS data
+            const osIds = data.map((p: any) => p.os_id).filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+            const osNumbers = data.map((p: any) => p.os_id).filter(id => id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+
+            let eventsQuery = supabase.from('eventos').select('*');
+            if (osIds.length > 0 && osNumbers.length > 0) {
+                eventsQuery = eventsQuery.or(`id.in.(${osIds.join(',')}),numero_expediente.in.(${osNumbers.join(',')})`);
+            } else if (osIds.length > 0) {
+                eventsQuery = eventsQuery.in('id', osIds);
+            } else if (osNumbers.length > 0) {
+                eventsQuery = eventsQuery.in('numero_expediente', osNumbers);
+            } else {
+                eventsQuery = null as any;
+            }
+
+            const { data: events } = eventsQuery ? await eventsQuery : { data: [] };
+            const eventMap = new Map();
+            events?.forEach(e => {
+                eventMap.set(e.id, e);
+                eventMap.set(e.numero_expediente, e);
+            });
+
             return (data || []).map((p: any): PickingSheet => {
                 const extraData = p.data || {};
+                const event = eventMap.get(p.os_id);
                 return {
                     id: p.id,
-                    osId: p.evento_id,
+                    osId: p.os_id,
                     items: p.items || [],
                     status: p.estado,
                     fechaNecesidad: extraData.fecha || extraData.fechaNecesidad || '',
                     itemStates: extraData.itemStates,
                     checkedItems: extraData.checkedItems,
                     solicita: extraData.solicita,
-                    os: p.eventos ? {
-                        id: p.eventos.id,
-                        serviceNumber: p.eventos.numero_expediente,
-                        client: p.eventos.client,
-                        startDate: p.eventos.start_date,
-                        endDate: p.eventos.end_date,
-                        status: p.eventos.estado,
+                    os: event ? {
+                        id: event.id,
+                        serviceNumber: event.numero_expediente,
+                        client: event.client,
+                        startDate: event.start_date,
+                        endDate: event.end_date,
+                        status: event.estado,
                     } as any : undefined
                 };
             });
@@ -2767,28 +2792,36 @@ export function usePickingSheet(id: string) {
             if (!id) return null;
             const { data, error } = await supabase
                 .from('hojas_picking')
-                .select('*, eventos(*)')
+                .select('*')
                 .eq('id', id)
                 .single();
             if (error) throw error;
+            if (!data) return null;
+
+            // Fetch event data manually
+            const { data: event } = await supabase
+                .from('eventos')
+                .select('*')
+                .or(`id.eq.${data.os_id},numero_expediente.eq.${data.os_id}`)
+                .maybeSingle();
 
             const extraData = data.data || {};
             return {
                 id: data.id,
-                osId: data.evento_id,
+                osId: data.os_id,
                 items: data.items || [],
                 status: data.estado,
                 fechaNecesidad: extraData.fecha || extraData.fechaNecesidad || '',
                 itemStates: extraData.itemStates,
-                checkedItems: extraData.checkedItems,
+                checkedItems: data.checkedItems,
                 solicita: extraData.solicita,
-                os: data.eventos ? {
-                    id: data.eventos.id,
-                    serviceNumber: data.eventos.numero_expediente,
-                    client: data.eventos.client,
-                    startDate: data.eventos.start_date,
-                    endDate: data.eventos.end_date,
-                    status: data.eventos.estado,
+                os: event ? {
+                    id: event.id,
+                    serviceNumber: event.numero_expediente,
+                    client: event.client,
+                    startDate: event.start_date,
+                    endDate: event.end_date,
+                    status: event.estado,
                 } as any : undefined
             } as PickingSheet;
         },
@@ -2862,13 +2895,13 @@ export function useReturnSheets(osId?: string) {
             if (!osId) return [];
             let query = supabase
                 .from('hojas_retorno')
-                .select('*, eventos(*)');
+                .select('*');
 
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
             const targetId = await resolveOsId(osId);
-            const orExpr = buildFieldOr('evento_id', osId, targetId);
+            const orExpr = buildFieldOr('os_id', osId, targetId);
             if (isUuid) {
-                query = query.eq('evento_id', osId);
+                query = query.eq('os_id', osId);
             } else if (targetId && targetId !== osId) {
                 query = query.or(orExpr);
             } else {
@@ -2878,21 +2911,46 @@ export function useReturnSheets(osId?: string) {
             const { data, error } = await query;
             if (error) throw error;
 
+            if (!data || data.length === 0) return [];
+
+            // Fetch events to map OS data
+            const osIds = data.map((p: any) => p.os_id).filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+            const osNumbers = data.map((p: any) => p.os_id).filter(id => id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+
+            let eventsQuery = supabase.from('eventos').select('*');
+            if (osIds.length > 0 && osNumbers.length > 0) {
+                eventsQuery = eventsQuery.or(`id.in.(${osIds.join(',')}),numero_expediente.in.(${osNumbers.join(',')})`);
+            } else if (osIds.length > 0) {
+                eventsQuery = eventsQuery.in('id', osIds);
+            } else if (osNumbers.length > 0) {
+                eventsQuery = eventsQuery.in('numero_expediente', osNumbers);
+            } else {
+                eventsQuery = null as any;
+            }
+
+            const { data: events } = eventsQuery ? await eventsQuery : { data: [] };
+            const eventMap = new Map();
+            events?.forEach(e => {
+                eventMap.set(e.id, e);
+                eventMap.set(e.numero_expediente, e);
+            });
+
             return (data || []).map((p: any): ReturnSheet => {
                 const extraData = p.data || {};
+                const event = eventMap.get(p.os_id);
                 return {
                     id: p.id,
-                    osId: p.evento_id,
+                    osId: p.os_id,
                     items: extraData.items || [],
                     status: extraData.status || 'Pendiente',
                     itemStates: extraData.itemStates || {},
-                    os: p.eventos ? {
-                        id: p.eventos.id,
-                        serviceNumber: p.eventos.numero_expediente,
-                        client: p.eventos.client,
-                        startDate: p.eventos.start_date,
-                        endDate: p.eventos.end_date,
-                        status: p.eventos.estado,
+                    os: event ? {
+                        id: event.id,
+                        serviceNumber: event.numero_expediente,
+                        client: event.client,
+                        startDate: event.start_date,
+                        endDate: event.end_date,
+                        status: event.estado,
                     } as any : undefined
                 };
             });
@@ -2908,27 +2966,34 @@ export function useReturnSheet(osId: string) {
             if (!osId) return null;
             const { data, error } = await supabase
                 .from('hojas_retorno')
-                .select('*, eventos(*)')
-                .eq('evento_id', osId)
+                .select('*')
+                .eq('os_id', osId)
                 .maybeSingle();
 
             if (error) throw error;
             if (!data) return null;
 
+            // Fetch event data manually
+            const { data: event } = await supabase
+                .from('eventos')
+                .select('*')
+                .or(`id.eq.${data.os_id},numero_expediente.eq.${data.os_id}`)
+                .maybeSingle();
+
             const extraData = data.data || {};
             return {
                 id: data.id,
-                osId: data.evento_id,
+                osId: data.os_id,
                 items: extraData.items || [],
                 status: extraData.status || 'Pendiente',
                 itemStates: extraData.itemStates || {},
-                os: data.eventos ? {
-                    id: data.eventos.id,
-                    serviceNumber: data.eventos.numero_expediente,
-                    client: data.eventos.client,
-                    startDate: data.eventos.start_date,
-                    endDate: data.eventos.end_date,
-                    status: data.eventos.estado,
+                os: event ? {
+                    id: event.id,
+                    serviceNumber: event.numero_expediente,
+                    client: event.client,
+                    startDate: event.start_date,
+                    endDate: event.end_date,
+                    status: event.estado,
                 } as any : undefined
             } as ReturnSheet;
         },
@@ -2945,7 +3010,7 @@ export function useUpdateReturnSheet() {
             const { data: existing } = await supabase
                 .from('hojas_retorno')
                 .select('data')
-                .eq('evento_id', osId)
+                .eq('os_id', osId)
                 .maybeSingle();
 
             const newData = {
@@ -2956,7 +3021,7 @@ export function useUpdateReturnSheet() {
             const { data, error } = await supabase
                 .from('hojas_retorno')
                 .upsert({
-                    evento_id: osId,
+                    os_id: osId,
                     data: newData,
                     updated_at: new Date().toISOString()
                 })
