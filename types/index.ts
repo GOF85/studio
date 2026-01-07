@@ -159,11 +159,22 @@ export type MaterialOrder = {
 };
 
 
-export const DEPARTAMENTOS_PERSONAL = ['Sala', 'Pase', 'CPR', 'RRHH', 'Almacén', 'Comercial', 'Operaciones', 'Marketing', 'HQ'] as const;
+export const DEPARTAMENTOS_PERSONAL = [
+  'Sala',
+  'Pase',
+  'CPR (Centro de Producción)',
+  'Almacén',
+  'Comercial',
+  'Marketing',
+  'HQ (Headquarters / Dirección)',
+  'Administración',
+  'RRHH (Recursos Humanos)'
+] as const;
 export type DepartamentoPersonal = typeof DEPARTAMENTOS_PERSONAL[number];
 
 export type Personal = {
     id: string; // DNI
+    matricula: string;
     nombre: string;
     apellido1: string;
     apellido2: string;
@@ -176,6 +187,7 @@ export type Personal = {
     email: string;
     precioHora: number;
     activo: boolean;
+    fotoUrl?: string;
 }
 
 export const TIPO_ESPACIO = ['Hotel', 'Espacio Singular', 'Finca', 'Restaurante', 'Auditorio', 'Corporativo', 'Centro de Congresos', 'Exterior'] as const;

@@ -12,7 +12,7 @@ import {
 } from '@/services/espacios-service';
 import { mapArticuloFromDB, getArticulosPaginated } from '@/services/articulos-service';
 import { mapArticuloERPFromDB, getArticulosERPPaginated } from '@/services/erp-service';
-import { mapPersonalFromDB, getPersonalPaginated } from '@/services/personal-service';
+import { mapPersonalFromDB, getPersonalPaginated, upsertPersonal, uploadPersonalPhoto } from '@/services/personal-service';
 import { mapProveedorFromDB, getProveedoresPaginated } from '@/services/proveedores-service';
 import type { EspacioV2 } from '@/types/espacios';
 import type {
@@ -1968,9 +1968,7 @@ export function useGastronomyOrders(eventoId?: string) {
     });
 }
 
-// ============================================
-// PERSONAL
-// ============================================
+// --- PERSONAL ---
 
 export function usePersonal() {
     return useQuery({
@@ -1979,23 +1977,33 @@ export function usePersonal() {
             const { data, error } = await supabase
                 .from('personal')
                 .select('*')
+                .eq('activo', true) // Default behavior: only active in selectors
                 .order('nombre', { ascending: true });
 
             if (error) throw error;
-            return data || [];
+            return (data || []).map(mapPersonalFromDB);
         },
         staleTime: 1000 * 60 * 10, // 10 minutes
     });
 }
 
-export function usePersonalPaginated(page: number, pageSize: number, searchTerm: string, departmentFilter: string, initialData?: { items: Personal[], totalCount: number, totalPages: number }) {
+export function usePersonalPaginated(
+    page: number, 
+    pageSize: number, 
+    searchTerm: string, 
+    departmentFilter: string, 
+    options: { initialData?: { items: Personal[], totalCount: number, totalPages: number }, isActive?: boolean, categoryFilter?: string } = {}
+) {
+    const { initialData, isActive = true, categoryFilter = 'all' } = options;
     return useQuery({
-        queryKey: ['personal-paginated', page, pageSize, searchTerm, departmentFilter],
+        queryKey: ['personal-paginated', page, pageSize, searchTerm, departmentFilter, categoryFilter, isActive],
         queryFn: () => getPersonalPaginated(supabase, {
             page,
             pageSize,
             searchTerm,
-            departmentFilter
+            departmentFilter,
+            categoryFilter,
+            isActive
         }),
         initialData
     });
@@ -4437,66 +4445,47 @@ export function useDeleteProveedoresBulk() {
 export function useUpsertPersonal() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (personal: Partial<Personal>) => {
-            const { data, error } = await supabase
-                .from('personal')
-                .upsert({
-                    id: personal.id,
-                    nombre: personal.nombre,
-                    apellido1: personal.apellido1,
-                    apellido2: personal.apellido2,
-                    nombre_completo: personal.nombreCompleto,
-                    nombre_compacto: personal.nombreCompacto,
-                    iniciales: personal.iniciales,
-                    departamento: personal.departamento,
-                    categoria: personal.categoria,
-                    telefono: personal.telefono,
-                    email: personal.email,
-                    precio_hora: personal.precioHora,
-                    activo: personal.activo ?? true,
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data;
-        },
-        onSuccess: () => {
+        mutationFn: (personal: Partial<Personal>) => upsertPersonal(supabase, personal),
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['personal'] });
+            queryClient.invalidateQueries({ queryKey: ['personal', data.id] });
+            queryClient.invalidateQueries({ queryKey: ['personal-paginated'] });
         },
     });
 }
 
-export function useDeletePersonal() {
+export function useArchivePersonal() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id: string) => {
             const { error } = await supabase
                 .from('personal')
-                .delete()
+                .update({ activo: false })
                 .eq('id', id);
 
             if (error) throw error;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['personal'] });
+            queryClient.invalidateQueries({ queryKey: ['personal-paginated'] });
         },
     });
 }
 
-export function useDeletePersonalBulk() {
+export function useRestorePersonal() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (ids: string[]) => {
+        mutationFn: async (id: string) => {
             const { error } = await supabase
                 .from('personal')
-                .delete()
-                .in('id', ids);
+                .update({ activo: true })
+                .eq('id', id);
 
             if (error) throw error;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['personal'] });
+            queryClient.invalidateQueries({ queryKey: ['personal-paginated'] });
         },
     });
 }
@@ -4512,23 +4501,21 @@ export function usePersonalItem(id: string) {
                 .single();
 
             if (error) throw error;
-            return {
-                id: data.id,
-                nombre: data.nombre,
-                apellido1: data.apellido1,
-                apellido2: data.apellido2,
-                nombreCompleto: data.nombre_completo,
-                nombreCompacto: data.nombre_compacto,
-                iniciales: data.iniciales,
-                departamento: data.departamento,
-                categoria: data.categoria,
-                telefono: data.telefono,
-                email: data.email,
-                precioHora: data.precio_hora,
-                activo: data.activo,
-            } as Personal;
+            return mapPersonalFromDB(data);
         },
         enabled: !!id,
+    });
+}
+
+export function useUploadPersonalPhoto() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ personalId, file }: { personalId: string, file: File }) => 
+            uploadPersonalPhoto(supabase, personalId, file),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['personal', variables.personalId] });
+            queryClient.invalidateQueries({ queryKey: ['personal-paginated'] });
+        },
     });
 }
 

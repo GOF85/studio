@@ -4,6 +4,6 @@ import { usePathname } from 'next/navigation';
 export function useScrollTop() {
   const pathname = usePathname();
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, [pathname]);
 }

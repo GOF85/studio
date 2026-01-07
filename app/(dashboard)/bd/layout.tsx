@@ -11,6 +11,7 @@ import { bdNavLinks } from '@/lib/bd-nav';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useScrollTop } from '@/hooks/useScrollTop';
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
     const pathname = usePathname() ?? '';
@@ -59,6 +60,7 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
 
 
 export default function BdLayout({ children }: { children: React.ReactNode }) {
+    useScrollTop();
     const pathname = usePathname() ?? '';
     const [isMounted, setIsMounted] = useState(false);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -99,7 +101,7 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="min-h-screen flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background">
-            <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40">
+            <div className="sticky top-11 md:top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex items-center justify-between py-3">
                         <div className="flex items-center gap-2 text-sm font-bold">
