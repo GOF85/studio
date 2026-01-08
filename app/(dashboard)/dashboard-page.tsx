@@ -1,80 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
-    CalendarDays, ClipboardList, ChevronRight,
+    CalendarDays, ClipboardList,
     LayoutDashboard, Activity, Truck, FileBarChart, Settings,
-    Clock, Utensils, Users, Calendar, MapPin
+    Clock, Users
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
-import { cn } from '@/lib/utils';
-import { commercialItems, planningItems, coreOpsItems, reportingItems, adminItems, type MenuItem } from '@/lib/nav-config';
+import { commercialItems, planningItems, coreOpsItems, reportingItems, adminItems } from '@/lib/nav-config';
 import { ServiceOrderSearch } from '@/components/dashboard/service-order-search';
 import { useDashboardMetrics, type DashboardMetrics } from '@/hooks/use-dashboard-metrics';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 
-// --- COMPONENTES UI ---
+// --- COMPONENTES OPTIMIZADOS ---
+import { BentoItem } from '@/components/dashboard/bento-item';
+import { MiniNavItem } from '@/components/dashboard/mini-nav-item';
 
-interface BentoItemProps {
-    className?: string;
-    children: React.ReactNode;
-    href?: string;
-    onClick?: () => void;
-    gradient?: string;
-}
-
-function BentoItem({ className, children, href, onClick, gradient }: BentoItemProps) {
-    const Content = (
-        <div 
-            onClick={onClick}
-            className={cn(
-                "relative h-full w-full overflow-hidden rounded-2xl border border-border/40 bg-card/60 backdrop-blur-md text-card-foreground shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] hover:border-primary/30 hover:-translate-y-1 group",
-                href || onClick ? "cursor-pointer" : "",
-                gradient,
-                className
-            )}
-        >
-            {/* Glow effect on hover */}
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-tr from-primary/5 via-transparent to-transparent pointer-events-none" />
-            {children}
-        </div>
-    );
-    if (href) return <Link href={href} className={cn("block h-full w-full transition-transform active:scale-[0.98]", className)}>{Content}</Link>;
-    return Content;
-}
-
-function MiniNavItem({ item }: { item: MenuItem }) {
-    return (
-        <Link href={item.href} className="group/item flex items-center justify-between p-2.5 sm:p-3 rounded-xl border border-transparent hover:border-border/40 hover:bg-background/80 hover:shadow-sm transition-all duration-300">
-            <div className="flex items-center gap-3 min-w-0">
-                <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-muted/50 text-muted-foreground group-hover/item:bg-primary/10 group-hover/item:text-primary transition-all duration-300">
-                    <item.icon className="w-4 h-4" />
-                </div>
-                <span className="text-[11px] sm:text-xs font-semibold text-foreground/70 group-hover/item:text-foreground truncate tracking-tight">
-                    {item.title}
-                </span>
-            </div>
-            <div className="w-5 h-5 flex items-center justify-center rounded-full bg-muted/30 opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-1 transition-all duration-300">
-                <ChevronRight className="w-3 h-3 text-primary" />
-            </div>
-        </Link>
-    );
-}
-
-// --- TIPOS ---
+const EventsModal = dynamic(() => import('@/components/dashboard/events-modal').then(m => m.EventsModal), { ssr: false });
+const ServicesModal = dynamic(() => import('@/components/dashboard/services-modal').then(m => m.ServicesModal), { ssr: false });
 
 // --- PÁGINA PRINCIPAL ---
 
@@ -86,27 +33,29 @@ export default function DashboardPage({ initialMetrics }: DashboardPageProps) {
     // --- HOOKS ---
     const router = useRouter();
     const { data: metrics, isLoading, refetch } = useDashboardMetrics(initialMetrics);
-    const [modalType, setModalType] = useState<'events' | 'services' | null>(null);
-    const [modalData, setModalData] = useState<any[]>([]);
-    const [modalTitle, setModalTitle] = useState('');
+    
+    // Estado consolidado para modales (reduce re-renders)
+    const [modal, setModal] = useState<{
+        type: 'events' | 'services' | null;
+        data: any[];
+        title: string;
+    }>({ type: null, data: [], title: '' });
 
-    const refreshData = async () => {
+    const refreshData = useCallback(async () => {
         await refetch();
-    };
+    }, [refetch]);
 
     usePullToRefresh({ onRefresh: refreshData });
 
     const openEventsModal = (data: any[], title: string) => {
-        setModalType('events');
-        setModalData(data);
-        setModalTitle(title);
+        setModal({ type: 'events', data, title });
     };
 
     const openServicesModal = (data: any[], title: string) => {
-        setModalType('services');
-        setModalData(data);
-        setModalTitle(title);
+        setModal({ type: 'services', data, title });
     };
+
+    const closePortal = () => setModal(prev => ({ ...prev, type: null }));
 
     return (
         <main className="flex-1 w-full bg-background/30 min-h-screen flex flex-col">
@@ -118,6 +67,17 @@ export default function DashboardPage({ initialMetrics }: DashboardPageProps) {
                             <ServiceOrderSearch />
                         </div>
                     </div>
+
+                    <Link
+                        href="/portal"
+                        className="flex-shrink-0 h-10 group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all active:scale-[0.98] flex items-center justify-center px-5"
+                    >
+                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="flex items-center justify-center gap-2 relative z-10">
+                            <Users className="h-4 w-4 text-white" />
+                            <span className="font-bold text-xs tracking-tight text-white whitespace-nowrap">Portal Externo</span>
+                        </div>
+                    </Link>
 
                     <Link
                         href="/entregas"
@@ -337,19 +297,23 @@ export default function DashboardPage({ initialMetrics }: DashboardPageProps) {
                 </section>
             </div>
 
-            {/* MODALS */}
-            <EventsModal 
-                isOpen={modalType === 'events'} 
-                onClose={() => setModalType(null)} 
-                data={modalData} 
-                title={modalTitle} 
-            />
-            <ServicesModal 
-                isOpen={modalType === 'services'} 
-                onClose={() => setModalType(null)} 
-                data={modalData} 
-                title={modalTitle} 
-            />
+            {/* MODALS OPTIMIZADOS (CARGA DINÁMICA) */}
+            {modal.type === 'events' && (
+                <EventsModal 
+                    isOpen={true} 
+                    onClose={closePortal} 
+                    data={modal.data} 
+                    title={modal.title} 
+                />
+            )}
+            {modal.type === 'services' && (
+                <ServicesModal 
+                    isOpen={true} 
+                    onClose={closePortal} 
+                    data={modal.data} 
+                    title={modal.title} 
+                />
+            )}
 
             {/* FOOTER */}
             <footer className="mt-auto py-4">
@@ -361,135 +325,5 @@ export default function DashboardPage({ initialMetrics }: DashboardPageProps) {
                 </div>
             </footer>
         </main>
-    );
-}
-
-function EventsModal({ isOpen, onClose, data, title }: { isOpen: boolean, onClose: () => void, data: any[], title: string }) {
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-black tracking-tight flex items-center gap-2">
-                        <Calendar className="w-5 h-5 text-primary" />
-                        {title}
-                    </DialogTitle>
-                    <DialogDescription className="text-xs font-medium text-muted-foreground">
-                        Listado detallado de los eventos programados para este periodo.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-2 mt-4">
-                    {data.length === 0 ? (
-                        <p className="text-center py-8 text-muted-foreground font-medium">No hay eventos registrados.</p>
-                    ) : (
-                        data.map((event, i) => (
-                            <div key={i} className="p-2 px-3 rounded-lg border border-border/30 bg-muted/20 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors">
-                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                    <Link 
-                                        href={`/os/${event.id}`}
-                                        className="font-mono text-[8px] h-3.5 px-1 bg-primary/5 text-primary border border-primary/10 rounded shrink-0 hover:underline flex items-center justify-center"
-                                    >
-                                        {event.numero_expediente}
-                                    </Link>
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <h4 className="font-bold text-[11px] uppercase tracking-tight truncate text-foreground">{event.space || 'Sin espacio'}</h4>
-                                            <span className="text-[9px] text-muted-foreground/70">•</span>
-                                            <span className="text-[9px] font-medium text-muted-foreground truncate">
-                                                {event.start_date ? format(new Date(event.start_date), "eee d MMM", { locale: es }) : 'Sin fecha'}
-                                            </span>
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground/80 truncate">{event.client}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-background/40 border border-border/20 shrink-0">
-                                    <Users className="w-3 h-3 text-primary/70" />
-                                    <span className="font-bold text-[11px]">{event.asistentes}</span>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function ServicesModal({ isOpen, onClose, data, title }: { isOpen: boolean, onClose: () => void, data: any[], title: string }) {
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-black tracking-tight flex items-center gap-2">
-                        <Utensils className="w-5 h-5 text-primary" />
-                        {title}
-                    </DialogTitle>
-                    <DialogDescription className="text-xs font-medium text-muted-foreground">
-                        Desglose de los servicios operativos y logísticos del día.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-2 mt-4">
-                    {data.length === 0 ? (
-                        <p className="text-center py-8 text-muted-foreground font-medium">No hay servicios registrados.</p>
-                    ) : (
-                        data.map((service, i) => (
-                            <div key={i} className="p-2 px-3 rounded-lg border border-border/30 bg-muted/20 flex flex-col gap-1 hover:bg-muted/30 transition-colors">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <div className="flex flex-col shrink-0">
-                                            <span className="text-[7px] font-black text-muted-foreground uppercase leading-none mb-0.5">
-                                                {service.fecha ? format(new Date(service.fecha), "eee d MMM", { locale: es }) : 'Sin fecha'}
-                                            </span>
-                                            <Badge variant="secondary" className="text-[9px] font-bold h-4 px-1.5 bg-primary/10 text-primary border-none">
-                                                {service.horaInicio || '??'} - {service.horaFin || '??'}
-                                            </Badge>
-                                        </div>
-                                        {service.numero_expediente && (
-                                            <Link 
-                                                href={`/os/${service.os_id}`}
-                                                className="text-[9px] font-mono font-bold text-primary hover:underline shrink-0 bg-primary/5 px-1 rounded border border-primary/10"
-                                            >
-                                                {service.numero_expediente}
-                                            </Link>
-                                        )}
-                                        <h4 className="font-bold text-[11px] uppercase tracking-tight truncate text-foreground">
-                                            {service.descripcion || service.tipo || 'Servicio'}
-                                        </h4>
-                                    </div>
-                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-background/40 border border-border/20 shrink-0">
-                                        <Users className="w-3 h-3 text-primary/70" />
-                                        <span className="font-bold text-[11px]">{service.asistentes}</span>
-                                    </div>
-                                </div>
-                                
-                                <div className="flex items-center gap-2 text-[9px] text-muted-foreground/80">
-                                    <div className="flex items-center gap-1 truncate max-w-[150px]">
-                                        <MapPin className="w-2.5 h-2.5" />
-                                        <span className="truncate font-bold text-foreground/70">{service.nombreEspacio || 'Sin espacio'}</span>
-                                    </div>
-                                    {service.sala && (
-                                        <>
-                                            <span>•</span>
-                                            <span className="truncate font-medium">{service.sala}</span>
-                                        </>
-                                    )}
-                                    {service.conGastronomia && (
-                                        <>
-                                            <span>•</span>
-                                            <span className="text-emerald-600 font-bold uppercase text-[8px]">Gastro</span>
-                                        </>
-                                    )}
-                                </div>
-
-                                { (service.comentario || service.comentarios) && (
-                                    <p className="text-[10px] text-muted-foreground/70 italic line-clamp-1 border-l-2 border-primary/20 pl-2 mt-0.5">
-                                        {service.comentario || service.comentarios}
-                                    </p>
-                                )}
-                            </div>
-                        ))
-                    )}
-                </div>
-            </DialogContent>
-        </Dialog>
     );
 }

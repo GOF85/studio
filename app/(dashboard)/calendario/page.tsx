@@ -296,7 +296,7 @@ const DayGridCell = memo(function DayGridCell({
             <Tooltip key={osId}>
               <TooltipTrigger asChild>
                 <div
-                  onClick={(e) => { e.stopPropagation(); router.push(`/os/${firstEvent.osId}`); }}
+                  onClick={(e) => { e.stopPropagation(); router.push(`/os/${firstEvent.serviceNumber}`); }}
                   className={cn(
                     "cursor-pointer text-[9px] px-1.5 py-1 rounded-md border truncate flex flex-col gap-0.5 transition-all duration-300 hover:translate-x-1 hover:shadow-md active:scale-[0.98]",
                     styles.bg,
@@ -498,7 +498,7 @@ const AgendaView = memo(function AgendaView({
                 return (
                   <div
                     key={osId}
-                    onClick={() => router.push(`/os/${firstEvent.osId}`)}
+                    onClick={() => router.push(`/os/${firstEvent.serviceNumber}`)}
                     className={cn(
                       "relative rounded-xl p-3 border border-border/40 bg-card/60 backdrop-blur-md shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer group/card active:scale-[0.98]",
                       styles.bg,

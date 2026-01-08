@@ -621,7 +621,7 @@ function PESPageInner() {
                                                         key={`${os.id}-${dateKey}`} 
                                                         os={os} 
                                                         dateKey={dateKey} 
-                                                        onClick={() => router.push(`/os/${os.id}/info`)} 
+                                                        onClick={() => router.push(`/os/${os.serviceNumber}/info`)} 
                                                     />
                                                 ))}
                                             </Fragment>

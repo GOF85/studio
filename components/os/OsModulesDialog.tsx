@@ -6,10 +6,23 @@ import { ClipboardList, FileText, ReceiptEuro, Utensils, Snowflake, Warehouse, B
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { useEvento } from '@/hooks/use-data-queries';
 
-export default function OsModulesDialog({ osId, triggerClassName, trigger }: { osId: string; triggerClassName?: string; trigger?: React.ReactNode }) {
+export default function OsModulesDialog({ 
+  osId, 
+  numeroExpediente,
+  triggerClassName, 
+  trigger 
+}: { 
+  osId: string; 
+  numeroExpediente?: string;
+  triggerClassName?: string; 
+  trigger?: React.ReactNode 
+}) {
   const { data: evento } = useEvento(osId);
   const reactId = useId();
   const contentId = `os-modules-${osId}-${reactId}`;
+
+  // Se usa numeroExpediente pasado por prop, sino serviceNumber del evento, sino osId
+  const displayId = numeroExpediente || evento?.serviceNumber || osId;
 
   const menu = [
     { key: 'sep1', separator: true },
@@ -53,7 +66,7 @@ export default function OsModulesDialog({ osId, triggerClassName, trigger }: { o
         <div className="flex flex-col h-full">
           <SheetHeader className="px-4 py-4">
             <div className="flex items-center justify-between">
-              <SheetTitle className="text-lg font-bold">{`OS ${evento?.serviceNumber || osId}`}</SheetTitle>
+              <SheetTitle className="text-lg font-bold">{`OS ${displayId}`}</SheetTitle>
             </div>
           </SheetHeader>
 
@@ -66,7 +79,7 @@ export default function OsModulesDialog({ osId, triggerClassName, trigger }: { o
                 const Icon = (item as any).icon;
                 return (
                   <SheetClose asChild key={item.key}>
-                    <Link href={`/os/${osId}/${item.key}`} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-accent">
+                    <Link href={`/os/${displayId}/${item.key}`} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-accent">
                       <Icon className="h-4 w-4 text-emerald-800" />
                       {item.title}
                     </Link>

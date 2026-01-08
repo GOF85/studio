@@ -126,6 +126,17 @@ export default function EntregasDashboardPage() {
                         </div>
 
                         <Link
+                            href="/portal"
+                            className="flex-shrink-0 h-10 group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all active:scale-[0.98] flex items-center justify-center px-5"
+                        >
+                            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <div className="flex items-center justify-center gap-2 relative z-10">
+                                <Users className="h-4 w-4 text-white" />
+                                <span className="font-bold text-xs tracking-tight text-white whitespace-nowrap">Portal Externo</span>
+                            </div>
+                        </Link>
+
+                        <Link
                             href="/"
                             className="flex-shrink-0 h-10 group relative overflow-hidden rounded-xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 hover:-translate-y-0.5 transition-all active:scale-[0.98] flex items-center justify-center px-5"
                         >

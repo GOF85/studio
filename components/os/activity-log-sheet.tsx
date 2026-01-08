@@ -98,8 +98,8 @@ export function ActivityLogSheet({
               <History className="h-4 w-4 text-blue-500" />
               Historial de Cambios
             </SheetTitle>
-            <SheetDescription className="text-xs">
-              Actividad en esta {entityType === 'OS' ? 'Orden de Servicio' : 'entidad'}.
+            <SheetDescription className="sr-only">
+              Historial detallado de cambios para esta entidad.
             </SheetDescription>
           </SheetHeader>
         </div>

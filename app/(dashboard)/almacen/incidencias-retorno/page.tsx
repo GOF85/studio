@@ -243,7 +243,7 @@ export default function IncidenciasRetornoPage() {
                                             <Badge 
                                                 variant="outline" 
                                                 className="text-base cursor-pointer hover:bg-accent"
-                                                onClick={(e) => {e.stopPropagation(); router.push(`/os/${group.osId}/almacen`);}}
+                                                onClick={(e) => {e.stopPropagation(); router.push(`/os/${group.osServiceNumber}/almacen`);}}
                                             >
                                                 {group.osServiceNumber}
                                             </Badge>

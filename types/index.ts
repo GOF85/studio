@@ -85,6 +85,8 @@ export type CateringVertical = typeof CATERING_VERTICALES[number];
 export type ServiceOrder = {
     id: string;
     serviceNumber: string;
+    numero_expediente?: string;
+    nombre_evento?: string;
     startDate?: string | Date;
     endDate?: string | Date;
     client: string;
@@ -614,7 +616,7 @@ export type PersonalExternoTurno = {
     requiereActualizacion?: boolean;
 };
 
-export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
+export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Confirmado', 'Cerrado'] as const;
 export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
 
 export type PersonalExterno = {
@@ -626,7 +628,7 @@ export type PersonalExterno = {
 };
 
 // Backwards-compatible turno status constant/type expected by older code
-export const ESTADO_TURNO_PERSONAL = ['Solicitado', 'Asignado', 'Cerrado'] as const;
+export const ESTADO_TURNO_PERSONAL = ['Pendiente', 'Solicitado', 'Confirmado', 'Cancelado'] as const;
 export type EstadoTurnoPersonal = typeof ESTADO_TURNO_PERSONAL[number];
 
 export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;

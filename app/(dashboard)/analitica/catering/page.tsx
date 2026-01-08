@@ -372,7 +372,7 @@ export default function AnaliticaCateringPage() {
                                         return (
                                             <TableRow key={p.os.id} className="border-border/40 hover:bg-primary/5 transition-colors group">
                                                 <TableCell className="font-mono text-xs font-bold text-primary">
-                                                    <Link href={`/os/${p.os.id}/cta-explotacion`}>{p.os.serviceNumber}</Link>
+                                                    <Link href={`/os/${p.os.serviceNumber}/cta-explotacion`}>{p.os.serviceNumber}</Link>
                                                 </TableCell>
                                                 <TableCell className="text-xs font-semibold uppercase truncate max-w-[150px]">{p.os.client}</TableCell>
                                                 <TableCell className="text-xs">{p.os.space}</TableCell>

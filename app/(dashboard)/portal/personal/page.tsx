@@ -32,6 +32,7 @@ import { useAuth } from '@/providers/auth-provider';
 import { logActivity } from '../activity-log/utils';
 import { Combobox } from '@/components/ui/combobox';
 import { useAssignablePersonal } from '@/hooks/use-assignable-personal';
+import { RatingStars } from '@/components/ui/rating-stars';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -127,8 +128,8 @@ function NuevoTrabajadorDialog({ onWorkerCreated, initialData, trigger }: { onWo
                 nombreCompacto: `${data.nombre} ${data.apellido1}`,
             };
 
-            const result = await upsertWorker.mutateAsync(newWorker);
-            onWorkerCreated(result);
+            await upsertWorker.mutateAsync(newWorker);
+            onWorkerCreated(newWorker);
             setIsOpen(false);
             form.reset();
         } catch (error) {
@@ -338,15 +339,29 @@ function AsignacionDialog({ turno, onSave, isReadOnly }: { turno: UnifiedTurno, 
                             {!isReadOnly && <NuevoTrabajadorDialog onWorkerCreated={handleWorkerCreated} trigger={<Button variant="outline" size="sm" className="w-full justify-start mt-2"><PlusCircle className="mr-2" />Crear Nuevo Trabajador</Button>} />}
                         </div>
                         {workerDetails && (
-                            <Card className="bg-secondary/50">
-                                <CardContent className="p-3 text-sm">
-                                    <div className="flex justify-between">
-                                        <p className="font-bold">{workerDetails.nombreCompleto}</p>
-                                        <p className="text-muted-foreground">{workerDetails.id}</p>
+                            <Card className="bg-secondary/50 border-border/40 overflow-hidden">
+                                <CardContent className="p-4 text-sm relative">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="space-y-1">
+                                            <p className="font-black uppercase tracking-tight text-base">{workerDetails.nombreCompleto}</p>
+                                            <p className="text-[10px] font-mono font-bold text-muted-foreground bg-background/50 px-2 py-0.5 rounded border border-border/40 w-fit">{workerDetails.id}</p>
+                                        </div>
+                                        {assignableWorkers.find(w => w.value === selectedWorkerId)?.stats && (
+                                            <div className="flex flex-col items-end gap-1">
+                                                <RatingStars 
+                                                    value={assignableWorkers.find(w => w.value === selectedWorkerId)?.stats.averageRating} 
+                                                    readonly 
+                                                    size="sm" 
+                                                />
+                                                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+                                                    {assignableWorkers.find(w => w.value === selectedWorkerId)?.stats.totalServices} Servicios
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="flex justify-between text-muted-foreground">
-                                        <p className="flex items-center gap-2"><Phone className="h-3 w-3" />{workerDetails.telefono || '-'}</p>
-                                        <p>{workerDetails.email || '-'}</p>
+                                    <div className="grid grid-cols-2 gap-4 pt-3 border-t border-border/10">
+                                        <p className="flex items-center gap-2 text-muted-foreground font-bold text-xs italic"><Phone className="h-3 w-3" />{workerDetails.telefono || '-'}</p>
+                                        <p className="text-muted-foreground font-bold text-xs text-right truncate italic">{workerDetails.email || '-'}</p>
                                     </div>
                                 </CardContent>
                             </Card>

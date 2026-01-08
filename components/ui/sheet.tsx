@@ -64,6 +64,9 @@ const SheetContent = React.forwardRef<
       className={cn(sheetVariants({ side }), className)}
       {...props}
     >
+      <SheetPrimitive.Description className="sr-only">
+        Panel lateral
+      </SheetPrimitive.Description>
       {children}
       <SheetPrimitive.Close className="absolute right-3 top-3 rounded-full p-1.5 opacity-50 ring-offset-background transition-all hover:opacity-100 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-3.5 w-3.5" />

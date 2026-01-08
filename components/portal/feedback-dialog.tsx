@@ -7,10 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
-import { Pencil } from 'lucide-react';
+import { Pencil, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { Input } from '../ui/input';
+import { RatingStars } from '@/components/ui/rating-stars';
 import type { SolicitudPersonalCPR } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -120,39 +121,48 @@ export function FeedbackDialog({
                 <DialogDescription>{finalProps.description}</DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
-                 <div className="text-sm p-2 bg-secondary rounded-md">
-                    <p><strong>Trabajador:</strong> {finalProps.workerName}</p>
+                 <div className="text-[11px] p-3 bg-muted border border-border/40 rounded-lg space-y-1">
+                    <p className="font-black uppercase tracking-widest text-muted-foreground mb-2">Información del Turno</p>
+                    <p><strong className="font-bold">Trabajador:</strong> {finalProps.workerName}</p>
                     {finalProps.turnoInfo && (
                         <>
-                        <p><strong>Categoría:</strong> {finalProps.turnoInfo.categoria} ({finalProps.turnoInfo.partida})</p>
-                        <p><strong>Fecha y Hora (Plan):</strong> {format(new Date(finalProps.turnoInfo.fechaServicio), 'dd/MM/yyyy')} de {finalProps.turnoInfo.horaInicio} a {finalProps.turnoInfo.horaFin}</p>
+                        <p><strong className="font-bold">Categoría:</strong> {finalProps.turnoInfo.categoria} ({finalProps.turnoInfo.partida})</p>
+                        <p><strong className="font-bold">Fecha y Hora (Plan):</strong> {format(new Date(finalProps.turnoInfo.fechaServicio), 'dd/MM/yyyy')} de {finalProps.turnoInfo.horaInicio} a {finalProps.turnoInfo.horaFin}</p>
                         </>
                     )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                          <Label>Hora Entrada Real</Label>
-                          <Input type="time" value={horaEntrada} onChange={e => setHoraEntrada(e.target.value)} />
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Hora Entrada Real</Label>
+                          <Input type="time" value={horaEntrada} onChange={e => setHoraEntrada(e.target.value)} className="h-9 font-mono" />
                       </div>
                       <div className="space-y-2">
-                        <Label>Hora Salida Real</Label>
-                        <Input type="time" value={horaSalida} onChange={e => setHoraSalida(e.target.value)} />
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Hora Salida Real</Label>
+                        <Input type="time" value={horaSalida} onChange={e => setHoraSalida(e.target.value)} className="h-9 font-mono" />
                       </div>
                 </div>
-                <div className="space-y-2">
-                    <Label>Desempeño (1-5)</Label>
-                    <div className="flex items-center gap-4 pt-2">
-                        <span className="text-sm text-muted-foreground">Bajo</span>
-                        <Slider value={[rating]} onValueChange={(value) => setRating(value[0])} max={5} min={1} step={1} />
-                        <span className="text-sm text-muted-foreground">Alto</span>
+
+                <div className="space-y-4 pt-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Valoración desempeño (1-5)</Label>
+                    <div className="flex items-center gap-2 transition-all">
+                        <RatingStars 
+                            value={rating} 
+                            onChange={setRating} 
+                            size="lg" 
+                            className="bg-muted px-4 py-2 rounded-xl"
+                        />
+                        <span className="ml-6 text-lg font-black text-black bg-yellow-400 px-4 py-1.5 rounded-xl border-2 border-yellow-500 shadow-lg animate-in zoom-in-50 duration-300">
+                            {rating} / 5
+                        </span>
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <Label>Comentarios Internos MICE</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Comentarios Internos MICE</Label>
                     <Textarea 
                         value={comment} 
                         onChange={(e) => setComment(e.target.value)}
-                        rows={4}
+                        rows={3}
+                        className="resize-none"
                         placeholder="Añade aquí comentarios internos sobre el desempeño..."
                     />
                 </div>

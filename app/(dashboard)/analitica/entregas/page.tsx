@@ -628,7 +628,7 @@ export default function AnaliticaEntregasPage() {
                                                     <Checkbox checked={isSelected} onCheckedChange={() => handleSelect(p.os.id)} />
                                                 </TableCell>
                                                 <TableCell className="font-mono text-xs font-bold text-primary">
-                                                    <Link href={`/os/${p.os.id}/cta-explotacion`}>{p.os.serviceNumber}</Link>
+                                                    <Link href={`/os/${p.os.serviceNumber}/cta-explotacion`}>{p.os.serviceNumber}</Link>
                                                 </TableCell>
                                                 <TableCell className="text-xs font-medium uppercase tracking-tight">{p.os.client}</TableCell>
                                                 <TableCell className="text-xs font-medium">{p.os?.startDate ? format(new Date(p.os.startDate), 'dd MMM yyyy', { locale: es }) : 'N/A'}</TableCell>

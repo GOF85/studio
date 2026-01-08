@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase, resolveOsId, buildOsOr, buildFieldOr } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -1760,6 +1760,111 @@ export function useAllPersonalMiceAssignments() {
             }));
         },
     });
+}
+
+export function useAllPersonalExternoAssignments() {
+    return useQuery({
+        queryKey: ['allPersonalExternoAssignments'],
+        queryFn: async () => {
+            const { data, error } = await supabase.from('personal_externo_eventos')
+                .select('evento_id, turnos')
+                .returns<any[]>();
+            if (error) throw error;
+
+            // Fetch event names separately to avoid join ambiguity or missing relationship issues
+            const eventIds = Array.from(new Set((data || []).map(row => row.evento_id))).filter(Boolean) as string[];
+            let eventsMap: Record<string, string> = {};
+            
+            if (eventIds.length > 0) {
+                const { data: eventData } = await supabase
+                    .from('eventos')
+                    .select('id, nombre_evento')
+                    .filter('id', 'in', `(${eventIds.join(',')})`);
+                
+                eventsMap = (eventData || []).reduce((acc, curr) => {
+                    acc[curr.id] = curr.nombre_evento;
+                    return acc;
+                }, {} as Record<string, string>);
+            }
+
+            return (data || []).flatMap((row) => 
+                (row.turnos || []).flatMap((t: any) => 
+                    (t.asignaciones || []).map((a: any) => ({
+                        osId: row.evento_id,
+                        eventoNombre: eventsMap[row.evento_id] || 'Evento Desconocido',
+                        fecha: t.fecha,
+                        horaEntrada: t.horaEntrada,
+                        horaSalida: t.horaSalida,
+                        workerName: a.nombre,
+                        workerDni: a.dni,
+                        rating: a.rating,
+                        comentariosMice: a.comentariosMice,
+                    }))
+                )
+            );
+        },
+    });
+}
+
+export function useExternalWorkerStats() {
+    const { data: assignments = [] } = useAllPersonalExternoAssignments();
+    
+    return useMemo(() => {
+        const statsMap: Record<string, { 
+            dni: string;
+            nombre: string;
+            averageRating: number;
+            totalServices: number;
+            history: Array<{ 
+                osId: string;
+                eventoNombre: string;
+                fecha: string;
+                rating: number;
+                comentario: string;
+            }>;
+        }> = {};
+
+        assignments.forEach((asig: any) => {
+            if (!asig.workerDni) return;
+            
+            const dni = asig.workerDni.toUpperCase().trim();
+            
+            if (!statsMap[dni]) {
+                statsMap[dni] = {
+                    dni: dni,
+                    nombre: asig.workerName,
+                    averageRating: 0,
+                    totalServices: 0,
+                    history: []
+                };
+            }
+
+            const stats = statsMap[dni];
+            stats.totalServices += 1;
+            
+            if (asig.rating || asig.comentariosMice) {
+                stats.history.push({
+                    osId: asig.osId,
+                    eventoNombre: asig.eventoNombre,
+                    fecha: asig.fecha,
+                    rating: asig.rating || 0,
+                    comentario: asig.comentariosMice || ''
+                });
+            }
+        });
+
+        // Calculate averages and sort history
+        Object.values(statsMap).forEach(stats => {
+            const ratingsWithData = stats.history.filter(h => h.rating > 0);
+            if (ratingsWithData.length > 0) {
+                stats.averageRating = ratingsWithData.reduce((acc, h) => acc + h.rating, 0) / ratingsWithData.length;
+            }
+            // Latest events first
+            stats.history.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+        });
+
+        return statsMap;
+    }, [assignments]);
 }
 
 // ============================================

@@ -28,7 +28,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton'
-import { BriefingSummaryDialog } from '@/components/os/briefing-summary-dialog'
+import { BriefingSummaryDialog, BriefingSummaryTrigger } from '@/components/os/briefing-summary-dialog'
 import { cn } from '@/lib/utils'
 import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view'
 import { useInfiniteScroll } from '@/hooks/use-infinite-scroll'
@@ -71,9 +71,6 @@ export default function GastronomiaPage() {
   
   const { data: existingStaffOrders, isLoading: isLoadingStaff } = useStaffOrders(serviceOrder?.id || osId)
   const updateStaffOrderMutation = useUpdateStaffOrder()
-
-  // Estado para el modal de resumen briefing
-  const [openResumenBriefing, setOpenResumenBriefing] = useState(false)
   
   // Estado para pedido de personal (comida staff)
   const [isSelectorOpen, setIsSelectorOpen] = useState<string | false>(false)
@@ -326,16 +323,10 @@ export default function GastronomiaPage() {
                   {isFinite(desviacionPct) ? `${desviacionPct.toFixed(2)}%` : '-'}
                 </div>
               </div>
-              {/* Botón Resumen Briefing a la derecha, solo icono en mobile, texto en desktop */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 md:h-8 px-2 md:px-3 text-[12px] ml-2"
-                onClick={() => setOpenResumenBriefing(true)}
-              >
-                <ListCheck className="h-4 w-4 md:h-3.5 md:w-3.5 mr-0 md:mr-1" />
-                <span className="hidden md:inline">Resumen Briefing</span>
-              </Button>
+              {/* Botón Resumen Briefing a la derecha */}
+              <div className="ml-2">
+                <BriefingSummaryTrigger items={allBriefingItems} />
+              </div>
             </div>
           </div>
         </div>
@@ -544,12 +535,6 @@ export default function GastronomiaPage() {
           )}
         </CardContent>
       </Card>
-
-      <BriefingSummaryDialog
-        open={openResumenBriefing}
-        onOpenChange={setOpenResumenBriefing}
-        items={allBriefingItems}
-      />
     </div>
   )
 }

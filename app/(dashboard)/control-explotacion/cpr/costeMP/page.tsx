@@ -172,7 +172,7 @@ function CosteMPPageInner() {
                                     {detalleCostes.length > 0 ? detalleCostes.map((coste, i) => (
                                         <TableRow key={`${coste.osId}-${coste.referencia}-${i}`}>
                                             <TableCell>{format(new Date(coste.fecha), 'dd/MM/yyyy')}</TableCell>
-                                            <TableCell><Link href={`/os/${coste.osId}/gastronomia`} className="text-primary hover:underline">{coste.osNumber}</Link></TableCell>
+                                            <TableCell><Link href={`/os/${coste.osNumber}/gastronomia`} className="text-primary hover:underline">{coste.osNumber}</Link></TableCell>
                                             <TableCell>{coste.referencia}</TableCell>
                                             <TableCell className="text-right">{coste.cantidad}</TableCell>
                                             <TableCell className="text-right font-semibold">{formatCurrency(coste.costeMPTotal)}</TableCell>

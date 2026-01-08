@@ -105,6 +105,7 @@ export default function OsHeaderMobile({ osId }: { osId?: string }) {
               {/* OsModulesDialog - trigger escondido, controlado por hamburguesa */}
               <OsModulesDialog
                 osId={osId}
+                numeroExpediente={evento?.serviceNumber}
                 trigger={<button ref={modulesDialogRef} className="hidden" />}
               />
               {/* Número de expediente - solo texto */}

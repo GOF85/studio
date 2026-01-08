@@ -6,7 +6,7 @@ import { PersonalExternoClient } from './components/PersonalExternoClient';
 export default async function PersonalExternoPage() {
   const supabase = await createClient();
   
-  let initialData = { items: [], totalCount: 0 };
+  let initialData: { items: any[]; totalCount: number } = { items: [], totalCount: 0 };
   
   try {
     initialData = await getPersonalExternoPaginated(supabase, {

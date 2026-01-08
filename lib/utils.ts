@@ -33,25 +33,22 @@ export function formatPercentage(value: number) {
 export function calculateHours(start?: string, end?: string): number {
     if (!start || !end) return 0;
     try {
-        // Normalizar formato: eliminar segundos si existen (HH:mm:ss -> HH:mm)
         const normalizeTime = (t: string) => t.includes(':') ? t.split(':').slice(0, 2).join(':') : t;
+        const s = normalizeTime(start).split(':');
+        const e = normalizeTime(end).split(':');
         
-        const startTime = parse(normalizeTime(start), 'HH:mm', new Date());
-        const endTime = parse(normalizeTime(end), 'HH:mm', new Date());
-
-        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-            console.error('Invalid time format for calculating hours:', { start, end });
-            return 0;
+        if (s.length < 2 || e.length < 2) return 0;
+        
+        const startMin = parseInt(s[0]) * 60 + parseInt(s[1]);
+        let endMin = parseInt(e[0]) * 60 + parseInt(e[1]);
+        
+        if (endMin < startMin) {
+            endMin += 24 * 60;
         }
-
-        if (endTime < startTime) {
-            endTime.setDate(endTime.getDate() + 1);
-        }
-
-        const diff = differenceInMinutes(endTime, startTime);
+        
+        const diff = endMin - startMin;
         return diff > 0 ? diff / 60 : 0;
     } catch (e) {
-        console.error("Error calculating hours:", e);
         return 0;
     }
 }

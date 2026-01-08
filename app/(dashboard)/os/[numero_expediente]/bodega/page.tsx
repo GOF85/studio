@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton'
+import { BriefingSummaryTrigger } from '@/components/os/briefing-summary-dialog'
 import {
   Dialog,
   DialogContent,
@@ -257,6 +258,16 @@ export default function BodegaPage() {
 
   const { data: objetivos } = useObjetivosGasto(serviceOrder?.id)
   const { data: plantillas } = useObjetivosGastoPlantillas()
+
+  const { data: briefings = [] } = useComercialBriefings(osId)
+  const briefingItems = useMemo(() => {
+    const items = briefings?.[0]?.items || []
+    return [...items].sort((a, b) => {
+      const dateComparison = a.fecha.localeCompare(b.fecha)
+      if (dateComparison !== 0) return dateComparison
+      return a.horaInicio.localeCompare(b.horaInicio)
+    })
+  }, [briefings])
 
   const handleItemChange = async (itemId: string, field: 'quantity' | 'price', value: number, orderId?: string) => {
     try {
@@ -595,16 +606,7 @@ export default function BodegaPage() {
               </DialogTrigger>
               {renderSummaryModal()}
             </Dialog>
-            <div>
-              <div className="hidden md:block">
-                <BriefingSummaryDialog osId={osId} />
-              </div>
-              <div className="block md:hidden">
-                <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest border-border/40 hover:bg-blue-500/5">
-                  <span>Briefing</span>
-                </Button>
-              </div>
-            </div>
+            <BriefingSummaryTrigger items={briefingItems} />
             <Button 
               asChild
               className="h-8 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"

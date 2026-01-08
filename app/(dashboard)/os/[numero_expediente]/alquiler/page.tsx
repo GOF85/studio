@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton'
+import { BriefingSummaryTrigger } from '@/components/os/briefing-summary-dialog'
 import {
   Dialog,
   DialogContent,
@@ -521,7 +522,7 @@ export default function AlquilerPage() {
               </DialogTrigger>
               {renderSummaryModal()}
             </Dialog>
-            <BriefingSummaryDialog items={briefing?.items || []} />
+            <BriefingSummaryTrigger items={briefing?.items || []} />
             <Button 
               asChild
               className="h-8 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"

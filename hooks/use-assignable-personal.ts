@@ -3,10 +3,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { PersonalExternoTurno, SolicitudPersonalCPR } from '@/types';
-import { usePersonal, usePersonalExternoDB, useCategoriasPersonal } from './use-data-queries';
+import { usePersonal, usePersonalExternoDB, useCategoriasPersonal, useExternalWorkerStats } from './use-data-queries';
 
 type UnifiedTurno = (PersonalExternoTurno & { type: 'EVENTO' }) | (SolicitudPersonalCPR & { type: 'CPR' });
-type AssignableWorker = { label: string; value: string; id: string; };
+type AssignableWorker = { label: string; value: string; id: string; rating?: number; stats?: any; };
 
 export function useAssignablePersonal(turno: UnifiedTurno | null) {
   const [assignableWorkers, setAssignableWorkers] = useState<AssignableWorker[]>([]);
@@ -16,6 +16,7 @@ export function useAssignablePersonal(turno: UnifiedTurno | null) {
   const { data: allPersonalInterno = [], isLoading: isLoadingInterno } = usePersonal();
   const { data: allPersonalExterno = [], isLoading: isLoadingExterno } = usePersonalExternoDB();
   const { data: allTiposPersonal = [], isLoading: isLoadingTipos } = useCategoriasPersonal();
+  const workerStatsMap = useExternalWorkerStats();
 
   const isLoading = isLoadingInterno || isLoadingExterno || isLoadingTipos;
 
@@ -45,7 +46,18 @@ export function useAssignablePersonal(turno: UnifiedTurno | null) {
       if (providerId) {
         workers = allPersonalExterno
           .filter((p: any) => p.proveedorId === providerId)
-          .map((p: any) => ({ label: `${p.nombre} ${p.apellido1} (${p.id})`, value: p.id, id: p.id }));
+          .map((p: any) => {
+            const stats = workerStatsMap[p.id.toUpperCase().trim()];
+            const ratingText = stats?.averageRating ? ` (${stats.averageRating.toFixed(1)}⭐)` : ' (Nuevo)';
+            return { 
+                label: `${p.nombre} ${p.apellido1}${ratingText}`, 
+                value: p.id, 
+                id: p.id,
+                rating: stats?.averageRating,
+                stats: stats
+            };
+          })
+          .sort((a, b) => (b.rating || 0) - (a.rating || 0));
       }
     } else if (turno.type === 'CPR' && ('estado' in turno) && (turno.estado === 'Solicitado' || turno.estado === 'Aprobada')) {
       workers = allPersonalInterno

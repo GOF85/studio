@@ -47,6 +47,7 @@ import {
 } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { BriefingSummaryTrigger } from '@/components/os/briefing-summary-dialog'
 
 import type {
   ServiceOrder,
@@ -824,8 +825,8 @@ function PedidoGastronomiaForm() {
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Header Premium Sticky */}
-          <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-4">
-            <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 md:py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
+          <div className="sticky top-[5.25rem] md:top-[88px] z-30 bg-background/95 backdrop-blur-md border-b border-border/40 mb-4">
+            <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 md:py-3 flex items-center justify-between gap-4">
               {/* Left Section: Service Name */}
               <div className="flex items-center gap-2 md:gap-3 min-w-0">
                 <button
@@ -851,46 +852,18 @@ function PedidoGastronomiaForm() {
                         <span className="truncate">{briefingItem.horaInicio}</span>
                       </div>
                     )}
-                    {serviceOrder?.space && (
-                      <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                        <Building2 className="w-4 h-4" />
-                        <span className="truncate">{serviceOrder.space}</span>
-                      </div>
-                    )}
-                    {briefingItem?.sala && (
-                      <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                        <MapPin className="w-4 h-4" />
-                        <span className="truncate">S.{briefingItem.sala}</span>
-                      </div>
-                    )}
                   </div>
-                  <div className="flex md:hidden flex-wrap gap-0.5 sm:gap-1 text-[8px] sm:text-[9px] text-muted-foreground">
+                  <div className="flex md:hidden flex-wrap gap-0.5 sm:gap-1 text-[8px] sm:text-[9px] text-muted-foreground leading-tight">
+                    <span className="font-bold text-foreground block truncate max-w-[150px]">{briefingItem?.descripcion}</span>
                     {briefingItem?.fecha && (
                       <span className="truncate">{format(new Date(briefingItem.fecha), 'dd/MM', { locale: es })}</span>
-                    )}
-                    {briefingItem?.horaInicio && (
-                      <span className="hidden sm:inline truncate">{briefingItem.horaInicio}</span>
-                    )}
-                    {briefingItem?.sala && (
-                      <span className="hidden sm:inline truncate">S.{briefingItem.sala}</span>
                     )}
                   </div>
                 </div>
               </div>
-              {briefingItem?.comentarios && (
-                <button
-                  type="button"
-                  onClick={() => setCommentModalOpen(true)}
-                  className="text-amber-600 dark:text-amber-400 hover:underline font-semibold text-xs md:hidden"
-                  title="Hay comentario"
-                >
-                  💬 Nota
-                </button>
-              )}
 
-              <div className="flex-1 hidden md:block" />
-
-              <div className="flex items-center gap-1 no-print">
+              <div className="flex items-center gap-2 md:gap-3 no-print">
+                <BriefingSummaryTrigger items={briefing?.items || []} />
                 <Button
                   type="button"
                   variant="outline"
@@ -901,19 +874,6 @@ function PedidoGastronomiaForm() {
                 >
                   <BarChart3 className="h-4 md:h-5 w-4 md:w-5" />
                   <span className="hidden md:inline">Desglose</span>
-                </Button>
-                <Button 
-                  type="submit" 
-                  size="sm"
-                  disabled={!formState.isDirty || updateOrderMutation.isPending}
-                  className="hidden md:flex h-8 text-[10px] font-black uppercase tracking-widest bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-600/20"
-                >
-                  {updateOrderMutation.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5" />
-                  )}
-                  <span className="ml-1">Guardar</span>
                 </Button>
               </div>
             </div>
@@ -1296,21 +1256,6 @@ function PedidoGastronomiaForm() {
               </CardContent>
             </Card>
           )}
-
-          {/* Floating Save Button for Mobile */}
-          <div className="fixed bottom-4 right-4 md:hidden z-50 flex gap-2">
-            <Button 
-              type="submit" 
-              disabled={!formState.isDirty || updateOrderMutation.isPending}
-              className="bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-black uppercase tracking-widest h-9 px-3 shadow-lg shadow-orange-600/30"
-            >
-              {updateOrderMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
         </form>
       </Form>
 

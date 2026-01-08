@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Users, Clock, Utensils } from 'lucide-react'
+import { Users, Clock, Utensils, BookOpen, ListCheck } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import {
   DialogClose,
   DialogDescription,
 } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { cn, calculateHours } from '@/lib/utils'
 import type { ComercialBriefingItem } from '@/types'
 
@@ -21,24 +22,33 @@ interface BriefingSummaryDialogProps {
   items: ComercialBriefingItem[]
 }
 
-export function BriefingSummaryDialog({ open, onOpenChange, items }: BriefingSummaryDialogProps) {
-  // Agrupar por días
-  const groupedByDay = useMemo(() => {
-    const groups: { [key: string]: ComercialBriefingItem[] } = {}
+export const BriefingSummaryDialog = memo(function BriefingSummaryDialog({ 
+  open, 
+  onOpenChange, 
+  items 
+}: BriefingSummaryDialogProps) {
+  // Agrupar y pre-procesar por días para evitar cálculos en el render
+  const processedGroups = useMemo(() => {
+    const groups: Record<string, any[]> = {}
+    
     items.forEach((item) => {
       const dateKey = item.fecha
       if (!groups[dateKey]) {
         groups[dateKey] = []
       }
-      groups[dateKey].push(item)
+      groups[dateKey].push({
+        ...item,
+        durationStr: calculateDurationLabel(item.horaInicio, item.horaFin)
+      })
     })
     
-    // Ordenar elementos dentro de cada día por hora de inicio
-    Object.keys(groups).forEach(day => {
-      groups[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
-    })
-
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
+    return Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([fecha, dayItems]) => ({
+        fecha,
+        fechaLabel: format(new Date(fecha), 'EEEE, d MMMM', { locale: es }),
+        items: dayItems.sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
+      }))
   }, [items])
 
   return (
@@ -51,6 +61,9 @@ export function BriefingSummaryDialog({ open, onOpenChange, items }: BriefingSum
             </div>
             <div>
               <DialogTitle className="text-lg font-bold">Resumen de Servicios</DialogTitle>
+              <DialogDescription className="sr-only">
+                Desglose de servicios y horarios del briefing comercial.
+              </DialogDescription>
             </div>
           </div>
           <DialogClose className="absolute right-4 top-4" />
@@ -62,20 +75,18 @@ export function BriefingSummaryDialog({ open, onOpenChange, items }: BriefingSum
               No hay servicios registrados en el briefing comercial.
             </div>
           ) : (
-            groupedByDay.map(([fecha, dayItems]) => (
-              <div key={fecha} className="space-y-4">
+            processedGroups.map((group) => (
+              <div key={group.fecha} className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="h-px flex-1 bg-border/60" />
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 bg-blue-50/50 px-3 py-1 rounded-full border border-blue-100">
-                    {format(new Date(fecha), 'EEEE, d MMMM', { locale: es })}
+                    {group.fechaLabel}
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
                 </div>
                 
                 <div className="grid gap-3">
-                  {dayItems.map((item) => {
-                    const durationStr = calculateDurationLabel(item.horaInicio, item.horaFin)
-                    return (
+                  {group.items.map((item) => (
                       <div 
                         key={item.id} 
                         className={cn(
@@ -103,7 +114,7 @@ export function BriefingSummaryDialog({ open, onOpenChange, items }: BriefingSum
                                 <Clock className="h-3.5 w-3.5 text-blue-500" />
                                 <span className="text-foreground">{item.horaInicio} - {item.horaFin}</span>
                                 <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] font-black italic">
-                                  {durationStr}
+                                  {item.durationStr}
                                 </span>
                               </div>
                               <div className="flex items-center gap-1.5 font-semibold">
@@ -123,7 +134,7 @@ export function BriefingSummaryDialog({ open, onOpenChange, items }: BriefingSum
                         </div>
                       </div>
                     )
-                  })}
+                  )}
                 </div>
               </div>
             ))
@@ -132,7 +143,7 @@ export function BriefingSummaryDialog({ open, onOpenChange, items }: BriefingSum
       </DialogContent>
     </Dialog>
   )
-}
+})
 
 function calculateDurationLabel(start: string, end: string): string {
   const hours = calculateHours(start, end)
@@ -144,4 +155,23 @@ function calculateDurationLabel(start: string, end: string): string {
   if (minutes === 0) return `${wholeHours}h`
   if (wholeHours === 0) return `${minutes}m`
   return `${wholeHours}h ${minutes}m`
+}
+
+export function BriefingSummaryTrigger({ items }: { items: any[] }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-2 bg-zinc-900 text-zinc-50 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-50 transition-all duration-200 shadow-lg shadow-zinc-900/20"
+        onClick={() => setOpen(true)}
+      >
+        <ListCheck className="h-4 w-4" />
+        <span className="hidden md:inline">Resumen Briefing</span>
+      </Button>
+      <BriefingSummaryDialog open={open} onOpenChange={setOpen} items={items} />
+    </>
+  )
 }

@@ -190,7 +190,7 @@ function VentaGastronomiaPageInner() {
                                     {detalleVentas.length > 0 ? detalleVentas.map((venta, i) => (
                                         <TableRow key={`${venta.osId}-${venta.referencia}-${i}`}>
                                             <TableCell>{format(new Date(venta.fecha), 'dd/MM/yyyy')}</TableCell>
-                                            <TableCell><Link href={`/os/${venta.osId}/gastronomia`} className="text-primary hover:underline">{venta.osNumber}</Link></TableCell>
+                                            <TableCell><Link href={`/os/${venta.osNumber}/gastronomia`} className="text-primary hover:underline">{venta.osNumber}</Link></TableCell>
                                             <TableCell>{venta.referencia}</TableCell>
                                             <TableCell className="text-right">{venta.cantidad}</TableCell>
                                             <TableCell className="text-right font-semibold">{formatCurrency(venta.pvpTotal)}</TableCell>

@@ -34,7 +34,7 @@ import {
   CardDescription,
 } from '@/components/ui/card'
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton'
-import { BriefingSummaryDialog } from '@/components/os/briefing-summary-dialog'
+import { BriefingSummaryTrigger } from '@/components/os/briefing-summary-dialog'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
@@ -66,6 +66,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { calculateHours, formatCurrency, cn } from '@/lib/utils'
 import { logActivity } from '@/app/(dashboard)/portal/activity-log/utils'
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user'
@@ -115,29 +121,43 @@ type PersonalMiceFormValues = z.infer<typeof formSchema>
 
 // --- Subcomponentes para Optimización ---
 
-const MiceHeaderMetrics = memo(({ control, objetivoValue }: { control: any; objetivoValue: number }) => {
+const MiceHeaderMetrics = memo(({ control, facturacion = 0, osId }: { control: any; facturacion: number; osId: string }) => {
   const watchedPersonal = useWatch({
     control,
     name: 'personal'
   })
 
-  const { totalPlanned, totalReal } = useMemo(() => {
-    if (!watchedPersonal) return { totalPlanned: 0, totalReal: 0 }
+  // Objetivos de Gasto
+  const { data: objetivos } = useObjetivosGasto(osId)
+  const { data: plantillas } = useObjetivosGastoPlantillas()
 
-    const totals = watchedPersonal.reduce(
-      (acc: { planned: number; real: number }, order: any) => {
+  const { objetivoValue, objetivoPctLabel } = useMemo(() => {
+    const objetivoTemplate = objetivos || plantillas?.find((p: any) => {
+      const name = p.nombre?.toLowerCase() || ''
+      return name === 'micecatering' || name === 'mice catering' || name === 'general'
+    })
+    
+    const pct = objetivoTemplate?.personal_mice || 0
+    const objetivoPct = (Number(pct) || 0) / 100
+    
+    return { 
+      objetivoValue: facturacion * objetivoPct, 
+      objetivoPctLabel: `${Number(pct).toFixed(1)}%` 
+    }
+  }, [objetivos, plantillas, facturacion])
+
+  const { totalPlanned } = useMemo(() => {
+    if (!watchedPersonal) return { totalPlanned: 0 }
+
+    const total = watchedPersonal.reduce(
+      (acc: number, order: any) => {
         const plannedHours = calculateHours(order.horaEntrada, order.horaSalida)
-        acc.planned += plannedHours * (order.precioHora || 0)
-
-        const realHours = calculateHours(order.horaEntradaReal || order.horaEntrada, order.horaSalidaReal || order.horaSalida)
-        acc.real += realHours * (order.precioHora || 0)
-
-        return acc
+        return acc + plannedHours * (order.precioHora || 0)
       },
-      { planned: 0, real: 0 },
+      0,
     )
 
-    return { totalPlanned: totals.planned, totalReal: totals.real }
+    return { totalPlanned: total }
   }, [watchedPersonal])
 
   const desviacionPct = useMemo(() => {
@@ -145,22 +165,70 @@ const MiceHeaderMetrics = memo(({ control, objetivoValue }: { control: any; obje
     return ((totalPlanned - objetivoValue) / objetivoValue) * 100
   }, [totalPlanned, objetivoValue])
 
+  const planificadoPctFacturacion = useMemo(() => {
+    if (!facturacion || facturacion === 0) return '0%'
+    return `${((totalPlanned / facturacion) * 100).toFixed(1)}%`
+  }, [totalPlanned, facturacion])
+
   return (
-    <div className="flex items-center gap-3 text-xs md:gap-6 md:text-sm">
-      <div className="flex flex-col items-end justify-center leading-none min-w-[60px]">
-        <div className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground">Presupuesto</div>
-        <div className="font-bold text-xs md:text-sm">{formatCurrency(totalPlanned)}</div>
-      </div>
-      <div className="flex flex-col items-end justify-center leading-none min-w-[60px]">
-        <div className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground">Objetivo</div>
-        <div className="font-bold text-xs md:text-sm">{formatCurrency(objetivoValue)}</div>
-      </div>
-      <div className="flex flex-col items-end justify-center leading-none min-w-[60px]">
-        <div className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground">Desviación</div>
-        <div className={cn('font-bold text-xs md:text-sm', desviacionPct > 0 ? 'text-red-500' : 'text-emerald-600')}>
-          {isFinite(desviacionPct) ? `${desviacionPct.toFixed(2)}%` : '-'}
-        </div>
-      </div>
+    <div className="flex items-center gap-2">
+      {/* Presupuesto Actual */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-3 px-3 py-1 bg-blue-50/50 dark:bg-blue-500/5 border border-blue-200/50 rounded-lg transition-all cursor-help">
+            <span className="text-[10px] font-bold uppercase text-blue-600/70 tracking-wider">Planificado</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className="font-black text-sm md:text-base text-blue-700 tabular-nums">
+                {formatCurrency(totalPlanned).split(',')[0]}
+              </span>
+              <span className="text-[10px] font-bold text-blue-600/60">
+                ,{formatCurrency(totalPlanned).split(',')[1]}
+              </span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="font-bold">
+          {planificadoPctFacturacion} de facturación
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Objetivo de Gasto */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-3 px-3 py-1 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 rounded-lg transition-all cursor-help">
+            <span className="text-[10px] font-bold uppercase text-muted-foreground/70 tracking-wider">Objetivo</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className="font-black text-sm md:text-base text-foreground tabular-nums">
+                {formatCurrency(objetivoValue).split(',')[0]}
+              </span>
+              <span className="text-[10px] font-bold text-muted-foreground/60">
+                ,{formatCurrency(objetivoValue).split(',')[1]}
+              </span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="font-bold">
+          Configurado al {objetivoPctLabel}
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Desviación Crítica */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={cn(
+            "flex items-center gap-3 px-3 py-1 border rounded-lg shadow-sm transition-all duration-300 cursor-help bg-white",
+            desviacionPct > 0 ? 'border-red-200 text-red-600' : 'border-emerald-200 text-emerald-600'
+          )}>
+            <span className="text-[10px] font-black uppercase tracking-wider opacity-70">Desviación</span>
+            <span className="font-black text-sm md:text-base tabular-nums">
+              {isFinite(desviacionPct) ? `${desviacionPct > 0 ? '+' : ''}${desviacionPct.toFixed(1)}%` : '0%'}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="font-bold">
+          Diferencia: {formatCurrency(totalPlanned - objetivoValue)}
+        </TooltipContent>
+      </Tooltip>
     </div>
   )
 })
@@ -299,7 +367,7 @@ const PersonalMiceRow = memo(({
       </TableCell>
       <TableCell className="py-1.5 px-3">
         <div className="text-[10px] font-mono font-bold text-blue-600 bg-blue-50/50 py-0.5 px-1.5 rounded border border-blue-100/50 w-fit">
-          {calculateHours(rowValues.horaEntrada, rowValues.horaSalida).toFixed(1)}h
+          {useMemo(() => calculateHours(rowValues.horaEntrada, rowValues.horaSalida).toFixed(1), [rowValues.horaEntrada, rowValues.horaSalida])}h
         </div>
       </TableCell>
       <TableCell className="py-1.5 px-3">
@@ -323,12 +391,12 @@ const PersonalMiceRow = memo(({
       </TableCell>
       <TableCell className="py-1.5 px-3">
         <div className="text-[10px] font-mono font-bold text-amber-600 bg-amber-50/50 py-0.5 px-1.5 rounded border border-amber-100/50 w-full text-right whitespace-nowrap">
-          {formatCurrency(calculateHours(rowValues.horaEntrada, rowValues.horaSalida) * (rowValues.precioHora || 0))}
+          {useMemo(() => formatCurrency(calculateHours(rowValues.horaEntrada, rowValues.horaSalida) * (rowValues.precioHora || 0)), [rowValues.horaEntrada, rowValues.horaSalida, rowValues.precioHora])}
         </div>
       </TableCell>
       <TableCell className="py-1.5 px-3">
         <div className="text-[10px] font-mono font-bold text-blue-900 bg-blue-100/50 py-0.5 px-1.5 rounded border border-blue-200/50 w-fit">
-          {formatCurrency(calculateHours(rowValues.horaEntrada, rowValues.horaSalida) * (rowValues.precioHora || 0))}
+          {useMemo(() => formatCurrency(calculateHours(rowValues.horaEntrada, rowValues.horaSalida) * (rowValues.precioHora || 0)), [rowValues.horaEntrada, rowValues.horaSalida, rowValues.precioHora])}
         </div>
       </TableCell>
       <TableCell className="py-1.5 px-3">
@@ -392,7 +460,6 @@ export default function PersonalMiceFormPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [rowToDelete, setRowToDelete] = useState<number | null>(null)
   const [deletedNames, setDeletedNames] = useState<string[]>([])
-  const [openResumenBriefing, setOpenResumenBriefing] = useState(false)
 
   const router = useRouter()
   const params = useParams() ?? {}
@@ -681,45 +748,44 @@ export default function PersonalMiceFormPage() {
 
   return (
     <div className="space-y-6">
-      <FormProvider {...form}>
-        <form id="personal-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
-          {/* Header Premium Sticky */}
-          <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-2">
-            <div className="max-w-7xl mx-auto px-3 py-1">
+      <TooltipProvider>
+        <FormProvider {...form}>
+          <form id="personal-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
+          {/* Header Premium Sticky - Sincronizado con OsHeader */}
+          <div className="sticky top-[5.25rem] md:top-[88px] z-30 bg-background/95 backdrop-blur-md border-b border-border/40 transition-none shadow-sm mb-6">
+            <div className="max-w-7xl mx-auto px-4 py-1.5">
               <div className="flex items-center justify-between gap-2 min-h-10">
                 <div className="flex items-center h-8 gap-2">
-                  <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                    <Users className="h-4 w-4 text-blue-500" />
+                  <div className="p-1 rounded-lg bg-blue-500/10 border border-blue-500/20 shadow-sm">
+                    <Users className="h-3.5 w-3.5 text-blue-500" />
                   </div>
-                  <h1 className="text-sm md:text-base font-bold text-blue-900 tracking-tight">Personal "MiceCatering"</h1>
+                  <div className="flex flex-col">
+                    <h1 className="text-[10px] font-black uppercase tracking-tight leading-none mb-0.5 text-blue-600">Personal "MiceCatering"</h1>
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none opacity-70 truncate max-w-[120px] md:max-w-none">{serviceOrder.nombre_evento}</p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3 text-xs md:gap-6 md:text-sm">
-                  <MiceHeaderMetrics control={control} objetivoValue={objetivoValue} />
+                <div className="flex items-center gap-3">
+                  <MiceHeaderMetrics 
+                    control={control} 
+                    facturacion={Number(serviceOrder?.facturacion) || 0} 
+                    osId={serviceOrder?.id || ''} 
+                  />
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 md:h-8 px-2 md:px-3 text-[12px]"
-                    onClick={() => setOpenResumenBriefing(true)}
-                  >
-                    <ListCheck className="h-4 w-4 md:h-3.5 md:w-3.5 mr-0 md:mr-1" />
-                    <span className="hidden md:inline">Resumen Briefing</span>
-                  </Button>
+                  <BriefingSummaryTrigger items={allBriefingItems} />
 
                   <ActivityLogSheet 
                     entityId={serviceOrder?.id || ''} 
-                    buttonClassName="h-7 md:h-8 px-2 md:px-3 text-[10px] font-black uppercase tracking-widest border-border/40" 
+                    buttonClassName="h-8 px-2 md:px-3 text-[8px] font-black uppercase tracking-widest border-border/40" 
                   />
 
                   <Button
                     type="submit"
                     disabled={isLoading || !form.formState.isDirty}
-                    className="h-7 md:h-8 px-2 md:px-3 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
+                    className="h-8 px-2 md:px-3 text-[8px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/20"
                   >
-                    {isLoading ? <Loader2 className="animate-spin mr-2 h-3 w-3" /> : <Save className="mr-2 h-3 w-3" />}
-                    <span className="hidden md:inline">Guardar Cambios</span>
+                    {isLoading ? <Loader2 className="animate-spin mr-1.5 h-3 w-3" /> : <Save className="mr-1.5 h-3 w-3" />}
+                    <span className="hidden md:inline">Guardar</span>
                     <span className="inline md:hidden">Guardar</span>
                   </Button>
                 </div>
@@ -819,15 +885,10 @@ export default function PersonalMiceFormPage() {
           </div>
         </form>
       </FormProvider>
+    </TooltipProvider>
 
-      <BriefingSummaryDialog
-        open={openResumenBriefing}
-        onOpenChange={setOpenResumenBriefing}
-        items={allBriefingItems}
-      />
-
-      <AlertDialog
-        open={rowToDelete !== null}
+    <AlertDialog
+      open={rowToDelete !== null}
         onOpenChange={(open) => !open && setRowToDelete(null)}
       >
         <AlertDialogContent>

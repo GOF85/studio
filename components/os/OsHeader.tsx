@@ -60,11 +60,15 @@ export function OsHeader({ osId, subtitle, subtitleIcon }: Props) {
         {/* Header main row: left column contains service number stack, right column badges/toggle */}
         <div className="flex items-center justify-between py-0">
           <div className="flex items-center gap-3">
-            <OsModulesDialog osId={serviceOrder.serviceNumber} trigger={
-              <button className={cn('transition-transform duration-200 transform-gpu will-change-transform flex items-center justify-center hover:shadow-md', open ? 'h-full w-14 scale-105 shadow-md rounded-md' : 'h-8 w-8 scale-100 rounded-full')}>
-                <Menu className={cn('transition-transform duration-200 transform-gpu', open ? 'h-6 w-6 scale-110' : 'h-5 w-5 scale-100')} />
-              </button>
-            } />
+            <OsModulesDialog 
+              osId={serviceOrder.id} 
+              numeroExpediente={serviceOrder.serviceNumber}
+              trigger={
+                <button className={cn('transition-transform duration-200 transform-gpu will-change-transform flex items-center justify-center hover:shadow-md', open ? 'h-full w-14 scale-105 shadow-md rounded-md' : 'h-8 w-8 scale-100 rounded-full')}>
+                  <Menu className={cn('transition-transform duration-200 transform-gpu', open ? 'h-6 w-6 scale-110' : 'h-5 w-5 scale-100')} />
+                </button>
+              } 
+            />
 
             <div className="flex flex-col justify-center">
               <div className="flex items-center gap-2">

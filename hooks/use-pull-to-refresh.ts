@@ -15,6 +15,7 @@ export function usePullToRefresh({ onRefresh, threshold = 100, disabled = false 
     const pullDistanceRef = useRef(0);
     const isPullingRef = useRef(false);
     const isRefreshingRef = useRef(false);
+    const isAtTopRef = useRef(false);
 
     const triggerRefresh = useCallback(async () => {
         if (isRefreshingRef.current) return;
@@ -34,7 +35,8 @@ export function usePullToRefresh({ onRefresh, threshold = 100, disabled = false 
 
         const handleTouchStart = (e: TouchEvent) => {
             // Only start if we're at the very top of the page
-            if (window.scrollY <= 0 && !isRefreshingRef.current) {
+            isAtTopRef.current = window.scrollY <= 0;
+            if (isAtTopRef.current && !isRefreshingRef.current) {
                 startYRef.current = e.touches[0].clientY;
                 isPullingRef.current = true;
             }
@@ -46,8 +48,8 @@ export function usePullToRefresh({ onRefresh, threshold = 100, disabled = false 
             const currentY = e.touches[0].clientY;
             const diff = currentY - startYRef.current;
 
-            // Only trigger if scrolled to top AND pulling DOWN (positive diff)
-            if (diff > 0 && window.scrollY <= 0) {
+            // Only trigger if we were at top AND pulling DOWN (positive diff)
+            if (diff > 0 && isAtTopRef.current) {
                 pullDistanceRef.current = diff;
                 // Prevent default browser pull-to-refresh only after significant pull
                 if (diff > 20) {

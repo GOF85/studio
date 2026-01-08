@@ -107,6 +107,39 @@ Para maximizar el foco y reducir ruido visual, las cabeceras deben seguir este e
 
 Alineación Global: El cuerpo de las páginas debe usar `pt-0` cuando existe un Breadcrumb pegajoso, asegurando que el contenido comience inmediatamente debajo de la navegación. Para toolbars de ancho completo, el fondo puede ser `w-full`, pero el contenido debe ser `container mx-auto`.
 
+Patrón de OS Header Metrics (Premium):
+Para páginas de gestión dentro de una Orden de Servicio (`/os/[id]/*`), se debe usar una cabecera métrica unificada que proporcione control financiero en tiempo real:
+- Sticky Sync: Debe usar `sticky top-[5.25rem] md:top-[88px] z-30` para anclarse sin gaps bajo la cabecera secundaria amarilla de la OS.
+- Glassmorphism Denso: Fondo `bg-background/95 backdrop-blur-md` con `border-b` y `shadow-sm`.
+- Trilogía de Métricas:
+  1. Planificado: Indicador azul (`bg-blue-50/50`). Hover: Muestra el % respecto a la facturación total.
+  2. Objetivo: Indicador neutro (`bg-zinc-50`). Hover: Muestra el % de objetivo configurado en la plantilla.
+  3. Desviación: Indicador semántico fondo BLANCO (`bg-white`).
+     - Texto ROJO (`text-red-600`) si la desviación es positiva (sobre-coste).
+     - Texto VERDE CORPORATIVO (`text-emerald-600`) si es negativa o cero.
+     - Hover: Muestra la diferencia absoluta en Euros (€).
+- Estilo de Texto: Etiquetas en `text-[10px] font-bold uppercase tracking-wider`. Valores en `font-black tabular-nums`. Los decimales deben ser ligeramente más pequeños (`text-[10px]`) que el entero (`text-base`).
+
+Patrón de Botón de Apoyo (Resumen Briefing):
+Para proporcionar acceso rápido al contexto comercial sin salir de la página de gestión:
+- Estilo "Black & Bold": Fondo `bg-zinc-900` con texto `text-zinc-50`.
+- Micro-interacciones: `hover:bg-zinc-800` con `shadow-lg shadow-zinc-900/20`.
+- Iconografía: Usar `ListCheck` de Lucide.
+- Ubicación: Siempre en el sticky header, a la derecha, junto a otras acciones globales o log de actividad.
+- Responsividad: En mobile, puede mostrar solo el icono para ahorrar espacio, usando `hidden md:inline` en la etiqueta.
+
+Patrón de Gestión por Días (Day-based Planning):
+Para módulos de planificación (Personal, Logística), el contenido debe organizarse por bloques temporales:
+- Agrupación: Datos agrupados por fecha en tarjetas independientes (`Card`).
+- Encabezado de Tarjeta: Debe mostrar la fecha (formato `EEEE d 'de' MMMM`) y una acción de limpieza ("Vaciar día") usando un icono de papelera rojo discreto.
+- Validaciones: Solo permitir la creación de días que existan en el briefing del evento para evitar inconsistencias.
+- Sticky Header por Día: Los encabezados de cada día pueden usar `sticky` si el listado es muy extenso.
+
+Acciones y Feedback Crítico:
+- Iconografía Destructiva: Los botones de eliminar (individuales o por bloque) deben usar `text-red-500` o `text-destructive` y `hover:text-red-600` para indicar peligro.
+- Tooltip Safety: Al usar `Tooltip` de Shadcn, asegurarse de que el `TooltipProvider` esté en el root del componente o de la página para evitar errores de contexto.
+- Cambios Globales: Cualquier cambio en la "Trilogía de Métricas" debe replicarse tanto en `personal-externo` como en `personal-mice` para mantener la homogeneidad funcional.
+
 5. Identidad Visual Premium (Glassmorphism & Micro-interacciones)
 Para interfaces de alto nivel (Dashboards, Paneles de Control), aplicamos una capa de sofisticación visual:
 

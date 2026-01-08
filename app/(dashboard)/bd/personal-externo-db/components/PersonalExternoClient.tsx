@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MoreHorizontal, Pencil, Trash2, FileUp, FileDown, UserPlus, Search, Trash, Check, X, ChevronLeft, ChevronRight, Users, Plus } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, FileUp, FileDown, UserPlus, Search, Trash, Check, X, ChevronLeft, ChevronRight, Users, Plus, Star, History, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -22,16 +22,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
-import { usePersonalExternoPaginated, useDeletePersonalExternoDB, useProveedores, useUpsertPersonalExternoDB, useDeletePersonalExternoBulk } from '@/hooks/use-data-queries';
+import { usePersonalExternoPaginated, useDeletePersonalExternoDB, useProveedores, useUpsertPersonalExternoDB, useDeletePersonalExternoBulk, useExternalWorkerStats } from '@/hooks/use-data-queries';
 import { Checkbox } from '@/components/ui/checkbox';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { RatingStars } from '@/components/ui/rating-stars';
+import { WorkerHistoryPopover } from '@/components/portal/worker-history-popover';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { PersonalExternoItem } from '@/services/personal-externo-service';
 
 const CSV_HEADERS = ["id", "proveedorId", "nombre", "apellido1", "apellido2", "categoria", "nombreCompleto", "nombreCompacto", "telefono", "email", "activo"];
@@ -85,6 +90,7 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
   const totalPages = Math.ceil(totalCount / pageSize);
 
   const { data: proveedores = [], isLoading: isLoadingProveedores } = useProveedores();
+  const workerStatsMap = useExternalWorkerStats();
   const deleteMutation = useDeletePersonalExternoDB();
   const bulkDeleteMutation = useDeletePersonalExternoBulk();
   const upsertMutation = useUpsertPersonalExternoDB();
@@ -116,7 +122,7 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
   const handleToggleAll = (checked: boolean | 'indeterminate') => {
     if (checked === 'indeterminate') return;
     if (checked) {
-      setSelectedIds(new Set(items.map(i => i.id)));
+      setSelectedIds(new Set(items.map((i: any) => i.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -321,6 +327,7 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">DNI / ID</TableHead>
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Trabajador</TableHead>
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Proveedor</TableHead>
+                  <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70 text-center">Calific.</TableHead>
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Categoría</TableHead>
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Estado</TableHead>
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Teléfono</TableHead>
@@ -330,7 +337,7 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
               </TableHeader>
               <TableBody>
                 {items.length > 0 ? (
-                  items.map((item) => (
+                  items.map((item: any) => (
                     <TableRow 
                       key={item.id} 
                       className={cn(
@@ -357,6 +364,26 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
                         <Badge variant="outline" className="rounded-lg font-bold border-primary/20 bg-primary/5 text-primary uppercase text-[10px] px-2 py-0.5">
                           {proveedoresMap.get(item.proveedorId) || 'N/A'}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {workerStatsMap[item.id] ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <RatingStars value={workerStatsMap[item.id].averageRating} readonly size="sm" />
+                            <div className="flex items-center gap-2">
+                               <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">
+                                 {workerStatsMap[item.id].totalServices} Serv.
+                               </span>
+                               <WorkerHistoryPopover stats={workerStatsMap[item.id]} />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center opacity-30 group-hover:opacity-100 transition-opacity">
+                             <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Nuevo</span>
+                             <div className="flex gap-0.5">
+                               {[1,2,3,4,5].map(i => <Star key={i} className="h-2 w-2 text-muted-foreground" />)}
+                             </div>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className="font-bold text-xs uppercase text-muted-foreground/80">{item.categoria || '-'}</span>
