@@ -14,6 +14,7 @@ import { mapArticuloFromDB, getArticulosPaginated } from '@/services/articulos-s
 import { mapArticuloERPFromDB, getArticulosERPPaginated } from '@/services/erp-service';
 import { mapPersonalFromDB, getPersonalPaginated, upsertPersonal, uploadPersonalPhoto } from '@/services/personal-service';
 import { mapProveedorFromDB, getProveedoresPaginated } from '@/services/proveedores-service';
+import { getPersonalExternoPaginated, upsertPersonalExterno, deletePersonalExterno } from '@/services/personal-externo-service';
 import type { EspacioV2 } from '@/types/espacios';
 import type {
     ServiceOrder,
@@ -144,16 +145,28 @@ export function useActivityLogs() {
                 .order('created_at', { ascending: false })
                 .limit(500);
             if (error) throw error;
-            return (data || []).map(log => ({
-                id: log.id,
-                timestamp: log.created_at,
-                userId: log.user_id,
-                userName: log.user_name || 'Usuario', // We might need to join with profiles or store the name
-                userRole: log.user_role || 'USER',
-                action: log.accion,
-                details: typeof log.detalles === 'string' ? log.detalles : JSON.stringify(log.detalles),
-                entityId: log.entidad_id || ''
-            }));
+            return (data || []).map(log => {
+                let name = 'Usuario';
+                let message = '';
+                try {
+                    const parsed = typeof log.detalles === 'string' ? JSON.parse(log.detalles) : log.detalles;
+                    if (parsed?.userName) name = parsed.userName;
+                    message = parsed?.originalDetails || (typeof log.detalles === 'string' ? log.detalles : '');
+                } catch (e) {
+                    message = typeof log.detalles === 'string' ? log.detalles : '';
+                }
+
+                return {
+                    id: log.id,
+                    timestamp: log.created_at,
+                    userId: log.user_id,
+                    userName: name,
+                    userRole: 'USER',
+                    action: log.accion,
+                    details: message,
+                    entityId: log.entidad_id || ''
+                };
+            });
         },
     });
 }
@@ -1707,24 +1720,45 @@ export function usePersonalMiceOrders(eventoId?: string) {
             const targetId = await resolveOsId(eventoId);
             let query = supabase.from('personal_mice_asignaciones').select('*');
             query = query.eq('evento_id', targetId);
-            const { data, error } = await query;
+            const { data, error } = query ? await query : { data: [], error: null };
             if (error) throw error;
 
             return (data || []).map((item): PersonalMiceOrder => ({
                 id: item.id,
                 osId: item.evento_id,
-                centroCoste: item.data?.centroCoste || 'SALA',
-                nombre: item.data?.nombre || '',
-                dni: item.data?.dni || '',
+                personalId: item.personal_id,
+                centroCoste: item.centro_coste || item.data?.centroCoste || 'SALA',
+                nombre: item.nombre || item.data?.nombre || '',
+                dni: item.dni || item.data?.dni || '',
                 tipoServicio: item.categoria as any,
+                fecha: item.fecha || item.data?.fecha || '',
                 horaEntrada: item.hora_entrada,
                 horaSalida: item.hora_salida,
                 precioHora: item.precio_hora,
                 horaEntradaReal: item.hora_entrada_real,
                 horaSalidaReal: item.hora_salida_real,
+                comentario: item.comentario || item.data?.comentario || '',
             }));
         },
         enabled: !!eventoId,
+    });
+}
+
+export function useAllPersonalMiceAssignments() {
+    return useQuery({
+        queryKey: ['allPersonalMiceAssignments'],
+        queryFn: async () => {
+            const { data, error } = await supabase.from('personal_mice_asignaciones').select('*');
+            if (error) throw error;
+
+            return (data || []).map((item) => ({
+                osId: item.evento_id,
+                personalId: item.personal_id,
+                fecha: item.fecha || item.data?.fecha,
+                horaEntrada: item.hora_entrada,
+                horaSalida: item.hora_salida,
+            }));
+        },
     });
 }
 
@@ -3193,6 +3227,7 @@ export function useProveedores() {
                 formaDePagoHabitual: p.forma_de_pago_habitual || '',
             })) as any[];
         },
+        staleTime: 1000 * 60 * 10, // 10 minutos para proveedores (cambian poco)
     });
 }
 
@@ -3619,7 +3654,7 @@ export function useDeleteFormatosExpedicionBulk() {
 // ============================================
 // TIPOS PERSONAL (CATEGORÍAS ETT)
 // ============================================
-export function useTiposPersonal() {
+export function useTiposPersonal(initialData?: any) {
     return useQuery({
         queryKey: ['tiposPersonal'],
         queryFn: async () => {
@@ -3638,7 +3673,9 @@ export function useTiposPersonal() {
                 categoria: item.nombre,
                 precioHora: item.precio_hora_base,
             }));
-        }
+        },
+        initialData,
+        staleTime: 1000 * 60 * 5, // 5 minutos
     });
 }
 
@@ -3664,6 +3701,7 @@ export function useTipoPersonalItem(id: string) {
             };
         },
         enabled: !!id,
+        staleTime: 1000 * 60 * 5, // 5 minutos
     });
 }
 
@@ -3782,12 +3820,15 @@ export function usePersonalExternoDB() {
                 nombre: item.nombre,
                 apellido1: item.apellido1,
                 apellido2: item.apellido2,
+                categoria: item.categoria,
                 nombreCompleto: item.nombre_completo,
                 nombreCompacto: item.nombre_compacto,
                 telefono: item.telefono,
                 email: item.email,
+                activo: item.activo ?? true,
             }));
-        }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutos
     });
 }
 
@@ -3796,47 +3837,16 @@ export function usePersonalExternoPaginated(options: {
     pageSize: number;
     searchTerm?: string;
     providerFilter?: string;
+    isActive?: boolean;
+    initialData?: any;
 }) {
-    const { page, pageSize, searchTerm, providerFilter } = options;
+    const { page, pageSize, searchTerm, providerFilter, isActive = true, initialData } = options;
 
     return useQuery({
-        queryKey: ['personalExternoDB', 'paginated', page, pageSize, searchTerm, providerFilter],
-        queryFn: async () => {
-            let query = supabase
-                .from('personal_externo_catalogo')
-                .select('*', { count: 'exact' });
-
-            if (searchTerm) {
-                query = query.or(`nombre_completo.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
-            }
-            if (providerFilter && providerFilter !== 'all') {
-                query = query.eq('proveedor_id', providerFilter);
-            }
-
-            const from = page * pageSize;
-            const to = from + pageSize - 1;
-
-            const { data, error, count } = await query
-                .order('nombre', { ascending: true })
-                .range(from, to);
-
-            if (error) throw error;
-
-            return {
-                items: (data || []).map((item: any) => ({
-                    id: item.id,
-                    proveedorId: item.proveedor_id,
-                    nombre: item.nombre,
-                    apellido1: item.apellido1,
-                    apellido2: item.apellido2,
-                    nombreCompleto: item.nombre_completo,
-                    nombreCompacto: item.nombre_compacto,
-                    telefono: item.telefono,
-                    email: item.email,
-                })),
-                totalCount: count || 0
-            };
-        }
+        queryKey: ['personalExternoDB', 'paginated', page, pageSize, searchTerm, providerFilter, isActive],
+        queryFn: () => getPersonalExternoPaginated(supabase, { page, pageSize, searchTerm, providerFilter, isActive }),
+        staleTime: 1000 * 60 * 5, // 5 minutos
+        initialData,
     });
 }
 
@@ -3856,13 +3866,16 @@ export function usePersonalExternoDBItem(id: string) {
                 nombre: data.nombre,
                 apellido1: data.apellido1,
                 apellido2: data.apellido2,
+                categoria: data.categoria,
                 nombreCompleto: data.nombre_completo,
                 nombreCompacto: data.nombre_compacto,
                 telefono: data.telefono,
                 email: data.email,
+                activo: data.activo ?? true,
             };
         },
         enabled: !!id,
+        staleTime: 1000 * 60 * 5, // 5 minutos
     });
 }
 
@@ -3871,37 +3884,7 @@ export function useUpsertPersonalExternoDB() {
     const { toast } = useToast();
 
     return useMutation({
-        mutationFn: async (item: any) => {
-            const payload = {
-                proveedor_id: item.proveedorId,
-                nombre: item.nombre,
-                apellido1: item.apellido1,
-                apellido2: item.apellido2,
-                nombre_completo: item.nombreCompleto,
-                nombre_compacto: item.nombreCompacto,
-                telefono: item.telefono,
-                email: item.email,
-            };
-
-            if (item.id && !item.id.startsWith('EXT-')) {
-                const { data, error } = await supabase
-                    .from('personal_externo_catalogo')
-                    .update(payload)
-                    .eq('id', item.id)
-                    .select()
-                    .single();
-                if (error) throw error;
-                return data;
-            } else {
-                const { data, error } = await supabase
-                    .from('personal_externo_catalogo')
-                    .insert([payload])
-                    .select()
-                    .single();
-                if (error) throw error;
-                return data;
-            }
-        },
+        mutationFn: (item: any) => upsertPersonalExterno(supabase, item),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['personalExternoDB'] });
             toast({ title: 'Trabajador guardado' });
@@ -3921,13 +3904,7 @@ export function useDeletePersonalExternoDB() {
     const { toast } = useToast();
 
     return useMutation({
-        mutationFn: async (id: string) => {
-            const { error } = await supabase
-                .from('personal_externo_catalogo')
-                .delete()
-                .eq('id', id);
-            if (error) throw error;
-        },
+        mutationFn: (id: string) => deletePersonalExterno(supabase, id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['personalExternoDB'] });
             toast({ title: 'Trabajador eliminado' });

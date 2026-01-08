@@ -13,17 +13,26 @@ export function useCreatePersonalMiceAssignment() {
                 .from('personal_mice_asignaciones')
                 .insert({
                     evento_id: assignment.osId,
-                    personal_id: assignment.id,
+                    personal_id: (assignment.personalId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assignment.personalId)) 
+                        ? assignment.personalId 
+                        : null,
                     categoria: assignment.tipoServicio,
                     hora_entrada: assignment.horaEntrada,
                     hora_salida: assignment.horaSalida,
-                    hora_entrada_real: assignment.horaEntradaReal,
-                    hora_salida_real: assignment.horaSalidaReal,
+                    hora_entrada_real: assignment.horaEntradaReal || null,
+                    hora_salida_real: assignment.horaSalidaReal || null,
                     precio_hora: assignment.precioHora,
+                    comentario: assignment.comentario,
+                    fecha: assignment.fecha,
+                    nombre: assignment.nombre,
+                    dni: assignment.dni,
+                    centro_coste: assignment.centroCoste,
                     data: {
                         centroCoste: assignment.centroCoste,
                         nombre: assignment.nombre,
                         dni: assignment.dni,
+                        fecha: assignment.fecha,
+                        comentario: assignment.comentario,
                     }
                 })
                 .select()
@@ -49,13 +58,20 @@ export function useUpdatePersonalMiceAssignment() {
                     categoria: updates.tipoServicio,
                     hora_entrada: updates.horaEntrada,
                     hora_salida: updates.horaSalida,
-                    hora_entrada_real: updates.horaEntradaReal,
-                    hora_salida_real: updates.horaSalidaReal,
+                    hora_entrada_real: updates.horaEntradaReal || null,
+                    hora_salida_real: updates.horaSalidaReal || null,
                     precio_hora: updates.precioHora,
+                    comentario: updates.comentario,
+                    fecha: updates.fecha,
+                    nombre: updates.nombre,
+                    dni: updates.dni,
+                    centro_coste: updates.centroCoste,
                     data: {
                         centroCoste: updates.centroCoste,
                         nombre: updates.nombre,
                         dni: updates.dni,
+                        fecha: updates.fecha,
+                        comentario: updates.comentario,
                     }
                 })
                 .eq('id', id)
@@ -110,17 +126,26 @@ export function useSyncPersonalMiceAssignments() {
                 .from('personal_mice_asignaciones')
                 .insert(assignments.map(a => ({
                     evento_id: osId,
-                    personal_id: a.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(a.id) ? a.id : null,
+                    personal_id: (a.personalId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(a.personalId)) 
+                        ? a.personalId 
+                        : null,
                     categoria: a.tipoServicio,
                     hora_entrada: a.horaEntrada,
                     hora_salida: a.horaSalida,
-                    hora_entrada_real: a.horaEntradaReal,
-                    hora_salida_real: a.horaSalidaReal,
+                    hora_entrada_real: a.horaEntradaReal || null,
+                    hora_salida_real: a.horaSalidaReal || null,
                     precio_hora: a.precioHora,
+                    comentario: a.comentario,
+                    fecha: a.fecha,
+                    nombre: a.nombre,
+                    dni: a.dni,
+                    centro_coste: a.centroCoste,
                     data: {
                         centroCoste: a.centroCoste,
                         nombre: a.nombre,
                         dni: a.dni,
+                        fecha: a.fecha,
+                        comentario: a.comentario,
                     }
                 })))
                 .select();

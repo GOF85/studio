@@ -37,15 +37,30 @@ export async function logActivity(
     }
 
     try {
+        // Incluimos el nombre y rol en detalles porque esas columnas pueden no existir en la BD
+        let finalDetails = details;
+        try {
+            const detailsObj = details ? JSON.parse(details) : {};
+            finalDetails = JSON.stringify({
+                ...detailsObj,
+                userName,
+                userRole
+            });
+        } catch (e) {
+            finalDetails = JSON.stringify({
+                originalDetails: details,
+                userName,
+                userRole
+            });
+        }
+
         const { error } = await supabase
             .from('activity_logs')
             .insert({
-                user_id: userId,
-                user_name: userName,
-                user_role: userRole,
+                user_id: userId || null,
                 accion: action,
-                detalles: details,
-                entidad_id: entityId,
+                detalles: finalDetails,
+                entidad_id: entityId && entityId.length > 0 ? entityId : null,
                 entidad: entity
             });
 

@@ -42,7 +42,7 @@ interface TiposPersonalClientProps {
 }
 
 export function TiposPersonalClient({ initialData }: TiposPersonalClientProps) {
-  const { data: items = initialData } = useTiposPersonal();
+  const { data: items = initialData } = useTiposPersonal(initialData);
   const upsertMutation = useUpsertTipoPersonal();
   const deleteMutation = useDeleteTipoPersonal();
 
@@ -129,7 +129,7 @@ export function TiposPersonalClient({ initialData }: TiposPersonalClientProps) {
   }, [items, searchTerm]);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
       {/* Premium Header Section */}
       <div className="relative overflow-hidden rounded-[2.5rem] bg-card/40 backdrop-blur-md border border-border/40 p-8 shadow-2xl">
         <div className="absolute top-0 right-0 -mt-24 -mr-24 w-96 h-96 bg-primary/10 rounded-full blur-[100px]" />

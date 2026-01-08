@@ -186,7 +186,7 @@ export function PersonalClient({ initialData }: PersonalClientProps) {
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="w-[60px]"></TableHead>
-                  <TableHead>DNI / Matrícula</TableHead>
+                  <TableHead>DNI</TableHead>
                   <TableHead>Empleado</TableHead>
                   <TableHead>Departamento</TableHead>
                   <TableHead>Categoría / Puesto</TableHead>

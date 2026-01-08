@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { useMemo } from 'react';
 import { BookHeart, ChevronRight } from 'lucide-react';
 import { bookNavLinks } from '@/lib/cpr-nav';
-import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 
 export default function BookLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -18,8 +17,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
     }, [pathname]);
 
     return (
-        <ImpersonatedUserProvider>
-            <div className="flex flex-col min-h-screen bg-background">
+        <div className="flex flex-col min-h-screen bg-background">
                 
                 {/* BARRA DE NAVEGACIÓN SUPERIOR (BREADCRUMBS) */}
                 <header className="sticky top-12 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -61,6 +59,5 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                     {children}
                 </div>
             </div>
-        </ImpersonatedUserProvider>
     );
 }

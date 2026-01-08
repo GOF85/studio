@@ -15,6 +15,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { usePersonalExternoDBItem, useUpsertPersonalExternoDB, useDeletePersonalExternoDB, useProveedores } from '@/hooks/use-data-queries';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
@@ -41,6 +42,8 @@ export default function EditarPersonalExternoPage() {
       apellido2: '',
       telefono: '',
       email: '',
+      categoria: '',
+      activo: true,
     }
   });
 
@@ -54,20 +57,17 @@ export default function EditarPersonalExternoPage() {
         apellido2: item.apellido2 || '',
         telefono: item.telefono || '',
         email: item.email || '',
+        categoria: item.categoria || '',
+        activo: item.activo ?? true,
       });
     }
   }, [item, form]);
 
   async function onSubmit(data: PersonalExternoFormValues) {
-    const nombreCompleto = `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim();
-    const nombreCompacto = `${data.nombre} ${data.apellido1}`;
-
     try {
       await upsertMutation.mutateAsync({ 
         ...data, 
-        id,
-        nombreCompleto,
-        nombreCompacto
+        id
       });
       router.push('/bd/personal-externo-db');
     } catch (error) {
@@ -136,6 +136,9 @@ export default function EditarPersonalExternoPage() {
                     <FormField control={form.control} name="id" render={({ field }) => (
                         <FormItem><FormLabel>DNI / ID</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
                     )} />
+                    <FormField control={form.control} name="categoria" render={({ field }) => (
+                        <FormItem><FormLabel>Categoría</FormLabel><FormControl><Input placeholder="Ej: Camarero, Cocinero..." {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField control={form.control} name="nombre" render={({ field }) => (
@@ -154,6 +157,17 @@ export default function EditarPersonalExternoPage() {
                     )} />
                     <FormField control={form.control} name="email" render={({ field }) => (
                         <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="activo" render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <div className="space-y-0.5">
+                          <FormLabel>Estado Activo</FormLabel>
+                          <p className="text-[12px] text-muted-foreground">Define si el trabajador está disponible</p>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
                     )} />
                 </div>
               </CardContent>

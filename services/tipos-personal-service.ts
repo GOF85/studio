@@ -10,14 +10,15 @@ export type TipoPersonal = {
 
 export async function getTiposPersonal(supabase: SupabaseClient): Promise<TipoPersonal[]> {
   const { data, error } = await supabase
-    .from('personal_externo_tipos')
+    .from('categorias_personal')
     .select(`
       *,
-      proveedores:proveedorId (
+      proveedor:proveedores (
+        id,
         nombre_comercial
       )
     `)
-    .order('categoria');
+    .order('nombre');
 
   if (error) {
     console.error('Error fetching tipos de personal:', error);
@@ -26,9 +27,9 @@ export async function getTiposPersonal(supabase: SupabaseClient): Promise<TipoPe
 
   return (data || []).map(item => ({
     id: item.id,
-    proveedorId: item.proveedorId,
-    nombreProveedor: item.proveedores?.nombre_comercial || 'N/A',
-    categoria: item.categoria,
-    precioHora: item.precioHora || 0,
+    proveedorId: item.proveedor_id,
+    nombreProveedor: item.proveedor?.nombre_comercial || 'N/A',
+    categoria: item.nombre,
+    precioHora: item.precio_hora_base || 0,
   }));
 }

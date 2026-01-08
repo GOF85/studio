@@ -6,10 +6,12 @@ export interface PersonalExternoItem {
   nombre: string;
   apellido1: string;
   apellido2: string;
+  categoria?: string;
   nombreCompleto: string;
   nombreCompacto: string;
   telefono: string;
   email: string;
+  activo: boolean;
 }
 
 export async function getPersonalExternoPaginated(
@@ -19,13 +21,17 @@ export async function getPersonalExternoPaginated(
     pageSize: number;
     searchTerm?: string;
     providerFilter?: string;
+    isActive?: boolean;
   }
 ) {
-  const { page, pageSize, searchTerm, providerFilter } = options;
+  const { page, pageSize, searchTerm, providerFilter, isActive = true } = options;
 
   let query = supabase
     .from('personal_externo_catalogo')
     .select('*', { count: 'exact' });
+
+  // Filter by Active status
+  query = query.eq('activo', isActive);
 
   if (searchTerm) {
     query = query.or(`nombre_completo.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
@@ -50,10 +56,12 @@ export async function getPersonalExternoPaginated(
       nombre: item.nombre,
       apellido1: item.apellido1,
       apellido2: item.apellido2,
+      categoria: item.categoria,
       nombreCompleto: item.nombre_completo,
       nombreCompacto: item.nombre_compacto,
       telefono: item.telefono,
       email: item.email,
+      activo: item.activo ?? true,
     })) as PersonalExternoItem[],
     totalCount: count || 0
   };
@@ -84,10 +92,10 @@ export async function upsertPersonalExterno(supabase: SupabaseClient, item: Part
       nombre: item.nombre,
       apellido1: item.apellido1,
       apellido2: item.apellido2,
-      nombre_completo: item.nombreCompleto,
-      nombre_compacto: item.nombreCompacto,
+      categoria: item.categoria,
       telefono: item.telefono,
       email: item.email,
+      activo: item.activo ?? true,
     });
   if (error) throw error;
 }

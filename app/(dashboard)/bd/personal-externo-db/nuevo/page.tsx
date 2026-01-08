@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useUpsertPersonalExternoDB, useProveedores } from '@/hooks/use-data-queries';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
@@ -20,6 +21,8 @@ export const personalExternoSchema = z.object({
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   apellido1: z.string().min(1, 'El primer apellido es obligatorio'),
   apellido2: z.string().optional(),
+  categoria: z.string().optional(),
+  activo: z.boolean().default(true),
   telefono: z.string().optional(),
   email: z.string().email('Debe ser un email válido').optional().or(z.literal('')),
 });
@@ -39,21 +42,16 @@ export default function NuevoPersonalExternoPage() {
       nombre: '',
       apellido1: '',
       apellido2: '',
+      categoria: '',
+      activo: true,
       telefono: '',
       email: '',
     },
   });
 
   async function onSubmit(data: PersonalExternoFormValues) {
-    const nombreCompleto = `${data.nombre} ${data.apellido1} ${data.apellido2 || ''}`.trim();
-    const nombreCompacto = `${data.nombre} ${data.apellido1}`;
-    
     try {
-      await upsertMutation.mutateAsync({
-        ...data,
-        nombreCompleto,
-        nombreCompacto
-      });
+      await upsertMutation.mutateAsync(data);
       router.push('/bd/personal-externo-db');
     } catch (error) {
       // Error handled by mutation
@@ -101,6 +99,9 @@ export default function NuevoPersonalExternoPage() {
                 <FormField control={form.control} name="id" render={({ field }) => (
                     <FormItem><FormLabel>DNI / ID</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
+                <FormField control={form.control} name="categoria" render={({ field }) => (
+                    <FormItem><FormLabel>Categoría</FormLabel><FormControl><Input placeholder="Ej: Camarero, Cocinero..." {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField control={form.control} name="nombre" render={({ field }) => (
@@ -119,8 +120,17 @@ export default function NuevoPersonalExternoPage() {
                   )} />
                   <FormField control={form.control} name="email" render={({ field }) => (
                     <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-              </div>
+                  )} />                  <FormField control={form.control} name="activo" render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Estado Activo</FormLabel>
+                        <p className="text-[12px] text-muted-foreground">Define si el trabajador está disponible</p>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )} />              </div>
             </CardContent>
           </Card>
         </form>

@@ -28,6 +28,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton'
+import { BriefingSummaryDialog } from '@/components/os/briefing-summary-dialog'
 import { cn } from '@/lib/utils'
 import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view'
 import { useInfiniteScroll } from '@/hooks/use-infinite-scroll'
@@ -544,50 +545,11 @@ export default function GastronomiaPage() {
         </CardContent>
       </Card>
 
-      {/* Modal Resumen Briefing */}
-      <Dialog open={openResumenBriefing} onOpenChange={setOpenResumenBriefing}>
-        <DialogContent className="max-w-lg w-full p-0 rounded-lg">
-          <DialogHeader className="px-4 pt-4 pb-2">
-            <DialogTitle className="text-base font-bold">Resumen de Servicios del Evento</DialogTitle>
-            <DialogDescription className="sr-only">
-              Muestra todos los servicios registrados en el briefing comercial para este evento.
-            </DialogDescription>
-            <DialogClose className="absolute right-4 top-4" />
-          </DialogHeader>
-          <div className="px-2 pb-4 max-h-[70vh] overflow-y-auto">
-            {allBriefingItems.length === 0 ? (
-              <div className="text-center text-muted-foreground text-sm py-8">No hay servicios en el briefing comercial.</div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {allBriefingItems.map((item) => (
-                  <div key={item.id} className={cn("rounded-lg border border-border p-2 flex flex-col gap-1 text-xs shadow-sm", item.conGastronomia ? 'bg-emerald-50 border-emerald-200' : 'bg-background')}>
-                    <div className="flex flex-wrap items-center gap-2 justify-between">
-                      <div className="font-bold text-[13px] flex-1 truncate flex items-center gap-2">{item.conGastronomia && <Utensils className="h-4 w-4 text-emerald-700 flex-shrink-0" />}{item.descripcion}</div>
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        <span>{item.asistentes}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 text-[12px] text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>{format(new Date(item.fecha), 'dd/MM/yyyy')}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        <span>{item.horaInicio} - {item.horaFin}</span>
-                      </div>
-                    </div>
-                    {item.comentarios && (
-                      <div className="text-[12px] text-muted-foreground italic truncate">{item.comentarios}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <BriefingSummaryDialog
+        open={openResumenBriefing}
+        onOpenChange={setOpenResumenBriefing}
+        items={allBriefingItems}
+      />
     </div>
   )
 }

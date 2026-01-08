@@ -91,6 +91,7 @@
 | categorias_personal | nombre                       | text                        | null    | NO          | null                              |
 | categorias_personal | precio_hora_base             | numeric                     | null    | YES         | 0                                 |
 | categorias_personal | departamento                 | text                        | null    | YES         | null                              |
+| categorias_personal | proveedor_id                 | uuid                        | null    | YES         | null                              |
 | categorias_recetas  | id                           | text                        | null    | NO          | null                              |
 | categorias_recetas  | nombre                       | text                        | null    | NO          | null                              |
 | categorias_recetas  | snack                        | boolean                     | null    | YES         | false                             |

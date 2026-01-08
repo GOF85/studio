@@ -101,9 +101,6 @@ export function PersonalPhotoUpload({ value, onChange, dni }: PersonalPhotoUploa
           className="hidden"
         />
       </div>
-      <p className="text-[10px] text-muted-foreground text-center">
-        Formato WebP optimizado.<br />Máximo 300px.
-      </p>
     </div>
   );
 }

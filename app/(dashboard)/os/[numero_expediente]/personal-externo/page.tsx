@@ -16,6 +16,7 @@ import {
   Loader2,
   PlusCircle,
   Trash2,
+  Copy,
   Calendar as CalendarIcon,
   Info,
   Clock,
@@ -45,7 +46,7 @@ import type {
   AsignacionPersonal,
   EstadoTurnoPersonal,
 } from '@/types'
-import { ESTADO_TURNO_PERSONAL, AJUSTE_CONCEPTO_OPCIONES } from '@/types'
+import { ESTADO_TURNO_PERSONAL, AJUSTE_CONCEPTO_OPCIONES, CENTRO_COSTE_OPCIONES } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
@@ -120,9 +121,204 @@ import {
 import { Label } from '@/components/ui/label'
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user'
 import { logActivity } from '@/app/(dashboard)/portal/activity-log/utils'
+import { ActivityLogSheet } from '@/components/os/activity-log-sheet'
 
-const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const
+
+const PersonalExternoRow = memo(
+  ({
+    index,
+    control,
+    handleProviderChange,
+    categoriaOptions,
+    onRemove,
+    centroCosteOptions,
+    tipoServicioOptions,
+  }: {
+    index: number
+    control: any
+    handleProviderChange: (index: number, providerId: string) => void
+    categoriaOptions: any[]
+    onRemove: (index: number) => void
+    centroCosteOptions: readonly string[]
+    tipoServicioOptions: readonly string[]
+  }) => {
+    const watchedTurno = useWatch({
+      control,
+      name: `turnos.${index}`,
+    })
+
+    return (
+      <TableRow className="border-border/40 group hover:bg-muted/20 transition-colors">
+        <TableCell className="px-4 py-2">
+          <FormField
+            control={control}
+            name={`turnos.${index}.solicitadoPor`}
+            render={({ field: selectField }) => (
+              <FormItem>
+                <Select onValueChange={selectField.onChange} value={selectField.value}>
+                  <FormControl>
+                    <SelectTrigger className="h-8 text-[11px] border-border/40 bg-background/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {centroCosteOptions.map((o) => (
+                      <SelectItem key={o} value={o} className="text-[11px]">
+                        {o}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+        </TableCell>
+        <TableCell className="px-4 py-2">
+          <FormField
+            control={control}
+            name={`turnos.${index}.proveedorId`}
+            render={({ field: f }) => (
+              <FormItem>
+                <Combobox
+                  options={categoriaOptions}
+                  value={f.value}
+                  onChange={(value) => handleProviderChange(index, value)}
+                  placeholder="Proveedor..."
+                  className="h-8 text-[11px]"
+                />
+              </FormItem>
+            )}
+          />
+        </TableCell>
+        <TableCell className="px-4 py-2">
+          <FormField
+            control={control}
+            name={`turnos.${index}.tipoServicio`}
+            render={({ field: selectField }) => (
+              <FormItem>
+                <Select onValueChange={selectField.onChange} value={selectField.value}>
+                  <FormControl>
+                    <SelectTrigger className="h-8 text-[11px] border-border/40 bg-background/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {tipoServicioOptions.map((o) => (
+                      <SelectItem key={o} value={o} className="text-[11px]">
+                        {o}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+        </TableCell>
+        <TableCell className="px-2 py-2 bg-blue-500/5 border-l border-border/40">
+          <FormField
+            control={control}
+            name={`turnos.${index}.horaEntrada`}
+            render={({ field: f }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    type="time"
+                    {...f}
+                    className="h-8 text-[11px] border-border/40 bg-background/50 text-center"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </TableCell>
+        <TableCell className="px-2 py-2 bg-blue-500/5">
+          <FormField
+            control={control}
+            name={`turnos.${index}.horaSalida`}
+            render={({ field: f }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    type="time"
+                    {...f}
+                    className="h-8 text-[11px] border-border/40 bg-background/50 text-center"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </TableCell>
+        <TableCell className="px-2 py-2 bg-blue-500/5">
+          <div className="text-[10px] font-mono font-bold text-blue-600 bg-blue-50 text-center py-1 rounded border border-blue-100 mx-auto w-12">
+            {calculateHours(watchedTurno?.horaEntrada, watchedTurno?.horaSalida).toFixed(1)}h
+          </div>
+        </TableCell>
+        <TableCell className="px-2 py-2 bg-blue-500/5">
+          <FormField
+            control={control}
+            name={`turnos.${index}.precioHora`}
+            render={({ field: f }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    {...f}
+                    className="h-8 text-[11px] border-border/40 bg-background/50 text-center font-mono"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </TableCell>
+        <TableCell className="px-2 py-2 bg-blue-500/5 border-r border-border/40">
+           <div className="text-[10px] font-mono font-bold text-amber-600 bg-amber-50/50 py-1 px-1.5 rounded border border-amber-100/50 w-full text-right whitespace-nowrap">
+            {formatCurrency(calculateHours(watchedTurno?.horaEntrada, watchedTurno?.horaSalida) * (watchedTurno?.precioHora || 0))}
+          </div>
+        </TableCell>
+        <TableCell className="px-4 py-2 text-center">
+          <CommentDialog turnoIndex={index} />
+        </TableCell>
+        <TableCell className="px-4 py-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex justify-center">
+                {watchedTurno?.statusPartner === 'Gestionado' ? (
+                  <div className="h-6 px-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1.5">
+                    <CheckCircle className="h-3 w-3 text-emerald-500" />
+                    <span className="text-[9px] font-black uppercase text-emerald-600">OK</span>
+                  </div>
+                ) : (
+                  <div className="h-6 px-2 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    <span className="text-[9px] font-black uppercase text-amber-600">PEND</span>
+                  </div>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="text-[10px] font-bold uppercase tracking-widest">
+              {watchedTurno?.statusPartner || 'Pendiente'}
+            </TooltipContent>
+          </Tooltip>
+        </TableCell>
+        <TableCell className="px-4 py-2 text-right">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-colors"
+            onClick={() => onRemove(index)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </TableCell>
+      </TableRow>
+    )
+  },
+)
+
+PersonalExternoRow.displayName = 'PersonalExternoRow'
 
 const CostSummary = memo(() => {
   const { control } = useFormContext()
@@ -311,6 +507,7 @@ const CierreHorasReales = memo(({ form }: { form: any }) => {
                     <Input
                       type="time"
                       {...field}
+                      value={field.value ?? ""}
                       className="h-8 text-[11px] border-border/40 bg-background/50 text-center"
                     />
                   )}
@@ -324,6 +521,7 @@ const CierreHorasReales = memo(({ form }: { form: any }) => {
                     <Input
                       type="time"
                       {...field}
+                      value={field.value ?? ""}
                       className="h-8 text-[11px] border-border/40 bg-background/50 text-center"
                     />
                   )}
@@ -347,40 +545,32 @@ const CierreHorasReales = memo(({ form }: { form: any }) => {
 CierreHorasReales.displayName = 'CierreHorasReales'
 
 const asignacionSchema = z.object({
-  id: z.string(),
-  nombre: z.string(),
-  dni: z.string().optional(),
-  telefono: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')),
-  comentarios: z.string().optional(),
-  rating: z.number().optional(),
-  comentariosMice: z.string().optional(),
-  horaEntradaReal: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato HH:MM')
-    .optional()
-    .or(z.literal('')),
-  horaSalidaReal: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato HH:MM')
-    .optional()
-    .or(z.literal('')),
+  id: z.string().optional().nullable(),
+  nombre: z.string().optional().nullable().default(''),
+  dni: z.string().optional().nullable().default(''),
+  telefono: z.string().optional().nullable().default(''),
+  email: z.string().optional().nullable().default(''),
+  comentarios: z.string().optional().nullable().default(''),
+  rating: z.number().optional().nullable().default(0),
+  comentariosMice: z.string().optional().nullable().default(''),
+  horaEntradaReal: z.string().optional().nullable().default(''),
+  horaSalidaReal: z.string().optional().nullable().default(''),
 })
 
 const personalTurnoSchema = z.object({
-  id: z.string(),
+  id: z.string().optional().nullable(),
   proveedorId: z.string().min(1, 'El proveedor es obligatorio'),
-  categoria: z.string().min(1, 'La categoría es obligatoria'),
+  categoria: z.string().optional().nullable().default(''),
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
-  fecha: z.date({ required_error: 'La fecha es obligatoria.' }),
-  horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato HH:MM'),
-  horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato HH:MM'),
-  solicitadoPor: z.enum(solicitadoPorOptions),
-  tipoServicio: z.enum(tipoServicioOptions),
-  observaciones: z.string().optional().default(''),
-  statusPartner: z.enum(['Pendiente Asignación', 'Gestionado']),
-  asignaciones: z.array(asignacionSchema).optional(),
-  requiereActualizacion: z.boolean().optional(),
+  fecha: z.any({ required_error: 'La fecha es obligatoria.' }),
+  horaEntrada: z.string().optional().nullable().default(''),
+  horaSalida: z.string().optional().nullable().default(''),
+  solicitadoPor: z.string().optional().nullable().default('SALA'),
+  tipoServicio: z.string().optional().nullable().default('Camarero'),
+  observaciones: z.string().optional().nullable().default(''),
+  statusPartner: z.string().optional().nullable().default('Pendiente Asignación'),
+  asignaciones: z.array(asignacionSchema).optional().nullable().default([]),
+  requiereActualizacion: z.boolean().optional().nullable().default(false),
 })
 
 const formSchema = z.object({
@@ -400,25 +590,25 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) {
+function CommentDialog({ turnoIndex }: { turnoIndex: number }) {
   const [isOpen, setIsOpen] = useState(false)
-  const { getValues, setValue } = form
+  const { getValues, setValue } = useFormContext()
 
   const fieldName = `turnos.${turnoIndex}.observaciones`
   const dialogTitle = `Observaciones para la ETT`
 
-  const [comment, setComment] = useState(getValues(fieldName) || '')
-
-  const handleSave = () => {
-    setValue(fieldName, comment, { shouldDirty: true })
-    setIsOpen(false)
-  }
+  const [comment, setComment] = useState('')
 
   useEffect(() => {
     if (isOpen) {
       setComment(getValues(fieldName) || '')
     }
   }, [isOpen, getValues, fieldName])
+
+  const handleSave = () => {
+    setValue(fieldName, comment, { shouldDirty: true })
+    setIsOpen(false)
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -453,6 +643,7 @@ export default function PersonalExternoPage() {
   const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [rowToDelete, setRowToDelete] = useState<number | null>(null)
+  const [deletedNames, setDeletedNames] = useState<string[]>([])
 
   const router = useRouter()
   const params = useParams() ?? {}
@@ -482,10 +673,69 @@ export default function PersonalExternoPage() {
 
   const { control, setValue, watch, trigger, getValues, handleSubmit, formState } = form
 
+  // Extraemos las fechas de cada turno para agrupar
+  const watchedDates = useWatch({
+    control,
+    name: 'turnos',
+  }).map((t: any) => t.fecha)
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'turnos',
   })
+
+  // Agrupación por días (memoizada para evitar saltos de UI)
+  const { uniqueDays, groupedIndicesByDay } = useMemo(() => {
+    // Calculamos qué días tienen turnos
+    const days = Array.from(new Set(watchedDates.filter(Boolean))).sort() as string[]
+
+    // Mapeamos cada día a sus índices originales en fields
+    const groups: Record<string, number[]> = {}
+    watchedDates.forEach((fecha, idx) => {
+      if (fecha) {
+        if (!groups[fecha]) groups[fecha] = []
+        groups[fecha].push(idx)
+      }
+    })
+
+    return { uniqueDays: days, groupedIndicesByDay: groups }
+  }, [watchedDates])
+
+  const duplicateDay = (sourceDay: string) => {
+    // 1. Encontrar los turnos del día origen
+    const sourceIndices = groupedIndicesByDay[sourceDay] || []
+    if (sourceIndices.length === 0) return
+
+    // 2. Determinar la siguiente fecha disponible del briefing
+    const existingDays = new Set(uniqueDays)
+    const nextDate = briefingItems
+      .map((b) => b.fecha)
+      .find((f) => !existingDays.has(f))
+
+    if (!nextDate) {
+      toast({
+        title: 'Error',
+        description: 'No hay más fechas disponibles en el briefing',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // 3. Duplicar cada turno al nuevo día
+    sourceIndices.forEach((idx) => {
+      const sourceData = getValues(`turnos.${idx}`)
+      append({
+        ...sourceData,
+        id: undefined, // Nueva entrada
+        fecha: nextDate,
+      })
+    })
+
+    toast({
+      title: 'Éxito',
+      description: `Día duplicado al ${nextDate}`,
+    })
+  }
 
   const {
     fields: ajusteFields,
@@ -508,7 +758,17 @@ export default function PersonalExternoPage() {
   useEffect(() => {
     if (personalExternoDB) {
       form.reset({
-        turnos: personalExternoDB.turnos.map((t) => ({ ...t, fecha: new Date(t.fecha) })),
+        turnos: personalExternoDB.turnos.map((t) => ({ 
+          ...t, 
+          fecha: new Date(t.fecha),
+          horaEntrada: t.horaEntrada?.split(':').slice(0, 2).join(':'),
+          horaSalida: t.horaSalida?.split(':').slice(0, 2).join(':'),
+          asignaciones: (t.asignaciones || []).map(a => ({
+            ...a,
+            horaEntradaReal: a.horaEntradaReal?.split(':').slice(0, 2).join(':'),
+            horaSalidaReal: a.horaSalidaReal?.split(':').slice(0, 2).join(':'),
+          }))
+        })),
         ajustes: ajustesDB || [],
         observacionesGenerales: personalExternoDB.observacionesGenerales || '',
       })
@@ -642,9 +902,16 @@ export default function PersonalExternoPage() {
     try {
       const turnos = data.turnos.map((t) => {
         const existingTurno = personalExterno?.turnos.find((et) => et.id === t.id)
+        
+        // Aseguramos que la fecha sea un objeto Date antes de formatear
+        let finalFecha = t.fecha
+        if (typeof t.fecha === 'string') {
+          finalFecha = new Date(t.fecha)
+        }
+
         return {
           ...t,
-          fecha: format(t.fecha, 'yyyy-MM-dd'),
+          fecha: format(finalFecha, 'yyyy-MM-dd'),
           statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
           requiereActualizacion: true,
           asignaciones: (t.asignaciones || []).map((a) => ({
@@ -672,6 +939,23 @@ export default function PersonalExternoPage() {
         osId: serviceOrder.id,
         ajustes: data.ajustes || [],
       })
+
+      // Log activity
+      const logDetails = [
+        `Gestionados ${turnos.length} turnos.`,
+        deletedNames.length > 0 ? `Eliminados: ${deletedNames.join(', ')}.` : ''
+      ].filter(Boolean).join(' ')
+
+      await logActivity({
+        userId: impersonatedUser?.id || '',
+        userName: impersonatedUser?.nombre || 'Sistema',
+        action: 'Actualizar Personal Externo',
+        details: logDetails,
+        entity: 'OS',
+        entityId: serviceOrder.id
+      })
+
+      setDeletedNames([])
 
       toast({
         title: 'Personal guardado',
@@ -708,6 +992,13 @@ export default function PersonalExternoPage() {
 
   const handleDeleteRow = () => {
     if (rowToDelete !== null) {
+      const row = getValues(`turnos.${rowToDelete}`)
+      // Determinar un "nombre" descriptivo para el turno
+      const provider = categoriaOptions.find(o => o.value === row?.proveedorId)
+      const identifier = provider ? provider.label : `Turno ${row?.tipoServicio || ''}`
+      
+      setDeletedNames(prev => [...prev, identifier])
+      
       remove(rowToDelete)
       setRowToDelete(null)
       toast({ title: 'Turno eliminado' })
@@ -764,7 +1055,17 @@ export default function PersonalExternoPage() {
       <main className="space-y-6">
         <TooltipProvider>
           <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
+            <form
+              id="personal-externo-form"
+              onSubmit={handleSubmit(onSubmit, (errors) => {
+                console.error('Validation Errors:', errors)
+                toast({
+                  variant: 'destructive',
+                  title: 'Error de validación',
+                  description: 'Por favor revisa los campos marcados en rojo.',
+                })
+              })}
+            >
               {/* Header Premium Sticky */}
               <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
                 <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
@@ -785,6 +1086,10 @@ export default function PersonalExternoPage() {
                     </Badge>
                     <div className="h-4 w-[1px] bg-border/40 mx-1" />
                     <ActionButton />
+                    <ActivityLogSheet 
+                      entityId={serviceOrder?.id || ''} 
+                      buttonClassName="h-8 text-[10px] font-black uppercase tracking-widest border-border/40" 
+                    />
                     <Button
                       type="submit"
                       disabled={isLoading || !formState.isDirty}
@@ -902,256 +1207,136 @@ export default function PersonalExternoPage() {
                         </Button>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-0">
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader className="bg-muted/30">
-                            <TableRow className="hover:bg-transparent border-border/40">
-                              <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-36">Fecha</TableHead>
-                              <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-32">Solicitado Por</TableHead>
-                              <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground min-w-48">Proveedor - Categoría</TableHead>
-                              <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-36">Tipo Servicio</TableHead>
-                              <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-center bg-blue-500/5 border-x border-border/40" colSpan={3}>
-                                Horario Planificado
-                              </TableHead>
-                              <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-center">Obs.</TableHead>
-                              <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-center">Estado</TableHead>
-                              <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right w-16"></TableHead>
-                            </TableRow>
-                            <TableRow className="hover:bg-transparent border-border/40 h-0">
-                              <TableHead colSpan={4} className="p-0 h-0" />
-                              <TableHead className="h-8 px-2 text-[9px] font-bold uppercase text-muted-foreground text-center bg-blue-500/5 border-l border-border/40">Entrada</TableHead>
-                              <TableHead className="h-8 px-2 text-[9px] font-bold uppercase text-muted-foreground text-center bg-blue-500/5">Salida</TableHead>
-                              <TableHead className="h-8 px-2 text-[9px] font-bold uppercase text-muted-foreground text-center bg-blue-500/5 border-r border-border/40">€/Hora</TableHead>
-                              <TableHead colSpan={3} className="p-0 h-0" />
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {fields.length > 0 ? (
-                              fields.map((field, index) => (
-                                <TableRow key={field.id} className="border-border/40 group hover:bg-muted/20 transition-colors">
-                                  <TableCell className="px-4 py-2">
-                                    <FormField
-                                      control={control}
-                                      name={`turnos.${index}.fecha`}
-                                      render={({ field: dateField }) => (
-                                        <FormItem>
-                                          <Popover>
-                                            <PopoverTrigger asChild>
-                                              <FormControl>
-                                                <Button
-                                                  variant={'outline'}
-                                                  className={cn(
-                                                    'w-full h-8 px-2 text-left font-medium text-[11px] border-border/40 bg-background/50',
-                                                    !dateField.value && 'text-muted-foreground',
-                                                  )}
-                                                >
-                                                  {dateField.value ? (
-                                                    format(dateField.value, 'dd/MM/yy')
-                                                  ) : (
-                                                    <span>Elige</span>
-                                                  )}
-                                                  <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
-                                                </Button>
-                                              </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                              <Calendar
-                                                mode="single"
-                                                selected={dateField.value}
-                                                onSelect={dateField.onChange}
-                                                initialFocus
-                                                locale={es}
-                                              />
-                                            </PopoverContent>
-                                          </Popover>
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="px-4 py-2">
-                                    <FormField
-                                      control={control}
-                                      name={`turnos.${index}.solicitadoPor`}
-                                      render={({ field: selectField }) => (
-                                        <FormItem>
-                                          <Select
-                                            onValueChange={selectField.onChange}
-                                            value={selectField.value}
-                                          >
-                                            <FormControl>
-                                              <SelectTrigger className="h-8 text-[11px] border-border/40 bg-background/50">
-                                                <SelectValue />
-                                              </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                              {solicitadoPorOptions.map((o) => (
-                                                <SelectItem key={o} value={o} className="text-[11px]">
-                                                  {o}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="px-4 py-2">
-                                    <FormField
-                                      control={control}
-                                      name={`turnos.${index}.proveedorId`}
-                                      render={({ field: f }) => (
-                                        <FormItem>
-                                          <Combobox
-                                            options={categoriaOptions}
-                                            value={f.value}
-                                            onChange={(value) => handleProviderChange(index, value)}
-                                            placeholder="Proveedor..."
-                                            className="h-8 text-[11px]"
-                                          />
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="px-4 py-2">
-                                    <FormField
-                                      control={control}
-                                      name={`turnos.${index}.tipoServicio`}
-                                      render={({ field: selectField }) => (
-                                        <FormItem>
-                                          <Select
-                                            onValueChange={selectField.onChange}
-                                            value={selectField.value}
-                                          >
-                                            <FormControl>
-                                              <SelectTrigger className="h-8 text-[11px] border-border/40 bg-background/50">
-                                                <SelectValue />
-                                              </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                              {tipoServicioOptions.map((o) => (
-                                                <SelectItem key={o} value={o} className="text-[11px]">
-                                                  {o}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="px-2 py-2 bg-blue-500/5 border-l border-border/40">
-                                    <FormField
-                                      control={control}
-                                      name={`turnos.${index}.horaEntrada`}
-                                      render={({ field: f }) => (
-                                        <FormItem>
-                                          <FormControl>
-                                            <Input
-                                              type="time"
-                                              {...f}
-                                              className="h-8 text-[11px] border-border/40 bg-background/50 text-center"
-                                            />
-                                          </FormControl>
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="px-2 py-2 bg-blue-500/5">
-                                    <FormField
-                                      control={control}
-                                      name={`turnos.${index}.horaSalida`}
-                                      render={({ field: f }) => (
-                                        <FormItem>
-                                          <FormControl>
-                                            <Input
-                                              type="time"
-                                              {...f}
-                                              className="h-8 text-[11px] border-border/40 bg-background/50 text-center"
-                                            />
-                                          </FormControl>
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="px-2 py-2 bg-blue-500/5 border-r border-border/40">
-                                    <FormField
-                                      control={control}
-                                      name={`turnos.${index}.precioHora`}
-                                      render={({ field: f }) => (
-                                        <FormItem>
-                                          <FormControl>
-                                            <Input
-                                              type="number"
-                                              step="0.01"
-                                              {...f}
-                                              className="h-8 text-[11px] border-border/40 bg-background/50 text-center font-mono"
-                                              readOnly
-                                            />
-                                          </FormControl>
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="px-4 py-2 text-center">
-                                    <CommentDialog turnoIndex={index} form={form} />
-                                  </TableCell>
-                                  <TableCell className="px-4 py-2">
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <div className="flex justify-center">
-                                          {field.statusPartner === 'Gestionado' ? (
-                                            <div className="h-6 px-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1.5">
-                                              <CheckCircle className="h-3 w-3 text-emerald-500" />
-                                              <span className="text-[9px] font-black uppercase text-emerald-600">OK</span>
-                                            </div>
-                                          ) : (
-                                            <div className="h-6 px-2 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center gap-1.5">
-                                              <AlertTriangle className="h-3 w-3 text-amber-500" />
-                                              <span className="text-[9px] font-black uppercase text-amber-600">PEND</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </TooltipTrigger>
-                                      <TooltipContent className="text-[10px] font-bold uppercase tracking-widest">
-                                        {field.statusPartner}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TableCell>
-                                  <TableCell className="px-4 py-2 text-right">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-colors"
-                                      onClick={() => setRowToDelete(index)}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                            ) : (
-                              <TableRow>
-                                <TableCell colSpan={10} className="h-32 text-center">
-                                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                    <Users className="h-8 w-8 opacity-20" />
-                                    <p className="text-[11px] font-medium uppercase tracking-wider">No hay personal planificado</p>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={addRow}
-                                      className="mt-2 text-[10px] font-black uppercase tracking-widest"
-                                    >
-                                      Añadir Primer Turno
-                                    </Button>
+                    <CardContent className="p-0 bg-muted/20">
+                      <div className="space-y-4 p-4">
+                        {uniqueDays.map((dateStr) => {
+                          const indices = groupedIndicesByDay[dateStr] || []
+                          const dateObj = new Date(dateStr)
+
+                          return (
+                            <div
+                              key={dateStr}
+                              className="rounded-xl border border-border/40 bg-background/80 backdrop-blur-sm overflow-hidden shadow-sm"
+                            >
+                              {/* Header del Día */}
+                              <div className="bg-muted/30 px-4 py-2.5 flex items-center justify-between border-b border-border/40">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex flex-col items-center justify-center bg-background rounded-lg border border-border/40 w-10 h-10 shadow-sm">
+                                    <span className="text-[10px] font-black uppercase text-blue-600 leading-none">
+                                      {format(dateObj, 'MMM', { locale: es })}
+                                    </span>
+                                    <span className="text-[14px] font-black text-foreground leading-none mt-0.5">
+                                      {format(dateObj, 'dd')}
+                                    </span>
                                   </div>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
+                                  <div>
+                                    <h4 className="text-[11px] font-black uppercase tracking-widest text-foreground">
+                                      {format(dateObj, 'EEEE', { locale: es })}
+                                    </h4>
+                                    <p className="text-[10px] text-muted-foreground font-medium">
+                                      {indices.length} {indices.length === 1 ? 'Turno' : 'Turnos'} Planificados
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => duplicateDay(dateStr)}
+                                    className="h-8 text-[9px] font-black uppercase tracking-widest border-blue-500/20 text-blue-700 hover:bg-blue-500/10"
+                                  >
+                                    <Copy className="mr-1.5 h-3 w-3" />
+                                    Duplicar Día
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      append({
+                                        fecha: dateStr,
+                                        solicitadoPor: 'SALA',
+                                        tipoServicio: 'Camarero',
+                                        statusPartner: 'No Solicitado',
+                                        precioHora: 22,
+                                      })
+                                    }}
+                                    className="h-8 text-[9px] font-black uppercase tracking-widest"
+                                  >
+                                    <PlusCircle className="mr-1.5 h-3 w-3" />
+                                    Extra
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Tabla de Turnos del Día */}
+                              <div className="overflow-x-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow className="hover:bg-transparent border-border/40 bg-muted/10">
+                                      <TableHead className="h-9 px-4 text-[9px] font-black uppercase tracking-wider text-muted-foreground w-32">
+                                        Centro de Coste
+                                      </TableHead>
+                                      <TableHead className="h-9 px-4 text-[9px] font-black uppercase tracking-wider text-muted-foreground min-w-48">
+                                        Proveedor - Categoría
+                                      </TableHead>
+                                      <TableHead className="h-9 px-4 text-[9px] font-black uppercase tracking-wider text-muted-foreground w-36">
+                                        Tipo Servicio
+                                      </TableHead>
+                                      <TableHead
+                                        className="h-9 px-4 text-[9px] font-black uppercase tracking-wider text-muted-foreground text-center bg-blue-500/5 border-x border-border/40"
+                                        colSpan={5}
+                                      >
+                                        Horario / Coste
+                                      </TableHead>
+                                      <TableHead className="h-9 px-4 text-[9px] font-black uppercase tracking-wider text-muted-foreground text-center">
+                                        Obs.
+                                      </TableHead>
+                                      <TableHead className="h-9 px-4 text-[9px] font-black uppercase tracking-wider text-muted-foreground text-center">
+                                        Estado
+                                      </TableHead>
+                                      <TableHead className="h-9 px-4 text-[9px] font-black uppercase tracking-wider text-muted-foreground text-right w-12"></TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {indices.map((index) => (
+                                      <PersonalExternoRow
+                                        key={fields[index].id}
+                                        index={index}
+                                        control={control}
+                                        onRemove={setRowToDelete}
+                                        handleProviderChange={handleProviderChange}
+                                        categoriaOptions={categoriaOptions}
+                                        centroCosteOptions={CENTRO_COSTE_OPCIONES}
+                                        tipoServicioOptions={tipoServicioOptions}
+                                      />
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          )
+                        })}
+
+                        {fields.length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-12 bg-background/50 rounded-xl border-2 border-dashed border-border/40">
+                            <Users className="h-10 w-10 text-muted-foreground/20 mb-3" />
+                            <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+                              No hay turnos planificados
+                            </p>
+                            <Button
+                              type="button"
+                              onClick={addRow}
+                              variant="outline"
+                              size="sm"
+                              className="mt-4 text-[10px] font-black uppercase tracking-widest"
+                            >
+                              Comenzar Planificación
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

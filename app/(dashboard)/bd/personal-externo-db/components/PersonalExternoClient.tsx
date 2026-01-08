@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
@@ -33,7 +34,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { PersonalExternoItem } from '@/services/personal-externo-service';
 
-const CSV_HEADERS = ["id", "proveedorId", "nombre", "apellido1", "apellido2", "nombreCompleto", "nombreCompacto", "telefono", "email"];
+const CSV_HEADERS = ["id", "proveedorId", "nombre", "apellido1", "apellido2", "categoria", "nombreCompleto", "nombreCompacto", "telefono", "email", "activo"];
 
 interface PersonalExternoClientProps {
   initialData: {
@@ -46,6 +47,7 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [providerFilter, setProviderFilter] = useState('all');
+  const [isActiveFilter, setIsActiveFilter] = useState(true);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
@@ -71,7 +73,9 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
     page,
     pageSize,
     searchTerm: debouncedSearch,
-    providerFilter
+    providerFilter,
+    isActive: isActiveFilter,
+    initialData
   });
 
   // Use initialData for the first render if data is not yet available
@@ -132,29 +136,56 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
       return;
     }
 
+    const REQUIRED_FIELDS = ["id", "nombre", "apellido1", "proveedorId"];
+
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
       delimiter,
       complete: async (results) => {
-        if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
-          toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.` });
+        if (!results.meta.fields || !REQUIRED_FIELDS.every(field => results.meta.fields?.includes(field))) {
+          toast({ 
+            variant: 'destructive', 
+            title: 'Error de formato', 
+            description: `El CSV debe contener al menos las columnas: ${REQUIRED_FIELDS.join(', ')}.` 
+          });
           return;
         }
 
-        const importedData = results.data.map((item: any) => ({
-          ...item,
-          id: item.id && !item.id.startsWith('EXT-') ? item.id : undefined // Let Supabase generate ID if it's a placeholder
-        }));
+        const importedData = results.data.map((item: any) => {
+          // Generate names if not provided but parts are
+          const nombreCompleto = item.nombreCompleto || `${item.nombre} ${item.apellido1} ${item.apellido2 || ''}`.trim();
+          const nombreCompacto = item.nombreCompacto || `${item.nombre} ${item.apellido1}`;
+          
+          return {
+            ...item,
+            nombreCompleto,
+            nombreCompacto,
+            activo: item.activo === 'false' || item.activo === '0' ? false : true // Default to true unless explicitly false
+          };
+        });
 
         try {
-          // This might be slow for many items, but for now it's okay
+          // Process in small batches or one by one for better error handling
+          let successCount = 0;
           for (const item of importedData) {
-            await upsertMutation.mutateAsync(item);
+            try {
+              await upsertMutation.mutateAsync(item);
+              successCount++;
+            } catch (err) {
+              console.error('Error importing item:', item.id, err);
+            }
           }
-          toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+          toast({ 
+            title: 'Importación completada', 
+            description: `Se han procesado ${successCount} de ${importedData.length} registros.` 
+          });
         } catch (error) {
-          toast({ variant: 'destructive', title: 'Error en importación', description: 'Algunos registros no pudieron ser importados.' });
+          toast({ 
+            variant: 'destructive', 
+            title: 'Error en importación', 
+            description: 'Hubo un problema procesando el archivo.' 
+          });
         }
         
         setIsImportAlertOpen(false);
@@ -218,7 +249,15 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
               onClick={() => setIsImportAlertOpen(true)}
             >
               <FileUp className="h-4 w-4" />
-              Importar CSV
+              Importar
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 px-6 rounded-xl font-bold flex items-center gap-2 border-border/40 hover:bg-accent transition-all"
+              onClick={handleExportCSV}
+            >
+              <FileDown className="h-4 w-4" />
+              Exportar
             </Button>
             <Button
               className="h-11 px-6 rounded-xl font-black bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95"
@@ -234,7 +273,7 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-[1600px] mx-auto space-y-6">
           {/* Filtros */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-card/50 backdrop-blur-sm p-6 rounded-[2rem] border border-border/40 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-card/50 backdrop-blur-sm p-6 rounded-[2rem] border border-border/40 shadow-sm items-center">
             <div className="relative group md:col-span-2">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input
@@ -255,6 +294,16 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
                 ))}
               </SelectContent>
             </Select>
+            <div className="flex items-center justify-between px-4 h-12 rounded-2xl border border-border/40 bg-background/50">
+                <span className="text-sm font-bold text-muted-foreground">Solo activos</span>
+                <Switch 
+                    checked={isActiveFilter} 
+                    onCheckedChange={(val) => {
+                        setIsActiveFilter(val);
+                        setPage(0);
+                    }} 
+                />
+            </div>
           </div>
 
           {/* Tabla */}
@@ -272,6 +321,8 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">DNI / ID</TableHead>
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Trabajador</TableHead>
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Proveedor</TableHead>
+                  <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Categoría</TableHead>
+                  <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Estado</TableHead>
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Teléfono</TableHead>
                   <TableHead className="font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Email</TableHead>
                   <TableHead className="text-right pr-8 font-black uppercase tracking-tighter text-[11px] text-muted-foreground/70">Acciones</TableHead>
@@ -305,6 +356,20 @@ export function PersonalExternoClient({ initialData }: PersonalExternoClientProp
                       <TableCell>
                         <Badge variant="outline" className="rounded-lg font-bold border-primary/20 bg-primary/5 text-primary uppercase text-[10px] px-2 py-0.5">
                           {proveedoresMap.get(item.proveedorId) || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-bold text-xs uppercase text-muted-foreground/80">{item.categoria || '-'}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={item.activo ? "default" : "secondary"} 
+                          className={cn(
+                            "rounded-lg font-black uppercase text-[10px] px-2 py-0.5",
+                            item.activo ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {item.activo ? 'Activo' : 'Inactivo'}
                         </Badge>
                       </TableCell>
                       <TableCell>

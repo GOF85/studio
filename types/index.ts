@@ -569,17 +569,20 @@ export type AtipicoOrder = {
 };
 
 export type PersonalMiceOrder = {
-    id: string;
+    id: string; // ID de la asignación (PK)
     osId: string;
+    personalId?: string; // ID del empleado (FK a personal.id)
     centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
     nombre: string;
     dni: string;
     tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
+    fecha: string; // YYYY-MM-DD
     horaEntrada: string;
     horaSalida: string;
     precioHora: number;
     horaEntradaReal?: string;
     horaSalidaReal?: string;
+    comentario?: string;
 }
 
 export type AsignacionPersonal = {
@@ -1262,7 +1265,7 @@ export type SolicitudPersonalCPR = {
 
 export const ESTADO_CESION_PERSONAL = ['Solicitado', 'Aprobado', 'Asignado', 'Cerrado', 'Rechazado'] as const;
 export type EstadoCesionPersonal = typeof ESTADO_CESION_PERSONAL[number];
-export const CENTRO_COSTE_OPCIONES = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH', 'ALMACEN', 'COMERCIAL', 'DIRECCION', 'MARKETING', 'PASE', 'CPR'] as const;
+export const CENTRO_COSTE_OPCIONES = ['SALA', 'PASE', 'CPR', 'ALMACEN', 'RRHH', 'COMERCIAL', 'DIRECCION', 'MARKETING'] as const;
 export type CentroCoste = typeof CENTRO_COSTE_OPCIONES[number];
 
 export type CesionStorage = {
