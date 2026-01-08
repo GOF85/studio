@@ -120,6 +120,14 @@ Para páginas de gestión dentro de una Orden de Servicio (`/os/[id]/*`), se deb
      - Hover: Muestra la diferencia absoluta en Euros (€).
 - Estilo de Texto: Etiquetas en `text-[10px] font-bold uppercase tracking-wider`. Valores en `font-black tabular-nums`. Los decimales deben ser ligeramente más pequeños (`text-[10px]`) que el entero (`text-base`).
 
+Patrón de Mini-Dashboard Cards (Alta Densidad):
+Para resúmenes de estado en módulos de gestión (ej. Alquiler, Bodega):
+- Estructura: `Card` con `CardContent` (sin header para ahorrar espacio).
+- Contenido en una línea: Título de estado (`text-[10px] uppercase`) + Métrica principal y secundaria en una sola fila visual.
+- Métrica Principal: Valor destacable (ej. nº de referencias) en `text-xl font-black`.
+- Métrica Secundaria: Detalle técnico (ej. total unidades) en `text-[11px] font-bold text-foreground/80`.
+- Indicador Lateral: Borde izquierdo semántico (`border-l-4` o div de 1px) que indica el estado (Azul: Pendiente, Ámbar: Proceso, Verde: Listo).
+
 Patrón de Botón de Apoyo (Resumen Briefing):
 Para proporcionar acceso rápido al contexto comercial sin salir de la página de gestión:
 - Estilo "Black & Bold": Fondo `bg-zinc-900` con texto `text-zinc-50`.

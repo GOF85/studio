@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, memo } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { PlusCircle, Eye, Trash2, FileText, Archive } from 'lucide-react'
+import { PlusCircle, Eye, Trash2, FileText, Archive, AlertTriangle } from 'lucide-react'
 import type { OrderItem, PickingSheet, ComercialBriefingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +44,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { format } from 'date-fns'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -53,11 +59,12 @@ import {
   useReturnSheets,
   useEvento,
 } from '@/hooks/use-data-queries'
-import { useComercialBriefing } from '@/hooks/use-briefing-data'
+import { useComercialBriefing, useComercialAjustes } from '@/hooks/use-briefing-data'
 import {
   useUpdateMaterialOrderItem,
   useDeleteMaterialOrderItem,
 } from '@/hooks/mutations/use-material-mutations'
+import { useObjetivosGasto, useObjetivosGastoPlantillas } from '@/hooks/use-objetivos-gasto'
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string
@@ -82,6 +89,117 @@ const statusMap: Record<PickingSheet['status'], StatusColumn> = {
   'En Proceso': 'En Preparación',
   Listo: 'Listo',
 }
+
+const AlquilerHeaderMetrics = memo(({ totalPlanned, facturacion = 0, osId }: { totalPlanned: number; facturacion: number; osId: string }) => {
+  // Objetivos de Gasto
+  const { data: objetivos } = useObjetivosGasto(osId)
+  const { data: plantillas } = useObjetivosGastoPlantillas()
+
+  const { objetivoValue, objetivoPctLabel } = useMemo(() => {
+    const objetivoTemplate = objetivos || plantillas?.find((p: any) => {
+      const name = p.nombre?.toLowerCase() || p.name?.toLowerCase() || ''
+      return name === 'micecatering' || name === 'mice catering' || name === 'general'
+    })
+    
+    const pct = objetivoTemplate?.alquiler || 0
+    const objetivoPct = (Number(pct) || 0) / 100
+    
+    return { 
+      objetivoValue: facturacion * objetivoPct, 
+      objetivoPctLabel: `${Number(pct).toFixed(1)}%` 
+    }
+  }, [objetivos, plantillas, facturacion])
+
+  const desviacionPct = useMemo(() => {
+    if (!objetivoValue || objetivoValue === 0) return 0
+    return ((totalPlanned - objetivoValue) / objetivoValue) * 100
+  }, [totalPlanned, objetivoValue])
+
+  const planificadoPctFacturacion = useMemo(() => {
+    if (!facturacion || facturacion === 0) return '0%'
+    return `${((totalPlanned / facturacion) * 100).toFixed(1)}%`
+  }, [totalPlanned, facturacion])
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Presupuesto Actual */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-3 px-3 py-1 bg-blue-50/50 dark:bg-blue-500/5 border border-blue-200/50 rounded-lg transition-all cursor-help shrink-0">
+            <span className="text-[10px] font-bold uppercase text-blue-600/70 tracking-wider">Planificado</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className="font-black text-sm md:text-base text-blue-700 tabular-nums">
+                {formatCurrency(totalPlanned).split(',')[0]}
+              </span>
+              <span className="text-[10px] font-bold text-blue-600/60">
+                ,{formatCurrency(totalPlanned).split(',')[1]}
+              </span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="font-bold">
+          {planificadoPctFacturacion} de facturación
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Objetivo de Gasto */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-3 px-3 py-1 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 rounded-lg transition-all cursor-help shrink-0">
+            <span className="text-[10px] font-bold uppercase text-muted-foreground/70 tracking-wider">Objetivo</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className="font-black text-sm md:text-base text-zinc-700 dark:text-zinc-300 tabular-nums">
+                {formatCurrency(objetivoValue).split(',')[0]}
+              </span>
+              <span className="text-[10px] font-bold text-zinc-500/60 text-zinc-400">
+                ,{formatCurrency(objetivoValue).split(',')[1]}
+              </span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="font-bold flex flex-col gap-1">
+          <span>{objetivoPctLabel} de facturación (Objetivo)</span>
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Desviación */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={cn(
+            "flex items-center gap-3 px-3 py-1 border rounded-lg transition-all cursor-help shrink-0",
+            desviacionPct > 1 
+              ? "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30" 
+              : "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30"
+          )}>
+            <div className="flex flex-col">
+              <span className={cn(
+                "text-[10px] font-bold uppercase tracking-wider",
+                desviacionPct > 1 ? "text-red-600/70" : "text-emerald-600/70"
+              )}>Desviación</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {desviacionPct > 1 && <AlertTriangle className="w-3.5 h-3.5 text-red-600" />}
+              <span className={cn(
+                "font-black text-sm md:text-base tabular-nums",
+                desviacionPct > 1 ? "text-red-700" : "text-emerald-700"
+              )}>
+                {desviacionPct > 0 ? '+' : ''}{desviacionPct.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="font-bold">
+          {desviacionPct > 0 ? 'Sobre el presupuesto objetivo' : 'Bajo el presupuesto objetivo'}
+          <div className="text-[10px] text-muted-foreground mt-1 font-mono">
+            Diferencia: {formatCurrency(totalPlanned - objetivoValue)}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  )
+})
+
+AlquilerHeaderMetrics.displayName = 'AlquilerHeaderMetrics'
 
 function BriefingSummaryDialog({ items }: { items: ComercialBriefingItem[] }) {
   const sortedItems = useMemo(() => {
@@ -209,12 +327,42 @@ export default function AlquilerPage() {
   const { data: pickingSheets = [], isLoading: isLoadingPicking } = usePickingSheets(serviceOrder?.id)
   const { data: returnSheets = [], isLoading: isLoadingReturns } = useReturnSheets(serviceOrder?.id)
   const { data: briefing, isLoading: isLoadingBriefing } = useComercialBriefing(serviceOrder?.id)
+  const { data: ajustes = [], isLoading: isLoadingAjustes } = useComercialAjustes(serviceOrder?.id)
 
   const updateItemMutation = useUpdateMaterialOrderItem()
   const deleteItemMutation = useDeleteMaterialOrderItem()
 
   const isLoading =
-    isLoadingOS || isLoadingOrders || isLoadingPicking || isLoadingReturns || isLoadingBriefing
+    isLoadingOS || 
+    isLoadingOrders || 
+    isLoadingPicking || 
+    isLoadingReturns || 
+    isLoadingBriefing || 
+    isLoadingAjustes
+
+  const facturacionNeta = useMemo(() => {
+    if (!serviceOrder) return 0
+
+    const totalBriefing =
+      briefing?.items?.reduce(
+        (acc, item) =>
+          acc + item.asistentes * item.precioUnitario + (item.importeFijo || 0),
+        0,
+      ) || 0
+    const totalAjustes =
+      ajustes.reduce((sum, ajuste) => sum + ajuste.importe, 0) || 0
+    
+    const facturacionBruta = totalBriefing + totalAjustes
+    
+    const agencyCommission =
+      (facturacionBruta * (serviceOrder?.agencyPercentage || 0)) / 100 +
+      (serviceOrder?.agencyCommissionValue || 0)
+    const spaceCommission =
+      (facturacionBruta * (serviceOrder?.spacePercentage || 0)) / 100 +
+      (serviceOrder?.spaceCommissionValue || 0)
+    
+    return facturacionBruta - agencyCommission - spaceCommission
+  }, [serviceOrder, briefing, ajustes])
 
   const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } =
     useMemo(() => {
@@ -344,6 +492,10 @@ export default function AlquilerPage() {
         totalValoracionPendiente,
       }
     }, [materialOrders, pickingSheets, returnSheets])
+
+  const totalPlanned = useMemo(() => {
+    return allItems.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0)
+  }, [allItems])
 
   const handleItemChange = useCallback(
     async (orderId: string, itemCode: string, field: string, value: any) => {
@@ -495,79 +647,102 @@ export default function AlquilerPage() {
   }
 
   return (
-    <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
-      {/* Header Premium Sticky */}
-      <div className="sticky top-12 z-30 bg-background/60 backdrop-blur-md border-b border-border/40 mb-6">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
-          <div className="flex items-center">
-            <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
-              <Archive className="h-5 w-5 text-blue-500" />
+    <TooltipProvider>
+      <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
+        {/* Header Premium Sticky */}
+        <div className="sticky top-[5.25rem] md:top-[88px] z-30 bg-background/95 backdrop-blur-md border-b border-border/40 transition-none shadow-sm mb-6">
+          <div className="max-w-7xl mx-auto px-4 py-1.5 flex items-center justify-between gap-4 min-h-12">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 shadow-sm">
+                  <Archive className="h-4 w-4 text-blue-500" />
+                </div>
+                <div className="flex flex-col">
+                  <h1 className="text-[11px] font-black uppercase tracking-tight leading-none text-blue-600">Alquiler</h1>
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none opacity-70 truncate max-w-[120px] md:max-w-[200px]">{serviceOrder?.nombre_evento}</p>
+                </div>
+              </div>
+
+              <div className="h-8 w-px bg-border/40 hidden md:block" />
+
+              <div className="hidden md:block">
+                <AlquilerHeaderMetrics 
+                  totalPlanned={totalPlanned} 
+                  facturacion={facturacionNeta} 
+                  osId={serviceOrder?.id || osId}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={allItems.length === 0}
+                    className="h-8 text-[10px] font-black uppercase tracking-widest border-border/40 hover:bg-blue-500/5 px-2 md:px-3"
+                  >
+                    <Eye className="mr-2 h-3.5 w-3.5" />
+                    <span className="hidden md:inline">Resumen Artículos</span>
+                    <span className="inline md:hidden">Resumen</span>
+                  </Button>
+                </DialogTrigger>
+                {renderSummaryModal()}
+              </Dialog>
+              <BriefingSummaryTrigger items={briefing?.items || []} />
+              <Button 
+                asChild
+                className="h-8 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 px-2 md:px-3"
+              >
+                <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
+                  <PlusCircle className="mr-2 h-3.5 w-3.5" />
+                  <span className="hidden md:inline">Nuevo Pedido</span>
+                  <span className="inline md:hidden">Pedido</span>
+                </Link>
+              </Button>
             </div>
           </div>
-
-          <div className="flex-1" />
-
-          <div className="flex items-center gap-2">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={allItems.length === 0}
-                  className="h-8 text-[10px] font-black uppercase tracking-widest border-border/40 hover:bg-blue-500/5"
-                >
-                  <Eye className="mr-2 h-3.5 w-3.5" />
-                  Resumen Artículos
-                </Button>
-              </DialogTrigger>
-              {renderSummaryModal()}
-            </Dialog>
-            <BriefingSummaryTrigger items={briefing?.items || []} />
-            <Button 
-              asChild
-              className="h-8 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
-            >
-              <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
-                <PlusCircle className="mr-2 h-3.5 w-3.5" />
-                Nuevo Pedido
-              </Link>
-            </Button>
-          </div>
         </div>
-      </div>
 
-      <main className="space-y-6">
+      <main className="space-y-6 container mx-auto px-4">
 
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
           {(Object.keys(itemsByStatus) as StatusColumn[]).map((status) => {
             const items = itemsByStatus[status]
             const totalValue = items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0)
             const accentColor = status === 'Asignado' ? 'bg-blue-500' : status === 'En Preparación' ? 'bg-amber-500' : 'bg-emerald-500'
+            const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
             
             return (
               <Card 
                 key={status}
-                className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden hover:bg-accent/5 transition-colors cursor-pointer relative group"
+                className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden hover:bg-accent/5 transition-all duration-300 cursor-pointer relative group h-auto"
                 onClick={() => setActiveModal(status)}
               >
                 <div className={cn("absolute top-0 left-0 w-1 h-full transition-all group-hover:w-1.5", accentColor)} />
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                    {status === 'Asignado' ? 'Asignado (Pendiente)' : status}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-black tracking-tight">{items.length}</span>
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Referencias</span>
-                  </div>
-                  <div className="mt-2 flex flex-col gap-0.5">
-                    <p className="text-[11px] font-medium text-muted-foreground">
-                      {items.reduce((sum, item) => sum + item.quantity, 0).toLocaleString('es-ES')} artículos
-                    </p>
-                    <p className="text-[11px] font-black text-foreground">
-                      {formatCurrency(totalValue)}
-                    </p>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground opacity-80">
+                        {status === 'Asignado' ? 'Pendiente' : status}
+                      </span>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-xl font-black text-foreground tabular-nums tracking-tight">
+                          {items.length}
+                        </span>
+                        <span className="text-[9px] font-bold uppercase text-muted-foreground/60 leading-none">Refs</span>
+                        <span className="text-muted-foreground/30 mx-1">•</span>
+                        <span className="text-[11px] font-bold text-foreground/80 tabular-nums">
+                          {totalItems.toLocaleString('es-ES')} <span className="text-[9px] font-medium opacity-60 uppercase">Uds</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[12px] font-black text-foreground tabular-nums">
+                        {formatCurrency(totalValue)}
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -783,5 +958,6 @@ export default function AlquilerPage() {
         </AlertDialog>
       </main>
     </Dialog>
+    </TooltipProvider>
   )
 }
