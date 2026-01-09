@@ -26,6 +26,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useComercialBriefing } from '@/hooks/use-briefing-data';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { Combobox } from '../ui/combobox';
@@ -62,6 +63,7 @@ interface OrderSummaryProps {
   onAddLocation: (newLocation: string) => void;
   existingOrderData?: ExistingOrderData | null;
   orderType: string | null;
+  osId?: string;
 }
 
 function isValidImageUrl(string: string) {
@@ -76,7 +78,7 @@ function isValidImageUrl(string: string) {
   }
 }
 
-export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, serviceOrder, onAddLocation, existingOrderData, orderType }: OrderSummaryProps) {
+export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, serviceOrder, onAddLocation, existingOrderData, orderType, osId }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [isReviewOpen, setReviewOpen] = useState(false);
@@ -87,6 +89,11 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const [solicita, setSolicita] = useState<'Sala' | 'Cocina' | undefined>(undefined);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { toast } = useToast();
+
+  // Obtener el briefing para extraer las salas
+  // Preferir serviceOrder.id (UUID) sobre osId (numero_expediente) para mejor compatibilidad
+  const briefingOsId = serviceOrder?.id || osId;
+  const { data: briefingData } = useComercialBriefing(briefingOsId);
 
   const isRental = orderType === 'Alquiler';
   const isHielo = orderType === 'Hielo';
@@ -117,8 +124,22 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   }, [modalImage]);
   
   const locationOptions = useMemo(() => {
-    return serviceOrder?.deliveryLocations?.map(loc => ({ label: loc, value: loc })) || [];
-  }, [serviceOrder]);
+    // Extraer salas únicas del briefing de la OS
+    const briefingItems = briefingData?.items || [];
+    const uniqueSalas = new Set<string>();
+    
+    briefingItems.forEach((item: any) => {
+      // Buscar en múltiples campos posibles: sala, solicita, ubicacion, etc.
+      const sala = item.sala || item.solicita || item.ubicacion || item.location || '';
+      if (sala && sala.trim()) {
+        uniqueSalas.add(sala.trim());
+      }
+    });
+    
+    return Array.from(uniqueSalas)
+      .sort()
+      .map(sala => ({ label: sala, value: sala }));
+  }, [briefingData]);
 
 
   const subtotal = useMemo(() => {
@@ -133,11 +154,17 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const total = itemsTotal;
 
   const handleLocationChange = (value: string) => {
-    const isNew = !locationOptions.some(opt => opt.value === value);
-    if(isNew && value) {
-      onAddLocation(value);
+    // Solo permitir salas que existen en el briefing
+    const salaExiste = locationOptions.some(opt => opt.value === value);
+    if (salaExiste || value === '') {
+      setDeliveryLocation(value);
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Sala no disponible',
+        description: 'Solo puedes seleccionar salas que existen en el briefing de esta Orden de Servicio.'
+      });
     }
-    setDeliveryLocation(value);
   }
 
   const handleSubmit = () => {
@@ -337,15 +364,17 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                         <Input id="delivery-space-dialog" value={deliverySpace} readOnly placeholder="Espacio definido en la OS" />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="delivery-location-dialog">Localización</Label>
+                        <Label htmlFor="delivery-location-dialog">Localización (del Briefing)</Label>
                         <Combobox
                           options={locationOptions}
                           value={deliveryLocation}
                           onChange={handleLocationChange}
-                          onCreated={onAddLocation}
-                          placeholder="Busca o crea una localización..."
-                          searchPlaceholder="Buscar localización..."
+                          placeholder="Selecciona una sala del briefing..."
+                          searchPlaceholder="Buscar sala..."
                         />
+                        {locationOptions.length === 0 && (
+                          <p className="text-xs text-amber-600 italic">No hay salas definidas en el briefing de esta OS. Define salas en el módulo Comercial primero.</p>
+                        )}
                     </div>
                      <div className="space-y-2">
                         <Label>Solicita</Label>

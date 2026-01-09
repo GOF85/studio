@@ -176,7 +176,7 @@ export default function GastronomiaPage() {
   }, [gastronomyOrders, existingStaffOrders])
 
   // Bodega CTA: presupuesto/objetivo for Bodega module (used in header)
-  const { data: materialOrders = [] } = useMaterialOrders(serviceOrder?.id, 'Bodega')
+  const { data: materialOrders = [] } = useMaterialOrders(serviceOrder?.numero_expediente, 'Bodega')
   const presupuestoBodega = useMemo(() => {
     const safe = materialOrders || []
     return safe.reduce((acc: number, o: any) => acc + (o.total || 0), 0)

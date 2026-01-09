@@ -60,6 +60,7 @@ export type OrderItem = CateringItem & {
     quantity: number;
     orderId?: string;
     tipo?: string;
+    deliveryLocation?: string;
     ajustes?: {
         tipo: 'merma' | 'exceso' | 'ajuste manual' | 'devolucion';
         cantidad: number;

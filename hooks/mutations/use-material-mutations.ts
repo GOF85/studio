@@ -5,6 +5,42 @@ import type { OrderItem } from '@/types';
 
 
 /**
+ * Upsert a material order (creates new or merges with existing pending order)
+ */
+export function useUpsertMaterialOrder() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (params: {
+            osId: string;
+            type?: string;
+            items: any[];
+            days?: number;
+            deliveryDate?: string;
+            deliverySpace?: string;
+            deliveryLocation?: string;
+            solicita?: string;
+        }) => {
+            const response = await fetch('/api/material-orders/upsert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(params),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to upsert order');
+            }
+
+            return response.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['materialOrders'] });
+        },
+    });
+}
+
+/**
  * Create a material order item
  * Note: Material orders are stored as individual items in the database
  */
@@ -41,54 +77,46 @@ export function useUpdateMaterialOrderItem() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ id, updates, orderId }: { id: string; updates: Partial<OrderItem>, orderId?: string }) => {
-            // If orderId is provided, we are updating an item inside a material_order (JSONB)
-            if (orderId) {
-                const { data: order, error: fetchError } = await supabase
-                    .from('material_orders')
-                    .select('items')
-                    .eq('id', orderId)
-                    .single();
-                
-                if (fetchError) throw fetchError;
+        mutationFn: async ({ id, updates, orderId }: { id: string; updates: Partial<OrderItem>, orderId: string }) => {
+            console.log('\n🟢 [MUTATION] Iniciando update:');
+            console.log(`   itemCode: ${id}`);
+            console.log(`   orderId: ${orderId}`);
+            
+            // Extract field and value from updates (expects single key-value pair)
+            const entries = Object.entries(updates);
+            if (entries.length !== 1) {
+                throw new Error('Updates must contain exactly one field');
+            }
+            
+            const [field, value] = entries[0];
+            console.log(`   field: ${field} → ${value}`);
 
-                const newItems = order.items.map((item: any) => {
-                    if (item.itemCode === id) {
-                        return { ...item, ...updates };
-                    }
-                    return item;
-                });
+            // Use API route to handle the update
+            console.log(`📤 Enviando POST a /api/material-orders/update-item`);
+            const response = await fetch('/api/material-orders/update-item', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orderId,
+                    itemCode: id,
+                    field,
+                    value
+                })
+            });
 
-                const { data, error } = await supabase
-                    .from('material_orders')
-                    .update({ 
-                        items: newItems,
-                        total: newItems.reduce((acc: number, curr: any) => acc + (curr.price * curr.quantity), 0)
-                    })
-                    .eq('id', orderId)
-                    .select()
-                    .single();
+            console.log(`📥 Response status: ${response.status}`);
+            const result = await response.json();
 
-                if (error) throw error;
-                return data;
+            if (!response.ok) {
+                console.error(`❌ API Error (${response.status}):`, result);
+                throw new Error(result.error || 'Failed to update item');
             }
 
-            // Legacy support for pedidos_material table
-            const { data, error } = await supabase
-                .from('pedidos_material')
-                .update({
-                    cantidad: updates.quantity,
-                    precio_unitario: updates.price,
-                    total: updates.price && updates.quantity ? updates.price * updates.quantity : undefined,
-                })
-                .eq('id', id)
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data;
+            console.log(`✅ Update exitoso`);
+            return result.data;
         },
         onSuccess: () => {
+            console.log(`🔄 Invalidando queries...`);
             queryClient.invalidateQueries({ queryKey: ['materialOrders'] });
             queryClient.invalidateQueries({ queryKey: ['material'] });
         }
@@ -102,7 +130,7 @@ export function useDeleteMaterialOrderItem() {
         mutationFn: async ({ id, orderId }: { id: string, orderId?: string }) => {
             if (orderId) {
                 const { data: order, error: fetchError } = await supabase
-                    .from('material_orders')
+                    .from('os_material_orders')
                     .select('items')
                     .eq('id', orderId)
                     .single();
@@ -113,7 +141,7 @@ export function useDeleteMaterialOrderItem() {
 
                 if (newItems.length === 0) {
                     const { error } = await supabase
-                        .from('material_orders')
+                        .from('os_material_orders')
                         .delete()
                         .eq('id', orderId);
                     if (error) throw error;
@@ -121,7 +149,7 @@ export function useDeleteMaterialOrderItem() {
                 }
 
                 const { error } = await supabase
-                    .from('material_orders')
+                    .from('os_material_orders')
                     .update({ 
                         items: newItems,
                         total: newItems.reduce((acc: number, curr: any) => acc + (curr.price * curr.quantity), 0)

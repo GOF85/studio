@@ -6,7 +6,7 @@ export const useOSMaterialOrders = () => {
     const loadOrders = useCallback(async (osId: string, type?: string) => {
         try {
             const targetId = await resolveOsId(osId);
-            let query = supabase.from('material_orders').select('*');
+            let query = supabase.from('os_material_orders').select('*');
             
             if (targetId && targetId !== osId) {
                 const orExpr = buildOsOr(osId, targetId);
@@ -65,12 +65,12 @@ export const useOSMaterialOrders = () => {
 
             let result;
             if (isUuid) {
-                result = await supabase.from('material_orders').upsert({
+                result = await supabase.from('os_material_orders').upsert({
                     id: order.id,
                     ...payload
                 }).select().single();
             } else {
-                result = await supabase.from('material_orders').insert(payload).select().single();
+                result = await supabase.from('os_material_orders').insert(payload).select().single();
             }
 
             if (result.error) throw result.error;
@@ -83,7 +83,7 @@ export const useOSMaterialOrders = () => {
 
     const deleteOrder = useCallback(async (id: string) => {
         try {
-            const { error } = await supabase.from('material_orders').delete().eq('id', id);
+            const { error } = await supabase.from('os_material_orders').delete().eq('id', id);
             if (error) throw error;
         } catch (error) {
             console.error('Error deleting material order:', error);

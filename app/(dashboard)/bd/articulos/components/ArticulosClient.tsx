@@ -43,6 +43,7 @@ import { downloadCSVTemplate, cn, normalizeCategoria } from '@/lib/utils';
 
 import { useArticulosPaginated, useDeleteArticulo, useUpsertArticulo, useBulkDeleteArticulos, useSyncArticulosWithERP, useArticulosCategorias } from '@/hooks/use-data-queries';
 import { supabase } from '@/lib/supabase';
+import { getAllArticulos } from '@/services/articulos-service';
 import { MobileTableView, type MobileTableColumn } from '@/components/ui/mobile-table-view';
 import { TableLoadingSplash } from '@/components/layout/table-loading-splash';
 import { SyncProgressDialog } from './SyncProgressDialog';
@@ -355,49 +356,74 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
     }
   };
 
-  const handleExportCSV = () => {
-    const micecateringItems = items.filter((item: ArticuloCatering) => item.tipoArticulo === 'micecatering');
-    if (micecateringItems.length === 0) {
-      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
-      return;
+  const handleExportCSV = async () => {
+    try {
+      toast({ title: 'Exportando...', description: 'Obteniendo todos los datos...' });
+      
+      const allArticulos = await getAllArticulos(supabase, 'micecatering');
+      
+      if (allArticulos.length === 0) {
+        toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
+        return;
+      }
+
+      const dataToExport = allArticulos.map((item: any) => {
+        // Obtener la URL de la imagen principal del bucket
+        let imagenUrl = '';
+        if (Array.isArray(item.imagenes) && item.imagenes.length > 0) {
+          const principal = item.imagenes.find((img: any) => img?.esPrincipal);
+          const img = principal || item.imagenes[0];
+          if (typeof img === 'string') {
+            imagenUrl = img;
+          } else if (img?.url) {
+            imagenUrl = img.url;
+          }
+        } else if (item.imagen) {
+          // Fallback al campo imagen directo
+          imagenUrl = item.imagen;
+        }
+
+        return {
+          id: item.id,
+          erp_id: item.erpId,
+          nombre: item.nombre,
+          categoria: item.categoria,
+          es_habitual: item.esHabitual ? 'true' : 'false',
+          precio_venta: item.precioVenta,
+          precio_alquiler: item.precioAlquiler,
+          precio_reposicion: item.precioReposicion,
+          unidad_venta: item.unidadVenta,
+          stock_seguridad: item.stockSeguridad,
+          tipo: item.tipo,
+          loc: item.loc,
+          imagen: imagenUrl,
+          producido_por_partner: item.producidoPorPartner ? 'true' : 'false',
+          partner_id: item.partnerId,
+          receta_id: item.recetaId,
+          subcategoria: item.subcategoria,
+          iva: item.iva,
+          doc_drive_url: item.docDriveUrl,
+        };
+      });
+
+      const csv = Papa.unparse(dataToExport, { 
+        columns: CSV_HEADERS,
+        delimiter: ';'
+      });
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `articulos-micecatering-completo.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({ title: 'Exportación completada', description: `Se exportaron ${allArticulos.length} artículos` });
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo exportar los datos.' });
     }
-
-    const dataToExport = micecateringItems.map((item: any) => ({
-      id: item.id,
-      erp_id: item.erpId,
-      nombre: item.nombre,
-      categoria: item.categoria,
-      es_habitual: item.esHabitual ? 'true' : 'false',
-      precio_venta: item.precioVenta,
-      precio_alquiler: item.precioAlquiler,
-      precio_reposicion: item.precioReposicion,
-      unidad_venta: item.unidadVenta,
-      stock_seguridad: item.stockSeguridad,
-      tipo: item.tipo,
-      loc: item.loc,
-      imagen: item.imagen,
-      producido_por_partner: item.producidoPorPartner ? 'true' : 'false',
-      partner_id: item.partnerId,
-      receta_id: item.recetaId,
-      subcategoria: item.subcategoria,
-      iva: item.iva,
-      doc_drive_url: item.docDriveUrl,
-    }));
-
-    const csv = Papa.unparse(dataToExport, { 
-      columns: CSV_HEADERS,
-      delimiter: ';'
-    });
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `articulos-micecatering.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: 'Exportación completada' });
   };
 
   const handleSyncERP = async () => {
@@ -574,21 +600,21 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
       <div className="hidden md:block rounded-xl border border-border/40 bg-card/40 backdrop-blur-md overflow-hidden shadow-xl">
         <Table>
           <TableHeader className="bg-muted/30">
-            <TableRow className="hover:bg-transparent border-border/40 h-10">
-              <TableHead className="w-10 text-center p-1 align-middle">
+            <TableRow className="hover:bg-transparent border-border/40 h-8">
+              <TableHead className="w-8 text-center p-0 align-middle">
                 <Checkbox
                   checked={selectedIds.size === items.length && items.length > 0 ? true : selectedIds.size > 0 ? 'indeterminate' : false}
                   onCheckedChange={handleToggleAll}
                   className="rounded h-4 w-4 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
               </TableHead>
-              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 p-1">Nombre</TableHead>
-              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 p-1">Categoría</TableHead>
-              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 p-1">Subcat.</TableHead>
-              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 p-1">Loc.</TableHead>
-              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 text-right p-1">PVP</TableHead>
-              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 text-right p-1">Alquiler</TableHead>
-              <TableHead className="font-black text-[11px] uppercase tracking-[0.15em] text-muted-foreground/60 text-right p-1 pr-4">Repos.</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60 p-1 py-1">Nombre</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60 p-1 py-1">Cat.</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60 p-1 py-1">Sub.</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60 p-1 py-1">Loc.</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60 text-right p-1 py-1">PVP</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60 text-right p-1 py-1">Alq.</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60 text-right p-1 py-1 pr-3">Rep.</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -600,26 +626,26 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
                   <TableRow
                     key={item.id}
                     className={cn(
-                      "group cursor-pointer transition-all duration-200 border-border/40 h-10 text-xs align-middle",
+                      "group cursor-pointer transition-all duration-200 border-border/40 h-8 text-xs align-middle",
                       isSelected 
                         ? "bg-primary/5 border-l-2 border-l-primary" 
                         : "hover:bg-primary/[0.03]",
                       item.tipoArticulo === 'entregas' && !isSelected && "bg-orange-50/30",
                       isEditing && "bg-primary/10"
                     )}
-                    style={{ lineHeight: 1.1, padding: 0 }}
+                    style={{ lineHeight: 1, padding: 0 }}
                     onClick={() => !isEditing && router.push(`/bd/articulos/${item.id}`)}
                   >
-                    <TableCell onClick={(e) => e.stopPropagation()} className="text-center p-1 align-middle">
+                    <TableCell onClick={(e) => e.stopPropagation()} className="text-center p-0 py-1 align-middle">
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => handleToggleItem(item.id)}
                         className="rounded h-4 w-4 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                       />
                     </TableCell>
-                    <TableCell className="p-1 align-middle">
+                    <TableCell className="p-1 py-1 align-middle">
                       <div className="relative group">
-                        <span className="font-bold text-xs tracking-tight group-hover:text-primary transition-colors leading-tight cursor-pointer">
+                        <span className="font-bold text-[9px] tracking-tight group-hover:text-primary transition-colors leading-tight cursor-pointer line-clamp-2">
                           {item.nombre}
                         </span>
                         {/* Tooltip imagen principal */}
@@ -636,7 +662,7 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
                                   return imgs[0]?.url || '';
                                 })()}
                                 alt={item.nombre}
-                                className="max-w-[180px] max-h-[120px] object-contain"
+                                className="max-w-[150px] max-h-[100px] object-contain"
                                 style={{ minWidth: 80, minHeight: 60 }}
                               />
                             </div>
@@ -644,18 +670,18 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell onClick={(e) => e.stopPropagation()} className="p-0 py-1">
                       {isEditing ? (
                         <Select 
                           value={editValues.categoria} 
                           onValueChange={(val) => setEditValues(prev => ({ ...prev, categoria: val }))}
                         >
-                          <SelectTrigger className="h-9 w-[140px] bg-background/50 border-border/40 rounded-xl font-bold text-[10px] uppercase tracking-widest">
+                          <SelectTrigger className="h-7 w-[110px] bg-background/50 border-border/40 rounded-lg font-bold text-[9px] uppercase tracking-widest">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="rounded-xl border-border/40 shadow-2xl">
+                          <SelectContent className="rounded-lg border-border/40 shadow-2xl">
                             {categoriasDisponibles.map(c => (
-                              <SelectItem key={c} value={c} className="font-bold text-[10px] uppercase tracking-widest">
+                              <SelectItem key={c} value={c} className="font-bold text-[9px] uppercase tracking-widest">
                                 {normalizeCategoria(c)}
                               </SelectItem>
                             ))}
@@ -664,69 +690,69 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
                       ) : (
                         <Badge 
                           variant="outline" 
-                          className="rounded-xl bg-background/50 border-border/40 font-black text-[9px] uppercase tracking-widest px-3 py-1 cursor-pointer hover:bg-primary/10 transition-colors"
+                          className="rounded-lg bg-background/50 border-border/40 font-black text-[8px] uppercase tracking-widest px-2 py-0 h-6 cursor-pointer hover:bg-primary/10 transition-colors"
                           onClick={() => handleStartEdit(item)}
                         >
                           {item.categoria}
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                    <TableCell className="p-0 py-1">
+                      <span className="text-[8px] font-bold text-muted-foreground/60 uppercase tracking-widest line-clamp-1">
                         {item.subcategoria || '-'}
                       </span>
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell onClick={(e) => e.stopPropagation()} className="p-0 py-1">
                       {isEditing ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <Input 
                             value={editValues.loc}
                             onChange={(e) => setEditValues(prev => ({ ...prev, loc: e.target.value }))}
-                            className="h-9 w-[120px] bg-background/50 border-border/40 rounded-xl font-bold text-[10px] uppercase tracking-widest"
-                            placeholder="LOC..."
+                            className="h-7 w-[90px] bg-background/50 border-border/40 rounded-lg font-bold text-[8px] uppercase tracking-widest px-2"
+                            placeholder="LOC"
                             autoFocus
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') handleSaveEdit();
                               if (e.key === 'Escape') setEditingId(null);
                             }}
                           />
-                          <div className="flex gap-1">
+                          <div className="flex gap-0.5">
                             <Button 
                               size="icon" 
                               variant="ghost" 
-                              className="h-8 w-8 rounded-lg text-green-500 hover:bg-green-500/10"
+                              className="h-6 w-6 rounded text-green-500 hover:bg-green-500/10"
                               onClick={handleSaveEdit}
                               disabled={isSaving}
                             >
-                              <Check className="h-4 w-4" />
+                              <Check className="h-3 w-3" />
                             </Button>
                             <Button 
                               size="icon" 
                               variant="ghost" 
-                              className="h-8 w-8 rounded-lg text-red-500 hover:bg-red-500/10"
+                              className="h-6 w-6 rounded text-red-500 hover:bg-red-500/10"
                               onClick={() => setEditingId(null)}
                               disabled={isSaving}
                             >
-                              <X className="h-4 w-4" />
+                              <X className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
                       ) : (
                         <span 
-                          className="text-[10px] font-bold text-muted-foreground/60 cursor-pointer hover:text-primary transition-colors uppercase tracking-widest"
+                          className="text-[8px] font-bold text-muted-foreground/60 cursor-pointer hover:text-primary transition-colors uppercase tracking-widest"
                           onClick={() => handleStartEdit(item)}
                         >
-                          {item.loc || 'Sin loc.'}
+                          {item.loc || '-'}
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-black text-sm tracking-tight">
+                    <TableCell className="text-right font-black text-[9px] tracking-tight p-0 py-1">
                       {item.precioVenta?.toLocaleString ? item.precioVenta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : (parseFloat(String(item.precioVenta || 0))).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                     </TableCell>
-                    <TableCell className="text-right font-bold text-sm text-muted-foreground/60">
+                    <TableCell className="text-right font-bold text-[8px] text-muted-foreground/60 p-0 py-1">
                       {item.precioAlquiler?.toLocaleString ? (item.precioAlquiler > 0 ? item.precioAlquiler.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-') : (parseFloat(String(item.precioAlquiler || 0)) > 0 ? parseFloat(String(item.precioAlquiler || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-')}
                     </TableCell>
-                    <TableCell className="text-right font-bold text-sm text-muted-foreground/60 pr-8">
+                    <TableCell className="text-right font-bold text-[8px] text-muted-foreground/60 p-0 py-1 pr-2">
                       {item.precioReposicion?.toLocaleString ? (item.precioReposicion > 0 ? item.precioReposicion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-') : (parseFloat(String(item.precioReposicion || 0)) > 0 ? parseFloat(String(item.precioReposicion || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-')}
                     </TableCell>
                   </TableRow>
@@ -734,10 +760,10 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="h-64 text-center">
+                <TableCell colSpan={8} className="h-40 text-center">
                   <div className="flex flex-col items-center justify-center text-muted-foreground/30">
-                    <Package className="h-16 w-16 mb-4 opacity-10" />
-                    <p className="text-lg font-black uppercase tracking-widest">No se encontraron artículos</p>
+                    <Package className="h-12 w-12 mb-2 opacity-10" />
+                    <p className="text-sm font-black uppercase tracking-widest">No se encontraron artículos</p>
                     <p className="text-sm font-medium mt-1">Prueba a cambiar los filtros de búsqueda</p>
                   </div>
                 </TableCell>
@@ -748,22 +774,22 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-8 py-6 bg-muted/10 border-t border-border/40">
-            <p className="text-sm font-bold text-muted-foreground/60 uppercase tracking-widest">
-              Mostrando <span className="text-foreground font-black">{items.length}</span> de <span className="text-foreground font-black">{totalCount}</span> artículos
+          <div className="flex items-center justify-between px-4 py-3 bg-muted/10 border-t border-border/40">
+            <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">
+              <span className="text-foreground font-black">{items.length}</span> de <span className="text-foreground font-black">{totalCount}</span>
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(p => Math.max(0, p - 1))}
                 disabled={page === 0}
-                className="rounded-xl font-black uppercase tracking-widest text-[10px] h-10 px-4 border-border/40 bg-background/40 hover:bg-primary/5 transition-all"
+                className="rounded-lg font-bold uppercase tracking-widest text-[9px] h-8 px-2 border-border/40 bg-background/40 hover:bg-primary/5 transition-all"
               >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Anterior
+                <ChevronLeft className="h-3 w-3 mr-1" />
+                Ant.
               </Button>
-              <div className="flex items-center gap-1 mx-4">
+              <div className="flex items-center gap-0.5">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNum = page;
                   if (totalPages > 5) {
@@ -781,7 +807,7 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
                       size="sm"
                       onClick={() => setPage(pageNum)}
                       className={cn(
-                        "w-10 h-10 rounded-xl font-black text-[10px]",
+                        "w-7 h-7 rounded-lg font-bold text-[9px] p-0",
                         page === pageNum 
                           ? "shadow-lg shadow-primary/20 bg-primary text-primary-foreground" 
                           : "hover:bg-primary/10 text-muted-foreground"
@@ -797,10 +823,10 @@ export function ArticulosClient({ initialData }: ArticulosClientProps) {
                 size="sm"
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page === totalPages - 1}
-                className="rounded-xl font-black uppercase tracking-widest text-[10px] h-10 px-4 border-border/40 bg-background/40 hover:bg-primary/5 transition-all"
+                className="rounded-lg font-bold uppercase tracking-widest text-[9px] h-8 px-2 border-border/40 bg-background/40 hover:bg-primary/5 transition-all"
               >
-                Siguiente
-                <ChevronRight className="h-4 w-4 ml-2" />
+                Sig.
+                <ChevronRight className="h-3 w-3 ml-1" />
               </Button>
             </div>
           </div>

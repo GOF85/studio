@@ -215,7 +215,7 @@ export default function BioPage() {
 
   const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId)
   const { data: materialOrders = [], isLoading: isLoadingOrders } = useMaterialOrders(
-    serviceOrder?.id,
+    serviceOrder?.numero_expediente,
     'Bio',
   )
   const { data: pickingSheets = [], isLoading: isLoadingPicking } = usePickingSheets(
@@ -533,7 +533,7 @@ export default function BioPage() {
               asChild
               className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest h-9 px-4"
             >
-              <Link href={`/pedidos?osId=${osId}&type=Bio`}>
+              <Link href={`/pedidos?numero_expediente=${serviceOrder?.numero_expediente}&type=Bio`}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Nuevo Pedido
               </Link>

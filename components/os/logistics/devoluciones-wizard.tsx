@@ -27,7 +27,7 @@ export function DevolucionesWizard({ osId }: DevolucionesWizardProps) {
     const { data: serviceOrder } = useEvento(osId);
 
     // Data fetching
-    const { data: materialOrders, isLoading: loadingMaterial } = useMaterialOrders(serviceOrder?.id);
+    const { data: materialOrders, isLoading: loadingMaterial } = useMaterialOrders(serviceOrder?.numero_expediente);
     const { data: gastronomyOrders, isLoading: loadingGastro } = useGastronomyOrders(serviceOrder?.id);
     const { data: articulos = [] } = useArticulos();
     const { loadDevoluciones, saveDevolucion } = useDevoluciones();

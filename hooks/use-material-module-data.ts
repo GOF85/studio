@@ -7,8 +7,6 @@ export function useMaterialModuleData(osId: string, type: 'Almacen' | 'Bodega' |
         queryKey: ['materialModuleData', osId, type],
         queryFn: async () => {
             const targetId = await resolveOsId(osId);
-            const osFilter = buildOsOr(osId, targetId);
-            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(osId);
 
             const [
                 { data: orders },
@@ -18,12 +16,12 @@ export function useMaterialModuleData(osId: string, type: 'Almacen' | 'Bodega' |
                 { data: mermas },
                 { data: devoluciones }
             ] = await Promise.all([
-                isUuid ? supabase.from('material_orders').select('*').eq('evento_id', osId).eq('type', type) : (targetId && targetId !== osId ? supabase.from('material_orders').select('*').or(osFilter).eq('type', type) : supabase.from('material_orders').select('*').eq('numero_expediente', osId).eq('type', type)),
-                isUuid ? supabase.from('hojas_picking').select('*').eq('os_id', osId) : (targetId && targetId !== osId ? supabase.from('hojas_picking').select('*').or(osFilter) : Promise.resolve({ data: [] })),
-                isUuid ? supabase.from('hojas_retorno').select('*').eq('os_id', osId) : (targetId && targetId !== osId ? supabase.from('hojas_retorno').select('*').or(osFilter) : Promise.resolve({ data: [] })),
-                isUuid ? supabase.from('comercial_briefings').select('*').eq('evento_id', osId).maybeSingle() : (targetId && targetId !== osId ? supabase.from('comercial_briefings').select('*').or(osFilter).maybeSingle() : supabase.from('comercial_briefings').select('*').eq('numero_expediente', osId).maybeSingle()),
-                isUuid ? supabase.from('os_mermas').select('*').eq('evento_id', osId) : (targetId && targetId !== osId ? supabase.from('os_mermas').select('*').or(osFilter) : supabase.from('os_mermas').select('*').eq('numero_expediente', osId)),
-                isUuid ? supabase.from('os_devoluciones').select('*').eq('evento_id', osId) : (targetId && targetId !== osId ? supabase.from('os_devoluciones').select('*').or(osFilter) : supabase.from('os_devoluciones').select('*').eq('numero_expediente', osId))
+                supabase.from('os_material_orders').select('*').eq('os_id', targetId).eq('type', type),
+                supabase.from('hojas_picking').select('*').eq('os_id', targetId),
+                supabase.from('hojas_retorno').select('*').eq('os_id', targetId),
+                supabase.from('comercial_briefings').select('*').eq('os_id', targetId).maybeSingle(),
+                supabase.from('os_mermas').select('*').eq('os_id', targetId),
+                supabase.from('os_devoluciones').select('*').eq('os_id', targetId)
             ]);
 
             return {

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo, useCallback, memo } from 'react'
+import { useState, useMemo, useCallback, memo, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { PlusCircle, Eye, Trash2, FileText, Archive, AlertTriangle } from 'lucide-react'
+import { PlusCircle, Eye, Trash2, FileText, Archive, AlertTriangle, Plus, Calendar, MapPin } from 'lucide-react'
 import type { OrderItem, PickingSheet, ComercialBriefingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -65,6 +65,8 @@ import {
   useDeleteMaterialOrderItem,
 } from '@/hooks/mutations/use-material-mutations'
 import { useObjetivosGasto, useObjetivosGastoPlantillas } from '@/hooks/use-objetivos-gasto'
+import { getThumbnail } from '@/lib/image-utils'
+import { useArticulos } from '@/hooks/use-data-queries'
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string
@@ -73,7 +75,11 @@ type ItemWithOrderInfo = OrderItem & {
   solicita?: 'Sala' | 'Cocina'
   tipo?: string
   deliveryDate?: string
+  deliveryLocation?: string
   ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string }[]
+  imageUrl?: string
+  imagenes?: any
+  subcategoria?: string
 }
 
 type BlockedOrderInfo = {
@@ -121,17 +127,33 @@ const AlquilerHeaderMetrics = memo(({ totalPlanned, facturacion = 0, osId }: { t
   }, [totalPlanned, facturacion])
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       {/* Presupuesto Actual */}
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center gap-3 px-3 py-1 bg-blue-50/50 dark:bg-blue-500/5 border border-blue-200/50 rounded-lg transition-all cursor-help shrink-0">
-            <span className="text-[10px] font-bold uppercase text-blue-600/70 tracking-wider">Planificado</span>
-            <div className="flex items-baseline gap-0.5">
-              <span className="font-black text-sm md:text-base text-blue-700 tabular-nums">
+          <div className={`flex items-center gap-2 px-2.5 py-0.5 border rounded-lg transition-all cursor-help shrink-0 ${
+            totalPlanned < objetivoValue
+              ? 'bg-emerald-50/50 dark:bg-emerald-500/5 border-emerald-200/50'
+              : 'bg-red-50/50 dark:bg-red-500/5 border-red-200/50'
+          }`}>
+            <span className={`text-[9px] font-bold uppercase tracking-wider ${
+              totalPlanned < objetivoValue
+                ? 'text-emerald-600/70'
+                : 'text-red-600/70'
+            }`}>Planificado</span>
+            <div className="flex items-baseline gap-0">
+              <span className={`font-black text-xs md:text-sm tabular-nums ${
+                totalPlanned < objetivoValue
+                  ? 'text-emerald-700'
+                  : 'text-red-700'
+              }`}>
                 {formatCurrency(totalPlanned).split(',')[0]}
               </span>
-              <span className="text-[10px] font-bold text-blue-600/60">
+              <span className={`text-[8px] font-bold ${
+                totalPlanned < objetivoValue
+                  ? 'text-emerald-600/60'
+                  : 'text-red-600/60'
+              }`}>
                 ,{formatCurrency(totalPlanned).split(',')[1]}
               </span>
             </div>
@@ -145,13 +167,13 @@ const AlquilerHeaderMetrics = memo(({ totalPlanned, facturacion = 0, osId }: { t
       {/* Objetivo de Gasto */}
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center gap-3 px-3 py-1 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 rounded-lg transition-all cursor-help shrink-0">
-            <span className="text-[10px] font-bold uppercase text-muted-foreground/70 tracking-wider">Objetivo</span>
-            <div className="flex items-baseline gap-0.5">
-              <span className="font-black text-sm md:text-base text-zinc-700 dark:text-zinc-300 tabular-nums">
+          <div className="flex items-center gap-2 px-2.5 py-0.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 rounded-lg transition-all cursor-help shrink-0">
+            <span className="text-[9px] font-bold uppercase text-muted-foreground/70 tracking-wider">Objetivo</span>
+            <div className="flex items-baseline gap-0">
+              <span className="font-black text-xs md:text-sm text-zinc-700 dark:text-zinc-300 tabular-nums">
                 {formatCurrency(objetivoValue).split(',')[0]}
               </span>
-              <span className="text-[10px] font-bold text-zinc-500/60 text-zinc-400">
+              <span className="text-[8px] font-bold text-zinc-500/60 text-zinc-400">
                 ,{formatCurrency(objetivoValue).split(',')[1]}
               </span>
             </div>
@@ -166,7 +188,7 @@ const AlquilerHeaderMetrics = memo(({ totalPlanned, facturacion = 0, osId }: { t
       <Tooltip>
         <TooltipTrigger asChild>
           <div className={cn(
-            "flex items-center gap-3 px-3 py-1 border rounded-lg transition-all cursor-help shrink-0",
+            "flex items-center gap-2 px-2.5 py-0.5 border rounded-lg transition-all cursor-help shrink-0",
             desviacionPct > 1 
               ? "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30" 
               : "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30"
@@ -313,17 +335,19 @@ export default function AlquilerPage() {
   const [orderToDelete, setOrderToDelete] = useState<{ orderId: string; itemCode: string } | null>(
     null,
   )
-  const [activeModal, setActiveModal] = useState<StatusColumn | null>(null)
+  const [showAggregator, setShowAggregator] = useState(false)
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
 
   const params = useParams() ?? {}
   const osId = (params.numero_expediente as string) || ''
   const { toast } = useToast()
 
   const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId)
-  const { data: materialOrders = [], isLoading: isLoadingOrders } = useMaterialOrders(
-    serviceOrder?.id,
+  const { data: materialOrders = [], isLoading: isLoadingOrders, refetch: refetchMaterialOrders } = useMaterialOrders(
+    serviceOrder?.numero_expediente,
     'Alquiler',
   )
+  const { data: allArticulos } = useArticulos()
   const { data: pickingSheets = [], isLoading: isLoadingPicking } = usePickingSheets(serviceOrder?.id)
   const { data: returnSheets = [], isLoading: isLoadingReturns } = useReturnSheets(serviceOrder?.id)
   const { data: briefing, isLoading: isLoadingBriefing } = useComercialBriefing(serviceOrder?.id)
@@ -331,6 +355,15 @@ export default function AlquilerPage() {
 
   const updateItemMutation = useUpdateMaterialOrderItem()
   const deleteItemMutation = useDeleteMaterialOrderItem()
+
+  // Refetch material orders cuando la ventana obtiene el foco o cada 30 segundos
+  useEffect(() => {
+    const handleFocus = () => {
+      refetchMaterialOrders()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [refetchMaterialOrders])
 
   const isLoading =
     isLoadingOS || 
@@ -439,12 +472,29 @@ export default function AlquilerPage() {
       })
 
       const safeMaterialOrders = materialOrders || []
+      
+      let matchCount = 0;
       const all = safeMaterialOrders.flatMap((order) =>
         order.items.map((item) => {
           let cantidadAjustada = item.quantity
           ;(item.ajustes || []).forEach((ajuste) => {
             cantidadAjustada += ajuste.cantidad
           })
+          
+          // Buscar imagen del artículo en allArticulos (only if loaded)
+          let imageUrl: string | undefined
+          let imagenes: any
+          let subcategoria: string | undefined
+          
+          if (allArticulos && allArticulos.length > 0) {
+            const articuloData = allArticulos.find(a => a.id === item.itemCode);
+            if (articuloData) {
+              imageUrl = getThumbnail(articuloData.imagenes);
+              imagenes = articuloData.imagenes;
+              subcategoria = articuloData.subcategoria;
+            }
+          }
+          
           return {
             ...item,
             quantity: cantidadAjustada,
@@ -453,7 +503,11 @@ export default function AlquilerPage() {
             solicita: order.solicita,
             tipo: item.tipo,
             deliveryDate: order.deliveryDate,
+            deliveryLocation: order.deliveryLocation,
             ajustes: item.ajustes,
+            imageUrl,
+            imagenes,
+            subcategoria,
           } as ItemWithOrderInfo
         }),
       )
@@ -491,28 +545,45 @@ export default function AlquilerPage() {
         itemsByStatus: statusItems,
         totalValoracionPendiente,
       }
-    }, [materialOrders, pickingSheets, returnSheets])
+    }, [materialOrders, pickingSheets, returnSheets, allArticulos])
 
   const totalPlanned = useMemo(() => {
     return allItems.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0)
   }, [allItems])
 
+  const availableLocations = useMemo(() => {
+    if (!briefing?.items || briefing.items.length === 0) {
+      return []; // Sin fallback, solo salas del briefing
+    }
+    const locations = Array.from(new Set(briefing.items.map((item: any) => item.solicita || item.sala || item.ubicacion || item.location).filter(Boolean)));
+    return locations;
+  }, [briefing]);
+
   const handleItemChange = useCallback(
-    async (orderId: string, itemCode: string, field: string, value: any) => {
+    async (itemCode: string, orderId: string, field: string, value: any) => {
+      console.log('\n🟡 [HANDLE CHANGE] Usuario cambió campo:');
+      console.log(`   itemCode: ${itemCode}`);
+      console.log(`   orderId: ${orderId}`);
+      console.log(`   field: ${field}`);
+      console.log(`   value: ${value}`);
+      
       try {
+        console.log(`🔄 Llamando mutation...`);
         await updateItemMutation.mutateAsync({
-          orderId,
           id: itemCode,
+          orderId,
           updates: { [field]: value },
         })
+        console.log(`✅ Mutation completada`);
         toast({
           title: 'Actualizado',
-          description: 'El artículo ha sido actualizado correctamente.',
+          description: `${field} actualizado a: ${value}`,
         })
       } catch (error) {
+        console.error(`❌ Error en handleItemChange:`, error)
         toast({
           title: 'Error',
-          description: 'No se pudo actualizar el artículo.',
+          description: error instanceof Error ? error.message : 'No se pudo actualizar el artículo.',
           variant: 'destructive',
         })
       }
@@ -539,49 +610,6 @@ export default function AlquilerPage() {
     }
   }
 
-  const renderStatusModal = (status: StatusColumn) => {
-    const items = itemsByStatus[status]
-    return (
-      <DialogContent className="max-w-4xl bg-background/95 backdrop-blur-md border-border/40">
-        <DialogHeader>
-          <DialogTitle className="text-[14px] font-black uppercase tracking-widest">Artículos en estado: {status}</DialogTitle>
-        </DialogHeader>
-        <div className="max-h-[60vh] overflow-y-auto rounded-md border border-border/40 mt-4">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow className="hover:bg-transparent border-border/40">
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Artículo</TableHead>
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Solicita</TableHead>
-                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right">Cantidad</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.length > 0 ? (
-                items.map((item, index) => (
-                  <TableRow key={`${item.itemCode}-${index}`} className="border-border/40 hover:bg-muted/20 transition-colors">
-                    <TableCell className="px-4 py-2 text-[11px] font-bold uppercase tracking-tight">{item.description}</TableCell>
-                    <TableCell className="px-4 py-2">
-                      <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5">
-                        {item.solicita}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="px-4 py-2 text-right text-[11px] font-black font-mono">{item.quantity}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center text-[11px] text-muted-foreground italic">
-                    No hay artículos en este estado.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </DialogContent>
-    )
-  }
-
   const renderSummaryModal = () => {
     const all = [
       ...itemsByStatus.Asignado,
@@ -598,6 +626,7 @@ export default function AlquilerPage() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow className="hover:bg-transparent border-border/40">
+                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-16">Foto</TableHead>
                 <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Artículo</TableHead>
                 <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-center">Cantidad</TableHead>
                 <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-center">Cant. Cajas</TableHead>
@@ -616,6 +645,22 @@ export default function AlquilerPage() {
                     : '-'
                 return (
                   <TableRow key={`${item.itemCode}-${index}`} className="border-border/40 hover:bg-muted/20 transition-colors">
+                    <TableCell className="px-2 py-2 w-16">
+                      {item.imageUrl ? (
+                        <button
+                          onClick={() => setSelectedImageUrl(item.imageUrl!)}
+                          className="h-12 w-12 rounded overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
+                        >
+                          <img src={item.imageUrl} alt={item.description} className="h-12 w-12 object-cover" />
+                        </button>
+                      ) : (
+                        <div className="h-12 w-12 bg-muted rounded flex items-center justify-center">
+                          <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="px-4 py-2 text-[11px] font-bold uppercase tracking-tight">{item.description}</TableCell>
                     <TableCell className="px-4 py-2 text-center text-[11px] font-black font-mono">{item.quantity}</TableCell>
                     <TableCell className="px-4 py-2 text-center text-[11px] font-medium text-muted-foreground">{cajas}</TableCell>
@@ -642,28 +687,82 @@ export default function AlquilerPage() {
     )
   }
 
+  const renderAggregatorModal = () => {
+    return (
+      <DialogContent className="max-w-4xl bg-background/95 backdrop-blur-md border-border/40">
+        <DialogHeader>
+          <DialogTitle className="text-[14px] font-black uppercase tracking-widest">Agregador de Artículos Pendientes</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto rounded-md border border-border/40 mt-4">
+          <Table>
+            <TableHeader className="bg-muted/30">
+              <TableRow className="hover:bg-transparent border-border/40">
+                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-12"></TableHead>
+                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Artículo</TableHead>
+                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Solicita</TableHead>
+                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-center">Cantidad</TableHead>
+                <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right">Valoración</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pendingItems.length > 0 ? (
+                pendingItems.map((item) => (
+                  <TableRow key={item.itemCode + item.orderId} className="border-border/40 hover:bg-muted/20 transition-colors">
+                    <TableCell className="px-4 py-2">
+                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                        {item.imagenes && item.imagenes.length > 0 ? (
+                          <img src={item.imagenes[0].url} alt={item.description} className="w-full h-full object-cover rounded" />
+                        ) : (
+                          <span className="text-[7px] text-muted-foreground">img</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-4 py-2 text-[10px] font-bold uppercase tracking-tight">{item.description}</TableCell>
+                    <TableCell className="px-4 py-2 text-[10px]">{item.solicita || 'Sala'}</TableCell>
+                    <TableCell className="px-4 py-2 text-center text-[10px] font-black font-mono">{item.quantity}</TableCell>
+                    <TableCell className="px-4 py-2 text-right text-[10px] font-black font-mono">{formatCurrency(item.quantity * (item.price || 0))}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-[11px] text-muted-foreground italic">
+                    No hay artículos pendientes
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="flex justify-end items-center gap-4 p-4 bg-muted/30 border-t border-border/40 mt-4 rounded-b-lg">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total</span>
+          <span className="text-lg font-black tracking-tight">{formatCurrency(totalValoracionPendiente)}</span>
+        </div>
+      </DialogContent>
+    )
+  }
+
   if (isLoading) {
     return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />
   }
 
   return (
     <TooltipProvider>
-      <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
+      <div className="flex-1">
         {/* Header Premium Sticky */}
-        <div className="sticky top-[5.25rem] md:top-[88px] z-30 bg-background/95 backdrop-blur-md border-b border-border/40 transition-none shadow-sm mb-6">
-          <div className="max-w-7xl mx-auto px-4 py-1.5 flex items-center justify-between gap-4 min-h-12">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 shadow-sm">
-                  <Archive className="h-4 w-4 text-blue-500" />
+        <div className="sticky top-[5.25rem] md:top-[88px] z-30 bg-background/95 backdrop-blur-md border-b border-border/40 transition-none shadow-sm mb-0">
+          <div className="max-w-7xl mx-auto px-4 py-0 flex items-center justify-between gap-4 min-h-9 md:min-h-10">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <div className="p-1 rounded-lg bg-blue-500/10 border border-blue-500/20 shadow-sm">
+                  <Archive className="h-3.5 w-3.5 text-black" />
                 </div>
                 <div className="flex flex-col">
-                  <h1 className="text-[11px] font-black uppercase tracking-tight leading-none text-blue-600">Alquiler</h1>
-                  <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none opacity-70 truncate max-w-[120px] md:max-w-[200px]">{serviceOrder?.nombre_evento}</p>
+                  <h1 className="text-[10px] font-black uppercase tracking-tight leading-none text-black">Alquiler</h1>
+                  <p className="text-[7px] font-bold text-muted-foreground uppercase leading-none opacity-70 truncate max-w-[100px] md:max-w-[180px]">{serviceOrder?.nombre_evento}</p>
                 </div>
               </div>
 
-              <div className="h-8 w-px bg-border/40 hidden md:block" />
+              <div className="h-6 w-px bg-border/40 hidden md:block" />
 
               <div className="hidden md:block">
                 <AlquilerHeaderMetrics 
@@ -674,18 +773,18 @@ export default function AlquilerPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Dialog>
                 <DialogTrigger asChild>
                   <Button 
                     variant="outline" 
                     size="sm" 
                     disabled={allItems.length === 0}
-                    className="h-8 text-[10px] font-black uppercase tracking-widest border-border/40 hover:bg-blue-500/5 px-2 md:px-3"
+                    className="h-7 text-[9px] font-black uppercase tracking-tight border-border/40 hover:bg-blue-500/5 px-2"
                   >
-                    <Eye className="mr-2 h-3.5 w-3.5" />
-                    <span className="hidden md:inline">Resumen Artículos</span>
-                    <span className="inline md:hidden">Resumen</span>
+                    <Eye className="mr-1.5 h-3 w-3" />
+                    <span className="hidden md:inline">Resumen</span>
+                    <span className="inline md:hidden">Res.</span>
                   </Button>
                 </DialogTrigger>
                 {renderSummaryModal()}
@@ -693,74 +792,46 @@ export default function AlquilerPage() {
               <BriefingSummaryTrigger items={briefing?.items || []} />
               <Button 
                 asChild
-                className="h-8 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 px-2 md:px-3"
+                className="h-7 text-[9px] font-black uppercase tracking-tight bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 px-2"
               >
-                <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
-                  <PlusCircle className="mr-2 h-3.5 w-3.5" />
-                  <span className="hidden md:inline">Nuevo Pedido</span>
-                  <span className="inline md:hidden">Pedido</span>
+                <Link href={`/pedidos?numero_expediente=${serviceOrder?.numero_expediente}&type=Alquiler`}>
+                  <PlusCircle className="mr-1.5 h-3 w-3" />
+                  <span className="hidden md:inline">Nuevo</span>
+                  <span className="inline md:hidden">+</span>
                 </Link>
               </Button>
             </div>
           </div>
         </div>
 
-      <main className="space-y-6 container mx-auto px-4">
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-          {(Object.keys(itemsByStatus) as StatusColumn[]).map((status) => {
-            const items = itemsByStatus[status]
-            const totalValue = items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0)
-            const accentColor = status === 'Asignado' ? 'bg-blue-500' : status === 'En Preparación' ? 'bg-amber-500' : 'bg-emerald-500'
-            const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
-            
-            return (
-              <Card 
-                key={status}
-                className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden hover:bg-accent/5 transition-all duration-300 cursor-pointer relative group h-auto"
-                onClick={() => setActiveModal(status)}
-              >
-                <div className={cn("absolute top-0 left-0 w-1 h-full transition-all group-hover:w-1.5", accentColor)} />
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground opacity-80">
-                        {status === 'Asignado' ? 'Pendiente' : status}
-                      </span>
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-xl font-black text-foreground tabular-nums tracking-tight">
-                          {items.length}
-                        </span>
-                        <span className="text-[9px] font-bold uppercase text-muted-foreground/60 leading-none">Refs</span>
-                        <span className="text-muted-foreground/30 mx-1">•</span>
-                        <span className="text-[11px] font-bold text-foreground/80 tabular-nums">
-                          {totalItems.toLocaleString('es-ES')} <span className="text-[9px] font-medium opacity-60 uppercase">Uds</span>
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[12px] font-black text-foreground tabular-nums">
-                        {formatCurrency(totalValue)}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+        <main className="space-y-4 max-w-7xl mx-auto px-4">
 
         <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden">
           <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-          <CardHeader className="py-4 px-6 border-b border-border/40 flex-row items-center justify-between">
+          <CardHeader className="py-2 px-4 border-b border-border/40 flex-row items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-blue-500" />
-              <CardTitle className="text-[12px] font-black uppercase tracking-widest">Gestión de Pedidos Pendientes</CardTitle>
+              <CardTitle className="text-[11px] font-black uppercase tracking-widest">Gestión de Pedidos Pendientes</CardTitle>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-[10px]">
+              <Dialog open={showAggregator} onOpenChange={setShowAggregator}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pendingItems.length === 0}
+                    className="h-7 text-[9px] font-black uppercase tracking-widest border-border/40 hover:bg-amber-500/5"
+                  >
+                    Agregado
+                  </Button>
+                </DialogTrigger>
+                {renderAggregatorModal()}
+              </Dialog>
               <div className="text-right">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Valoración Total Pendiente</p>
-                <p className="text-lg font-black tracking-tight text-blue-600">{formatCurrency(totalValoracionPendiente)}</p>
+                <span className="text-muted-foreground uppercase font-bold">{pendingItems.length} Ref • {pendingItems.reduce((sum, item) => sum + item.quantity, 0)} Uds</span>
+              </div>
+              <div className="text-right">
+                <span className="font-black text-blue-600 tabular-nums">{formatCurrency(totalValoracionPendiente)}</span>
               </div>
             </div>
           </CardHeader>
@@ -769,93 +840,186 @@ export default function AlquilerPage() {
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-transparent border-border/40">
-                    <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Artículo</TableHead>
-                    <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-32">Solicita</TableHead>
-                    <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-40">Fecha Entrega</TableHead>
-                    <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-24 text-center">Cantidad</TableHead>
-                    <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right">Valoración</TableHead>
-                    <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right w-12"></TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black w-12"></TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black">Artículo</TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black w-24">Localización</TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black w-28">Solicita</TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black w-32">Fecha Entrega</TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black text-right w-16">Precio</TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black text-right w-16">Cantidad</TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black text-right w-24">Valoración</TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black text-right w-8"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pendingItems.length > 0 ? (
                     pendingItems
-                      .sort((a, b) => (a.solicita || '').localeCompare(b.solicita || ''))
-                      .map((item) => (
-                        <TableRow key={item.itemCode + item.orderId} className="border-border/40 group hover:bg-muted/20 transition-colors">
-                          <TableCell className="px-4 py-2">
-                            <span className="text-[11px] font-bold uppercase tracking-tight">{item.description}</span>
-                          </TableCell>
-                          <TableCell className="px-4 py-2">
-                            <Select
-                              value={item.solicita}
-                              onValueChange={(value: 'Sala' | 'Cocina') =>
-                                handleItemChange(item.orderId, item.itemCode, 'solicita', value)
-                              }
-                            >
-                              <SelectTrigger className="h-8 text-[11px] border-border/40 bg-background/50">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Sala" className="text-[11px]">Sala</SelectItem>
-                                <SelectItem value="Cocina" className="text-[11px]">Cocina</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="px-4 py-2">
-                            <Input
-                              type="date"
-                              value={
-                                item.deliveryDate
-                                  ? format(new Date(item.deliveryDate), 'yyyy-MM-dd')
-                                  : ''
-                              }
-                              onChange={(e) =>
-                                handleItemChange(
-                                  item.orderId,
-                                  item.itemCode,
-                                  'deliveryDate',
-                                  e.target.value,
-                                )
-                              }
-                              className="h-8 text-[11px] border-border/40 bg-background/50"
-                            />
-                          </TableCell>
-                          <TableCell className="px-4 py-2">
-                            <Input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) =>
-                                handleItemChange(
-                                  item.orderId,
-                                  item.itemCode,
-                                  'quantity',
-                                  parseInt(e.target.value) || 0,
-                                )
-                              }
-                              className="h-8 text-[11px] border-border/40 bg-background/50 text-center font-mono"
-                            />
-                          </TableCell>
-                          <TableCell className="px-4 py-2 text-right">
-                            <span className="text-[11px] font-black font-mono">{formatCurrency(item.quantity * (item.price || 0))}</span>
-                          </TableCell>
-                          <TableCell className="px-4 py-2 text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-colors"
-                              onClick={() =>
-                                setOrderToDelete({ orderId: item.orderId, itemCode: item.itemCode })
-                              }
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      .sort((a, b) => {
+                        // Sort by: Fecha Entrega → Solicita (Sala) → Localización → Subcategoría
+                        const dateA = a.deliveryDate ? new Date(a.deliveryDate).getTime() : Infinity
+                        const dateB = b.deliveryDate ? new Date(b.deliveryDate).getTime() : Infinity
+                        if (dateA !== dateB) return dateA - dateB
+                        
+                        const solicitaA = (a.solicita || 'Sala').toUpperCase()
+                        const solicitaB = (b.solicita || 'Sala').toUpperCase()
+                        if (solicitaA !== solicitaB) return solicitaA.localeCompare(solicitaB)
+                        
+                        const localizacionA = (a.deliveryLocation || '').toUpperCase()
+                        const localizacionB = (b.deliveryLocation || '').toUpperCase()
+                        if (localizacionA !== localizacionB) return localizacionA.localeCompare(localizacionB)
+                        
+                        const categoryA = (a.subcategoria || '').toUpperCase()
+                        const categoryB = (b.subcategoria || '').toUpperCase()
+                        return categoryA.localeCompare(categoryB)
+                      })
+                      .reduce((acc, item, index, arr) => {
+                        // Group ONLY by deliveryDate + deliveryLocation (no subcategoria)
+                        const currentGroupKey = `${item.deliveryDate}|${item.deliveryLocation}`
+                        const prevGroupKey = index > 0 ? `${arr[index - 1].deliveryDate}|${arr[index - 1].deliveryLocation}` : null
+                        
+                        if (currentGroupKey !== prevGroupKey) {
+                          // Add group header with date and location
+                          const dateStr = item.deliveryDate ? new Date(item.deliveryDate).toLocaleDateString('es-ES', { month: 'short', day: '2-digit' }) : '—'
+                          const locationStr = item.deliveryLocation || '—'
+                          
+                          acc.push(
+                            <TableRow key={currentGroupKey} className="bg-amber-500/5 border-t-2 border-amber-500/30 hover:bg-transparent">
+                              <TableCell colSpan={1} className="px-2 py-0 h-6"></TableCell>
+                              <TableCell colSpan={1} className="px-2 py-0 h-6">
+                                <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-black leading-none">
+                                  <Calendar className="w-3 h-3 flex-shrink-0" />
+                                  <span>{dateStr}</span>
+                                  <span>||</span>
+                                  <MapPin className="w-3 h-3 flex-shrink-0" />
+                                  <span>{locationStr}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell colSpan={7} className="px-2 py-0 h-6"></TableCell>
+                            </TableRow>
+                          )
+                        }
+                        
+                        // Add item row
+                        acc.push(
+                          <TableRow key={item.itemCode + item.orderId} className="border-border/40 hover:bg-muted/20 transition-colors">
+                            <TableCell className="px-2 py-1.5">
+                              {item.imageUrl ? (
+                                <button
+                                  onClick={() => setSelectedImageUrl(item.imageUrl!)}
+                                  className="w-10 h-10 rounded overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
+                                >
+                                  <img src={item.imageUrl} alt={item.description} className="w-full h-full object-cover" />
+                                </button>
+                              ) : (
+                                <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                  <span className="text-[8px] text-muted-foreground">Sin img</span>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-bold uppercase tracking-tight line-clamp-2">{item.description}</span>
+                                {item.subcategoria && (
+                                  <Badge variant="outline" className="w-fit text-[7px] h-5 px-1.5 bg-white border-gray-300 text-gray-900 font-semibold">
+                                    {item.subcategoria}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              <Select
+                                value={item.deliveryLocation || ''}
+                                onValueChange={(value) =>
+                                  handleItemChange(item.itemCode, item.orderId, 'deliveryLocation', value)
+                                }
+                              >
+                                <SelectTrigger className="h-7 text-[9px] border-border/40 bg-background/50">
+                                  <SelectValue placeholder="Ubicación..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableLocations.map((loc: string) => (
+                                    <SelectItem key={loc} value={loc} className="text-[9px]">
+                                      {loc}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              <Select
+                                value={item.solicita || 'Sala'}
+                                onValueChange={(value: 'Sala' | 'Cocina') =>
+                                  handleItemChange(item.itemCode, item.orderId, 'solicita', value)
+                                }
+                              >
+                                <SelectTrigger className="h-7 text-[9px] border-border/40 bg-background/50">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Sala" className="text-[9px]">Sala</SelectItem>
+                                  <SelectItem value="Cocina" className="text-[9px]">Cocina</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              <Input
+                                type="date"
+                                value={
+                                  item.deliveryDate
+                                    ? format(new Date(item.deliveryDate), 'yyyy-MM-dd')
+                                    : ''
+                                }
+                                onChange={(e) =>
+                                  handleItemChange(
+                                    item.itemCode,
+                                    item.orderId,
+                                    'deliveryDate',
+                                    e.target.value,
+                                  )
+                                }
+                                className="h-7 text-[9px] border-border/40 bg-background/50"
+                              />
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5 text-right">
+                              <span className="text-[10px] font-black font-mono text-black">{formatCurrency(item.price || 0)}</span>
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5 text-right">
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  handleItemChange(
+                                    item.itemCode,
+                                    item.orderId,
+                                    'quantity',
+                                    parseInt(e.target.value) || 0,
+                                  )
+                                }
+                                className="h-7 text-[9px] border-border/40 bg-background/50 text-center font-mono w-full"
+                              />
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5 text-right">
+                              <span className="text-[10px] font-black font-mono">{formatCurrency(item.quantity * (item.price || 0))}</span>
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5 text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 transition-colors"
+                                onClick={() =>
+                                  setOrderToDelete({ orderId: item.orderId, itemCode: item.itemCode })
+                                }
+                              >
+                                <Trash2 className="h-3 w-3 font-bold" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                        return acc
+                      }, [] as React.ReactNode[])
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
+                      <TableCell colSpan={8} className="h-24 text-center">
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <FileText className="h-8 w-8 opacity-20" />
                           <p className="text-[11px] font-medium uppercase tracking-wider">No hay pedidos pendientes</p>
@@ -871,10 +1035,10 @@ export default function AlquilerPage() {
 
         <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden">
           <div className="absolute top-0 left-0 w-1 h-full bg-muted-foreground/40" />
-          <CardHeader className="py-4 px-6 border-b border-border/40">
+          <CardHeader className="py-3 px-4 border-b border-border/40">
             <div className="flex items-center gap-2">
               <Eye className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-[12px] font-black uppercase tracking-widest">Pedidos en Preparación o Listos</CardTitle>
+              <CardTitle className="text-[11px] font-black uppercase tracking-widest">Pedidos en Preparación o Listos</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -882,38 +1046,38 @@ export default function AlquilerPage() {
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-transparent border-border/40">
-                    <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-40">Hoja Picking</TableHead>
-                    <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-40">Estado</TableHead>
-                    <TableHead className="h-10 px-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Contenido</TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground w-40">Hoja Picking</TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground w-32">Estado</TableHead>
+                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground">Contenido</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {blockedOrders.length > 0 ? (
                     blockedOrders.map((order) => (
-                      <TableRow key={order.sheetId} className="border-border/40 group hover:bg-muted/20 transition-colors">
-                        <TableCell className="px-4 py-2">
+                      <TableRow key={order.sheetId} className="border-border/40 hover:bg-muted/20 transition-colors">
+                        <TableCell className="px-2 py-1.5">
                           <Link
                             href={`/almacen/picking/${order.sheetId}`}
                             className="inline-flex"
                           >
-                            <Badge variant="secondary" className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 hover:bg-blue-500 hover:text-white transition-colors">
+                            <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 hover:bg-blue-500 hover:text-white transition-colors">
                               {order.sheetId}
                             </Badge>
                           </Link>
                         </TableCell>
-                        <TableCell className="px-4 py-2">
+                        <TableCell className="px-2 py-1.5">
                           <Badge 
                             variant="outline" 
                             className={cn(
-                              "text-[9px] font-black uppercase tracking-widest px-2 py-0.5",
+                              "text-[8px] font-black uppercase tracking-widest px-2 py-0.5",
                               order.status === 'Listo' ? 'border-emerald-500/50 text-emerald-600 bg-emerald-500/5' : 'border-amber-500/50 text-amber-600 bg-amber-500/5'
                             )}
                           >
                             {order.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="px-4 py-2">
-                          <p className="text-[11px] text-muted-foreground line-clamp-1">
+                        <TableCell className="px-2 py-1.5">
+                          <p className="text-[9px] text-muted-foreground line-clamp-1">
                             {order.items.map((i) => `${i.quantity}x ${i.description}`).join(', ')}
                           </p>
                         </TableCell>
@@ -935,8 +1099,6 @@ export default function AlquilerPage() {
           </CardContent>
         </Card>
 
-        {activeModal && renderStatusModal(activeModal)}
-
         <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
           <AlertDialogContent className="bg-background/95 backdrop-blur-md border-border/40">
             <AlertDialogHeader>
@@ -956,8 +1118,42 @@ export default function AlquilerPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </main>
-    </Dialog>
+
+        <Dialog open={!!selectedImageUrl} onOpenChange={(open) => !open && setSelectedImageUrl(null)}>
+          <DialogContent className="max-w-2xl bg-background/95 backdrop-blur-md border-border/40 p-0 overflow-visible">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Imagen ampliada</DialogTitle>
+            </DialogHeader>
+            <button
+              onClick={() => setSelectedImageUrl(null)}
+              className="absolute top-2 right-2 rounded-full p-2 bg-background border border-border/40 hover:bg-muted shadow-lg transition-colors focus:outline-none focus:ring-2 focus:ring-ring z-50"
+              aria-label="Cerrar"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 6l-12 12M6 6l12 12" />
+              </svg>
+            </button>
+            {selectedImageUrl && (
+              <img
+                src={selectedImageUrl}
+                alt="Imagen ampliada del artículo"
+                className="w-full h-auto rounded-lg"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+        </main>
+      </div>
     </TooltipProvider>
   )
 }

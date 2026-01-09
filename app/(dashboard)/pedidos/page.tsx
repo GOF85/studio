@@ -9,14 +9,84 @@ import OsHeader from '@/components/os/OsHeader';
 import { OrderSummary, type ExistingOrderData } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Briefcase, FilePlus2, FileText, Warehouse, Wine, Leaf, Archive, Snowflake } from 'lucide-react';
+import { Briefcase, FilePlus2, FileText, Warehouse, Wine, Leaf, Archive, Snowflake, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ObjectiveDisplay } from '@/components/os/objective-display';
-import { useOSMaterialOrders } from '@/hooks/use-os-material-orders';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 
 import { useEvento, useArticulos, useProveedores, usePlantillasPedidos, useUpdateEvento, useHieloOrders, useProveedoresTiposServicio } from '@/hooks/use-data-queries';
 import { useCreateHieloOrder, useUpdateHieloOrderItem } from '@/hooks/mutations/use-hielo-mutations';
+import { getThumbnail } from '@/lib/image-utils';
+
+function PedidosHeaderMetrics({ totalPlanned, facturacion = 0, osId }: { totalPlanned: number; facturacion: number; osId: string }) {
+  const planificadoPctFacturacion = useMemo(() => {
+    if (!facturacion || facturacion === 0) return '0%'
+    return `${((totalPlanned / facturacion) * 100).toFixed(1)}%`
+  }, [totalPlanned, facturacion])
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {/* Presupuesto Actual */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={`flex items-center gap-2 px-2.5 py-0.5 border rounded-lg transition-all cursor-help shrink-0 ${
+            totalPlanned < facturacion
+              ? 'bg-emerald-50/50 dark:bg-emerald-500/5 border-emerald-200/50'
+              : 'bg-red-50/50 dark:bg-red-500/5 border-red-200/50'
+          }`}>
+            <span className={`text-[9px] font-bold uppercase tracking-wider ${
+              totalPlanned < facturacion
+                ? 'text-emerald-600/70'
+                : 'text-red-600/70'
+            }`}>Planificado</span>
+            <div className="flex items-baseline gap-0">
+              <span className={`font-black text-xs md:text-sm tabular-nums ${
+                totalPlanned < facturacion
+                  ? 'text-emerald-700'
+                  : 'text-red-700'
+              }`}>
+                {formatCurrency(totalPlanned).split(',')[0]}
+              </span>
+              <span className={`text-[8px] font-bold ${
+                totalPlanned < facturacion
+                  ? 'text-emerald-600/60'
+                  : 'text-red-600/60'
+              }`}>
+                ,{formatCurrency(totalPlanned).split(',')[1]}
+              </span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="font-bold">
+          {planificadoPctFacturacion} de facturación
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Objetivo de Gasto */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-2 px-2.5 py-0.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 rounded-lg transition-all cursor-help shrink-0">
+            <span className="text-[9px] font-bold uppercase text-muted-foreground/70 tracking-wider">Objetivo</span>
+            <div className="flex items-baseline gap-0">
+              <span className="font-black text-xs md:text-sm text-zinc-700 dark:text-zinc-300 tabular-nums">
+                {formatCurrency(facturacion).split(',')[0]}
+              </span>
+              <span className="text-[8px] font-bold text-zinc-500/60 text-zinc-400">
+                ,{formatCurrency(facturacion).split(',')[1]}
+              </span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="font-bold flex flex-col gap-1">
+          <span>100% de facturación (Referencia)</span>
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  )
+}
 
 function PedidosPageInner() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -24,21 +94,42 @@ function PedidosPageInner() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
-  const { loadOrders, saveOrder } = useOSMaterialOrders();
   
-  const osId = searchParams.get('osId');
+  const numeroExpediente = searchParams.get('numero_expediente');
   const orderType = searchParams.get('type') as 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | 'Hielo' | null;
   const editOrderId = searchParams.get('orderId');
 
-  const { data: serviceOrder } = useEvento(osId || undefined);
+  const { data: serviceOrder } = useEvento(numeroExpediente || undefined);
   const { data: allArticulos } = useArticulos();
   const { data: allProveedores } = useProveedores();
   const { data: allPlantillas } = usePlantillasPedidos();
   const { data: tiposServicio = [] } = useProveedoresTiposServicio();
-  const { data: allHieloOrders = [] } = useHieloOrders(osId || undefined);
+  const { data: allHieloOrders = [] } = useHieloOrders(numeroExpediente || undefined);
   const { mutateAsync: createHieloOrder } = useCreateHieloOrder();
   const { mutateAsync: updateHieloItem } = useUpdateHieloOrderItem();
   const updateEvento = useUpdateEvento();
+
+  // Local function to load existing orders for editing
+  const loadOrders = async (osId: string, type: string) => {
+    try {
+      const response = await fetch('/api/material-orders/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ osId, type }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to load orders');
+      }
+
+      const result = await response.json();
+      return result.data || [];
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      return [];
+    }
+  };
 
   const plantillas = useMemo(() => 
     (allPlantillas || []).filter(p => p.tipo === orderType),
@@ -68,47 +159,31 @@ function PedidosPageInner() {
   }, [allProveedores, orderType, tiposServicio]);
 
   const catalogItems = useMemo(() => {
-    if (!allArticulos || !orderType) return [];
+    if (!allArticulos || !orderType) {
+      return [];
+    }
 
     const filteredArticulos = allArticulos.filter(item => item && item.id && item.nombre);
     let itemsToLoad: CateringItem[] = [];
 
-    function getThumbnail(articulo: any) {
-      if (Array.isArray(articulo.imagenes) && articulo.imagenes.length > 0) {
-        const first = articulo.imagenes[0];
-        // soportar tanto array de strings (urls) como array de objetos { url, esPrincipal }
-        if (typeof first === 'string') return first;
-        const principal = articulo.imagenes.find((img: any) => img && img.esPrincipal) || first;
-        if (principal && (principal.url || typeof principal === 'string')) return principal.url || principal;
-      }
-      if (articulo.imagen && typeof articulo.imagen === 'string') return articulo.imagen;
-      return '';
-    }
-
-    function getImageList(articulo: any) {
-      if (Array.isArray(articulo.imagenes) && articulo.imagenes.length > 0) {
-        return articulo.imagenes.map((img: any) => (typeof img === 'string' ? img : img?.url)).filter(Boolean);
-      }
-      if (articulo.imagen && typeof articulo.imagen === 'string') return [articulo.imagen];
-      return [];
-    }
-
     if (orderType === 'Alquiler') {
-      itemsToLoad = filteredArticulos
-        .filter(p => p.producidoPorPartner)
-          .map(p => ({ 
+      const alquilerFiltered = filteredArticulos.filter(p => p.categoria === 'Alquiler' || p.categoria === 'ALQUILER');
+      itemsToLoad = alquilerFiltered.map(p => {
+        const thumb = getThumbnail(p.imagenes) || '';
+        return {
           ...p, 
           itemCode: p.id, 
           description: p.nombre, 
           price: typeof p.precioAlquiler === 'number' ? p.precioAlquiler : 0, 
           stock: 999, 
-          imageUrl: getThumbnail(p), 
-          images: getImageList(p),
+          imageUrl: thumb, 
+          imagenes: p.imagenes,
           imageHint: p.nombre, 
           category: p.categoria,
-          tipo: p.subcategoria || p.tipo || undefined,
+          tipo: p.subcategoria || p.tipo || p.categoria || 'Sin categoría',
           unidadVenta: p.unidadVenta ?? undefined
-        }));
+        };
+      });
     } else if (orderType === 'Hielo') {
       itemsToLoad = filteredArticulos
         .filter(p => p.subcategoria?.toUpperCase() === '00HIELO' && p.tipoArticulo === 'micecatering')
@@ -118,9 +193,10 @@ function PedidosPageInner() {
           description: p.nombre,
           price: p.precioVenta,
           stock: 999,
-          imageUrl: getThumbnail(p),
+          imageUrl: getThumbnail(p.imagenes) || '',
+          imagenes: p.imagenes,
           imageHint: p.nombre,
-          tipo: p.subcategoria || p.tipo || undefined,
+          tipo: p.subcategoria || p.tipo || p.categoria || 'Sin categoría',
           unidadVenta: p.unidadVenta ?? undefined,
           category: p.categoria,
         }));
@@ -136,21 +212,27 @@ function PedidosPageInner() {
           description: p.nombre,
           price: orderType === 'Almacen' ? p.precioAlquiler : p.precioVenta,
           stock: 999,
-          imageUrl: getThumbnail(p),
+          imageUrl: getThumbnail(p.imagenes) || '',
+          imagenes: p.imagenes,
           imageHint: p.nombre,
-          tipo: p.subcategoria || p.tipo || undefined,
+          tipo: p.subcategoria || p.tipo || p.categoria || 'Sin categoría',
           unidadVenta: p.unidadVenta ?? undefined,
           category: p.categoria,
         }));
     }
-    return itemsToLoad.filter(item => item && item.description && item.itemCode);
+    const result = itemsToLoad.filter(item => item && item.description && item.itemCode);
+    return result;
   }, [allArticulos, orderType]);
+
+  const totalPlanned = useMemo(() => {
+    return orderItems.reduce((acc, item) => acc + (item.price || 0) * (item.quantity || 0), 0)
+  }, [orderItems])
 
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadEditData = async () => {
-        if (editOrderId && osId && orderType) {
+        if (editOrderId && numeroExpediente && orderType) {
             if (orderType === 'Hielo') {
                 const orderToEdit = allHieloOrders.find(o => o.id === editOrderId);
                 if (orderToEdit) {
@@ -193,7 +275,7 @@ function PedidosPageInner() {
     };
 
     loadEditData();
-  }, [editOrderId, osId, orderType, loadOrders, allHieloOrders]);
+  }, [editOrderId, numeroExpediente, orderType, loadOrders, allHieloOrders]);
 
   const handleAddItem = (item: CateringItem, quantity: number) => {
     if (quantity <= 0) return;
@@ -256,13 +338,13 @@ function PedidosPageInner() {
   };
 
   const handleAddLocation = async (newLocation: string) => {
-    if (!serviceOrder || !osId) return;
+    if (!serviceOrder || !numeroExpediente) return;
     
     const updatedLocations = [...(serviceOrder.deliveryLocations || []), newLocation];
     
     try {
         await updateEvento.mutateAsync({
-            id: osId,
+            id: numeroExpediente,
             deliveryLocations: updatedLocations
         });
         toast({ title: 'Localización añadida', description: `Se ha guardado "${newLocation}" en la Orden de Servicio.`})
@@ -282,7 +364,7 @@ function PedidosPageInner() {
     deliveryLocation?: string;
     solicita?: 'Sala' | 'Cocina';
   }) => {
-    if (!osId || !orderType) {
+    if (!numeroExpediente || !orderType) {
         toast({ variant: 'destructive', title: 'Error', description: 'Falta información de la Orden de Servicio.' });
         return;
     }
@@ -307,7 +389,7 @@ function PedidosPageInner() {
                 }
             } else {
                 await createHieloOrder({
-                    osId,
+                    osId: numeroExpediente,
                     proveedorId: selectedProviderId,
                     items: finalOrder.items.map(item => ({
                         producto: item.description,
@@ -318,16 +400,26 @@ function PedidosPageInner() {
                 });
             }
         } else {
-            const orderToSave: Partial<MaterialOrder> & { osId: string, type: string } = {
-                id: editOrderId || undefined,
-                osId,
-                type: orderType,
-                status: 'Asignado',
-                ...finalOrder,
-                items: finalOrder.items.map(item => ({ ...item, type: orderType as any }))
-            };
+            // Use API UPSERT which has merge logic for existing orders
+            const response = await fetch('/api/material-orders/upsert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    osId: numeroExpediente,
+                    type: orderType,
+                    items: finalOrder.items.map(item => ({ ...item, type: orderType as any })),
+                    days: finalOrder.days || 1,
+                    deliveryDate: finalOrder.deliveryDate,
+                    deliverySpace: finalOrder.deliverySpace,
+                    deliveryLocation: finalOrder.deliveryLocation,
+                    solicita: finalOrder.solicita,
+                }),
+            });
 
-            await saveOrder(orderToSave);
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to upsert order');
+            }
         }
 
         toast({ title: editOrderId ? 'Pedido actualizado' : 'Pedido creado' });
@@ -341,7 +433,7 @@ function PedidosPageInner() {
         else if (orderType === 'Alquiler') modulePath = 'alquiler';
         else if (orderType === 'Hielo') modulePath = 'hielo';
 
-        const destination = `/os/${osId}/${modulePath}`;
+        const destination = `/os/${numeroExpediente}/${modulePath}`;
         router.push(destination);
     } catch (error: any) {
         console.error('Error submitting order:', error);
@@ -362,7 +454,7 @@ function PedidosPageInner() {
     });
   };
 
-  if (!osId || !orderType) {
+  if (!numeroExpediente || !orderType) {
     return (
         <div className="flex flex-col min-h-screen">
             <main className="flex-grow container mx-auto px-4 py-8 flex items-center justify-center">
@@ -378,22 +470,43 @@ function PedidosPageInner() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background/30">
-          {/* Reusable OS header with subtitle */}
-          <div>
-            {/* Use centralized OsHeader for consistent look; pass subtitle based on orderType */}
-            {/* Dynamically import to avoid client/server mismatch if necessary */}
-            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-            <div className="sticky top-12 z-30">
-              {/* simple wrapper that renders OsHeader with subtitle/icon */}
-              {/* Map orderType to subtitle */}
-              <OsHeader
-                osId={osId}
-                subtitle={orderType ? (orderType === 'Almacen' ? 'Catálogo de Artículos de almacén' : (orderType === 'Bodega' ? 'Catálogo de Artículos de bebida' : (orderType === 'Bio' ? 'Catálogo de Artículos Bio' : 'Catálogo de Artículos'))) : 'Catálogo de Artículos'}
-                subtitleIcon={orderType === 'Almacen' ? <Warehouse className="h-5 w-5 text-indigo-600" /> : orderType === 'Bodega' ? <Wine className="h-5 w-5 text-indigo-600" /> : orderType === 'Bio' ? <Leaf className="h-5 w-5 text-indigo-600" /> : orderType === 'Alquiler' ? <Archive className="h-5 w-5 text-indigo-600" /> : orderType === 'Hielo' ? <Snowflake className="h-5 w-5 text-indigo-600" /> : <FilePlus2 className="h-5 w-5 text-indigo-600" />}
-              />
+    <TooltipProvider>
+      <div className="flex flex-col min-h-screen bg-background/30">
+        {/* OsHeader sticky */}
+        <div className="sticky top-12 z-30">
+          <OsHeader
+            osId={numeroExpediente}
+            subtitle={orderType ? (orderType === 'Almacen' ? 'Catálogo de Artículos de almacén' : (orderType === 'Bodega' ? 'Catálogo de Artículos de bebida' : (orderType === 'Bio' ? 'Catálogo de Artículos Bio' : 'Catálogo de Artículos'))) : 'Catálogo de Artículos'}
+            subtitleIcon={orderType === 'Almacen' ? <Warehouse className="h-5 w-5 text-indigo-600" /> : orderType === 'Bodega' ? <Wine className="h-5 w-5 text-indigo-600" /> : orderType === 'Bio' ? <Leaf className="h-5 w-5 text-indigo-600" /> : orderType === 'Alquiler' ? <Archive className="h-5 w-5 text-indigo-600" /> : orderType === 'Hielo' ? <Snowflake className="h-5 w-5 text-indigo-600" /> : <FilePlus2 className="h-5 w-5 text-indigo-600" />}
+          />
+        </div>
+
+        {/* Header Premium Sticky - Metrics */}
+        <div className="sticky top-[5.25rem] md:top-[88px] z-30 bg-background/95 backdrop-blur-md border-b border-border/40 transition-none shadow-sm mb-0">
+          <div className="max-w-7xl mx-auto px-4 py-0 flex items-center justify-between gap-4 min-h-9 md:min-h-10">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <div className="p-1 rounded-lg bg-blue-500/10 border border-blue-500/20 shadow-sm">
+                  {orderType === 'Almacen' ? <Warehouse className="h-3.5 w-3.5 text-black" /> : orderType === 'Bodega' ? <Wine className="h-3.5 w-3.5 text-black" /> : orderType === 'Bio' ? <Leaf className="h-3.5 w-3.5 text-black" /> : orderType === 'Alquiler' ? <Archive className="h-3.5 w-3.5 text-black" /> : orderType === 'Hielo' ? <Snowflake className="h-3.5 w-3.5 text-black" /> : <FilePlus2 className="h-3.5 w-3.5 text-black" />}
+                </div>
+                <div className="flex flex-col">
+                  <h1 className="text-[10px] font-black uppercase tracking-tight leading-none text-black">{orderType}</h1>
+                  <p className="text-[7px] font-bold text-muted-foreground uppercase leading-none opacity-70 truncate max-w-[100px] md:max-w-[180px]">{serviceOrder?.nombre_evento}</p>
+                </div>
+              </div>
+
+              <div className="h-6 w-px bg-border/40 hidden md:block" />
+
+              <div className="hidden md:block">
+                <PedidosHeaderMetrics 
+                  totalPlanned={totalPlanned} 
+                  facturacion={serviceOrder?.facturacionNeta || 0}
+                  osId={numeroExpediente}
+                />
+              </div>
             </div>
           </div>
+        </div>
 
       <main className="flex-grow container mx-auto px-4 py-0">
         <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8">
@@ -411,7 +524,7 @@ function PedidosPageInner() {
           <div className="mt-8 lg:mt-0">
             <div className="sticky top-4 space-y-4">
                 <div className="flex items-center gap-2">
-                    <ObjectiveDisplay osId={osId} moduleName={orderType.toLowerCase() as any} />
+                    <ObjectiveDisplay osId={numeroExpediente} moduleName={orderType.toLowerCase() as any} />
                 </div>
                 <OrderSummary
                 items={orderItems}
@@ -424,12 +537,14 @@ function PedidosPageInner() {
                 onAddLocation={handleAddLocation}
                 existingOrderData={existingOrderData}
                 orderType={orderType}
+                osId={numeroExpediente || undefined}
                 />
             </div>
           </div>
         </div>
       </main>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
 

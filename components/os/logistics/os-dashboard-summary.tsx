@@ -15,7 +15,7 @@ interface OSDashboardSummaryProps {
 
 export function OSDashboardSummary({ osId }: OSDashboardSummaryProps) {
     const { data: serviceOrder } = useEvento(osId);
-    const { data: materialOrders } = useMaterialOrders(serviceOrder?.id);
+    const { data: materialOrders } = useMaterialOrders(serviceOrder?.numero_expediente);
     const { loadDevoluciones } = useDevoluciones();
     const { loadMermas } = useMermas();
 

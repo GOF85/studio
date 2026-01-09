@@ -306,7 +306,7 @@ export default function CtaExplotacionPage() {
   const { data: comentariosData } = useCtaComentarios(serviceOrder?.id)
   const { data: briefing } = useComercialBriefing(serviceOrder?.id)
   const { data: ajustes } = useComercialAjustes(serviceOrder?.id)
-  const { data: materialOrders } = useMaterialOrders(serviceOrder?.id)
+  const { data: materialOrders } = useMaterialOrders(serviceOrder?.numero_expediente)
   const { data: transporteOrders } = useTransporteOrders(serviceOrder?.id)
   const { data: decoracionOrders } = useDecoracionOrders(serviceOrder?.id)
   const { data: atipicoOrders } = useAtipicoOrders(serviceOrder?.id)

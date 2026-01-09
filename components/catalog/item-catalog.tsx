@@ -84,6 +84,15 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
       return matchesType && matchesSearch && rentalProviderMatch;
     });
 
+    if (orderType === 'Alquiler' && items.length > 0 && filteredItems.length > 0) {
+      console.log('📦 ItemCatalog filteredItems (3 primeros):', filteredItems.slice(0, 3).map(i => ({
+        desc: i.description,
+        tipo: i.tipo,
+        imagenes: (i as any).imagenes ? '✓' : 'X',
+        imageUrl: i.imageUrl ? '✓' : 'X'
+      })));
+    }
+
     const grouped: { [key: string]: CateringItem[] } = {};
     
     filteredItems.forEach(item => {
@@ -98,6 +107,9 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
         grouped[groupKey].sort((a, b) => a.description.localeCompare(b.description));
     }
     
+    if (orderType === 'Alquiler' && filteredItems.length > 0) {
+      console.log('📦 ItemCatalog groupedAndSortedItems:', Object.keys(grouped));
+    }
     return Object.entries(grouped).sort(([groupA], [groupB]) => groupA.localeCompare(groupB));
   }, [items, searchTerm, selectedType, orderType, selectedProviderId]);
 
@@ -143,7 +155,7 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
 
   return (
     <section>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
         <h2 className="text-3xl font-headline font-bold tracking-tight lg:hidden">Catálogo de Artículos</h2>
         <div className="flex gap-2">
             {plantillas && plantillas.length > 0 && <TemplateSelectorDialog plantillas={plantillas} onSelect={onApplyTemplate} />}
@@ -151,30 +163,50 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
         </div>
       </div>
        {(orderType === 'Alquiler' || orderType === 'Hielo') && rentalProviders && onSelectProvider && (
-            <div className="mb-6">
-                <Label htmlFor="provider-selector">{orderType === 'Hielo' ? 'Proveedor de Hielo' : 'Proveedor de Alquiler'}</Label>
-                <Select onValueChange={(value) => onSelectProvider(value === 'none' ? null : value)} value={selectedProviderId || 'none'}>
-                    <SelectTrigger id="provider-selector">
-                        <SelectValue placeholder={orderType === 'Hielo' ? "Selecciona un proveedor de hielo..." : "Selecciona un proveedor para ver su catálogo..."} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="none">-- Ninguno --</SelectItem>
-                        {rentalProviders.map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
-                        ))}
-                    </SelectContent>
+            <div className="mb-4 grid grid-cols-[1fr_2fr_1fr] gap-4 items-end">
+                <div>
+                    <Label htmlFor="provider-selector" className="text-[12px] font-bold uppercase tracking-wider">{orderType === 'Hielo' ? 'Proveedor' : 'Proveedor'}</Label>
+                    <Select onValueChange={(value) => onSelectProvider(value === 'none' ? null : value)} value={selectedProviderId || 'none'}>
+                        <SelectTrigger id="provider-selector" className="mt-2">
+                            <SelectValue placeholder={orderType === 'Hielo' ? "Selecciona proveedor..." : "Selecciona proveedor..."} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">-- Ninguno --</SelectItem>
+                            {rentalProviders.map(p => (
+                                <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <Input 
+                  placeholder="Buscar por nombre o código..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="mt-8"
+                />
+                <Select value={selectedType} onValueChange={setSelectedType}>
+                  <SelectTrigger className="mt-8">
+                    <SelectValue placeholder="Filtrar por tipo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {types.map((type, index) => (
+                      <SelectItem key={`${type}-${index}`} value={type}>
+                        {type === 'all' ? 'Todos los tipos' : type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
             </div>
         )}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="flex flex-col md:flex-row gap-4 mb-0 hidden">
         <Input 
-          placeholder="Buscar por nombre o código..."
-          className="flex-grow"
+          placeholder="Buscar..."
+          className="flex-grow hidden"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         <Select value={selectedType} onValueChange={setSelectedType}>
-          <SelectTrigger className="w-full md:w-[240px]">
+          <SelectTrigger className="w-full md:w-[240px] hidden">
             <SelectValue placeholder="Filtrar por tipo..." />
           </SelectTrigger>
           <SelectContent>
@@ -191,8 +223,8 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
           <div className="relative">
             {/* Sticky category header */}
             {stickyLabel && (
-              <div className="sticky top-12 z-20 bg-background/60 backdrop-blur-md border-b border-border/40 px-3 py-2">
-                <div className="max-w-full font-bold">{stickyLabel}</div>
+              <div className="sticky top-12 z-20 bg-background border-b border-border/40 px-4 py-3">
+                <div className="max-w-full font-black text-base uppercase tracking-wide">{stickyLabel}</div>
               </div>
             )}
             <List
@@ -215,9 +247,9 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
               {({ index, style }: { index: number; style: CSSProperties }) => {
                 const entry = flatList[index];
                 if (entry.kind === 'header') {
-                  // reserve space for header (we render floating header separately)
+                  // Render visible category header
                   return (
-                    <div style={style} className="p-2 font-bold bg-muted/50 border-b opacity-0">{/* placeholder */}</div>
+                    <div style={style} className="p-3 font-black text-base uppercase tracking-wide bg-muted/50 border-b text-muted-foreground">{entry.label}</div>
                   );
                 }
                 const item = entry.item;

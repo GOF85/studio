@@ -201,6 +201,7 @@ function mapEvento(data: any): ServiceOrder {
 
     return {
         id: data.id,
+        numero_expediente: data.numero_expediente || '',
         serviceNumber: data.numero_expediente || '',
         isVip: data.is_vip || false,
         client: data.client || '',
@@ -575,17 +576,13 @@ export function useUpdateEvento() {
                         cocina_pase_mail: updates.respCocinaPaseMail,
                     }),
                 })
-                .eq('id', id)
-                .select()
-                .single();
+                .eq('id', id);
 
             if (error) throw error;
-            return data;
+            return { id };
         },
-        onSuccess: (data) => {
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['eventos'] });
-            queryClient.invalidateQueries({ queryKey: ['eventos', data.id] });
-            queryClient.invalidateQueries({ queryKey: ['eventos', data.numero_expediente] });
         },
     });
 }
@@ -1449,43 +1446,63 @@ export function useMaterialOrders(eventoId?: string, categoria?: string) {
     return useQuery({
         queryKey: ['materialOrders', eventoId, categoria],
         queryFn: async () => {
-            let query = supabase.from('material_orders').select('*');
+            let query = supabase.from('os_material_orders').select('*');
             
             if (eventoId) {
-                // We query by os_id which can be either the UUID or the numero_expediente
-                // The table os_material_orders uses numero_expediente as os_id (based on migration)
-                // But some records might have the UUID if they were created differently.
-                // To be safe, we resolve both and query with an OR or just use the resolved one.
-                
-                const targetId = await resolveOsId(eventoId);
-                const orExpr = buildOsOr(eventoId, targetId);
-                if (orExpr) {
-                    query = query.or(orExpr);
-                } else {
-                    query = query.eq('os_id', targetId);
-                }
+                // eventoId is already the numero_expediente string (e.g., '2025-12345')
+                // Database stores os_id as numero_expediente, NOT as UUID
+                console.log('[useMaterialOrders] filtering by os_id (numero_expediente):', eventoId);
+                query = query.eq('os_id', eventoId);
             }
 
             if (categoria) {
+                console.log('[useMaterialOrders] filtering by categoria:', categoria);
                 query = query.eq('type', categoria);
             }
+            
+            // Don't filter by status - fetch ALL orders
+            // The status enum values are database-dependent
+            console.log('[useMaterialOrders] executing query WITHOUT status filter...');
             const { data, error } = await query;
-            if (error) throw error;
+            console.log('[useMaterialOrders] response - error:', error, 'data count:', data?.length);
+            if (error) {
+                console.error('[useMaterialOrders] Error:', error);
+                throw error;
+            }
 
-            return (data || []).map(o => ({
-                id: o.id,
-                osId: o.os_id,
-                type: o.type,
-                status: o.status,
-                items: o.items || [],
-                days: o.days,
-                total: o.total,
-                contractNumber: o.contract_number,
-                deliveryDate: o.delivery_date,
-                deliverySpace: o.delivery_space,
-                deliveryLocation: o.delivery_location,
-                solicita: o.solicita
-            })) as MaterialOrder[];
+            console.log('[useMaterialOrders] raw data:', data);
+            const result = (data || []).map(o => {
+                // Parse items if it's a JSON string
+                let items = [];
+                if (o.items) {
+                    if (typeof o.items === 'string') {
+                        try {
+                            items = JSON.parse(o.items);
+                        } catch (e) {
+                            console.warn('[useMaterialOrders] Failed to parse items:', e);
+                            items = [];
+                        }
+                    } else {
+                        items = Array.isArray(o.items) ? o.items : [];
+                    }
+                }
+                return {
+                    id: o.id,
+                    osId: o.os_id,
+                    type: o.type,
+                    status: o.status,
+                    items,
+                    days: o.days,
+                    total: o.total,
+                    contractNumber: o.contract_number,
+                    deliveryDate: o.delivery_date,
+                    deliverySpace: o.delivery_space,
+                    deliveryLocation: o.delivery_location,
+                    solicita: o.solicita
+                };
+            }) as MaterialOrder[];
+            console.log('[useMaterialOrders] mapped result:', result);
+            return result;
         },
         enabled: !!eventoId,
     });

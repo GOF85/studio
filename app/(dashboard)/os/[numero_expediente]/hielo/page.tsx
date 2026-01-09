@@ -155,7 +155,7 @@ export default function HieloPage() {
             asChild
             className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest h-9 px-4"
           >
-            <Link href={`/pedidos?osId=${osId}&type=Hielo`}>
+            <Link href={`/pedidos?numero_expediente=${serviceOrder?.numero_expediente}&type=Hielo`}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Nuevo Pedido
             </Link>
@@ -234,7 +234,7 @@ export default function HieloPage() {
                             <DropdownMenuItem
                               className="text-[10px] font-bold uppercase tracking-widest"
                               onClick={() =>
-                                router.push(`/pedidos?osId=${osId}&type=Hielo&orderId=${order.id}`)
+                                router.push(`/pedidos?numero_expediente=${serviceOrder?.numero_expediente}&type=Hielo&orderId=${order.id}`)
                               }
                             >
                               <Pencil className="mr-2 h-3.5 w-3.5" />

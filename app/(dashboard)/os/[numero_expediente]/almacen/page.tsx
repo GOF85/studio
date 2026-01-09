@@ -216,7 +216,7 @@ export default function AlmacenPage() {
 
   const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId)
   const { data: materialOrders = [], isLoading: isLoadingOrders } = useMaterialOrders(
-    serviceOrder?.id,
+    serviceOrder?.numero_expediente,
     'Almacen',
   )
   const { data: pickingSheets = [], isLoading: isLoadingPicking } = usePickingSheets(
@@ -534,7 +534,7 @@ export default function AlmacenPage() {
               asChild
               className="h-8 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
             >
-              <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
+              <Link href={`/pedidos?numero_expediente=${serviceOrder?.numero_expediente}&type=Almacen`}>
                 <PlusCircle className="mr-2 h-3.5 w-3.5" />
                 Nuevo Pedido
               </Link>

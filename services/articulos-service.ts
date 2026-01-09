@@ -98,3 +98,38 @@ export async function getArticulosPaginated(
         totalCount: Number(result.total_count || 0)
     };
 }
+
+export async function getAllArticulos(
+    supabase: SupabaseClient,
+    tipoArticulo?: 'micecatering' | 'entregas'
+) {
+    // Fetch all articles without pagination - usando paginación para obtener todos
+    const pageSize = 1000;
+    let allData: any[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+        const { data, error } = await supabase
+            .from('articulos')
+            .select('*', { count: 'exact' })
+            .eq('tipo_articulo', tipoArticulo || 'micecatering')
+            .order('nombre', { ascending: true })
+            .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            hasMore = false;
+        } else {
+            allData = allData.concat(data);
+            if (data.length < pageSize) {
+                hasMore = false;
+            } else {
+                page++;
+            }
+        }
+    }
+
+    return allData.map(mapArticuloFromDB);
+}

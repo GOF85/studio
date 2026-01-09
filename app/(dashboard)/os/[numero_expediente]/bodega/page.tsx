@@ -247,7 +247,7 @@ export default function BodegaPage() {
 
   const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId)
   const { data: materialOrders = [], isLoading: isLoadingMaterials } = useMaterialOrders(
-    serviceOrder?.id,
+    serviceOrder?.numero_expediente,
     'Bodega',
   )
   const { data: pickingSheets = [], isLoading: isLoadingPicking } = usePickingSheets(serviceOrder?.id)
@@ -611,7 +611,7 @@ export default function BodegaPage() {
               asChild
               className="h-8 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
             >
-              <Link href={`/pedidos?osId=${osId}&type=Bodega`}>
+              <Link href={`/pedidos?numero_expediente=${serviceOrder?.numero_expediente}&type=Bodega`}>
                 <PlusCircle className="mr-2 h-3.5 w-3.5" />
                 <span className="hidden md:inline">Nuevo Pedido</span>
                 <span className="inline md:hidden">Pedido</span>

@@ -165,11 +165,11 @@ export function BriefingSummaryTrigger({ items }: { items: any[] }) {
       <Button
         variant="outline"
         size="sm"
-        className="h-8 gap-2 bg-zinc-900 text-zinc-50 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-50 transition-all duration-200 shadow-lg shadow-zinc-900/20"
+        className="h-7 text-[9px] font-black uppercase tracking-tight bg-zinc-900 text-zinc-50 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-50 transition-all duration-200 shadow-lg shadow-zinc-900/20 px-2"
         onClick={() => setOpen(true)}
       >
-        <ListCheck className="h-4 w-4" />
-        <span className="hidden md:inline">Resumen Briefing</span>
+        <ListCheck className="h-3 w-3" />
+        <span className="hidden md:inline ml-1.5">Briefing</span>
       </Button>
       <BriefingSummaryDialog open={open} onOpenChange={setOpen} items={items} />
     </>

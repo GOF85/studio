@@ -125,7 +125,7 @@ export default function IncidenciasPickingPage() {
                     
                     // 1. Update Material Order in Supabase
                     const { error: orderError } = await supabase
-                        .from('material_orders')
+                        .from('os_material_orders')
                         .update({
                             items: orderToUpdate.items,
                             total: orderToUpdate.total
@@ -194,7 +194,7 @@ export default function IncidenciasPickingPage() {
 
             // 1. Create new Material Order
             const { error: orderError } = await supabase
-                .from('material_orders')
+                .from('os_material_orders')
                 .insert(newOrder);
 
             if (orderError) throw orderError;
