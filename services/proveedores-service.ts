@@ -36,7 +36,8 @@ export async function getProveedoresPaginated(
         .select('*', { count: 'exact' });
 
     if (searchTerm) {
-        query = query.or(`nombre_comercial.ilike.%${searchTerm}%,nombre_fiscal.ilike.%${searchTerm}%,cif.ilike.%${searchTerm}%`);
+        // Buscar por nombre comercial, nombre fiscal, CIF, id_erp e id
+        query = query.or(`nombre_comercial.ilike.%${searchTerm}%,nombre_fiscal.ilike.%${searchTerm}%,cif.ilike.%${searchTerm}%,id_erp.ilike.%${searchTerm}%,id.eq.${searchTerm}`);
     }
 
     const from = (page - 1) * pageSize;

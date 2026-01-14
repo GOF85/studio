@@ -3,6 +3,7 @@
 // Strict Enums (case sensitive, exactos)
 export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | 'Hielo';
 export type MaterialOrderStatus = 'Asignado' | 'En preparación' | 'Listo';
+export type SubpedidoStatus = 'pending' | 'review' | 'confirmed' | 'sent' | 'cancelled';
 export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Listo' | 'Incidencia';
 export type TransporteOrderStatus = 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Entregado';
 export type PersonalMiceCentroCoste = 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
@@ -1333,3 +1334,4 @@ export interface OSEstadoCierre {
 
 
 export * from './espacios';
+export * from './pedidos';

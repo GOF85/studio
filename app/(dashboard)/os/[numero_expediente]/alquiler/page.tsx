@@ -2,8 +2,34 @@
 
 import { useState, useMemo, useCallback, memo, useEffect } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { PlusCircle, Eye, Trash2, FileText, Archive, AlertTriangle, Plus, Calendar, MapPin } from 'lucide-react'
+import { useParams, useRouter } from 'next/navigation'
+import { PlusCircle, Eye, Trash2, FileText, Archive, AlertTriangle, Plus, Calendar, MapPin, Package } from 'lucide-react'
+import {
+  NewPedidoModal,
+  ChangeContextModal,
+  PDFGenerationModal,
+  SentOrderDetailsModal,
+  EditItemsModal,
+  AgregarReferenciasModal,
+  EnviarPedidosModal,
+} from '@/components/pedidos/modals'
+import { SubPedidoCard } from '@/components/pedidos/sub-pedido-card'
+import {
+  useCreatePedidoPendiente,
+  useDeletePedidoPendiente,
+  useChangePedidoContext,
+  useUpdatePedidoPendiente,
+  usePedidosPendientes,
+  useProveedoresAlquiler,
+  useAgregarItemsAPedido,
+  useUpdatePedidoContexto,
+  useBuscarArticulosProveedor,
+} from '@/hooks/use-pedidos-pendientes'
+import { useUpdateSubpedidoComplete } from '@/hooks/use-update-subpedido-complete'
+import { useGeneratePDFMulti, usePedidosEnviados } from '@/hooks/use-pedidos-enviados'
+import { useDeletePedidoEnviado } from '@/hooks/use-delete-pedido-enviado'
+import { PedidoPendiente, PedidoEnviado } from '@/types'
+import { useAuth } from '@/providers/auth-provider'
 import type { OrderItem, PickingSheet, ComercialBriefingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -51,6 +77,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import {
@@ -67,6 +94,23 @@ import {
 import { useObjetivosGasto, useObjetivosGastoPlantillas } from '@/hooks/use-objetivos-gasto'
 import { getThumbnail } from '@/lib/image-utils'
 import { useArticulos } from '@/hooks/use-data-queries'
+
+interface ModalState {
+  newPedido: boolean
+  changeContext: boolean
+  generatePDF: boolean
+  viewDetails: boolean
+  editItems: boolean
+  agregarReferencias: boolean
+  enviarPedidos: boolean
+}
+
+interface SelectedData {
+  contextPedido: PedidoPendiente | null
+  detailsPedido: PedidoEnviado | null
+  selectedForPDF: string[]
+  editItemsPedido: PedidoPendiente | null
+}
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string
@@ -332,17 +376,37 @@ function StatusCard({
 }
 
 export default function AlquilerPage() {
-  const [orderToDelete, setOrderToDelete] = useState<{ orderId: string; itemCode: string } | null>(
-    null,
-  )
-  const [showAggregator, setShowAggregator] = useState(false)
+  const router = useRouter()
+  const { user } = useAuth()
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
+  
+  // Modals state for pedidos management
+  const [modals, setModals] = useState<ModalState>({
+    newPedido: false,
+    changeContext: false,
+    generatePDF: false,
+    viewDetails: false,
+    editItems: false,
+    agregarReferencias: false,
+    enviarPedidos: false,
+  })
+
+  const [selected, setSelected] = useState<SelectedData>({
+    contextPedido: null,
+    detailsPedido: null,
+    selectedForPDF: [],
+    editItemsPedido: null,
+  })
+
+  // ✅ Estados para nuevos modales
+  const [selectedPedidoForReferencias, setSelectedPedidoForReferencias] = useState<string | null>(null)
+  const [selectedProveedorId, setSelectedProveedorId] = useState<string | null>(null)
 
   const params = useParams() ?? {}
-  const osId = (params.numero_expediente as string) || ''
+  const numeroExpediente = (params.numero_expediente as string) || ''
   const { toast } = useToast()
 
-  const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(osId)
+  const { data: serviceOrder, isLoading: isLoadingOS } = useEvento(numeroExpediente)
   const { data: materialOrders = [], isLoading: isLoadingOrders, refetch: refetchMaterialOrders } = useMaterialOrders(
     serviceOrder?.numero_expediente,
     'Alquiler',
@@ -353,8 +417,23 @@ export default function AlquilerPage() {
   const { data: briefing, isLoading: isLoadingBriefing } = useComercialBriefing(serviceOrder?.id)
   const { data: ajustes = [], isLoading: isLoadingAjustes } = useComercialAjustes(serviceOrder?.id)
 
-  const updateItemMutation = useUpdateMaterialOrderItem()
-  const deleteItemMutation = useDeleteMaterialOrderItem()
+  // Combined loading state
+  const isLoading = isLoadingOS || isLoadingOrders || isLoadingPicking || isLoadingReturns || isLoadingBriefing || isLoadingAjustes
+
+  // Pedidos management mutations and queries
+  const createPedido = useCreatePedidoPendiente()
+  const deletePedido = useDeletePedidoPendiente()
+  const deleteEnviado = useDeletePedidoEnviado()
+  const changePedidoContext = useChangePedidoContext()
+  const updatePedidoItems = useUpdatePedidoPendiente()
+  const updateSubpedidoComplete = useUpdateSubpedidoComplete()
+  const generatePDF = useGeneratePDFMulti()
+  const agregarItems = useAgregarItemsAPedido()
+  const actualizarContexto = useUpdatePedidoContexto()
+  const { data: allPedidosPendientes = [], refetch: refetchPedidosPendientes } = usePedidosPendientes(numeroExpediente)
+  const { data: allPedidosEnviados = [] } = usePedidosEnviados(numeroExpediente)
+  const { data: proveedoresAlquiler = [] } = useProveedoresAlquiler()
+  const { data: articulosProveedorData = [] } = useBuscarArticulosProveedor(selectedProveedorId || undefined)
 
   // Refetch material orders cuando la ventana obtiene el foco o cada 30 segundos
   useEffect(() => {
@@ -365,13 +444,294 @@ export default function AlquilerPage() {
     return () => window.removeEventListener('focus', handleFocus)
   }, [refetchMaterialOrders])
 
-  const isLoading =
-    isLoadingOS || 
-    isLoadingOrders || 
-    isLoadingPicking || 
-    isLoadingReturns || 
-    isLoadingBriefing || 
-    isLoadingAjustes
+  // ========== PEDIDOS MANAGEMENT HANDLERS ==========
+
+  const handleOpenNewPedido = () => {
+    setModals((m) => ({ ...m, newPedido: true }))
+  }
+
+  const handleCloseNewPedido = () => {
+    setModals((m) => ({ ...m, newPedido: false }))
+  }
+
+  const handleSubmitNewPedido = async (data: {
+    fechaEntrega: string
+    horaEntrega: string
+    localizacion: string
+    solicita: 'Sala' | 'Cocina'
+    proveedorId: string
+    nombreComercialProveedor?: string
+  }) => {
+    try {
+      // Store provider ID for article pre-loading
+      setSelectedProveedorId(data.proveedorId)
+      
+      const pedidoData = {
+        osId: numeroExpediente,
+        fechaEntrega: data.fechaEntrega,
+        horaEntrega: data.horaEntrega,
+        localizacion: data.localizacion,
+        solicita: data.solicita,
+        proveedor_id: data.proveedorId,
+        nombreComercialProveedor: data.nombreComercialProveedor,
+        items: [],
+      }
+      
+      const newPedido = await createPedido.mutateAsync(pedidoData)
+      const newPedidoId = newPedido.id
+      handleCloseNewPedido()
+      setModals((m) => ({ ...m, agregarReferencias: true }))
+      
+      toast({ title: 'Pedido creado', description: 'Ahora puedes agregar artículos al pedido' })
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudo crear el pedido', variant: 'destructive' })
+    }
+  }
+
+  const handleDownloadPDF = (pedido: PedidoEnviado) => {
+    const fileName = `pedidos-${pedido.numero_expediente}-${pedido.id.substring(0, 8)}.pdf`
+    const downloadUrl = `/api/pedidos/download-pdf?fileName=${encodeURIComponent(fileName)}&pedidoId=${pedido.id}`
+    
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleDeletePedido = async (pedidoId: string) => {
+    if (confirm('¿Estás seguro de que deseas eliminar este pedido?')) {
+      try {
+        await deletePedido.mutateAsync({ pedidoId, osId: numeroExpediente })
+        toast({ title: 'Pedido eliminado', description: 'El pedido ha sido eliminado correctamente' })
+      } catch (error) {
+        toast({ title: 'Error', description: 'No se pudo eliminar el pedido', variant: 'destructive' })
+      }
+    }
+  }
+
+  const handleOpenChangeContext = (pedido: PedidoPendiente) => {
+    setSelected((s) => ({ ...s, contextPedido: pedido }))
+    setModals((m) => ({ ...m, changeContext: true }))
+  }
+
+  const handleCloseChangeContext = () => {
+    setModals((m) => ({ ...m, changeContext: false }))
+    setSelected((s) => ({ ...s, contextPedido: null }))
+  }
+
+  const handleConfirmChangeContext = async (newSolicita: 'Sala' | 'Cocina') => {
+    if (!selected.contextPedido) return
+    try {
+      await changePedidoContext.mutateAsync({
+        pedidoId: selected.contextPedido.id,
+        newSolicita,
+      })
+      handleCloseChangeContext()
+      toast({ title: 'Contexto actualizado', description: 'Se ha cambiad el contexto correctamente' })
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudo cambiar el contexto', variant: 'destructive' })
+    }
+  }
+
+  const handleOpenGeneratePDF = (selectedIds: string[]) => {
+    setSelected((s) => ({ ...s, selectedForPDF: selectedIds }))
+    setModals((m) => ({ ...m, generatePDF: true }))
+  }
+
+  const handleCloseGeneratePDF = () => {
+    setModals((m) => ({ ...m, generatePDF: false }))
+    setSelected((s) => ({ ...s, selectedForPDF: [] }))
+  }
+
+  const handleConfirmGeneratePDF = async () => {
+    try {
+      const result = await generatePDF.mutateAsync({
+        osId: numeroExpediente,
+        selectedPedidoIds: selected.selectedForPDF,
+        generatedBy: user?.id || 'system',
+      })
+      
+      handleCloseGeneratePDF()
+      toast({ title: 'PDF generado', description: `${result.consolidatedCount} archivos consolidados` })
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudo generar el PDF', variant: 'destructive' })
+    }
+  }
+
+  const handleOpenViewDetails = (pedido: PedidoEnviado) => {
+    setSelected((s) => ({ ...s, detailsPedido: pedido }))
+    setModals((m) => ({ ...m, viewDetails: true }))
+  }
+
+  const handleCloseViewDetails = () => {
+    setModals((m) => ({ ...m, viewDetails: false }))
+    setSelected((s) => ({ ...s, detailsPedido: null }))
+  }
+
+  const handleOpenEditItems = (pedido: PedidoPendiente) => {
+    setSelected((s) => ({ ...s, editItemsPedido: pedido }))
+    setModals((m) => ({ ...m, editItems: true }))
+  }
+
+  const handleCloseEditItems = () => {
+    setModals((m) => ({ ...m, editItems: false }))
+    setSelected((s) => ({ ...s, editItemsPedido: null }))
+  }
+
+  const handleSaveEditItems = async (items: any[]) => {
+    if (!selected.editItemsPedido) return
+    try {
+      await updatePedidoItems.mutateAsync({
+        pedidoId: selected.editItemsPedido.id,
+        items,
+      })
+      handleCloseEditItems()
+      toast({ title: 'Items actualizados', description: 'Los items han sido actualizados correctamente' })
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudo actualizar los items', variant: 'destructive' })
+    }
+  }
+
+  // ========== NUEVOS HANDLERS PARA TARJETA DE GESTIÓN DE PEDIDOS ==========
+
+  const handleOpenAgregarReferencias = (pedidoId: string) => {
+    // Find the pedido and set provider ID
+    const pedido = allPedidosPendientes.find(p => p.id === pedidoId)
+    if (pedido?.proveedor_id) {
+      setSelectedProveedorId(pedido.proveedor_id)
+    }
+    setSelectedPedidoForReferencias(pedidoId)
+    setModals((m) => ({ ...m, agregarReferencias: true }))
+  }
+
+  const handleCloseAgregarReferencias = () => {
+    setModals((m) => ({ ...m, agregarReferencias: false }))
+    setSelectedPedidoForReferencias(null)
+    setSelectedProveedorId(null)
+  }
+
+  const handleAgregarItemsAEditar = async (items: any[]) => {
+    if (!selectedPedidoForReferencias) return
+    try {
+      // Esperar a que la mutación termine
+      await agregarItems.mutateAsync({
+        pedidoId: selectedPedidoForReferencias,
+        newItems: items,
+      })
+      
+      // CRITICAL: Await refetch para asegurar que los datos se actualizan ANTES de cerrar modal
+      await refetchPedidosPendientes()
+      
+      handleCloseAgregarReferencias()
+      toast({ title: 'Items agregados', description: 'Se han agregado los artículos correctamente' })
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudieron agregar los artículos', variant: 'destructive' })
+    }
+  }
+
+  const handleSubPedidoEdit = async (pedidoId: string, updates: { fechaEntrega?: string; localizacion?: string; solicita?: 'Sala' | 'Cocina' }) => {
+    try {
+      await actualizarContexto.mutateAsync({
+        pedidoId,
+        ...updates,
+      })
+      toast({ title: 'Sub-pedido actualizado', description: 'Los datos se han modificado correctamente' })
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudo actualizar el sub-pedido', variant: 'destructive' })
+    }
+  }
+
+  const handleSubPedidoDelete = async (pedidoId: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este sub-pedido?')) return
+    try {
+      await deletePedido.mutateAsync({
+        pedidoId,
+        osId: numeroExpediente,
+      })
+      toast({ title: 'Sub-pedido eliminado', description: 'Se ha eliminado correctamente' })
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudo eliminar el sub-pedido', variant: 'destructive' })
+    }
+  }
+
+  const handleSubPedidoUpdateItems = async (pedidoId: string, items: any[]) => {
+    try {
+      await updatePedidoItems.mutateAsync({
+        pedidoId,
+        items,
+      })
+      toast({ title: 'Items actualizados', description: 'Los cambios se han guardado' })
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudieron actualizar los items', variant: 'destructive' })
+    }
+  }
+
+  // NUEVO: Manejo consolidado de guardado de sub-pedido
+  const handleSubPedidoSaveComplete = async (
+    pedidoId: string,
+    updates: {
+      fechaEntrega?: string;
+      horaEntrega?: string;
+      localizacion?: string;
+      solicita?: 'Sala' | 'Cocina';
+      fechaRecogida?: string;
+      horaRecogida?: string;
+      lugarRecogida?: 'Evento' | 'Instalaciones';
+      items?: any[];
+    }
+  ) => {
+    try {
+      await updateSubpedidoComplete.mutateAsync({
+        pedidoId,
+        osId: numeroExpediente,
+        updates,
+      })
+      toast({ 
+        title: 'Sub-pedido guardado', 
+        description: 'Todos los cambios se han registrado correctamente en una sola transacción' 
+      })
+    } catch (error) {
+      toast({ 
+        title: 'Error al guardar', 
+        description: 'No se pudo guardar el sub-pedido',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const handleOpenEnviarPedidos = () => {
+    setModals((m) => ({ ...m, enviarPedidos: true }))
+  }
+
+  const handleCloseEnviarPedidos = () => {
+    setModals((m) => ({ ...m, enviarPedidos: false }))
+  }
+
+  const handleConfirmEnviarPedidos = async (selectedPedidoIds: string[], preview: any, comentario?: string) => {
+    try {
+      const result = await generatePDF.mutateAsync({
+        osId: numeroExpediente,
+        selectedPedidoIds,
+        generatedBy: user?.id || 'system',
+        comentario,
+      })
+      
+      handleCloseEnviarPedidos()
+      toast({
+        title: 'Pedidos consolidados',
+        description: `Se han generado ${preview.length} PDF(s) correctamente`,
+      })
+    } catch (error: any) {
+      const errorMessage = error?.message || 'No se pudo consolidar los pedidos';
+      toast({
+        title: 'Error al consolidar',
+        description: errorMessage,
+        variant: 'destructive'
+      })
+    }
+  }
 
   const facturacionNeta = useMemo(() => {
     if (!serviceOrder) return 0
@@ -548,8 +908,28 @@ export default function AlquilerPage() {
     }, [materialOrders, pickingSheets, returnSheets, allArticulos])
 
   const totalPlanned = useMemo(() => {
-    return allItems.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0)
-  }, [allItems])
+    // Planificado = Sub-pedidos pendientes (no consolidados) + Pedidos consolidados y enviados
+    // Es decir, TODOS los gastos en pedidos de alquiler que están "planeados"
+    
+    // 1. Sub-pedidos pendientes (aún no consolidados)
+    const totalSubPedidosPendientes = (allPedidosPendientes || []).reduce((acc, pedido) => {
+      const pedidoTotal = (pedido.items || []).reduce((sum, item: any) => {
+        return sum + ((item.priceSnapshot || item.price || 0) * (item.cantidad || 0))
+      }, 0)
+      return acc + pedidoTotal
+    }, 0)
+
+    // 2. Pedidos consolidados y ya enviados
+    const totalEnviados = (allPedidosEnviados || []).reduce((acc, pedido) => {
+      const pedidoTotal = (pedido.items || []).reduce((sum, item: any) => {
+        return sum + ((item.price || item.priceSnapshot || 0) * (item.cantidad || 0))
+      }, 0)
+      return acc + pedidoTotal
+    }, 0)
+
+    const total = totalSubPedidosPendientes + totalEnviados
+    return total
+  }, [allPedidosPendientes, allPedidosEnviados])
 
   const availableLocations = useMemo(() => {
     if (!briefing?.items || briefing.items.length === 0) {
@@ -558,57 +938,6 @@ export default function AlquilerPage() {
     const locations = Array.from(new Set(briefing.items.map((item: any) => item.solicita || item.sala || item.ubicacion || item.location).filter(Boolean)));
     return locations;
   }, [briefing]);
-
-  const handleItemChange = useCallback(
-    async (itemCode: string, orderId: string, field: string, value: any) => {
-      console.log('\n🟡 [HANDLE CHANGE] Usuario cambió campo:');
-      console.log(`   itemCode: ${itemCode}`);
-      console.log(`   orderId: ${orderId}`);
-      console.log(`   field: ${field}`);
-      console.log(`   value: ${value}`);
-      
-      try {
-        console.log(`🔄 Llamando mutation...`);
-        await updateItemMutation.mutateAsync({
-          id: itemCode,
-          orderId,
-          updates: { [field]: value },
-        })
-        console.log(`✅ Mutation completada`);
-        toast({
-          title: 'Actualizado',
-          description: `${field} actualizado a: ${value}`,
-        })
-      } catch (error) {
-        console.error(`❌ Error en handleItemChange:`, error)
-        toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'No se pudo actualizar el artículo.',
-          variant: 'destructive',
-        })
-      }
-    },
-    [updateItemMutation, toast],
-  )
-
-  const handleDeleteItem = async () => {
-    if (!orderToDelete) return
-    try {
-      await deleteItemMutation.mutateAsync({
-        orderId: orderToDelete.orderId,
-        id: orderToDelete.itemCode,
-      })
-      toast({ title: 'Eliminado', description: 'El artículo ha sido eliminado del pedido.' })
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'No se pudo eliminar el artículo.',
-        variant: 'destructive',
-      })
-    } finally {
-      setOrderToDelete(null)
-    }
-  }
 
   const renderSummaryModal = () => {
     const all = [
@@ -768,7 +1097,7 @@ export default function AlquilerPage() {
                 <AlquilerHeaderMetrics 
                   totalPlanned={totalPlanned} 
                   facturacion={facturacionNeta} 
-                  osId={serviceOrder?.id || osId}
+                  osId={serviceOrder?.id || numeroExpediente}
                 />
               </div>
             </div>
@@ -790,334 +1119,11 @@ export default function AlquilerPage() {
                 {renderSummaryModal()}
               </Dialog>
               <BriefingSummaryTrigger items={briefing?.items || []} />
-              <Button 
-                asChild
-                className="h-7 text-[9px] font-black uppercase tracking-tight bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 px-2"
-              >
-                <Link href={`/pedidos?numero_expediente=${serviceOrder?.numero_expediente}&type=Alquiler`}>
-                  <PlusCircle className="mr-1.5 h-3 w-3" />
-                  <span className="hidden md:inline">Nuevo</span>
-                  <span className="inline md:hidden">+</span>
-                </Link>
-              </Button>
             </div>
           </div>
         </div>
 
         <main className="space-y-4 max-w-7xl mx-auto px-4">
-
-        <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden">
-          <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-          <CardHeader className="py-2 px-4 border-b border-border/40 flex-row items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-blue-500" />
-              <CardTitle className="text-[11px] font-black uppercase tracking-widest">Gestión de Pedidos Pendientes</CardTitle>
-            </div>
-            <div className="flex items-center gap-2 text-[10px]">
-              <Dialog open={showAggregator} onOpenChange={setShowAggregator}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={pendingItems.length === 0}
-                    className="h-7 text-[9px] font-black uppercase tracking-widest border-border/40 hover:bg-amber-500/5"
-                  >
-                    Agregado
-                  </Button>
-                </DialogTrigger>
-                {renderAggregatorModal()}
-              </Dialog>
-              <div className="text-right">
-                <span className="text-muted-foreground uppercase font-bold">{pendingItems.length} Ref • {pendingItems.reduce((sum, item) => sum + item.quantity, 0)} Uds</span>
-              </div>
-              <div className="text-right">
-                <span className="font-black text-blue-600 tabular-nums">{formatCurrency(totalValoracionPendiente)}</span>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow className="hover:bg-transparent border-border/40">
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black w-12"></TableHead>
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black">Artículo</TableHead>
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black w-24">Localización</TableHead>
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black w-28">Solicita</TableHead>
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black w-32">Fecha Entrega</TableHead>
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black text-right w-16">Precio</TableHead>
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black text-right w-16">Cantidad</TableHead>
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black text-right w-24">Valoración</TableHead>
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-black text-right w-8"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingItems.length > 0 ? (
-                    pendingItems
-                      .sort((a, b) => {
-                        // Sort by: Fecha Entrega → Solicita (Sala) → Localización → Subcategoría
-                        const dateA = a.deliveryDate ? new Date(a.deliveryDate).getTime() : Infinity
-                        const dateB = b.deliveryDate ? new Date(b.deliveryDate).getTime() : Infinity
-                        if (dateA !== dateB) return dateA - dateB
-                        
-                        const solicitaA = (a.solicita || 'Sala').toUpperCase()
-                        const solicitaB = (b.solicita || 'Sala').toUpperCase()
-                        if (solicitaA !== solicitaB) return solicitaA.localeCompare(solicitaB)
-                        
-                        const localizacionA = (a.deliveryLocation || '').toUpperCase()
-                        const localizacionB = (b.deliveryLocation || '').toUpperCase()
-                        if (localizacionA !== localizacionB) return localizacionA.localeCompare(localizacionB)
-                        
-                        const categoryA = (a.subcategoria || '').toUpperCase()
-                        const categoryB = (b.subcategoria || '').toUpperCase()
-                        return categoryA.localeCompare(categoryB)
-                      })
-                      .reduce((acc, item, index, arr) => {
-                        // Group ONLY by deliveryDate + deliveryLocation (no subcategoria)
-                        const currentGroupKey = `${item.deliveryDate}|${item.deliveryLocation}`
-                        const prevGroupKey = index > 0 ? `${arr[index - 1].deliveryDate}|${arr[index - 1].deliveryLocation}` : null
-                        
-                        if (currentGroupKey !== prevGroupKey) {
-                          // Add group header with date and location
-                          const dateStr = item.deliveryDate ? new Date(item.deliveryDate).toLocaleDateString('es-ES', { month: 'short', day: '2-digit' }) : '—'
-                          const locationStr = item.deliveryLocation || '—'
-                          
-                          acc.push(
-                            <TableRow key={currentGroupKey} className="bg-amber-500/5 border-t-2 border-amber-500/30 hover:bg-transparent">
-                              <TableCell colSpan={1} className="px-2 py-0 h-6"></TableCell>
-                              <TableCell colSpan={1} className="px-2 py-0 h-6">
-                                <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-black leading-none">
-                                  <Calendar className="w-3 h-3 flex-shrink-0" />
-                                  <span>{dateStr}</span>
-                                  <span>||</span>
-                                  <MapPin className="w-3 h-3 flex-shrink-0" />
-                                  <span>{locationStr}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell colSpan={7} className="px-2 py-0 h-6"></TableCell>
-                            </TableRow>
-                          )
-                        }
-                        
-                        // Add item row
-                        acc.push(
-                          <TableRow key={item.itemCode + item.orderId} className="border-border/40 hover:bg-muted/20 transition-colors">
-                            <TableCell className="px-2 py-1.5">
-                              {item.imageUrl ? (
-                                <button
-                                  onClick={() => setSelectedImageUrl(item.imageUrl!)}
-                                  className="w-10 h-10 rounded overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
-                                >
-                                  <img src={item.imageUrl} alt={item.description} className="w-full h-full object-cover" />
-                                </button>
-                              ) : (
-                                <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                                  <span className="text-[8px] text-muted-foreground">Sin img</span>
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="px-2 py-1.5">
-                              <div className="flex flex-col gap-1">
-                                <span className="text-[10px] font-bold uppercase tracking-tight line-clamp-2">{item.description}</span>
-                                {item.subcategoria && (
-                                  <Badge variant="outline" className="w-fit text-[7px] h-5 px-1.5 bg-white border-gray-300 text-gray-900 font-semibold">
-                                    {item.subcategoria}
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="px-2 py-1.5">
-                              <Select
-                                value={item.deliveryLocation || ''}
-                                onValueChange={(value) =>
-                                  handleItemChange(item.itemCode, item.orderId, 'deliveryLocation', value)
-                                }
-                              >
-                                <SelectTrigger className="h-7 text-[9px] border-border/40 bg-background/50">
-                                  <SelectValue placeholder="Ubicación..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availableLocations.map((loc: string) => (
-                                    <SelectItem key={loc} value={loc} className="text-[9px]">
-                                      {loc}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell className="px-2 py-1.5">
-                              <Select
-                                value={item.solicita || 'Sala'}
-                                onValueChange={(value: 'Sala' | 'Cocina') =>
-                                  handleItemChange(item.itemCode, item.orderId, 'solicita', value)
-                                }
-                              >
-                                <SelectTrigger className="h-7 text-[9px] border-border/40 bg-background/50">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Sala" className="text-[9px]">Sala</SelectItem>
-                                  <SelectItem value="Cocina" className="text-[9px]">Cocina</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell className="px-2 py-1.5">
-                              <Input
-                                type="date"
-                                value={
-                                  item.deliveryDate
-                                    ? format(new Date(item.deliveryDate), 'yyyy-MM-dd')
-                                    : ''
-                                }
-                                onChange={(e) =>
-                                  handleItemChange(
-                                    item.itemCode,
-                                    item.orderId,
-                                    'deliveryDate',
-                                    e.target.value,
-                                  )
-                                }
-                                className="h-7 text-[9px] border-border/40 bg-background/50"
-                              />
-                            </TableCell>
-                            <TableCell className="px-2 py-1.5 text-right">
-                              <span className="text-[10px] font-black font-mono text-black">{formatCurrency(item.price || 0)}</span>
-                            </TableCell>
-                            <TableCell className="px-2 py-1.5 text-right">
-                              <Input
-                                type="number"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  handleItemChange(
-                                    item.itemCode,
-                                    item.orderId,
-                                    'quantity',
-                                    parseInt(e.target.value) || 0,
-                                  )
-                                }
-                                className="h-7 text-[9px] border-border/40 bg-background/50 text-center font-mono w-full"
-                              />
-                            </TableCell>
-                            <TableCell className="px-2 py-1.5 text-right">
-                              <span className="text-[10px] font-black font-mono">{formatCurrency(item.quantity * (item.price || 0))}</span>
-                            </TableCell>
-                            <TableCell className="px-2 py-1.5 text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 transition-colors"
-                                onClick={() =>
-                                  setOrderToDelete({ orderId: item.orderId, itemCode: item.itemCode })
-                                }
-                              >
-                                <Trash2 className="h-3 w-3 font-bold" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        )
-                        return acc
-                      }, [] as React.ReactNode[])
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center">
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                          <FileText className="h-8 w-8 opacity-20" />
-                          <p className="text-[11px] font-medium uppercase tracking-wider">No hay pedidos pendientes</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden">
-          <div className="absolute top-0 left-0 w-1 h-full bg-muted-foreground/40" />
-          <CardHeader className="py-3 px-4 border-b border-border/40">
-            <div className="flex items-center gap-2">
-              <Eye className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-[11px] font-black uppercase tracking-widest">Pedidos en Preparación o Listos</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow className="hover:bg-transparent border-border/40">
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground w-40">Hoja Picking</TableHead>
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground w-32">Estado</TableHead>
-                    <TableHead className="h-8 px-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground">Contenido</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {blockedOrders.length > 0 ? (
-                    blockedOrders.map((order) => (
-                      <TableRow key={order.sheetId} className="border-border/40 hover:bg-muted/20 transition-colors">
-                        <TableCell className="px-2 py-1.5">
-                          <Link
-                            href={`/almacen/picking/${order.sheetId}`}
-                            className="inline-flex"
-                          >
-                            <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 hover:bg-blue-500 hover:text-white transition-colors">
-                              {order.sheetId}
-                            </Badge>
-                          </Link>
-                        </TableCell>
-                        <TableCell className="px-2 py-1.5">
-                          <Badge 
-                            variant="outline" 
-                            className={cn(
-                              "text-[8px] font-black uppercase tracking-widest px-2 py-0.5",
-                              order.status === 'Listo' ? 'border-emerald-500/50 text-emerald-600 bg-emerald-500/5' : 'border-amber-500/50 text-amber-600 bg-amber-500/5'
-                            )}
-                          >
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="px-2 py-1.5">
-                          <p className="text-[9px] text-muted-foreground line-clamp-1">
-                            {order.items.map((i) => `${i.quantity}x ${i.description}`).join(', ')}
-                          </p>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={3} className="h-24 text-center">
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                          <Eye className="h-8 w-8 opacity-20" />
-                          <p className="text-[11px] font-medium uppercase tracking-wider">No hay pedidos en preparación o listos</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
-          <AlertDialogContent className="bg-background/95 backdrop-blur-md border-border/40">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-[14px] font-black uppercase tracking-widest">¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDescription className="text-[12px]">
-                Esta acción no se puede deshacer. Se eliminará el artículo del pedido de material.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setOrderToDelete(null)} className="text-[10px] font-black uppercase tracking-widest">Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive hover:bg-destructive/90 text-[10px] font-black uppercase tracking-widest"
-                onClick={handleDeleteItem}
-              >
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         <Dialog open={!!selectedImageUrl} onOpenChange={(open) => !open && setSelectedImageUrl(null)}>
           <DialogContent className="max-w-2xl bg-background/95 backdrop-blur-md border-border/40 p-0 overflow-visible">
@@ -1152,6 +1158,209 @@ export default function AlquilerPage() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* ========== TARJETA 1: GESTIÓN DE PEDIDOS (Editable) ========== */}
+        <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden mt-6">
+          <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+          <CardHeader className="py-2 px-4 border-b border-border/40 flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-emerald-500" />
+              <CardTitle className="text-[11px] font-black uppercase tracking-widest">
+                Gestión de Sub-Pedidos
+              </CardTitle>
+            </div>
+            <Button
+              onClick={handleOpenNewPedido}
+              className="h-7 text-[9px] font-black uppercase tracking-tight bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 px-2"
+            >
+              <Plus className="mr-1.5 h-3 w-3" />
+              Nuevo Sub-Pedido
+            </Button>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="space-y-3">
+              {/* Sub-pedidos */}
+              {allPedidosPendientes.length > 0 ? (
+                <>
+                  {allPedidosPendientes.map((pedido) => (
+                    <SubPedidoCard
+                      key={pedido.id}
+                      pedido={pedido}
+                      onSaveComplete={(updates) => handleSubPedidoSaveComplete(pedido.id, updates)}
+                      onEdit={(updates) => handleSubPedidoEdit(pedido.id, updates)}
+                      onAddReferencias={() => handleOpenAgregarReferencias(pedido.id)}
+                      onUpdateItems={(items) => handleSubPedidoUpdateItems(pedido.id, items)}
+                      onDelete={() => handleSubPedidoDelete(pedido.id)}
+                      isLoading={updatePedidoItems.isPending}
+                      availableLocations={availableLocations}
+                    />
+                  ))}
+
+                  {/* Botón de enviar pedidos */}
+                  <div className="pt-3 border-t border-border/40">
+                    <Button
+                      onClick={handleOpenEnviarPedidos}
+                      className="w-full h-8 text-[9px] font-black uppercase tracking-tight bg-blue-600 hover:bg-blue-700"
+                      disabled={allPedidosPendientes.length === 0}
+                    >
+                      <Package className="mr-1.5 h-3 w-3" />
+                      Enviar {allPedidosPendientes.length} Sub-Pedido(s)
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="h-24 flex items-center justify-center text-center">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Package className="h-8 w-8 opacity-20" />
+                    <p className="text-[10px] font-medium uppercase tracking-wider">
+                      No hay sub-pedidos creados
+                    </p>
+                    <p className="text-[9px] text-muted-foreground/70">
+                      Crea uno nuevo con el botón de arriba
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ========== TARJETA 2: PEDIDOS GESTIONADOS (Solo lectura) ========== */}
+        <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden mt-6">
+          <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+          <CardHeader className="py-2 px-4 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-blue-500" />
+              <CardTitle className="text-[11px] font-black uppercase tracking-widest">
+                Pedidos Consolidados y Enviados
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            {allPedidosEnviados.length > 0 ? (
+              <div className="space-y-2">
+                {allPedidosEnviados.map((pedido) => {
+                  const totalValue = pedido.items.reduce(
+                    (sum, item) => sum + (item.priceSnapshot || item.price || 0) * item.cantidad,
+                    0
+                  );
+                  const totalUnidades = pedido.items.reduce((sum, item) => sum + item.cantidad, 0);
+
+                  return (
+                    <div
+                      key={pedido.id}
+                      className="flex items-center justify-between p-3 bg-muted/30 rounded border border-border/40 hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-black">
+                            {format(new Date(pedido.fecha_entrega), 'dd/MM/yyyy', { locale: es })}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground">
+                            {pedido.localizacion}
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground">
+                          {pedido.items.length} artículos • {totalUnidades} unidades
+                        </p>
+                      </div>
+                      <div className="text-right mr-3">
+                        <p className="text-[10px] font-black font-mono">
+                          {formatCurrency(totalValue)}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[8px]"
+                          onClick={() => handleDownloadPDF(pedido)}
+                        >
+                          ⬇ PDF
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[8px]"
+                          onClick={() => handleOpenViewDetails(pedido)}
+                        >
+                          Ver
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-6 px-2 text-[8px] bg-red-600/90 hover:bg-red-700"
+                          onClick={() => {
+                            if (confirm('⚠️ ADVERTENCIA: Solo borra este pedido si realmente queda anulado en el proveedor. ¿Estás seguro de que deseas eliminarlo?')) {
+                              deleteEnviado.mutateAsync({ pedidoId: pedido.id, osId: numeroExpediente })
+                                .then(() => {
+                                  toast({ title: 'Pedido eliminado', description: 'El pedido ha sido eliminado correctamente' })
+                                })
+                                .catch((error) => {
+                                  toast({ title: 'Error', description: error.message || 'No se pudo eliminar el pedido', variant: 'destructive' })
+                                })
+                            }
+                          }}
+                          disabled={deleteEnviado.isPending}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-24 flex items-center justify-center text-center">
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                  <Eye className="h-8 w-8 opacity-20" />
+                  <p className="text-[10px] font-medium uppercase tracking-wider">
+                    No hay pedidos enviados
+                  </p>
+                  <p className="text-[9px] text-muted-foreground/70">
+                    Los pedidos aparecerán aquí cuando los envíes
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ========== PEDIDOS MODALS ========== */}
+        <NewPedidoModal
+          isOpen={modals.newPedido}
+          onClose={handleCloseNewPedido}
+          onSubmit={handleSubmitNewPedido}
+          isLoading={createPedido.isPending}
+          availableLocations={availableLocations}
+          defaultFecha={serviceOrder?.startDate ? (typeof serviceOrder.startDate === 'string' ? serviceOrder.startDate.split('T')[0] : serviceOrder.startDate.toISOString().split('T')[0]) : ''}
+          proveedores={proveedoresAlquiler}
+        />
+
+        <AgregarReferenciasModal
+          isOpen={modals.agregarReferencias}
+          onClose={handleCloseAgregarReferencias}
+          onAdd={handleAgregarItemsAEditar}
+          isLoading={agregarItems.isPending}
+          proveedores={proveedoresAlquiler}
+          articulosDelProveedor={articulosProveedorData}
+          selectedProveedor={selectedProveedorId || undefined}
+          onProveedorChange={setSelectedProveedorId}
+        />
+
+        <EnviarPedidosModal
+          isOpen={modals.enviarPedidos}
+          onClose={handleCloseEnviarPedidos}
+          onConfirm={handleConfirmEnviarPedidos}
+          isLoading={generatePDF.isPending}
+          pedidosPendientes={allPedidosPendientes}
+        />
+
+        <SentOrderDetailsModal
+          isOpen={modals.viewDetails}
+          pedido={selected.detailsPedido}
+          onClose={handleCloseViewDetails}
+        />
         </main>
       </div>
     </TooltipProvider>

@@ -1,0 +1,484 @@
+/**
+ * PDF Generation utilities for rental orders - IMPROVED VERSION
+ * Uses jsPDF library for document creation
+ * Includes: thumbnails, economic calculations, complete delivery/pickup info, contacts
+ */
+
+import { jsPDF } from 'jspdf';
+import type { UserOptions } from 'jspdf-autotable';
+import { ConsolidatedGroup, PedidoEnviado } from '@/types/pedidos';
+import { formatDate, formatCurrency } from '@/lib/utils';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+// Try to load jspdf-autotable but don't fail if it doesn't load
+try {
+  require('jspdf-autotable');
+} catch (e) {
+  console.warn('[PDF Generator] jspdf-autotable not available, using manual table generation');
+}
+
+interface PDFGenerationOptions {
+  numeroPedido?: string;  // A0001, A0002, etc.
+  osNumber?: string;
+  eventName?: string;
+  eventSpace?: string;
+  eventAddress?: string;
+  providerName?: string;
+  providerPhone?: string;
+  providerEmail?: string;
+  responsableMetre?: string;
+  telefonoMetre?: string;
+  responsablePase?: string;
+  telefonoPase?: string;
+  comments?: string;
+  dias?: number;  // Rental days
+}
+
+/**
+ * Draw a manual table for PDF without jspdf-autotable dependency
+ */
+function drawManualTable(
+  doc: jsPDF,
+  tableData: string[][],
+  startY: number,
+  margin: number,
+  contentWidth: number
+): number {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const colWidths = [15, 85, 15, 12, 20, 25];
+  const cellHeight = 6;
+  const headerHeight = 8;
+  let yPosition = startY;
+
+  // Draw header
+  doc.setFillColor(66, 133, 244);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+
+  const headers = ['', 'Descripción', 'Cant.', 'Días', 'P. Unit.', 'Total'];
+  let xPosition = margin;
+
+  for (let i = 0; i < headers.length; i++) {
+    doc.rect(xPosition, yPosition, colWidths[i], headerHeight, 'F');
+    doc.text(headers[i], xPosition + 2, yPosition + 5);
+    xPosition += colWidths[i];
+  }
+
+  yPosition += headerHeight;
+
+  // Draw rows
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+
+  for (const row of tableData) {
+    xPosition = margin;
+    
+    for (let i = 0; i < row.length; i++) {
+      doc.rect(xPosition, yPosition, colWidths[i], cellHeight);
+      
+      // Right align for numeric columns (3, 4, 5)
+      const isNumeric = [2, 3, 4, 5].includes(i);
+      const text = row[i] || '';
+      const textWidth = doc.getStringUnitWidth(text) * doc.internal.getFontSize() / doc.internal.scaleFactor;
+      const align = isNumeric ? xPosition + colWidths[i] - 2 : xPosition + 2;
+      
+      doc.text(text, align, yPosition + 4, { align: isNumeric ? 'right' : 'left' });
+      xPosition += colWidths[i];
+    }
+
+    yPosition += cellHeight;
+  }
+
+  // Add border around entire table
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.5);
+  xPosition = margin;
+  for (const width of colWidths) xPosition += width;
+  doc.rect(margin, startY, xPosition - margin, yPosition - startY);
+
+  return yPosition + 2;
+}
+
+/**
+ * Generate PDF document for consolidated rental orders with full details
+ */
+export function generatePedidoPDF(
+  groups: ConsolidatedGroup[],
+  options: PDFGenerationOptions = {}
+): jsPDF {
+  console.log('[PDF Generator] Starting PDF generation with options:', options);
+  console.log('[PDF Generator] Groups count:', groups.length);
+  
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const contentWidth = pageWidth - 2 * margin;
+  let yPosition = margin;
+
+  // Safe date formatter
+  const safeFormatDate = (dateStr: any): string => {
+    try {
+      if (!dateStr) return 'N/A';
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return format(date, 'dd/MM/yyyy', { locale: es });
+    } catch {
+      return dateStr || 'N/A';
+    }
+  };
+
+  const addNewPage = () => {
+    doc.addPage();
+    yPosition = margin;
+  };
+
+  // === HEADER ===
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PEDIDO DE ALQUILER', margin, yPosition);
+  yPosition += 10;
+
+  // Order Number (prominent)
+  if (options.numeroPedido) {
+    doc.setFontSize(12);
+    doc.setTextColor(66, 133, 244);  // Blue
+    doc.text(`Pedido: ${options.numeroPedido}`, margin, yPosition);
+    doc.setTextColor(0, 0, 0);
+    yPosition += 7;
+  }
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  
+  // Event info
+  if (options.osNumber) {
+    doc.text(`Referencia: ${options.osNumber}`, margin, yPosition);
+    yPosition += 4;
+  }
+  if (options.eventName) {
+    doc.text(`Evento: ${options.eventName}`, margin, yPosition);
+    yPosition += 4;
+  }
+  if (options.eventSpace) {
+    doc.text(`Espacio: ${options.eventSpace}`, margin, yPosition);
+    yPosition += 4;
+  }
+  if (options.eventAddress) {
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    doc.text(`Dirección: ${options.eventAddress}`, margin, yPosition);
+    doc.setTextColor(0);
+    yPosition += 4;
+    doc.setFontSize(9);
+  }
+
+  doc.text(`Fecha de generación: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}`, margin, yPosition);
+  yPosition += 8;
+
+  // === CONTACTS SECTION ===
+  doc.setDrawColor(200);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 5;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CONTACTOS DEL EVENTO', margin, yPosition);
+  yPosition += 5;
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  
+  let contactX = margin;
+  
+  if (options.responsableMetre) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Responsable Maitre:', contactX, yPosition);
+    doc.setFont('helvetica', 'normal');
+    yPosition += 3;
+    doc.text(options.responsableMetre, contactX + 2, yPosition);
+    yPosition += 3;
+    if (options.telefonoMetre) {
+      doc.text(`Tel: ${options.telefonoMetre}`, contactX + 2, yPosition);
+      yPosition += 4;
+    }
+  }
+
+  if (options.responsablePase) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Responsable Pase:', contactX, yPosition);
+    doc.setFont('helvetica', 'normal');
+    yPosition += 3;
+    doc.text(options.responsablePase, contactX + 2, yPosition);
+    yPosition += 3;
+    if (options.telefonoPase) {
+      doc.text(`Tel: ${options.telefonoPase}`, contactX + 2, yPosition);
+      yPosition += 4;
+    }
+  }
+
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 5;
+
+  // === PROVIDER INFO ===
+  if (options.providerName) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PROVEEDOR:', margin, yPosition);
+    yPosition += 4;
+    doc.setFont('helvetica', 'normal');
+    doc.text(options.providerName, margin + 2, yPosition);
+    yPosition += 3;
+    if (options.providerPhone) {
+      doc.text(`Tel: ${options.providerPhone}`, margin + 2, yPosition);
+      yPosition += 3;
+    }
+    if (options.providerEmail) {
+      doc.text(`Email: ${options.providerEmail}`, margin + 2, yPosition);
+      yPosition += 5;
+    }
+  }
+
+  // === PROCESS EACH GROUP ===
+  let globalTotal = 0;
+
+  for (let i = 0; i < groups.length; i++) {
+    const group = groups[i];
+
+    if (yPosition > pageHeight - 100) {
+      addNewPage();
+    }
+
+    // Group header with delivery/pickup info
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setFillColor(240, 248, 255);
+    doc.rect(margin, yPosition, contentWidth, 6, 'F');
+    const horaEntrega = (group as any).hora_entrega || 'N/A';
+    doc.text(
+      `Entrega: ${safeFormatDate(group.fecha_entrega)} • ${horaEntrega} • ${group.localizacion}`,
+      margin + 1,
+      yPosition + 4
+    );
+    yPosition += 7;
+
+    // Pickup info
+    if ((group as any).fecha_recogida) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      const horaRecogida = (group as any).hora_recogida || 'N/A';
+      const lugarRecogida = (group as any).lugar_recogida || 'Evento';
+      const recogidaText = `Recogida: ${safeFormatDate((group as any).fecha_recogida)} a las ${horaRecogida} en ${lugarRecogida}`;
+      doc.text(recogidaText, margin + 1, yPosition);
+      yPosition += 4;
+      doc.setTextColor(0);
+    }
+
+    // Items table with economic calculation
+    let tableData: any[] = [];
+    
+    try {
+      console.log('[PDF Generator] Processing items for group:', {
+        fecha_entrega: group.fecha_entrega,
+        localizacion: group.localizacion,
+        items_count: group.items?.length || 0,
+        items_type: typeof group.items,
+        items_isArray: Array.isArray(group.items),
+        items_keys: group.items ? Object.keys(group.items).slice(0, 3) : []
+      });
+
+      if (!group.items) {
+        console.error('[PDF Generator] ERROR: group.items is null/undefined');
+        throw new Error('Items is null or undefined');
+      }
+
+      if (!Array.isArray(group.items)) {
+        console.error('[PDF Generator] ERROR: group.items is not an array, it is:', typeof group.items);
+        console.error('[PDF Generator] Converting object to array...');
+        // Convert object to array if needed (from consolidation)
+        group.items = Object.values(group.items);
+        console.log('[PDF Generator] Converted to array, length:', group.items.length);
+      }
+
+      tableData = group.items.map((item: any, idx: number) => {
+        console.log(`[PDF Generator] Processing item ${idx}:`, {
+          itemCode: item.itemCode,
+          description: item.description,
+          price: item.price,
+          priceSnapshot: item.priceSnapshot,
+          cantidad: item.cantidad,
+          quantity: item.quantity
+        });
+
+        const precioUnitario = item.priceSnapshot || item.price || 0;
+        const cantidad = item.cantidad || item.quantity || 0;
+        const dias = options.dias || 1;
+        const total = precioUnitario * cantidad * dias;
+        globalTotal += total;
+
+        return [
+          // Thumbnail placeholder - we'll add this later with actual image loading
+          '', 
+          item.description || '-',
+          cantidad.toString(),
+          dias.toString(),
+          formatCurrency(precioUnitario),
+          formatCurrency(total),
+        ];
+      });
+
+      console.log('[PDF Generator] Table data generated:', tableData.length, 'rows');
+    } catch (err: any) {
+      console.error('[PDF Generator] ERROR mapping items for PDF:', err.message);
+      console.error('[PDF Generator] Error stack:', err.stack);
+      console.error('[PDF Generator] Group items type:', typeof group.items);
+      console.error('[PDF Generator] Group items:', JSON.stringify(group.items, null, 2));
+      doc.setTextColor(255, 0, 0);
+      doc.setFontSize(10);
+      doc.text('Error al generar tabla: ' + err.message, margin, yPosition);
+      yPosition += 5;
+      doc.text('Ver consola del servidor para más detalles', margin, yPosition);
+      yPosition += 5;
+      doc.setTextColor(0);
+      return doc;
+    }
+
+    try {
+      // Use autoTable if available, otherwise draw manual table
+      if ((doc as any).autoTable) {
+        (doc as any).autoTable({
+          startY: yPosition,
+          head: [['', 'Descripción', 'Cant.', 'Días', 'P. Unit.', 'Total']],
+          body: tableData,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [66, 133, 244],
+            textColor: 255,
+            fontSize: 8,
+            fontStyle: 'bold',
+          },
+          bodyStyles: {
+            fontSize: 7,
+          },
+          columnStyles: {
+            0: { cellWidth: 15 },
+            1: { cellWidth: 85 },
+            2: { cellWidth: 15, halign: 'center' },
+            3: { cellWidth: 12, halign: 'center' },
+            4: { cellWidth: 20, halign: 'right' },
+            5: { cellWidth: 25, halign: 'right', fontStyle: 'bold' },
+          },
+          margin: { left: margin, right: margin },
+        });
+        yPosition = (doc as any).lastAutoTable.finalY + 2;
+      } else {
+        // Manual table drawing as fallback
+        yPosition = drawManualTable(doc, tableData, yPosition, margin, contentWidth);
+      }
+    } catch (err) {
+      console.error('Error in autoTable:', err);
+      // Draw manual table as fallback
+      try {
+        yPosition = drawManualTable(doc, tableData, yPosition, margin, contentWidth);
+      } catch (err2) {
+        console.error('Error in manual table:', err2);
+        doc.setTextColor(255, 0, 0);
+        doc.text('Error al generar tabla', margin, yPosition);
+        yPosition += 5;
+        doc.setTextColor(0);
+      }
+    }
+
+    // Group summary
+    const totalArticulos = group.items.length;
+    const totalUnidades = group.items.reduce((sum, item: any) => sum + (item.cantidad || 0), 0);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100);
+    doc.text(
+      `${totalArticulos} artículos • ${totalUnidades} unidades`,
+      margin,
+      yPosition
+    );
+    doc.setTextColor(0);
+    yPosition += 8;
+  }
+
+  // === GLOBAL TOTAL ===
+  if (yPosition > pageHeight - 30) {
+    addNewPage();
+  }
+
+  doc.setDrawColor(66, 133, 244);
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 5;
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL PEDIDO:', margin, yPosition);
+  doc.text(formatCurrency(globalTotal), pageWidth - margin - 40, yPosition);
+  yPosition += 8;
+
+  // === OBSERVATIONS ===
+  if (options.comments) {
+    if (yPosition > pageHeight - 40) {
+      addNewPage();
+    }
+
+    doc.setDrawColor(200);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 5;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('OBSERVACIONES:', margin, yPosition);
+    yPosition += 4;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const splitText = doc.splitTextToSize(options.comments, contentWidth);
+    doc.text(splitText, margin, yPosition);
+  }
+
+  return doc;
+}
+
+/**
+ * Generate PDF and download to browser
+ */
+export function downloadPedidoPDF(
+  doc: jsPDF,
+  filename: string = 'pedidos.pdf'
+): void {
+  doc.save(filename);
+}
+
+/**
+ * Generate PDF as blob
+ */
+export async function getPedidoPDFBlob(doc: jsPDF): Promise<Blob> {
+  try {
+    return doc.output('blob');
+  } catch (err) {
+    console.error('Error generating PDF blob:', err);
+    throw new Error('No se pudo generar el PDF');
+  }
+}
+
+/**
+ * Generate PDF URL for download
+ */
+export function getPedidoPDFDataURL(doc: jsPDF): string {
+  try {
+    return doc.output('dataurlstring');
+  } catch (err) {
+    console.error('Error generating PDF data URL:', err);
+    throw new Error('No se pudo generar la URL del PDF');
+  }
+}

@@ -82,6 +82,8 @@ import {
   usePruebasMenu,
   useReturnSheets,
 } from '@/hooks/use-data-queries'
+import { usePedidosPendientes } from '@/hooks/use-pedidos-pendientes'
+import { usePedidosEnviados } from '@/hooks/use-pedidos-enviados'
 
 type CostRow = {
   label: string
@@ -316,6 +318,9 @@ export default function CtaExplotacionPage() {
   const { data: pruebasMenuArr } = usePruebasMenu(serviceOrder?.id)
   const { data: gastronomyOrdersArr } = useGastronomyOrders(serviceOrder?.id)
   const { data: returnSheets } = useReturnSheets(serviceOrder?.id)
+  // Pedidos de alquiler: pendientes + enviados
+  const { data: allPedidosPendientes = [] } = usePedidosPendientes(osId)
+  const { data: allPedidosEnviados = [] } = usePedidosEnviados(osId)
 
   const updateObjetivo = useUpdateObjetivoGasto()
   const updateEvento = useUpdateEvento()
@@ -377,12 +382,32 @@ export default function CtaExplotacionPage() {
 
   const materialTotals = useMemo(() => {
     const safeMaterialOrders = materialOrders || []
-    return safeMaterialOrders.reduce((acc: Record<string, number>, order: MaterialOrder) => {
+    const materialMap = safeMaterialOrders.reduce((acc: Record<string, number>, order: MaterialOrder) => {
       const type = order.type || 'Otros'
       acc[type] = (acc[type] || 0) + (order.total ?? 0)
       return acc
     }, {})
-  }, [materialOrders])
+
+    // Para Alquiler: sumar pedidos pendientes + pedidos enviados
+    const alquilerPendientes = (allPedidosPendientes || []).reduce((sum: number, pedido: any) => {
+      const pedidoTotal = (pedido.items || []).reduce((itemSum: number, item: any) => {
+        return itemSum + ((item.priceSnapshot || item.price || 0) * (item.cantidad || 0))
+      }, 0)
+      return sum + pedidoTotal
+    }, 0)
+
+    const alquilerEnviados = (allPedidosEnviados || []).reduce((sum: number, pedido: any) => {
+      const pedidoTotal = (pedido.items || []).reduce((itemSum: number, item: any) => {
+        return itemSum + ((item.price || item.priceSnapshot || 0) * (item.cantidad || 0))
+      }, 0)
+      return sum + pedidoTotal
+    }, 0)
+
+    // Total alquiler = pendientes + enviados (no incluir materialOrders que es estado intermedio)
+    materialMap['Alquiler'] = alquilerPendientes + alquilerEnviados
+
+    return materialMap
+  }, [materialOrders, allPedidosPendientes, allPedidosEnviados])
 
   const personalExternoCosts = useMemo(() => {
     if (!serviceOrder) return { planned: 0, real: 0 }

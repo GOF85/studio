@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import type { OrderItem, MaterialOrder, ServiceOrder, PedidoPlantilla, ArticuloCatering, AlquilerDBItem, Precio, CateringItem, Proveedor } from '@/types';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
 import OsHeader from '@/components/os/OsHeader';
@@ -93,6 +94,7 @@ function PedidosPageInner() {
   const [existingOrderData, setExistingOrderData] = useState<ExistingOrderData | null>(null);
   const { toast } = useToast();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams() ?? new URLSearchParams();
   
   const numeroExpediente = searchParams.get('numero_expediente');
@@ -420,6 +422,12 @@ function PedidosPageInner() {
                 const error = await response.json();
                 throw new Error(error.error || 'Failed to upsert order');
             }
+
+            // Invalidate the materialOrders query cache immediately after successful save
+            console.log('🔄 [PEDIDOS] Invalidando caché de materialOrders:', numeroExpediente, orderType);
+            await queryClient.invalidateQueries({
+                queryKey: ['materialOrders', numeroExpediente, orderType]
+            });
         }
 
         toast({ title: editOrderId ? 'Pedido actualizado' : 'Pedido creado' });

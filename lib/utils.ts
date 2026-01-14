@@ -110,3 +110,21 @@ export function normalizeCategoria(cat: string | null | undefined) {
     if (upper === 'ALQUILER') return 'Alquiler';
     return cat || '';
 }
+
+/**
+ * Format a date string (YYYY-MM-DD) to localized format
+ * @param dateStr - Date string in format YYYY-MM-DD or ISO format
+ * @returns Formatted date string (e.g., "10 de enero de 2026")
+ */
+export function formatDate(dateStr: string | Date): string {
+    try {
+        const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+        return date.toLocaleDateString('es-ES', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+        });
+    } catch {
+        return dateStr?.toString() || 'N/A';
+    }
+}

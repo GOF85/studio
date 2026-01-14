@@ -1449,28 +1449,15 @@ export function useMaterialOrders(eventoId?: string, categoria?: string) {
             let query = supabase.from('os_material_orders').select('*');
             
             if (eventoId) {
-                // eventoId is already the numero_expediente string (e.g., '2025-12345')
-                // Database stores os_id as numero_expediente, NOT as UUID
-                console.log('[useMaterialOrders] filtering by os_id (numero_expediente):', eventoId);
                 query = query.eq('os_id', eventoId);
             }
 
             if (categoria) {
-                console.log('[useMaterialOrders] filtering by categoria:', categoria);
                 query = query.eq('type', categoria);
             }
             
-            // Don't filter by status - fetch ALL orders
-            // The status enum values are database-dependent
-            console.log('[useMaterialOrders] executing query WITHOUT status filter...');
             const { data, error } = await query;
-            console.log('[useMaterialOrders] response - error:', error, 'data count:', data?.length);
-            if (error) {
-                console.error('[useMaterialOrders] Error:', error);
-                throw error;
-            }
-
-            console.log('[useMaterialOrders] raw data:', data);
+            if (error) throw error;
             const result = (data || []).map(o => {
                 // Parse items if it's a JSON string
                 let items = [];
@@ -1479,7 +1466,6 @@ export function useMaterialOrders(eventoId?: string, categoria?: string) {
                         try {
                             items = JSON.parse(o.items);
                         } catch (e) {
-                            console.warn('[useMaterialOrders] Failed to parse items:', e);
                             items = [];
                         }
                     } else {
@@ -1501,7 +1487,6 @@ export function useMaterialOrders(eventoId?: string, categoria?: string) {
                     solicita: o.solicita
                 };
             }) as MaterialOrder[];
-            console.log('[useMaterialOrders] mapped result:', result);
             return result;
         },
         enabled: !!eventoId,

@@ -34,8 +34,13 @@ export function useUpsertMaterialOrder() {
 
             return response.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['materialOrders'] });
+        onSuccess: (data, variables) => {
+            // Invalidate the specific query with osId and type parameters
+            // This forces React Query to refetch useMaterialOrders with these exact parameters
+            console.log('🔄 [MUTATION] Invalidating materialOrders cache for:', variables.osId, variables.type);
+            queryClient.invalidateQueries({ 
+                queryKey: ['materialOrders', variables.osId, variables.type]
+            });
         },
     });
 }
