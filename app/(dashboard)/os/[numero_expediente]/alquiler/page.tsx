@@ -3,16 +3,19 @@
 import { useState, useMemo, useCallback, memo, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { PlusCircle, Eye, Trash2, FileText, Archive, AlertTriangle, Plus, Calendar, MapPin, Package } from 'lucide-react'
+import { PlusCircle, Eye, Trash2, FileText, Archive, AlertTriangle, Plus, Calendar, MapPin, Package, Clock } from 'lucide-react'
 import {
   NewPedidoModal,
   ChangeContextModal,
   PDFGenerationModal,
   SentOrderDetailsModal,
+  EditableSentOrderDetailsModal,
   EditItemsModal,
   AgregarReferenciasModal,
   EnviarPedidosModal,
 } from '@/components/pedidos/modals'
+import { PDFGenerationSplash } from '@/components/pedidos/pdf-generation-splash'
+import { logPedidoChange, detectarCambios } from '@/lib/pedido-logs'
 import { SubPedidoCard } from '@/components/pedidos/sub-pedido-card'
 import {
   useCreatePedidoPendiente,
@@ -103,6 +106,7 @@ interface ModalState {
   editItems: boolean
   agregarReferencias: boolean
   enviarPedidos: boolean
+  editEnviadoDetails: boolean
 }
 
 interface SelectedData {
@@ -110,6 +114,7 @@ interface SelectedData {
   detailsPedido: PedidoEnviado | null
   selectedForPDF: string[]
   editItemsPedido: PedidoPendiente | null
+  editEnviadoPedido: PedidoEnviado | null
 }
 
 type ItemWithOrderInfo = OrderItem & {
@@ -389,6 +394,7 @@ export default function AlquilerPage() {
     editItems: false,
     agregarReferencias: false,
     enviarPedidos: false,
+    editEnviadoDetails: false,
   })
 
   const [selected, setSelected] = useState<SelectedData>({
@@ -396,7 +402,12 @@ export default function AlquilerPage() {
     detailsPedido: null,
     selectedForPDF: [],
     editItemsPedido: null,
+    editEnviadoPedido: null,
   })
+
+  // PDF Generation Loading State
+  const [pdfGenerationProgress, setPdfGenerationProgress] = useState(0)
+  const [showPdfSplash, setShowPdfSplash] = useState(false)
 
   // ✅ Estados para nuevos modales
   const [selectedPedidoForReferencias, setSelectedPedidoForReferencias] = useState<string | null>(null)
@@ -431,7 +442,7 @@ export default function AlquilerPage() {
   const agregarItems = useAgregarItemsAPedido()
   const actualizarContexto = useUpdatePedidoContexto()
   const { data: allPedidosPendientes = [], refetch: refetchPedidosPendientes } = usePedidosPendientes(numeroExpediente)
-  const { data: allPedidosEnviados = [] } = usePedidosEnviados(numeroExpediente)
+  const { data: allPedidosEnviados = [], refetch: refetchPedidosEnviados } = usePedidosEnviados(numeroExpediente)
   const { data: proveedoresAlquiler = [] } = useProveedoresAlquiler()
   const { data: articulosProveedorData = [] } = useBuscarArticulosProveedor(selectedProveedorId || undefined)
 
@@ -547,27 +558,93 @@ export default function AlquilerPage() {
 
   const handleConfirmGeneratePDF = async () => {
     try {
+      setShowPdfSplash(true)
+      setPdfGenerationProgress(0)
+      
+      // Simular progreso
+      const progressInterval = setInterval(() => {
+        setPdfGenerationProgress(prev => Math.min(prev + Math.random() * 30, 90))
+      }, 500)
+
       const result = await generatePDF.mutateAsync({
         osId: numeroExpediente,
         selectedPedidoIds: selected.selectedForPDF,
         generatedBy: user?.id || 'system',
       })
       
-      handleCloseGeneratePDF()
-      toast({ title: 'PDF generado', description: `${result.consolidatedCount} archivos consolidados` })
+      clearInterval(progressInterval)
+      setPdfGenerationProgress(100)
+      
+      setTimeout(() => {
+        handleCloseGeneratePDF()
+        setShowPdfSplash(false)
+        setPdfGenerationProgress(0)
+        toast({ title: 'PDF generado', description: `${result.consolidatedCount} archivos consolidados` })
+      }, 1000)
     } catch (error) {
+      setShowPdfSplash(false)
+      setPdfGenerationProgress(0)
       toast({ title: 'Error', description: 'No se pudo generar el PDF', variant: 'destructive' })
     }
   }
 
   const handleOpenViewDetails = (pedido: PedidoEnviado) => {
-    setSelected((s) => ({ ...s, detailsPedido: pedido }))
-    setModals((m) => ({ ...m, viewDetails: true }))
+    setSelected((s) => ({ ...s, editEnviadoPedido: pedido }))
+    setModals((m) => ({ ...m, editEnviadoDetails: true }))
   }
 
   const handleCloseViewDetails = () => {
-    setModals((m) => ({ ...m, viewDetails: false }))
-    setSelected((s) => ({ ...s, detailsPedido: null }))
+    setModals((m) => ({ ...m, editEnviadoDetails: false }))
+    setSelected((s) => ({ ...s, editEnviadoPedido: null }))
+  }
+
+  const handleSaveEnviadoPedido = async (updates: Partial<PedidoEnviado>) => {
+    if (!selected.editEnviadoPedido) return
+
+    try {
+      // Detectar cambios
+      const cambios = detectarCambios(selected.editEnviadoPedido, updates)
+      
+      // Registrar cambios
+      if (cambios.length > 0 && user?.id) {
+        await logPedidoChange({
+          pedidoId: selected.editEnviadoPedido.id,
+          osId: numeroExpediente,
+          usuarioId: user.id,
+          usuarioEmail: user.email,
+          tipoCambio: cambios.some(c => c.campo === 'items') ? 'completo' : 'entrega',
+          cambios,
+          razon: 'Edición de pedido enviado',
+        })
+      }
+
+      // Actualizar en API
+      const response = await fetch('/api/pedidos/update-enviado', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pedidoId: selected.editEnviadoPedido.id,
+          osId: numeroExpediente,
+          updates,
+          editedBy: user?.id,
+        }),
+      })
+
+      if (!response.ok) throw new Error('No se pudo guardar')
+
+      await refetchPedidosEnviados()
+      handleCloseViewDetails()
+      toast({
+        title: 'Pedido actualizado',
+        description: 'Se registrará quién realizó los cambios',
+      })
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'No se pudo guardar',
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleOpenEditItems = (pedido: PedidoPendiente) => {
@@ -711,6 +788,13 @@ export default function AlquilerPage() {
 
   const handleConfirmEnviarPedidos = async (selectedPedidoIds: string[], preview: any, comentario?: string) => {
     try {
+      setShowPdfSplash(true)
+      setPdfGenerationProgress(0)
+      
+      const progressInterval = setInterval(() => {
+        setPdfGenerationProgress(prev => Math.min(prev + Math.random() * 30, 90))
+      }, 500)
+
       const result = await generatePDF.mutateAsync({
         osId: numeroExpediente,
         selectedPedidoIds,
@@ -718,12 +802,21 @@ export default function AlquilerPage() {
         comentario,
       })
       
-      handleCloseEnviarPedidos()
-      toast({
-        title: 'Pedidos consolidados',
-        description: `Se han generado ${preview.length} PDF(s) correctamente`,
-      })
+      clearInterval(progressInterval)
+      setPdfGenerationProgress(100)
+      
+      setTimeout(() => {
+        handleCloseEnviarPedidos()
+        setShowPdfSplash(false)
+        setPdfGenerationProgress(0)
+        toast({
+          title: 'Pedidos consolidados',
+          description: `Se han generado ${preview.length} PDF(s) correctamente`,
+        })
+      }, 1000)
     } catch (error: any) {
+      setShowPdfSplash(false)
+      setPdfGenerationProgress(0)
       const errorMessage = error?.message || 'No se pudo consolidar los pedidos';
       toast({
         title: 'Error al consolidar',
@@ -1225,7 +1318,7 @@ export default function AlquilerPage() {
           </CardContent>
         </Card>
 
-        {/* ========== TARJETA 2: PEDIDOS GESTIONADOS (Solo lectura) ========== */}
+        {/* ========== TARJETA 2: PEDIDOS GESTIONADOS (Editable) ========== */}
         <Card className="bg-background/60 backdrop-blur-md border-border/40 overflow-hidden mt-6">
           <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
           <CardHeader className="py-2 px-4 border-b border-border/40">
@@ -1238,60 +1331,120 @@ export default function AlquilerPage() {
           </CardHeader>
           <CardContent className="p-4">
             {allPedidosEnviados.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {allPedidosEnviados.map((pedido) => {
                   const totalValue = pedido.items.reduce(
-                    (sum, item) => sum + (item.priceSnapshot || item.price || 0) * item.cantidad,
+                    (sum, item) => sum + ((item as any).priceSnapshot || (item as any).price || 0) * ((item as any).cantidad || 0),
                     0
                   );
-                  const totalUnidades = pedido.items.reduce((sum, item) => sum + item.cantidad, 0);
+                  const totalUnidades = pedido.items.reduce((sum, item) => sum + ((item as any).cantidad || 0), 0);
 
                   return (
                     <div
                       key={pedido.id}
-                      className="flex items-center justify-between p-3 bg-muted/30 rounded border border-border/40 hover:bg-muted/40 transition-colors"
+                      className="p-4 bg-muted/30 rounded-lg border border-border/40 hover:bg-muted/40 transition-colors space-y-3"
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[10px] font-black">
-                            {format(new Date(pedido.fecha_entrega), 'dd/MM/yyyy', { locale: es })}
-                          </span>
-                          <span className="text-[9px] text-muted-foreground">
-                            {pedido.localizacion}
-                          </span>
+                      {/* Cabecera con número y estado */}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <p className="text-[11px] font-black text-muted-foreground uppercase">Pedido Nº</p>
+                            <p className="text-base font-black">{pedido.numero_pedido || 'N/A'}</p>
+                          </div>
+                          <Badge className={pedido.estado === 'Listo' ? 'bg-emerald-600' : 'bg-amber-600'}>
+                            {pedido.estado}
+                          </Badge>
                         </div>
-                        <p className="text-[9px] text-muted-foreground">
-                          {pedido.items.length} artículos • {totalUnidades} unidades
-                        </p>
+                        <div className="text-right">
+                          <p className="text-[10px] font-black text-muted-foreground uppercase">Total</p>
+                          <p className="text-lg font-black">{formatCurrency(totalValue)}</p>
+                        </div>
                       </div>
-                      <div className="text-right mr-3">
-                        <p className="text-[10px] font-black font-mono">
-                          {formatCurrency(totalValue)}
-                        </p>
+
+                      {/* Información de Entrega */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-blue-500/5 rounded border border-blue-500/20">
+                        <div>
+                          <p className="text-[9px] font-black uppercase text-muted-foreground">Fecha Entrega</p>
+                          <p className="text-sm font-semibold">{formatDate(pedido.fecha_entrega)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black uppercase text-muted-foreground">Hora Entrega</p>
+                          <p className="text-sm font-mono font-semibold flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {pedido.hora_entrega || 'N/A'}
+                          </p>
+                        </div>
+                        <div className="col-span-2 md:col-span-2">
+                          <p className="text-[9px] font-black uppercase text-muted-foreground">Ubicación</p>
+                          <p className="text-sm font-medium">{pedido.localizacion}</p>
+                        </div>
                       </div>
-                      <div className="flex gap-1">
+
+                      {/* Dirección de Entrega */}
+                      <div className="text-sm p-2 bg-muted/40 rounded italic text-muted-foreground">
+                        <span className="font-bold">📍 {pedido.nombre_espacio}: </span>
+                        {pedido.direccion_espacio}
+                      </div>
+
+                      {/* Información de Recogida (si existe) */}
+                      {(pedido as any).fecha_recogida && (
+                        <>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-orange-500/5 rounded border border-orange-500/20">
+                            <div>
+                              <p className="text-[9px] font-black uppercase text-muted-foreground">Fecha Recogida</p>
+                              <p className="text-sm font-semibold">{formatDate((pedido as any).fecha_recogida)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-black uppercase text-muted-foreground">Hora Recogida</p>
+                              <p className="text-sm font-mono font-semibold flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {(pedido as any).hora_recogida || 'N/A'}
+                              </p>
+                            </div>
+                            <div className="col-span-2 md:col-span-2">
+                              <p className="text-[9px] font-black uppercase text-muted-foreground">Lugar</p>
+                              <p className="text-sm font-medium">{(pedido as any).lugar_recogida || 'No especificado'}</p>
+                            </div>
+                          </div>
+                          <div className="text-sm p-2 bg-muted/40 rounded italic text-muted-foreground">
+                            <span className="font-bold">📍 Recogida: </span>
+                            {(pedido as any).lugar_recogida === 'Instalaciones' 
+                              ? 'Polígono Industrial Santa Cruz, Nave 7, 28160 Torrejón de Ardoz, Madrid'
+                              : pedido.direccion_espacio}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Resumen */}
+                      <div className="text-xs text-muted-foreground">
+                        <span className="font-bold">{pedido.items.length} artículos</span> • <span>{totalUnidades} unidades</span>
+                      </div>
+
+                      {/* Botones de Acción */}
+                      <div className="flex flex-col md:flex-row gap-2 pt-2 border-t border-border/40">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-6 text-[8px]"
+                          className="h-8 text-[9px] flex-1"
                           onClick={() => handleDownloadPDF(pedido)}
                         >
-                          ⬇ PDF
+                          ⬇ Descargar PDF
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-6 text-[8px]"
+                          className="h-8 text-[9px] flex-1"
                           onClick={() => handleOpenViewDetails(pedido)}
                         >
-                          Ver
+                          <FileText className="w-3 h-3 mr-1" />
+                          Ver & Editar
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
-                          className="h-6 px-2 text-[8px] bg-red-600/90 hover:bg-red-700"
+                          className="h-8 px-2 text-[9px] bg-red-600/90 hover:bg-red-700"
                           onClick={() => {
-                            if (confirm('⚠️ ADVERTENCIA: Solo borra este pedido si realmente queda anulado en el proveedor. ¿Estás seguro de que deseas eliminarlo?')) {
+                            if (confirm('⚠️ Solo borra este pedido si fue anulado. ¿Continuar?')) {
                               deleteEnviado.mutateAsync({ pedidoId: pedido.id, osId: numeroExpediente })
                                 .then(() => {
                                   toast({ title: 'Pedido eliminado', description: 'El pedido ha sido eliminado correctamente' })
@@ -1360,6 +1513,22 @@ export default function AlquilerPage() {
           isOpen={modals.viewDetails}
           pedido={selected.detailsPedido}
           onClose={handleCloseViewDetails}
+        />
+
+        {/* PDF Generation Splash */}
+        <PDFGenerationSplash 
+          isOpen={showPdfSplash} 
+          progress={pdfGenerationProgress}
+          message={pdfGenerationProgress > 50 ? 'Consolidando pedidos...' : 'Generando PDF...'}
+        />
+
+        {/* Editable Sent Order Modal */}
+        <EditableSentOrderDetailsModal
+          isOpen={modals.editEnviadoDetails}
+          pedido={selected.editEnviadoPedido}
+          onClose={handleCloseViewDetails}
+          onSave={handleSaveEnviadoPedido}
+          isLoading={false}
         />
         </main>
       </div>
