@@ -42,6 +42,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+// Extended type to include local editing fields
+interface EditablePedidoEnviado extends Partial<PedidoEnviado> {
+  direccion_instalaciones?: string;
+}
+
 interface EditableSentOrderDetailsModalProps {
   isOpen: boolean;
   pedido: PedidoEnviado | null;
@@ -65,9 +70,20 @@ export function EditableSentOrderDetailsModal({
 }: EditableSentOrderDetailsModalProps) {
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isArticulosExpanded, setIsArticulosExpanded] = useState(true);
+  const [isResponsablesExpanded, setIsResponsablesExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<Partial<PedidoEnviado> | null>(null);
+  const [editData, setEditData] = useState<EditablePedidoEnviado | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  const totalValue = useMemo(
+    () =>
+      pedido?.items.reduce((sum, item) => {
+        const price = (item as any).priceSnapshot || (item as any).price || 0;
+        return sum + price * ((item as any).cantidad || 0);
+      }, 0) || 0,
+    [pedido?.items]
+  );
 
   if (!pedido) return null;
 
@@ -75,15 +91,6 @@ export function EditableSentOrderDetailsModal({
     'En preparación': 'bg-amber-100 text-amber-800',
     'Listo': 'bg-emerald-100 text-emerald-800',
   };
-
-  const totalValue = useMemo(
-    () =>
-      pedido.items.reduce((sum, item) => {
-        const price = (item as any).priceSnapshot || (item as any).price || 0;
-        return sum + price * ((item as any).cantidad || 0);
-      }, 0),
-    [pedido.items]
-  );
 
   const handleEditStart = () => {
     setEditData({
@@ -402,95 +409,163 @@ export function EditableSentOrderDetailsModal({
             </div>
           )}
 
-          {/* Items Section */}
+          {/* Items Section - COLAPSABLE */}
           <div className="border border-border/40 rounded-lg overflow-hidden">
-            <div className="px-4 py-3 bg-emerald-500/5 border-b border-border/40">
+            <button
+              onClick={() => setIsArticulosExpanded(!isArticulosExpanded)}
+              className="w-full px-4 py-3 flex items-center justify-between bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors border-b border-border/40"
+            >
               <p className="text-sm font-black uppercase tracking-wider text-emerald-600">
                 📋 Artículos ({pedido.items.length})
               </p>
-            </div>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30">
-                    <TableHead className="text-xs font-black uppercase">Artículo</TableHead>
-                    <TableHead className="text-xs font-black uppercase text-center">Cantidad</TableHead>
-                    <TableHead className="text-xs font-black uppercase text-right">Precio Unit.</TableHead>
-                    <TableHead className="text-xs font-black uppercase text-right">Total</TableHead>
-                    {isEditing && <TableHead className="text-xs font-black uppercase text-center">Acción</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(editData?.items || pedido.items).map((item, idx) => {
-                    const price = (item as any).priceSnapshot || (item as any).price || 0;
-                    const itemTotal = price * ((item as any).cantidad || 0);
-                    return (
-                      <TableRow key={idx} className="hover:bg-muted/30">
-                        <TableCell className="font-medium">{item.description}</TableCell>
-                        <TableCell className="text-center font-mono">
-                          {isEditing ? (
-                            <Input
-                              type="number"
-                              value={(item as any).cantidad || 0}
-                              onChange={(e) => {
-                                const newItems = [...(editData?.items || pedido.items)];
-                                newItems[idx] = {
-                                  ...newItems[idx],
-                                  cantidad: parseInt(e.target.value) || 0,
-                                };
-                                setEditData({ ...editData, items: newItems });
-                              }}
-                              className="w-16 text-center"
-                              min="0"
-                            />
-                          ) : (
-                            (item as any).cantidad
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(price)}</TableCell>
-                        <TableCell className="text-right font-bold font-mono">{formatCurrency(itemTotal)}</TableCell>
-                        {isEditing && (
-                          <TableCell className="text-center">
-                            <button
-                              onClick={() => setDeleteConfirm(item.itemCode)}
-                              className="p-1 hover:bg-red-500/10 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </button>
+              {isArticulosExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+
+            {isArticulosExpanded && (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className="text-xs font-black uppercase">Artículo</TableHead>
+                      <TableHead className="text-xs font-black uppercase text-center">Cantidad</TableHead>
+                      <TableHead className="text-xs font-black uppercase text-center">Días Alquiler</TableHead>
+                      <TableHead className="text-xs font-black uppercase text-right">Precio Unit.</TableHead>
+                      <TableHead className="text-xs font-black uppercase text-right">Total</TableHead>
+                      {isEditing && <TableHead className="text-xs font-black uppercase text-center">Acción</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(editData?.items || pedido.items).map((item, idx) => {
+                      const price = (item as any).priceSnapshot || (item as any).price || 0;
+                      const cantidad = (item as any).cantidad || 0;
+                      const dias = (item as any).dias_alquiler || 1;
+                      const itemTotal = price * cantidad * dias;
+                      return (
+                        <TableRow key={idx} className="hover:bg-muted/30">
+                          <TableCell className="font-medium">{item.description}</TableCell>
+                          <TableCell className="text-center font-mono">
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={cantidad}
+                                onChange={(e) => {
+                                  const newItems = [...(editData?.items || pedido.items)];
+                                  newItems[idx] = {
+                                    ...newItems[idx],
+                                    cantidad: parseInt(e.target.value) || 0,
+                                  };
+                                  setEditData({ ...editData, items: newItems });
+                                }}
+                                className="w-16 text-center"
+                                min="0"
+                              />
+                            ) : (
+                              cantidad
+                            )}
                           </TableCell>
-                        )}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Totales */}
-            <div className="px-4 py-3 bg-muted/30 border-t border-border/40 flex justify-between items-center font-bold">
-              <span>TOTAL</span>
-              <span className="text-lg">{formatCurrency(editData?.items ? editData.items.reduce((sum, item) => sum + ((item as any).priceSnapshot || (item as any).price || 0) * ((item as any).cantidad || 0), 0) : totalValue)}</span>
-            </div>
-          </div>
-
-          {/* Responsables Info */}
-          <div className="grid grid-cols-2 gap-3">
-            {pedido.responsable_metre && (
-              <div className="p-3 bg-amber-50 dark:bg-amber-500/5 rounded-lg border border-amber-200/50">
-                <p className="text-xs font-bold text-amber-900 dark:text-amber-600 uppercase mb-1">Maître</p>
-                <p className="text-sm font-medium">{pedido.responsable_metre}</p>
-                {pedido.telefono_metre && (
-                  <p className="text-xs font-mono text-muted-foreground">{pedido.telefono_metre}</p>
-                )}
+                          <TableCell className="text-center font-mono">
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={dias}
+                                onChange={(e) => {
+                                  const newItems = [...(editData?.items || pedido.items)];
+                                  newItems[idx] = {
+                                    ...newItems[idx],
+                                    dias: parseInt(e.target.value) || 1,
+                                  };
+                                  setEditData({ ...editData, items: newItems });
+                                }}
+                                className="w-16 text-center"
+                                min="1"
+                              />
+                            ) : (
+                              dias
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">{formatCurrency(price)}</TableCell>
+                          <TableCell className="text-right font-bold font-mono">{formatCurrency(itemTotal)}</TableCell>
+                          {isEditing && (
+                            <TableCell className="text-center">
+                              <button
+                                onClick={() => setDeleteConfirm(item.itemCode)}
+                                className="p-1 hover:bg-red-500/10 rounded transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             )}
-            {pedido.responsable_pase && (
-              <div className="p-3 bg-violet-50 dark:bg-violet-500/5 rounded-lg border border-violet-200/50">
-                <p className="text-xs font-bold text-violet-900 dark:text-violet-600 uppercase mb-1">Pase</p>
-                <p className="text-sm font-medium">{pedido.responsable_pase}</p>
-                {pedido.telefono_pase && (
-                  <p className="text-xs font-mono text-muted-foreground">{pedido.telefono_pase}</p>
-                )}
+
+            {isArticulosExpanded && (
+              <>
+                {/* Totales */}
+                <div className="px-4 py-3 bg-muted/30 border-t border-border/40 flex justify-between items-center font-bold">
+                  <span>TOTAL</span>
+                  <span className="text-lg">{formatCurrency(editData?.items ? editData.items.reduce((sum, item) => sum + ((item as any).priceSnapshot || (item as any).price || 0) * ((item as any).cantidad || 0) * ((item as any).dias_alquiler || 1), 0) : totalValue)}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Responsables Section - COLAPSABLE */}
+          <div className="border border-border/40 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setIsResponsablesExpanded(!isResponsablesExpanded)}
+              className="w-full px-4 py-3 flex items-center justify-between bg-blue-500/5 hover:bg-blue-500/10 transition-colors border-b border-border/40"
+            >
+              <p className="text-sm font-black uppercase tracking-wider text-blue-600">
+                👥 Responsables
+              </p>
+              {isResponsablesExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+
+            {isResponsablesExpanded && (
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  {pedido.responsable_metre ? (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-500/5 rounded-lg border border-amber-200/50">
+                      <p className="text-xs font-bold text-amber-900 dark:text-amber-600 uppercase mb-1">Maître</p>
+                      <p className="text-sm font-medium">{pedido.responsable_metre}</p>
+                      {pedido.telefono_metre && (
+                        <p className="text-xs font-mono text-muted-foreground">{pedido.telefono_metre}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-muted rounded-lg border border-border/40">
+                      <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Maître</p>
+                      <p className="text-sm text-muted-foreground">No especificado</p>
+                    </div>
+                  )}
+                  {pedido.responsable_pase ? (
+                    <div className="p-3 bg-violet-50 dark:bg-violet-500/5 rounded-lg border border-violet-200/50">
+                      <p className="text-xs font-bold text-violet-900 dark:text-violet-600 uppercase mb-1">Pase</p>
+                      <p className="text-sm font-medium">{pedido.responsable_pase}</p>
+                      {pedido.telefono_pase && (
+                        <p className="text-xs font-mono text-muted-foreground">{pedido.telefono_pase}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-muted rounded-lg border border-border/40">
+                      <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Pase</p>
+                      <p className="text-sm text-muted-foreground">No especificado</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

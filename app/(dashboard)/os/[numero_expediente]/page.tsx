@@ -10,14 +10,13 @@ export default function OsPage() {
   const router = useRouter()
   const params = useParams() ?? {}
   const osId = (params.numero_expediente as string) || ''
-  const { data: serviceOrder, isLoading } = useEvento(osId)
 
   useEffect(() => {
-    if (!isLoading && osId) {
-      const serviceNumber = serviceOrder?.serviceNumber
-      router.replace(`/os/${serviceNumber || osId}/info`)
+    if (osId) {
+      // Redirect to control-panel (new dashboard)
+      router.replace(`/os/${osId}/control-panel?tab=espacio`)
     }
-  }, [osId, router, serviceOrder, isLoading])
+  }, [osId, router])
 
-  return <LoadingSkeleton title="Cargando Orden de Servicio..." />
+  return <LoadingSkeleton title="Cargando Panel de Control..." />
 }

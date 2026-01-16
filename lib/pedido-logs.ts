@@ -17,11 +17,11 @@ export interface PedidoChangeLog {
 }
 
 export async function logPedidoChange({
-  pedidoId,
-  osId,
-  usuarioId,
-  usuarioEmail,
-  tipoCambio,
+  pedido_id,
+  os_id,
+  usuario_id,
+  usuario_email,
+  tipo_cambio,
   cambios,
   razon,
 }: Omit<PedidoChangeLog, 'id' | 'timestamp'>) {
@@ -30,11 +30,11 @@ export async function logPedidoChange({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        pedido_id: pedidoId,
-        os_id: osId,
-        usuario_id: usuarioId,
-        usuario_email: usuarioEmail,
-        tipo_cambio: tipoCambio,
+        pedido_id,
+        os_id,
+        usuario_id,
+        usuario_email,
+        tipo_cambio,
         cambios,
         razon,
       }),

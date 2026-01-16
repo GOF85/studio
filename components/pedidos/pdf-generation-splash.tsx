@@ -18,7 +18,6 @@ export function PDFGenerationSplash({
     <Dialog open={isOpen}>
       <DialogContent 
         className="max-w-sm bg-background/95 backdrop-blur-md border-border/40 flex flex-col items-center justify-center gap-6 p-8"
-        showClose={false}
       >
         <div className="flex flex-col items-center gap-4">
           {/* Logo Animation */}

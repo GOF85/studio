@@ -105,13 +105,13 @@ export default function OsHeaderMobile({ osId }: { osId?: string }) {
               {/* OsModulesDialog - trigger escondido, controlado por hamburguesa */}
               <OsModulesDialog
                 osId={osId}
-                numeroExpediente={evento?.serviceNumber}
+                numeroExpediente={evento?.serviceNumber || osId}
                 trigger={<button ref={modulesDialogRef} className="hidden" />}
               />
               {/* Número de expediente - solo texto */}
               <span className="inline-flex items-center gap-1 truncate">
                 {vip && <Star className="h-3 w-3 fill-current text-black" />}
-                <span className="truncate font-mono">{evento?.serviceNumber}</span>
+                <span className="truncate font-mono">{evento?.serviceNumber || osId}</span>
               </span>
               {/* Espacio badge/modal */}
               {evento?.space && (

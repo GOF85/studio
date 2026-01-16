@@ -15,6 +15,22 @@ const nextConfig: NextConfig = {
   compress: true,
   productionBrowserSourceMaps: false,
   
+  // Webpack config para silenciar warnings de Supabase (Node.js APIs en Edge Runtime)
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+        os: false,
+        stream: false,
+        util: false,
+      };
+    }
+    return config;
+  },
+  
   // Optimize images
   images: {
     formats: ['image/avif', 'image/webp'],

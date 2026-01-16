@@ -6,7 +6,7 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const CACHE_TTL_SECONDS = Number(process.env.MIDDLEWARE_CACHE_TTL_SECONDS || '300');
 const CACHE_MAX_ENTRIES = Number(process.env.MIDDLEWARE_CACHE_MAX_ENTRIES || '1000');
 
-type CacheEntry = { id: string; expiresAt: number };
+type CacheEntry = { id: string; numero_expediente?: string; expiresAt: number };
 
 // Lightweight LRU cache with TTL. Uses a Map to preserve insertion order
 // and moves recently used entries to the end. Works in Node and also in
@@ -46,7 +46,7 @@ class LRUCache {
   }
 }
 
-const numeroToIdCache = new LRUCache(CACHE_MAX_ENTRIES);
+const osCache = new LRUCache(CACHE_MAX_ENTRIES);
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -100,20 +100,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 1) If route is /os/<numero_expediente>/... and segment is not a uuid, try to resolve
+  // 1) If route is /os/<segment>/..., handle UUID -> numero_expediente conversion
   const osMatch = pathname.match(/^\/os\/([^\/]+)(\/.*)?$/);
   if (osMatch) {
     const segment = osMatch[1];
     const rest = osMatch[2] || '';
-    if (!uuidRegex.test(segment) && SUPABASE_URL && SUPABASE_ANON_KEY) {
+    
+    // If segment is UUID, resolve to numero_expediente and REDIRECT
+    if (uuidRegex.test(segment) && SUPABASE_URL && SUPABASE_ANON_KEY) {
+      console.debug('[Middleware] UUID detected, resolving to numero_expediente:', segment);
+      
       // Check cache first (LRU)
-      const cached = numeroToIdCache.get(segment);
-      if (cached) {
-        const newUrl = `/os/${cached.id}${rest}`;
-        return NextResponse.rewrite(new URL(newUrl, request.url));
+      const cached = osCache.get(segment);
+      if (cached && cached.numero_expediente) {
+        console.debug('[Middleware] Cache hit for UUID:', segment);
+        const newUrl = `/os/${cached.numero_expediente}${rest}`;
+        return NextResponse.redirect(new URL(newUrl, request.url));
       }
+      
       try {
-        const url = `${SUPABASE_URL}/rest/v1/eventos?select=id&numero_expediente=eq.${encodeURIComponent(segment)}&limit=1`;
+        const url = `${SUPABASE_URL}/rest/v1/eventos?select=id,numero_expediente&id=eq.${encodeURIComponent(segment)}&limit=1`;
         const res = await fetchWithRetry(url, {
           headers: {
             apikey: SUPABASE_ANON_KEY,
@@ -123,22 +129,30 @@ export async function middleware(request: NextRequest) {
         });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data) && data.length > 0 && data[0].id) {
-            const id = data[0].id;
+          if (Array.isArray(data) && data.length > 0 && data[0].numero_expediente) {
+            const numeroExpediente = data[0].numero_expediente;
             // store in cache (LRU)
             try {
-              numeroToIdCache.set(segment, { id, expiresAt: Date.now() + CACHE_TTL_SECONDS * 1000 });
+              osCache.set(segment, { 
+                id: segment, 
+                numero_expediente: numeroExpediente, 
+                expiresAt: Date.now() + CACHE_TTL_SECONDS * 1000 
+              });
             } catch (e) {
               // ignore cache errors
             }
-            const newUrl = `/os/${id}${rest}`;
-            return NextResponse.rewrite(new URL(newUrl, request.url));
+            const newUrl = `/os/${numeroExpediente}${rest}`;
+            console.debug('[Middleware] Resolved UUID to numero_expediente:', { uuid: segment, numeroExpediente });
+            return NextResponse.redirect(new URL(newUrl, request.url));
           }
         }
       } catch (err) {
         // ignore and continue to auth check
-        console.error('[Middleware] OS resolution failed:', err instanceof Error ? err.message : err);
+        console.error('[Middleware] UUID resolution failed:', err instanceof Error ? err.message : err);
       }
+    } else if (!uuidRegex.test(segment)) {
+      console.debug('[Middleware] numero_expediente detected in path:', segment);
+      // numero_expediente: let it pass through, useParams() will work correctly
     }
   }
 

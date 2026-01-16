@@ -98,6 +98,16 @@ import { useObjetivosGasto, useObjetivosGastoPlantillas } from '@/hooks/use-obje
 import { getThumbnail } from '@/lib/image-utils'
 import { useArticulos } from '@/hooks/use-data-queries'
 
+// Helper function to format dates
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'N/A';
+  try {
+    return format(new Date(dateString), 'dd/MM/yyyy', { locale: es });
+  } catch {
+    return 'N/A';
+  }
+};
+
 interface ModalState {
   newPedido: boolean
   changeContext: boolean
@@ -1344,120 +1354,128 @@ export default function AlquilerPage() {
                       key={pedido.id}
                       className="p-4 bg-muted/30 rounded-lg border border-border/40 hover:bg-muted/40 transition-colors space-y-3"
                     >
-                      {/* Cabecera con número y estado */}
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <div>
-                            <p className="text-[11px] font-black text-muted-foreground uppercase">Pedido Nº</p>
-                            <p className="text-base font-black">{pedido.numero_pedido || 'N/A'}</p>
-                          </div>
-                          <Badge className={pedido.estado === 'Listo' ? 'bg-emerald-600' : 'bg-amber-600'}>
-                            {pedido.estado}
-                          </Badge>
+                      {/* Cabecera compacta: Pedido # + Botones + Total */}
+                      <div className="flex items-center justify-between gap-2 pb-3 border-b border-border/40">
+                        {/* Número de pedido */}
+                        <div className="flex-shrink-0">
+                          <p className="text-lg font-black text-foreground">{pedido.numero_pedido || 'N/A'}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-black text-muted-foreground uppercase">Total</p>
+
+                        {/* Botones de Acción */}
+                        <div className="flex gap-2 flex-1 justify-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-10 px-4 text-sm font-bold"
+                            onClick={() => handleDownloadPDF(pedido)}
+                          >
+                            ⬇ PDF
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-10 px-4 text-sm font-bold"
+                            onClick={() => handleOpenViewDetails(pedido)}
+                          >
+                            <FileText className="w-4 h-4" />
+                            <span className="ml-1">Editar</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-10 px-3 text-sm font-bold bg-red-600/90 hover:bg-red-700"
+                            onClick={() => {
+                              if (confirm('⚠️ Solo borra este pedido si fue anulado. ¿Continuar?')) {
+                                deleteEnviado.mutateAsync({ pedidoId: pedido.id, osId: numeroExpediente })
+                                  .then(() => {
+                                    toast({ title: 'Pedido eliminado', description: 'El pedido ha sido eliminado correctamente' })
+                                  })
+                                  .catch((error) => {
+                                    toast({ title: 'Error', description: error.message || 'No se pudo eliminar el pedido', variant: 'destructive' })
+                                  })
+                              }
+                            }}
+                            disabled={deleteEnviado.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        {/* Total */}
+                        <div className="text-right flex-shrink-0">
                           <p className="text-lg font-black">{formatCurrency(totalValue)}</p>
                         </div>
                       </div>
 
-                      {/* Información de Entrega */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-blue-500/5 rounded border border-blue-500/20">
-                        <div>
-                          <p className="text-[9px] font-black uppercase text-muted-foreground">Fecha Entrega</p>
-                          <p className="text-sm font-semibold">{formatDate(pedido.fecha_entrega)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black uppercase text-muted-foreground">Hora Entrega</p>
-                          <p className="text-sm font-mono font-semibold flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {pedido.hora_entrega || 'N/A'}
-                          </p>
-                        </div>
-                        <div className="col-span-2 md:col-span-2">
-                          <p className="text-[9px] font-black uppercase text-muted-foreground">Ubicación</p>
-                          <p className="text-sm font-medium">{pedido.localizacion}</p>
-                        </div>
-                      </div>
-
-                      {/* Dirección de Entrega */}
-                      <div className="text-sm p-2 bg-muted/40 rounded italic text-muted-foreground">
-                        <span className="font-bold">📍 {pedido.nombre_espacio}: </span>
-                        {pedido.direccion_espacio}
-                      </div>
-
-                      {/* Información de Recogida (si existe) */}
-                      {(pedido as any).fecha_recogida && (
-                        <>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-orange-500/5 rounded border border-orange-500/20">
-                            <div>
-                              <p className="text-[9px] font-black uppercase text-muted-foreground">Fecha Recogida</p>
-                              <p className="text-sm font-semibold">{formatDate((pedido as any).fecha_recogida)}</p>
-                            </div>
-                            <div>
-                              <p className="text-[9px] font-black uppercase text-muted-foreground">Hora Recogida</p>
-                              <p className="text-sm font-mono font-semibold flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {(pedido as any).hora_recogida || 'N/A'}
-                              </p>
-                            </div>
-                            <div className="col-span-2 md:col-span-2">
-                              <p className="text-[9px] font-black uppercase text-muted-foreground">Lugar</p>
-                              <p className="text-sm font-medium">{(pedido as any).lugar_recogida || 'No especificado'}</p>
+                      {/* 2 Columnas: Entrega | Recogida */}
+                      <div className={`grid gap-3 ${(pedido as any).fecha_recogida ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        
+                        {/* ENTREGA */}
+                        <div className="p-4 bg-blue-500/5 rounded border border-blue-500/20 space-y-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-sm font-bold uppercase text-blue-600 flex-shrink-0">📦 Entrega</p>
+                            
+                            {/* Ubicación compacta a la derecha */}
+                            <div className="flex items-start gap-1 flex-1">
+                              <MapPin className="w-4 h-4 mt-0.5 text-blue-600 flex-shrink-0" />
+                              <div className="flex-1 text-right">
+                                <p className="text-xs font-medium">{pedido.localizacion}</p>
+                                <p className="text-[10px] text-muted-foreground italic">{pedido.nombre_espacio}: {pedido.direccion_espacio}</p>
+                              </div>
                             </div>
                           </div>
-                          <div className="text-sm p-2 bg-muted/40 rounded italic text-muted-foreground">
-                            <span className="font-bold">📍 Recogida: </span>
-                            {(pedido as any).lugar_recogida === 'Instalaciones' 
-                              ? 'Polígono Industrial Santa Cruz, Nave 7, 28160 Torrejón de Ardoz, Madrid'
-                              : pedido.direccion_espacio}
+                          
+                          {/* Fecha + Hora en misma línea */}
+                          <div className="flex items-center gap-3 pl-6">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                              <p className="text-sm font-semibold">{formatDate(pedido.fecha_entrega)}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                              <p className="text-sm font-semibold">{pedido.hora_entrega || 'N/A'}</p>
+                            </div>
                           </div>
-                        </>
-                      )}
+                        </div>
+
+                        {/* RECOGIDA (si existe) */}
+                        {(pedido as any).fecha_recogida && (
+                          <div className="p-4 bg-orange-500/5 rounded border border-orange-500/20 space-y-2">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-sm font-bold uppercase text-orange-600 flex-shrink-0">📍 Recogida</p>
+                              
+                              {/* Lugar compacto a la derecha */}
+                              <div className="flex items-start gap-1 flex-1">
+                                <MapPin className="w-4 h-4 mt-0.5 text-orange-600 flex-shrink-0" />
+                                <div className="flex-1 text-right">
+                                  <p className="text-xs font-medium">{(pedido as any).lugar_recogida || 'No especificado'}</p>
+                                  <p className="text-[10px] text-muted-foreground italic">
+                                    {(pedido as any).lugar_recogida === 'Instalaciones' 
+                                      ? 'C/ Mallorca, 1, 28703 SSR, Madrid'
+                                      : pedido.direccion_espacio}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Fecha + Hora en misma línea */}
+                            <div className="flex items-center gap-3 pl-6">
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                                <p className="text-sm font-semibold">{formatDate((pedido as any).fecha_recogida)}</p>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Clock className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                                <p className="text-sm font-semibold">{(pedido as any).hora_recogida || 'N/A'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
                       {/* Resumen */}
-                      <div className="text-xs text-muted-foreground">
-                        <span className="font-bold">{pedido.items.length} artículos</span> • <span>{totalUnidades} unidades</span>
-                      </div>
-
-                      {/* Botones de Acción */}
-                      <div className="flex flex-col md:flex-row gap-2 pt-2 border-t border-border/40">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-[9px] flex-1"
-                          onClick={() => handleDownloadPDF(pedido)}
-                        >
-                          ⬇ Descargar PDF
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-[9px] flex-1"
-                          onClick={() => handleOpenViewDetails(pedido)}
-                        >
-                          <FileText className="w-3 h-3 mr-1" />
-                          Ver & Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="h-8 px-2 text-[9px] bg-red-600/90 hover:bg-red-700"
-                          onClick={() => {
-                            if (confirm('⚠️ Solo borra este pedido si fue anulado. ¿Continuar?')) {
-                              deleteEnviado.mutateAsync({ pedidoId: pedido.id, osId: numeroExpediente })
-                                .then(() => {
-                                  toast({ title: 'Pedido eliminado', description: 'El pedido ha sido eliminado correctamente' })
-                                })
-                                .catch((error) => {
-                                  toast({ title: 'Error', description: error.message || 'No se pudo eliminar el pedido', variant: 'destructive' })
-                                })
-                            }
-                          }}
-                          disabled={deleteEnviado.isPending}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                      <div className="text-sm text-muted-foreground font-medium">
+                        <span className="font-bold text-foreground">{pedido.items.length} artículos</span> • <span>{totalUnidades} unidades</span>
                       </div>
                     </div>
                   );

@@ -279,8 +279,14 @@ export function SubPedidoCard({
 
               {/* Información principal */}
               <div className="flex-1 min-w-0">
-                {/* Primera línea: Proveedor · Estado · Solicitante */}
+                {/* Primera línea: ID · Proveedor · Estado · Solicitante */}
                 <div className="flex items-center gap-2 flex-wrap mb-2">
+                  {/* ID del pedido */}
+                  <span className="text-[10px] font-black text-foreground">
+                    #{pedido.id?.substring(0, 8).toUpperCase() || 'N/A'}
+                  </span>
+                  <span className="text-[8px] text-muted-foreground">•</span>
+                  
                   {proveedor?.nombre_comercial && (
                     <>
                       <Package2 className="h-4 w-4 text-amber-600 flex-shrink-0" />
