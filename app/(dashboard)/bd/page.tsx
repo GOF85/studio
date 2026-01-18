@@ -52,6 +52,7 @@ const entregasDatabases: DatabaseEntry[] = [
 
 const bookGastronomicoDBs: DatabaseEntry[] = [
   { id: '15', name: 'Categorías de Recetas', description: 'Gestiona las categorías para clasificar las recetas.', path: '/bd/categorias-recetas', icon: BookHeart },
+  { id: 'gastro-esenciales', name: 'Esenciales de Gastronomía', description: 'Artículos que siempre acompañan a la gastronomía.', path: '/bd/gastro-esenciales', icon: Soup },
   { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', path: '/bd/formatos-expedicion', icon: Package },
   { id: '20', name: 'Ingredientes Internos', description: 'Base de datos de ingredientes internos.', path: '/book/ingredientes', icon: Soup },
 ];

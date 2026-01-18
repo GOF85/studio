@@ -19,37 +19,34 @@ import {
   getTabIcon,
   formatFieldName,
   formatFieldValue,
+  useOsPanelHistory,
 } from '@/hooks/useOsPanelHistory';
 import type { OsPanelChangeLog } from '@/types/os-panel';
 
 interface HistorialModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  cambios: OsPanelChangeLog[];
-  isLoading?: boolean;
+  osId: string;
 }
 
 export function HistorialModal({
   isOpen,
   onOpenChange,
-  cambios,
-  isLoading = false,
+  osId,
 }: HistorialModalProps) {
-  // DEBUG LOG
-  React.useEffect(() => {
-    console.debug('[HistorialModal] Modal state changed:', {
-      isOpen,
-      cambiosCount: cambios.length,
-      isLoading,
-      timestamp: new Date().toISOString(),
-    });
-  }, [isOpen, cambios.length, isLoading]);
-
   const [selectedTab, setSelectedTab] = useState<string>('Todos');
   const [selectedUser, setSelectedUser] = useState<string>('Todos');
 
+  const { data, isLoading } = useOsPanelHistory(osId, {
+    enabled: isOpen,
+    limit: 100,
+  });
+
+  const cambios = data?.cambios || [];
+
   // Filter by tab and user
   const filteredCambios = useMemo(() => {
+    if (!cambios) return [];
     return cambios.filter((log) => {
       const tabMatch = selectedTab === 'Todos' || log.pestaña === selectedTab;
       const userMatch =
@@ -67,11 +64,13 @@ export function HistorialModal({
 
   // Get unique tabs and users for filters
   const tabs = useMemo(() => {
-    const uniqueTabs = new Set(cambios.map((log) => log.pestaña));
+    if (!cambios) return [];
+    const uniqueTabs = new Set(cambios.map((log) => log.pestaña).filter(Boolean));
     return Array.from(uniqueTabs).sort();
   }, [cambios]);
 
   const users = useMemo(() => {
+    if (!cambios) return [];
     const uniqueUsers = new Set(
       cambios
         .map((log) => log.usuario_email?.split('@')[0] || log.usuario_id)

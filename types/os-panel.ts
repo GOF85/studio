@@ -91,6 +91,7 @@ export interface PersonalLookup {
   cpr: Personal[];
   pase: Personal[];
   almacen: Personal[];
+  operaciones: Personal[];
   
   // Helpers
   getFullName: (p: Personal) => string;

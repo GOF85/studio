@@ -27,6 +27,8 @@ import {
   Building2,
   MapPin,
   NotebookPen,
+  ChevronDown,
+  Sparkles,
 } from 'lucide-react'
 import { format, differenceInMinutes, parse, startOfDay } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -68,6 +70,7 @@ import {
   useGastronomyOrders,
   useComercialBriefing,
   useUpdateGastronomyOrder,
+  useGastroEsenciales,
 } from '@/hooks/use-briefing-data'
 import { useEvento } from '@/hooks/use-data-queries'
 import { Button } from '@/components/ui/button'
@@ -100,6 +103,11 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -151,6 +159,7 @@ const formSchema = z.object({
   asistentesAlergenos: z.coerce.number().optional().default(0),
   itemsAlergenos: z.array(gastroItemSchema).optional().default([]),
   comentariosAlergenos: z.string().optional().default(''),
+  itemsEsenciales: z.array(gastroItemSchema).optional().default([]),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -159,6 +168,7 @@ const GastroInfoBar = memo(({ asistentes, asistentesAlergenos = 0 }: { asistente
   const { control } = useFormContext()
   const watchedItems = useWatch({ control, name: 'items' })
   const watchedAllergenItems = useWatch({ control, name: 'itemsAlergenos' })
+  const watchedEsencialesItems = useWatch({ control, name: 'itemsEsenciales' })
 
   const { totalPedido, asistentesGenericos, ratioGenericos, allergenTotal, ratioAlergenos } = useMemo(() => {
     // Calcular asistentes genéricos (totales menos alérgenos)
@@ -172,6 +182,15 @@ const GastroInfoBar = memo(({ asistentes, asistentesAlergenos = 0 }: { asistente
         const priceToUse = item.precioVentaSnapshot ?? item.precioVenta ?? 0
         regularTotal += priceToUse * (item.quantity || 0)
         regularUnits += item.quantity || 0
+      }
+    })
+
+    // Esenciales: calcular total, pero NO sumar a regularUnits para el ratio
+    let esencialesTotal = 0
+    ;(watchedEsencialesItems || []).forEach((item: any) => {
+      if (item.type === 'item') {
+        const priceToUse = item.precioVentaSnapshot ?? item.precioVenta ?? 0
+        esencialesTotal += priceToUse * (item.quantity || 0)
       }
     })
 
@@ -191,13 +210,13 @@ const GastroInfoBar = memo(({ asistentes, asistentesAlergenos = 0 }: { asistente
     const ratioAlergeno = asistentesAlergenos > 0 ? allergenUnits / asistentesAlergenos : 0
 
     return {
-      totalPedido: regularTotal,
+      totalPedido: regularTotal + esencialesTotal,
       asistentesGenericos: genericos,
       ratioGenericos: ratioGenerico,
       allergenTotal: allergenTotalPrice,
       ratioAlergenos: ratioAlergeno,
     }
-  }, [watchedItems, watchedAllergenItems, asistentes, asistentesAlergenos])
+  }, [watchedItems, watchedAllergenItems, watchedEsencialesItems, asistentes, asistentesAlergenos])
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
@@ -333,6 +352,7 @@ const SortableRow = memo(({
           <TableCell colSpan={3}></TableCell>
           <TableCell className="text-right px-0.5 md:px-3 py-0.5 md:py-2">
             <Button
+              type="button"
               variant="ghost"
               size="icon"
               className="text-destructive h-5 md:h-8 w-5 md:w-8 p-0"
@@ -383,6 +403,7 @@ const SortableRow = memo(({
           <TableCell className="px-0.5 md:px-3 py-0.5 md:py-2 text-right">
             <div className="flex items-center justify-end gap-0.5">
               <Button
+                type="button"
                 variant="ghost"
                 size="icon"
                 className="text-muted-foreground h-5 md:h-8 w-5 md:w-8 p-0"
@@ -391,6 +412,7 @@ const SortableRow = memo(({
                 <MessageSquare className={`h-2.5 md:h-4 w-2.5 md:w-4 ${field.comentarios ? 'text-primary' : ''}`} />
               </Button>
               <Button
+                type="button"
                 variant="ghost"
                 size="icon"
                 className="text-destructive h-5 md:h-8 w-5 md:w-8 p-0"
@@ -433,7 +455,9 @@ function PedidoGastronomiaForm() {
   const { data: gastronomyOrders = [], isLoading: isLoadingOrders } = useGastronomyOrders(
     serviceOrder?.id || osId,
   )
+  const { data: gastroEsenciales = [] } = useGastroEsenciales()
   const updateOrderMutation = useUpdateGastronomyOrder()
+  const lastBriefingItemId = useRef<string | null>(null)
 
   // Cargar categorías de Supabase
   useEffect(() => {
@@ -470,6 +494,7 @@ function PedidoGastronomiaForm() {
       asistentesAlergenos: 0,
       itemsAlergenos: [],
       comentariosAlergenos: '',
+      itemsEsenciales: [],
     },
   })
 
@@ -477,6 +502,7 @@ function PedidoGastronomiaForm() {
 
   const watchedItems = watch('items')
   const watchedAllergenItems = watch('itemsAlergenos')
+  const watchedEsencialesItems = watch('itemsEsenciales')
   
   const totalPedido = useMemo(() => {
     return (watchedItems || []).reduce((acc: number, item: any) => {
@@ -484,6 +510,12 @@ function PedidoGastronomiaForm() {
       return acc + (item.precioVentaSnapshot || item.precioVenta || 0) * (item.quantity || 0)
     }, 0)
   }, [watchedItems])
+
+  const totalEsenciales = useMemo(() => {
+    return (watchedEsencialesItems || []).reduce((acc: number, item: any) => {
+      return acc + (item.precioVentaSnapshot || item.precioVenta || 0) * (item.quantity || 0)
+    }, 0)
+  }, [watchedEsencialesItems])
 
   const totalAllergenItems = useMemo(() => {
     return (watchedAllergenItems || []).reduce((acc: number, item: any) => {
@@ -495,6 +527,10 @@ function PedidoGastronomiaForm() {
   // Sincronizar formulario con datos cargados
   useEffect(() => {
     if (gastroOrder) {
+      // Evitar resets infinitos si el ID no ha cambiado y ya tenemos datos
+      const currentResetKey = `${briefingItemId}-${gastroOrder.id}-${(gastroOrder.items || []).length}-${(gastroOrder.itemsEsenciales || []).length}`;
+      if (lastBriefingItemId.current === currentResetKey) return;
+      
       // Normalizar IDs a string para asegurar detección de platos manuales
       const normalizeItems = (items: any[]) => 
         items.map(item => ({
@@ -504,6 +540,20 @@ function PedidoGastronomiaForm() {
       
       const normalizedItems = normalizeItems(gastroOrder.items || [])
       const normalizedAllergenItems = normalizeItems(gastroOrder.itemsAlergenos || [])
+      const normalizedEsencialesItems = normalizeItems(gastroOrder.itemsEsenciales || [])
+      
+      // Si no hay esenciales guardados aún en este pedido, inyectar los de la lista maestra
+      const finalEsenciales = normalizedEsencialesItems.length > 0
+        ? normalizedEsencialesItems 
+        : (gastroEsenciales || []).map(e => ({
+            id: e.receta?.id || e.receta_id,
+            type: 'item' as const,
+            nombre: e.receta?.nombre || 'Receta',
+            precioVenta: e.receta?.precioVenta || 0,
+            precioVentaSnapshot: e.receta?.precioVenta || 0,
+            quantity: 0,
+            comentarios: '',
+          }))
       
       reset({
         items: normalizedItems,
@@ -511,9 +561,11 @@ function PedidoGastronomiaForm() {
         asistentesAlergenos: gastroOrder.asistentesAlergenos || 0,
         itemsAlergenos: normalizedAllergenItems,
         comentariosAlergenos: gastroOrder.comentariosAlergenos || '',
+        itemsEsenciales: finalEsenciales,
       })
+      lastBriefingItemId.current = currentResetKey;
     }
-  }, [gastroOrder, reset])
+  }, [gastroOrder, reset, gastroEsenciales, briefingItem, briefingItemId])
 
   // Detectar cambios en la orden para notificar a cocina
   useGastronomyOrderChanges(gastroOrder || null)
@@ -526,6 +578,13 @@ function PedidoGastronomiaForm() {
     update: allergenUpdate,
     move: allergenMove,
   } = useFieldArray({ control, name: 'itemsAlergenos' })
+  const {
+    fields: esencialesFields,
+    append: esencialesAppend,
+    remove: esencialesRemove,
+    update: esencialesUpdate,
+    move: esencialesMove,
+  } = useFieldArray({ control, name: 'itemsEsenciales' })
 
   // Configurar sensores para drag & drop
   const sensors = useSensors(
@@ -757,6 +816,7 @@ function PedidoGastronomiaForm() {
         itemsAlergenos: data.itemsAlergenos || [],
         totalAlergenos: allergenItemsTotal,
         comentariosAlergenos: data.comentariosAlergenos || '',
+        itemsEsenciales: data.itemsEsenciales || [],
       })
 
       const itemCount = data.items.filter((i) => i.type === 'item').length
@@ -875,6 +935,19 @@ function PedidoGastronomiaForm() {
                   <BarChart3 className="h-4 md:h-5 w-4 md:w-5" />
                   <span className="hidden md:inline">Desglose</span>
                 </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isLoading}
+                  className="h-8 md:h-9 gap-1.5 md:gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] md:text-xs font-black uppercase tracking-widest px-3 md:px-4 shadow-lg shadow-emerald-900/20"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 md:h-5 w-4 md:w-5" />
+                  )}
+                  <span>Guardar</span>
+                </Button>
               </div>
             </div>
           </div>
@@ -895,6 +968,69 @@ function PedidoGastronomiaForm() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Esenciales */}
+          {(esencialesFields.length > 0 || (gastroEsenciales && gastroEsenciales.length > 0)) && (
+            <Collapsible className="mb-4">
+              <Card className="bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 shadow-none overflow-hidden">
+                <CollapsibleTrigger asChild>
+                  <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-amber-500/5 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <Sparkles className="h-5 w-5 text-amber-500" />
+                      <div>
+                        <CardTitle className="text-[12px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">Esenciales</CardTitle>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm font-black text-amber-700 dark:text-amber-400">{formatCurrency(totalEsenciales)}</span>
+                      <ChevronDown className="h-4 w-4 text-amber-500" />
+                    </div>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="p-0 border-t border-amber-100 dark:border-amber-900/50">
+                    <Table>
+                      <TableHeader className="bg-amber-100/30 dark:bg-amber-900/10">
+                        <TableRow className="hover:bg-transparent border-amber-100 dark:border-amber-900/30">
+                          <TableHead className="h-8 px-4 text-[10px] font-black uppercase tracking-wider text-amber-700/70">Artículo</TableHead>
+                          <TableHead className="h-8 text-center text-[10px] font-black uppercase tracking-wider text-amber-700/70">Cant.</TableHead>
+                          <TableHead className="h-8 text-right text-[10px] font-black uppercase tracking-wider text-amber-700/70">P/U</TableHead>
+                          <TableHead className="h-8 text-right text-[10px] font-black uppercase tracking-wider text-amber-700/70">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {esencialesFields.map((field, index) => (
+                          <TableRow key={field.id} className="border-amber-100 dark:border-amber-900/30 hover:bg-amber-500/5">
+                            <TableCell className="py-2 px-4 text-xs font-semibold text-amber-900 dark:text-amber-100">{field.nombre}</TableCell>
+                            <TableCell className="py-2">
+                              <FormField
+                                control={control}
+                                name={`itemsEsenciales.${index}.quantity`}
+                                render={({ field: qtyField }) => (
+                                  <Input
+                                    type="number"
+                                    {...qtyField}
+                                    onChange={(e) => qtyField.onChange(parseInt(e.target.value, 10) || 0)}
+                                    className="w-16 h-7 text-center text-xs font-bold mx-auto border-amber-200 focus-visible:ring-amber-500 bg-white/50 dark:bg-black/20"
+                                  />
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell className="py-2 text-right text-[11px] text-amber-700/80">
+                              {formatCurrency(field.precioVentaSnapshot || field.precioVenta || 0)}
+                            </TableCell>
+                            <TableCell className="py-2 text-right text-xs font-black text-amber-700">
+                              {formatCurrency((field.precioVentaSnapshot || field.precioVenta || 0) * (watchedEsencialesItems?.[index]?.quantity || 0))}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           )}
 
           {/* Menú Regular */}
@@ -1026,90 +1162,69 @@ function PedidoGastronomiaForm() {
             </CardContent>
           </Card>
 
-          {/* Allergen PAX Input - Compact 2-Column Layout */}
-          {watch('asistentesAlergenos') > 0 && (
-            <div className="bg-background/60 backdrop-blur-md border border-border/40 rounded-lg p-3">
-              <div className="grid grid-cols-12 gap-4">
-                {/* Column 1: 15% - Asistentes Alérgicos */}
-                <div className="col-span-2 space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-0.5 h-4 bg-red-500 rounded-full" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">🔴 Asistentes Alérgicos</span>
+          {/* Tarjeta de Configuración de Alérgenos */}
+          <Collapsible className="mb-4">
+            <Card className="bg-slate-50/50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-800 shadow-none overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between p-4 cursor-pointer hover:bg-slate-500/5 transition-colors gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-1 h-6 rounded-full bg-red-500" />
+                    <CardTitle className="text-[12px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                      🔴 Asistentes Alérgicos
+                    </CardTitle>
                   </div>
-                  <FormField
-                    control={control}
-                    name="asistentesAlergenos"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min="0"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
-                            className="h-7 text-xs font-bold"
-                            placeholder="0"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Cantidad:</span>
+                      <FormField
+                        control={control}
+                        name="asistentesAlergenos"
+                        render={({ field }) => (
+                          <FormItem className="mb-0">
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="0"
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+                                className="h-8 w-16 text-center text-sm font-bold bg-white/50 dark:bg-black/20"
+                                placeholder="0"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  </div>
                 </div>
-
-                {/* Column 2: 85% - Detalles de Alérgenos */}
-                <div className="col-span-10">
+              </CollapsibleTrigger>
+              <CollapsibleContent className="border-t border-border/40">
+                <CardContent className="p-4 bg-background/40">
                   <FormField
                     control={control}
                     name="comentariosAlergenos"
                     render={({ field }) => (
-                      <FormItem className="space-y-1">
+                      <FormItem className="space-y-2">
+                        <div className="flex items-center gap-2 ml-1">
+                          <MessageSquare className="h-3 w-3 text-slate-500" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Detalles y observaciones de alérgenos</span>
+                        </div>
                         <FormControl>
                           <Textarea
                             {...field}
-                            placeholder="Especifica los alérgenos, ingredientes sensibles..."
-                            className="min-h-10 text-xs resize-none"
+                            placeholder="Especifica los alérgenos, ingredientes sensibles, nombres de invitados o requerimientos especiales..."
+                            className="min-h-[80px] text-xs resize-none bg-white/50 dark:bg-black/20 border-slate-200 dark:border-slate-800 focus-visible:ring-red-500"
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Show input only when no allergens yet */}
-          {watch('asistentesAlergenos') === 0 && (
-            <div className="bg-background/60 backdrop-blur-md border border-border/40 rounded-lg p-3">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-0.5 h-5 bg-red-500 rounded-full" />
-                  <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">🔴 Alérgenos</span>
-                </div>
-                <FormField
-                  control={control}
-                  name="asistentesAlergenos"
-                  render={({ field }) => (
-                    <FormItem className="flex-1 max-w-xs">
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
-                          className="h-8 text-sm font-bold"
-                          placeholder="0"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-          )}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Menú Alérgeno - Solo si hay asistentes alérgenos */}
           {watch('asistentesAlergenos') > 0 && (

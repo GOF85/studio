@@ -163,6 +163,7 @@ export function BriefingSummaryTrigger({ items }: { items: any[] }) {
   return (
     <>
       <Button
+        type="button"
         variant="outline"
         size="sm"
         className="h-7 text-[9px] font-black uppercase tracking-tight bg-zinc-900 text-zinc-50 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-50 transition-all duration-200 shadow-lg shadow-zinc-900/20 px-2"

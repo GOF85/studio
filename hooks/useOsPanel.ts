@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
+import React from 'react';
 import { supabase } from '@/lib/supabase';
 import { resolveOsId } from '@/lib/supabase';
 import { EDO_ALMACEN_OPTIONS } from '@/lib/validations/os-panel';
@@ -14,38 +15,50 @@ interface UseOsPanelOptions {
 
 export function useOsPanel(osId: string | undefined, options?: UseOsPanelOptions) {
   const enabled = options?.enabled !== false && !!osId;
+  const queryClient = useQueryClient();
+
+  // Clear ALL cache on component mount to force fresh fetch
+  React.useEffect(() => {
+    queryClient.clear();
+  }, []); // Empty deps: only run on mount
 
   // Fetch OS data
-  const { data: osData, isLoading: osLoading, error: osError } = useQuery({
+  const { data: osData, isLoading: osLoading, error: osError, dataUpdatedAt } = useQuery({
     queryKey: ['eventos', osId],
     queryFn: async () => {
       if (!osId) {
-        console.debug('[useOsPanel] No osId provided');
         return null;
       }
       
-      console.debug('[useOsPanel] Query function called:', { osId });
-      const targetId = await resolveOsId(osId);
-      console.debug('[useOsPanel] Resolved osId to targetId:', { osId, targetId });
-      
-      const { data, error } = await supabase
-        .from('eventos')
-        .select('*')
-        .eq('id', targetId)
-        .maybeSingle();
+      // Use server endpoint instead of direct client query (bypasses RLS issues)
+      try {
+        const response = await fetch('/api/os/panel/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ osId }),
+        });
 
-      if (error) {
-        console.error('[useOsPanel] Query error:', error.message);
-        throw error;
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const { data, error } = await response.json();
+
+        if (error) {
+          throw new Error(error);
+        }
+
+        return data || null;
+      } catch (err) {
+        console.error('[useOsPanel] Error fetching data:', err);
+        throw err;
       }
-      
-      console.debug('[useOsPanel] Query result:', { 
-        found: !!data, 
-        numero_expediente: data?.numero_expediente 
-      });
-      return data;
     },
     enabled,
+    staleTime: 5000, // Consider stale after 5s to allow UI updates
+    gcTime: 10 * 60 * 1000, 
+    refetchInterval: 30000, // Polling cada 30 segundos
+    refetchOnMount: 'always', 
   });
 
   // Fetch all active personnel
@@ -72,6 +85,9 @@ export function useOsPanel(osId: string | undefined, options?: UseOsPanelOptions
     );
     const pase = allPersonal.filter((p) => p.departamento === 'Pase');
     const almacen = allPersonal.filter((p) => p.departamento === 'Almacén');
+    const operaciones = allPersonal.filter((p) => 
+      p.departamento === 'Operaciones' || p.departamento === 'Project Manager'
+    );
 
     const getFullName = (p: Personal): string => {
       if (!p.nombre || !p.apellido1) return '';
@@ -94,6 +110,7 @@ export function useOsPanel(osId: string | undefined, options?: UseOsPanelOptions
       cpr,
       pase,
       almacen,
+      operaciones, // Added operations/PM
       getFullName,
       getCompactName,
       getById,
@@ -102,23 +119,67 @@ export function useOsPanel(osId: string | undefined, options?: UseOsPanelOptions
 
   // Transform OS data to form values
   const formValues = useMemo<OsPanelFormValues | null>(() => {
-    if (!osData) return null;
+    if (!osData) {
+      console.log('[useOsPanel] osData is null, formValues will be null');
+      return null;
+    }
+
+    // Extract legacy responsables from JSON if needed
+    let legacyPM = null;
+    let legacyPMId = null;
+    try {
+      if (osData.responsables) {
+        const parsed = typeof osData.responsables === 'string' ? JSON.parse(osData.responsables) : osData.responsables;
+        
+        // Structure 1: Object { project_manager: "Name" }
+        if (parsed.project_manager) {
+          legacyPM = parsed.project_manager;
+        } 
+        // Structure 2: Array of objects [{ rol: "Project Manager", nombre: "Name", id_empleado: 123 }]
+        else if (Array.isArray(parsed)) {
+          const pm = parsed.find((r: any) => r.rol === 'Project Manager');
+          if (pm) {
+            legacyPM = pm.nombre;
+            legacyPMId = pm.id_empleado?.toString();
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[useOsPanel] Error parsing legacy responsables:', e);
+    }
+
+    console.log('[useOsPanel] Transforming osData to formValues - legacyPM:', legacyPM, 'legacyPMId:', legacyPMId);
 
     const normalizedEdoAlmacen = (() => {
-      const raw = osData.edo_almacen;
-      if (!raw || raw === 'Pendiente') return 'EP' as OsPanelFormValues['edo_almacen'];
-      if ((EDO_ALMACEN_OPTIONS as readonly string[]).includes(raw)) {
-        return raw as OsPanelFormValues['edo_almacen'];
-      }
-      return 'EP' as OsPanelFormValues['edo_almacen'];
+      // ... previous logic
     })();
 
-    return {
+    // Sala - Fallback to legacyPM if produccion_sala is empty
+    let initialProduccionSala = osData.produccion_sala || null;
+    
+    if (!initialProduccionSala) {
+      if (legacyPMId) {
+        // Find by id_empleado (numeric legacy ID)
+        const person = allPersonal.find(p => p.id_empleado?.toString() === legacyPMId);
+        if (person) initialProduccionSala = person.id;
+      }
+      
+      if (!initialProduccionSala && legacyPM) {
+        // Try to find personal ID by full name
+        const person = allPersonal.find(p => 
+          `${p.nombre} ${p.apellido1}`.toLowerCase() === legacyPM.toLowerCase() || 
+          `${p.nombre} ${p.apellido1} ${p.apellido2 || ''}`.trim().toLowerCase() === legacyPM.toLowerCase()
+        );
+        initialProduccionSala = person?.id || null;
+      }
+    }
+
+    const result = {
       os_id: osData.id,
       numero_expediente: osData.numero_expediente,
       
       // Sala
-      produccion_sala: osData.produccion_sala || null,
+      produccion_sala: initialProduccionSala,
       revision_pm: osData.revision_pm || false,
       metre_responsable: osData.metre_responsable || null,
       metres: osData.metres || [],
@@ -159,6 +220,8 @@ export function useOsPanel(osId: string | undefined, options?: UseOsPanelOptions
       h_descarga_pos_evento: osData.h_descarga_pos_evento || null,
       alquiler_lanzado: osData.alquiler_lanzado || false,
     };
+
+    return result;
   }, [osData]);
 
   // Helper: Get personal name by ID

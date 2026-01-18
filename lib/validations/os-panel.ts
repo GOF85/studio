@@ -75,7 +75,7 @@ export const logisticaPanelSchema = z.object({
 
 // Complete Panel Schema with cross-field validations
 export const osPanelSchema = z.object({
-  os_id: z.string().uuid(),
+  os_id: z.string(), // Allow both UUID and legacy TEXT IDs
   numero_expediente: z.string(),
   ...salaPanelSchema.shape,
   ...cocinaPanelSchema.shape,
@@ -133,7 +133,7 @@ export const osPanelChangeSchema = z.object({
 
 export const osPanelChangeLogSchema = z.object({
   id: z.string().uuid(),
-  os_id: z.string().uuid(),
+  os_id: z.string(), // Changed from .uuid()
   numero_expediente: z.string(),
   usuario_id: z.string(),
   usuario_email: z.string().optional(),

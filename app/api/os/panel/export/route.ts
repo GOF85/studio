@@ -1,22 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateOsPanelPDF } from '@/lib/exports/os-panel-pdf';
-import { resolveOsId } from '@/lib/supabase';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
+async function resolveOsIdServer(osId: string): Promise<string> {
+  if (!osId) return '';
+  if (osId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) return osId;
+
+  const { data: eventoData } = await supabase
+    .from('eventos')
+    .select('id')
+    .eq('numero_expediente', osId)
+    .maybeSingle();
+  if (eventoData?.id) return eventoData.id;
+
+  const { data: entregaData } = await supabase
+    .from('entregas')
+    .select('id')
+    .eq('numero_expediente', osId)
+    .maybeSingle();
+  if (entregaData?.id) return entregaData.id;
+
+  return osId;
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const searchParams = request.nextUrl.searchParams;
     const osId = searchParams.get('osId');
-
-    console.debug('[export/route] Request received:', {
-      osId,
-      url: request.nextUrl.toString(),
-    });
 
     if (!osId) {
       console.error('[export/route] Missing osId parameter');
@@ -26,10 +41,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Resolve OS ID
-    console.debug('[export/route] Resolving osId:', { osId });
-    const targetId = await resolveOsId(osId);
-    console.debug('[export/route] Resolved to:', { targetId });
+    // Resolve OS ID with service role
+    const targetId = await resolveOsIdServer(osId);
+    if (!targetId) {
+      return NextResponse.json(
+        { success: false, error: 'OS ID not found' },
+        { status: 400 }
+      );
+    }
 
     // Fetch OS data
     const { data: osData, error: osError } = await supabase
@@ -38,18 +57,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .eq('id', targetId)
       .maybeSingle();
 
-    console.debug('[export/route] Supabase query result:', {
-      found: !!osData,
-      error: osError?.message,
-      numero_expediente: osData?.numero_expediente,
-    });
-
     if (osError || !osData) {
       throw new Error(osError?.message || 'OS not found');
     }
 
     // Generate PDF
-    const pdf = await generateOsPanelPDF(osData);
+    const pdf = await generateOsPanelPDF(osData, {}, {});
     const pdfBytes = pdf.output('arraybuffer');
 
     // Return as binary

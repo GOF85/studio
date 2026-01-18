@@ -6,22 +6,31 @@ import { useOsPanel } from '@/hooks/useOsPanel';
 import { useOsPanelAutoSave } from '@/hooks/useOsPanelAutoSave';
 import { useOsPanelHistory } from '@/hooks/useOsPanelHistory';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { osPanelSchema } from '@/lib/validations/os-panel';
 import { Form } from '@/components/ui/form';
 import { OsPanelHeader } from '@/components/os/os-panel/OsPanelHeader';
-import { OsPanelTabs } from '@/components/os/os-panel/OsPanelTabs';
 import { HistorialModal } from '@/components/os/os-panel/HistorialModal';
-import { ExportarPdfButton } from '@/components/os/os-panel/ExportarPdfButton';
-import { EspacioTab } from './tabs/EspacioTab';
-import { SalaTab } from './tabs/SalaTab';
-import { CocinaTab } from './tabs/CocinaTab';
-import { LogisticaTab } from './tabs/LogisticaTab';
-import { PersonalTab } from './tabs/PersonalTab';
-import { getOverallCompletionPercentage } from '@/services/os-panel-service';
+import { ControlPanelCard } from '@/components/os/os-panel/ControlPanelCard';
+import { MobileSheetEditor } from '@/components/os/os-panel/MobileSheetEditor';
+import { ControlPanelTasks } from '@/components/os/os-panel/ControlPanelTasks';
+import { SalaTab, CocinaTab, LogisticaTab, PersonalTab } from './tabs';
+import { 
+  getOverallCompletionPercentage, 
+  getTabCompletionPercentage 
+} from '@/services/os-panel-service';
 import type { OsPanelFormValues } from '@/types/os-panel';
 import { QueryErrorBoundary } from '@/components/error-boundary';
+import { 
+  LayoutDashboard, 
+  Users, 
+  Utensils, 
+  Package, 
+  CheckSquare,
+  AlertCircle
+} from 'lucide-react';
 
 interface OsPanelPageProps {
   params: Promise<{
@@ -29,32 +38,22 @@ interface OsPanelPageProps {
   }>;
 }
 
+const TAB_FIELDS = {
+  sala: ['metres', 'camareros_ext', 'logisticos_ext', 'pedido_ett', 'ped_almacen_bio_bod', 'pedido_walkies', 'pedido_hielo', 'pedido_transporte'],
+  cocina: ['cocina', 'cocineros_ext', 'logisticos_ext_cocina', 'gastro_actualizada', 'pedido_gastro', 'pedido_cocina', 'personal_cocina', 'servicios_extra'],
+  logistica: ['edo_almacen', 'estado_logistica', 'carambucos', 'jaulas', 'pallets', 'proveedor', 'h_recogida_cocina', 'transporte', 'h_recogida_pre_evento', 'h_descarga_evento', 'h_recogida_pos_evento', 'h_descarga_pos_evento', 'alquiler_lanzado'],
+};
+
 export default function OsPanelPage({ params }: OsPanelPageProps) {
   const { numero_expediente: osId } = React.use(params);
   const router = useRouter();
+  const isMobile = useIsMobile();
   const searchParams = useSearchParams();
-  const [urlSearchParams, setUrlSearchParams] = useState<URLSearchParams | null>(null);
-
-  // Sincroniza los URL searchParams con el estado local
-  useEffect(() => {
-    if (searchParams) {
-      setUrlSearchParams(new URLSearchParams(searchParams.toString()));
-    }
-  }, [searchParams?.toString()]);
-
-  const activeTab = ((urlSearchParams?.get('tab')) || 'espacio') as
-    | 'espacio'
-    | 'sala'
-    | 'cocina'
-    | 'logistica'
-    | 'personal';
 
   const [isHistorialOpen, setIsHistorialOpen] = useState(false);
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(isMobile);
+  const [openSheet, setOpenSheet] = useState<string | null>(null);
 
-
-
-  // Fetch OS panel data
   const {
     osData,
     formValues,
@@ -62,27 +61,9 @@ export default function OsPanelPage({ params }: OsPanelPageProps) {
     isLoading: isPanelLoading,
     error: panelError,
   } = useOsPanel(osId);
+  
+  const memoizedIsVip = useMemo(() => osData?.is_vip || false, [osData?.is_vip]);
 
-  // Si llegamos con UUID, normaliza la URL al numero_expediente en cuanto lo conocemos
-  useEffect(() => {
-    const canonicalId = osData?.numero_expediente;
-    if (!canonicalId || !osId || osId === canonicalId) return;
-
-    const params = new URLSearchParams(searchParams?.toString() || '');
-    // Preserva el tab si ya existe, sino usa espacio
-    const currentTab = params.get('tab') || 'espacio';
-    params.set('tab', currentTab);
-
-    const newUrl = `/os/${canonicalId}/control-panel?${params.toString()}`;
-    
-    // Usar window.history.replaceState en lugar de router.replace()
-    // Esto evita un reload completo de la página
-    if (typeof window !== 'undefined') {
-      window.history.replaceState({}, '', newUrl);
-    }
-  }, [osData?.numero_expediente, osId, searchParams]);
-
-  // Form setup
   const form = useForm<OsPanelFormValues>({
     resolver: zodResolver(osPanelSchema as any),
     values: formValues || {
@@ -109,7 +90,7 @@ export default function OsPanelPage({ params }: OsPanelPageProps) {
       pedido_gastro: false,
       pedido_cocina: false,
       personal_cocina: false,
-      servicios_extra: [] as unknown as ('Jamonero' | 'Sushi' | 'Pan' | 'No')[],
+      servicios_extra: [] as any,
       edo_almacen: 'EP' as const,
       mozo: null,
       estado_logistica: 'Pendiente' as const,
@@ -129,174 +110,179 @@ export default function OsPanelPage({ params }: OsPanelPageProps) {
 
   const formData = form.watch();
 
-  // Auto-save
-  const { syncStatus, lastSyncTime, manualSave } = useOsPanelAutoSave(
+  const { syncStatus, manualSave } = useOsPanelAutoSave(
     osId,
     formData,
     {
       debounceMs: 2000,
       onSave: async (data) => {
-        // Auto-save via API
         const response = await fetch('/api/os/panel/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ osId, panelData: data }),
         });
-
+        
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to save');
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[OS Panel Save] Error from server:', errorData);
+          throw new Error(errorData.error || 'Failed to save');
         }
       },
     }
   );
 
-  // Fetch history
-  const { data: historyData, isLoading: isHistoryLoading } = useOsPanelHistory(
-    osId,
-    { limit: 50 }
-  );
-
-  // Keyboard shortcuts
   useKeyboardShortcuts({
     onSave: manualSave,
     onHistorial: () => setIsHistorialOpen(true),
-    onTab: (index) => {
-      const tabs = ['espacio', 'sala', 'cocina', 'logistica', 'personal'];
-      if (tabs[index]) {
-        const params = new URLSearchParams(searchParams || '');
-        params.set('tab', tabs[index]);
-        window.history.pushState({}, '', `?${params.toString()}`);
-        window.location.reload(); // TODO: use router.push instead
-      }
-    },
   });
 
-  // Calculate completion
-  const completionPercentage = useMemo(() => {
-    return getOverallCompletionPercentage(formData);
-  }, [formData]);
+  const completionDetails = useMemo(() => ({
+    overall: getOverallCompletionPercentage(formData),
+    sala: getTabCompletionPercentage(formData, TAB_FIELDS.sala),
+    cocina: getTabCompletionPercentage(formData, TAB_FIELDS.cocina),
+    logistica: getTabCompletionPercentage(formData, TAB_FIELDS.logistica),
+  }), [formData]);
 
-  // Loading state
   if (isPanelLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-muted-foreground">Cargando panel...</div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex flex-col items-center gap-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="text-sm text-muted-foreground font-medium">Cargando Panel de Control...</p>
+        </div>
       </div>
     );
   }
 
   if (panelError || !osData) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-destructive">
-          Error al cargar el panel. Por favor, recarga la página.
-        </div>
+      <div className="flex flex-col items-center justify-center h-96 gap-4">
+        <AlertCircle className="h-12 w-12 text-destructive opacity-50" />
+        <div className="text-destructive font-semibold">Error al cargar el panel</div>
+        <button onClick={() => window.location.reload()} className="text-xs text-blue-600 underline">
+          Reintentar ahora
+        </button>
       </div>
     );
   }
 
   const handleExport = async () => {
     try {
-      const exportUrl = `/api/os/panel/export?osId=${osId}`;
-      const response = await fetch(exportUrl);
-      
+      const response = await fetch(`/api/os/panel/export?osId=${osId}`);
       if (!response.ok) throw new Error('Export failed');
-
       const blob = await response.blob();
-      
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `OS-${osId}-${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = `OS-${osId}.pdf`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      alert(`Error al exportar: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert('Error en exportación');
     }
   };
+
+  const sections = [
+    { id: 'sala', title: 'Operativa de Sala', icon: Users, component: SalaTab, color: 'amber' as const },
+    { id: 'cocina', title: 'Operativa de Cocina', icon: Utensils, component: CocinaTab, color: 'orange' as const },
+    { id: 'logistica', title: 'Logística y Transporte', icon: Package, component: LogisticaTab, color: 'emerald' as const },
+    { id: 'personal', title: 'Personal Asignado', icon: Users, color: 'default' as const },
+  ];
 
   return (
     <QueryErrorBoundary>
       <Form {...form}>
-        <form className="flex flex-col min-h-screen">
-          {/* Header */}
+        <div className="flex flex-col min-h-screen bg-slate-50/30">
           <OsPanelHeader
             numeroExpediente={osData.numero_expediente}
+            osId={osData.id}
             espacio={osData.space}
             cliente={osData.client}
             clienteFinal={osData.final_client}
-            fechaInicio={
-              osData.start_date
-                ? new Date(osData.start_date).toLocaleDateString('es-ES')
-                : undefined
-            }
-            fechaFin={
-              osData.end_date
-                ? new Date(osData.end_date).toLocaleDateString('es-ES')
-                : undefined
-            }
-            isVip={osData.is_vip}
-            completionPercentage={completionPercentage}
+            fechaInicio={osData.start_date ? new Date(osData.start_date).toLocaleDateString('es-ES') : undefined}
+            fechaFin={osData.end_date ? new Date(osData.end_date).toLocaleDateString('es-ES') : undefined}
+            isVip={memoizedIsVip}
+            completionPercentage={completionDetails.overall}
             syncStatus={syncStatus}
-            onHistorialClick={() => {
-              setIsHistorialOpen(true);
-            }}
+            onHistorialClick={() => setIsHistorialOpen(true)}
             onExportClick={handleExport}
-            onMoreClick={() => {
-              // TODO: Implementar menú de opciones
-              console.log('Más opciones');
-            }}
             isCollapsed={isHeaderCollapsed}
             onToggleCollapse={setIsHeaderCollapsed}
           />
 
-          {/* Tabs */}
-          <OsPanelTabs activeTab={activeTab} />
+          <main className="flex-1 container max-w-7xl mx-auto px-4 py-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6">
+              {sections.map((section) => {
+                const TabComponent = (section as any).component;
+                const completion = (completionDetails as any)[section.id] || 0;
+                
+                return (
+                  <ControlPanelCard
+                    key={section.id}
+                    title={section.title}
+                    icon={section.icon}
+                    badge={`${completion}%`}
+                    badgeVariant={section.color === 'default' ? 'default' : section.color}
+                    onClick={isMobile ? () => setOpenSheet(section.id) : undefined}
+                    className={isMobile ? "active:scale-95 transition-transform" : ""}
+                  >
+                    {!isMobile ? (
+                      <div className="min-h-[200px]">
+                         {section.id === 'personal' ? (
+                           <PersonalTab osId={osId} />
+                         ) : (
+                           <TabComponent form={form} personalLookup={personalLookup} osData={osData as any} />
+                         )}
+                      </div>
+                    ) : (
+                      <div className="py-2">
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">Vista Previa</p>
+                        <div className="text-xs text-slate-600 line-clamp-2 italic">
+                          Toca para editar detalles de {section.title.toLowerCase()}...
+                        </div>
+                      </div>
+                    )}
+                  </ControlPanelCard>
+                );
+              })}
+              
+              <ControlPanelCard
+                title="Tareas y Seguimiento"
+                icon={CheckSquare}
+                badge="En Vivo"
+                badgeVariant="emerald"
+                className="lg:col-span-2"
+              >
+                <ControlPanelTasks osId={osId} />
+              </ControlPanelCard>
+            </div>
+          </main>
 
-          {/* Content */}
-          <div className="flex-1 container mx-auto px-4 py-6">
-            {activeTab === 'espacio' && (
-              <EspacioTab
-                form={form}
-                osData={osData}
-                personalLookup={personalLookup}
-              />
-            )}
+          {sections.map((section) => {
+            const TabComponent = (section as any).component;
+            return (
+              <MobileSheetEditor
+                key={`sheet-${section.id}`}
+                isOpen={openSheet === section.id}
+                onClose={() => setOpenSheet(null)}
+                title={section.title}
+              >
+                {section.id === 'personal' ? (
+                   <PersonalTab osId={osId} />
+                 ) : (
+                   <TabComponent form={form} personalLookup={personalLookup} osData={osData as any} />
+                 )}
+              </MobileSheetEditor>
+            );
+          })}
 
-            {activeTab === 'sala' && (
-              <SalaTab
-                form={form}
-                personalLookup={personalLookup}
-              />
-            )}
-
-            {activeTab === 'cocina' && (
-              <CocinaTab
-                form={form}
-                personalLookup={personalLookup}
-              />
-            )}
-
-            {activeTab === 'logistica' && (
-              <LogisticaTab form={form} />
-            )}
-
-            {activeTab === 'personal' && (
-              <PersonalTab osId={osId} />
-            )}
-          </div>
-
-          {/* Modals */}
           <HistorialModal
             isOpen={isHistorialOpen}
             onOpenChange={setIsHistorialOpen}
-            cambios={historyData?.cambios || []}
-            isLoading={isHistoryLoading}
+            osId={osId}
           />
-        </form>
+        </div>
       </Form>
     </QueryErrorBoundary>
   );

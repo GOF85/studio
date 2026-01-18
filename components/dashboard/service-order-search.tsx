@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, FileText, Loader2, AlertCircle, Star, Calendar, Users, MapPin } from 'lucide-react';
+import { Search, FileText, Loader2, AlertCircle, Star, Calendar, Users, MapPin, Hotel } from 'lucide-react';
 import {
   CommandDialog,
   CommandEmpty,
@@ -165,7 +165,7 @@ export function ServiceOrderSearch() {
                 <CommandItem
                   key={os.id}
                   value={`${os.numero_expediente} ${os.client} ${os.space} ${os.final_client}`}
-                  onSelect={() => runCommand(() => router.push(`/os/${os.numero_expediente}/info`))}
+                  onSelect={() => runCommand(() => router.push(`/os/${os.numero_expediente}`))}
                   className="cursor-pointer aria-selected:bg-accent px-4 py-3"
                 >
                   <div className="flex flex-col flex-1 min-w-0">
@@ -176,7 +176,7 @@ export function ServiceOrderSearch() {
                       <span className="font-bold text-sm tracking-tight truncate text-black">
                         {os.numero_expediente}
                         <span className="text-muted-foreground font-normal ml-2">
-                          - {os.space || 'Sin espacio'} - {os.final_client || os.client}
+                          - <Hotel className="inline h-3.5 w-3.5 mr-1" /> {os.space || 'Sin espacio'} - {os.final_client || os.client}
                         </span>
                       </span>
                     </div>

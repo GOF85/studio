@@ -50,6 +50,11 @@ export default function OsModulesDialog({
     { key: 'prueba-menu', title: 'Prueba Menú', icon: BookCheck },
   ];
 
+  const filteredMenu = menu.filter((item, index) => {
+    if ((item as any).separator && index === 0) return false;
+    return true;
+  });
+
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -64,22 +69,31 @@ export default function OsModulesDialog({
 
       <SheetContent id={contentId} side="left" className="w-80 h-full p-0">
         <div className="flex flex-col h-full">
-          <SheetHeader className="px-4 py-4">
+          <SheetHeader className="px-2 py-6 border-b">
             <div className="flex items-center justify-between">
-              <SheetTitle className="text-lg font-bold">{`OS ${displayId}`}</SheetTitle>
+              <SheetClose asChild>
+                <Link 
+                  href={`/os/${displayId}/control-panel`}
+                  className="w-full flex items-center px-4 py-3 rounded-xl hover:bg-emerald-500/10 transition-colors group"
+                >
+                  <SheetTitle className="text-3xl font-black tracking-tighter text-emerald-900">
+                    {`OS ${displayId}`}
+                  </SheetTitle>
+                </Link>
+              </SheetClose>
             </div>
           </SheetHeader>
 
           <div className="flex-1 overflow-auto px-4 py-2">
-            <div className="space-y-2">
-              {menu.map(item => {
+            <div className="space-y-1">
+              {filteredMenu.map(item => {
                 if ((item as any).separator) return <div key={item.key} className="border-t border-border my-2" />;
                 if ((item as any).isHeader) return null;
 
                 const Icon = (item as any).icon;
                 return (
                   <SheetClose asChild key={item.key}>
-                    <Link href={`/os/${displayId}/${item.key}`} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-accent">
+                    <Link href={`/os/${displayId}/${item.key}`} className="flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium hover:bg-emerald-500/10 text-emerald-900 transition-colors">
                       <Icon className="h-4 w-4 text-emerald-800" />
                       {item.title}
                     </Link>

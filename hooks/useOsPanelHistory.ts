@@ -20,10 +20,7 @@ export function useOsPanelHistory(
   return useQuery({
     queryKey: ['osPanelHistory', osId, limit, offset],
     queryFn: async () => {
-      console.debug('[useOsPanelHistory] Query function called:', { osId });
-      
       if (!osId) {
-        console.debug('[useOsPanelHistory] No osId provided, returning empty');
         return {
           cambios: [] as OsPanelChangeLog[],
           total: 0,
@@ -33,7 +30,6 @@ export function useOsPanelHistory(
       }
 
       const targetId = await resolveOsId(osId);
-      console.debug('[useOsPanelHistory] Resolved osId to targetId:', { osId, targetId });
 
       const { data, error, count } = await supabase
         .from('os_panel_cambios')
@@ -41,12 +37,6 @@ export function useOsPanelHistory(
         .eq('os_id', targetId)
         .order('timestamp', { ascending: false })
         .range(offset, offset + limit - 1);
-
-      console.debug('[useOsPanelHistory] Query result:', {
-        resultCount: data?.length || 0,
-        totalCount: count,
-        error: error?.message,
-      });
 
       if (error) throw error;
 

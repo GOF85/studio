@@ -1,7 +1,8 @@
 'use client';
 
-import { differenceInCalendarDays } from 'date-fns';
-import { MapPin, ExternalLink, Info } from 'lucide-react';
+import { differenceInCalendarDays, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { MapPin, Calendar } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
 import {
   FormField,
@@ -12,13 +13,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import type { OsPanelFormValues, PersonalLookup } from '@/types/os-panel';
 
 interface EspacioTabProps {
@@ -27,178 +22,113 @@ interface EspacioTabProps {
   personalLookup: PersonalLookup;
 }
 
+// Helper functions
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '—';
+  try {
+    return format(new Date(dateString), 'd MMM', { locale: es });
+  } catch {
+    return '—';
+  }
+};
+
+const calculateDuration = (start: string | null | undefined, end: string | null | undefined): string => {
+  if (!start || !end) return '—';
+  try {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const diffDays = differenceInCalendarDays(endDate, startDate) + 1;
+    const safeDays = Math.max(diffDays, 1);
+    return safeDays === 1 ? '1 día' : `${safeDays} días`;
+  } catch {
+    return '—';
+  }
+};
+
 export function EspacioTab({
   form,
   osData,
   personalLookup,
 }: EspacioTabProps) {
-  const formatDate = (dateString: string | null | undefined): string => {
-    if (!dateString) return '—';
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const calculateDuration = (start: string, end: string): string => {
-    if (!start || !end) return '—';
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diffDays = differenceInCalendarDays(endDate, startDate) + 1;
-    const safeDays = Math.max(diffDays, 1);
-    return `${safeDays} día${safeDays !== 1 ? 's' : ''}`;
-  };
-
-  const getGoogleMapsUrl = (address: string | null | undefined): string => {
-    if (!address) return '';
-    return `https://maps.google.com/?q=${encodeURIComponent(address)}`;
-  };
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {/* Fechas */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            📅 FECHAS
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Información de fechas del servicio
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div>
-            <span className="font-semibold block mb-1">Inicio:</span>
-            <span className="text-muted-foreground">
-              {formatDate(osData?.start_date)}
-            </span>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
+      {/* Fechas - Compact inline layout */}
+      <Card className="border-0 bg-slate-50 shadow-sm h-full">
+        <CardContent className="pt-4 h-full flex flex-col justify-between">
+          <div className="flex items-center gap-2 mb-2 text-xs font-medium text-blue-600">
+            <Calendar className="h-3.5 w-3.5 text-blue-600" />
+            <span>FECHAS</span>
           </div>
-          <div>
-            <span className="font-semibold block mb-1">Fin:</span>
-            <span className="text-muted-foreground">
-              {formatDate(osData?.end_date)}
-            </span>
-          </div>
-          <div>
-            <span className="font-semibold block mb-1">Duración:</span>
-            <span className="text-muted-foreground">
-              {calculateDuration(osData?.start_date, osData?.end_date)}
-            </span>
+          <div className="flex flex-col gap-1 text-sm">
+            <div className="flex items-baseline gap-2 text-muted-foreground">
+              <span className="font-medium text-foreground">{formatDate(osData?.start_date)}</span>
+              <span className="text-xs">•</span>
+              <span className="font-medium text-foreground">{formatDate(osData?.end_date)}</span>
+              <span className="text-xs">•</span>
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                {calculateDuration(osData?.start_date, osData?.end_date)}
+              </span>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Cliente */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            👥 CLIENTE
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Información del cliente del evento
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div>
-            <span className="font-semibold block mb-1">Cliente:</span>
-            <span className="text-muted-foreground">{osData?.client || '—'}</span>
+      {/* Cliente - Final client emphasized */}
+      <Card className="border-0 bg-white shadow-sm border border-gray-200 h-full">
+        <CardContent className="pt-4 h-full flex flex-col justify-between">
+          <div className="flex items-center gap-2 mb-2 text-xs font-medium text-purple-600">
+            <span>👥</span>
+            <span>CLIENTE</span>
           </div>
-          <div>
-            <span className="font-semibold block mb-1">Cliente Final:</span>
-            <span className="text-muted-foreground">
+          <div className="space-y-1">
+            {osData?.client && (
+              <div className="text-xs text-muted-foreground truncate">
+                {osData.client}
+              </div>
+            )}
+            <div className="text-base font-bold text-foreground line-clamp-2">
               {osData?.final_client || '—'}
-            </span>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Espacio */}
-      <Card className="md:col-span-2 lg:col-span-1">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            🏢 ESPACIO
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Datos del espacio donde se realiza el evento
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <span className="font-semibold text-sm block mb-1">Nombre:</span>
-            <span className="text-muted-foreground text-sm">
-              {osData?.space || '—'}
-            </span>
+      {/* Espacio - With MapPin icon and Maps link */}
+      <Card className="border-0 bg-green-50 shadow-sm h-full">
+        <CardContent className="pt-4 h-full flex flex-col justify-between">
+          <div className="flex items-center gap-2 mb-2 text-xs font-medium text-emerald-600">
+            <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+            <span>ESPACIO</span>
           </div>
-
-          <div>
-            <span className="font-semibold text-sm block mb-1">Dirección:</span>
-            <span className="text-muted-foreground text-sm">
-              {osData?.space_address || '—'}
-            </span>
-          </div>
-
-          {osData?.space_address && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-2 mt-2"
-              asChild
-            >
+          <div className="space-y-2">
+            {osData?.space && (
+              <div className="text-sm font-medium text-foreground truncate">
+                {osData.space}
+              </div>
+            )}
+            {osData?.space_address && (
               <a
-                href={getGoogleMapsUrl(osData.space_address)}
+                href={`https://maps.google.com/?q=${encodeURIComponent(osData.space_address)}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="text-xs text-muted-foreground line-clamp-2 underline-offset-2 hover:underline"
               >
-                <MapPin className="h-4 w-4" />
-                Ver en Google Maps
+                {osData.space_address}
               </a>
-            </Button>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Inspección (próximamente) */}
-      <Card className="md:col-span-2 lg:col-span-1 opacity-50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            🔗 INSPECCIÓN
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Acceso a fotos y detalles del espacio (próximamente disponible)
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-20 text-muted-foreground text-sm italic">
-            Próximamente disponible
+      {/* Inspection - Placeholder for future feature */}
+      <Card className="border-0 bg-gray-100 shadow-sm opacity-60 h-full">
+        <CardContent className="pt-4 h-full flex flex-col justify-between">
+          <div className="flex items-center gap-2 mb-2 text-xs font-medium text-amber-600">
+            <span>🔍</span>
+            <span>INSPECCIÓN</span>
+          </div>
+          <div className="flex items-center justify-center h-14 text-xs text-muted-foreground italic">
+            Próximamente
           </div>
         </CardContent>
       </Card>

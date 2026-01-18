@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { ToastAction } from '@/components/ui/toast';
 import type { OsPanelFormValues } from '@/types/os-panel';
 
 interface UseOsPanelAutoSaveOptions {
@@ -38,6 +37,7 @@ export function useOsPanelAutoSave(
     async (data: OsPanelFormValues) => {
       if (!osId) return;
 
+
       try {
         setSyncStatus('syncing');
         onSyncStatus?.('syncing');
@@ -46,10 +46,12 @@ export function useOsPanelAutoSave(
           await onSave(data);
         } else {
           // Default: POST to API
+          const payload = { osId, panelData: data };
+          
           const response = await fetch('/api/os/panel/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ osId, panelData: data }),
+            body: JSON.stringify(payload),
           });
 
           if (!response.ok) {
@@ -71,8 +73,15 @@ export function useOsPanelAutoSave(
           duration: 3000,
         });
 
-        // Invalidate queries
-        queryClient.invalidateQueries({ queryKey: ['eventos', osId] });
+        queryClient.setQueryData(['eventos', osId], (oldData: any) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            ...data, // Merge saved data into cached data
+            os_id: oldData.id, // Preserve id as os_id
+          };
+        });
+        await queryClient.invalidateQueries({ queryKey: ['eventos', osId] });
 
         // Reset status after 3s
         setTimeout(() => {
@@ -86,19 +95,11 @@ export function useOsPanelAutoSave(
         const err = error instanceof Error ? error : new Error(String(error));
         onError?.(err);
 
-        const retryAction = React.createElement(
-          ToastAction,
-          {
-            onClick: () => performSave(data),
-          } as any,
-          'Reintentar'
-        ) as any;
-
         toast({
           title: '⚠️ Error al guardar',
-          description: err.message,
+          description: `${err.message} - Reintenta guardando manualmente (Cmd+S)`,
           variant: 'destructive',
-          action: retryAction,
+          duration: 5000,
         });
 
         // Reset after 5s
@@ -119,6 +120,13 @@ export function useOsPanelAutoSave(
     if (!formData.os_id || formData.os_id.length < 32) return;
 
     const formDataStr = JSON.stringify(formData);
+
+    // CRITICAL: Don't save if this is the first data load (lastSavedRef is empty)
+    // This prevents overwriting DB data with the initial form state on page load
+    if (!lastSavedRef.current) {
+      lastSavedRef.current = formDataStr;
+      return;
+    }
 
     // Skip if hasn't changed
     if (formDataStr === lastSavedRef.current) return;

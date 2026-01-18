@@ -505,6 +505,7 @@ export type GastronomyOrder = {
     itemsAlergenos?: Array<GastronomyOrderItem & { aprobadoCocina?: boolean }>;
     totalAlergenos?: number;
     comentariosAlergenos?: string;
+    itemsEsenciales?: Array<GastronomyOrderItem>;
 }
 
 export type TransporteOrder = {
