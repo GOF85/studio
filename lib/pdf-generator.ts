@@ -33,7 +33,6 @@ interface PDFGenerationOptions {
   dias?: number;
   includeImages?: boolean;
   logoUrl?: string;  // URL to logo for header
-  includeImages?: boolean;
 }
 
 /**
@@ -293,7 +292,7 @@ export async function generatePedidoPDF(
   if (options.nombreComercialProveedor) {
     doc.setFontSize(12);
     const providerText = options.nombreComercialProveedor;
-    const providerWidth = doc.getStringUnitWidth(providerText) * doc.internal.getFontSize() / doc.internal.scaleFactor;
+    const providerWidth = doc.getStringUnitWidth(providerText) * doc.getFontSize() / doc.internal.scaleFactor;
     doc.text(providerText, pageWidth - margin - providerWidth, yPosition + 5);
   }
   

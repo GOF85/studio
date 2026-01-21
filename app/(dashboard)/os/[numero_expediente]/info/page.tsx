@@ -428,13 +428,26 @@ export default function InfoPage() {
       Comercial: [],
       RRHH: [],
       Operaciones: [],
+      Almacén: [],
     }
     if (!personal) return map
     
     personal.forEach((p) => {
       if (p.departamento && p.nombre && p.apellido1) {
-        if (map[p.departamento]) {
-          map[p.departamento].push(p)
+        let dept = p.departamento
+        // Normalización de departamentos para coincidir con las llaves del mapa
+        if (dept.includes('Almacen') || dept.includes('Almacén') || dept.includes('Logística')) {
+          dept = 'Almacén'
+        } else if (dept.includes('CPR')) {
+          dept = 'CPR'
+        } else if (dept.includes('RRHH')) {
+          dept = 'RRHH'
+        } else if (dept.includes('Operaciones') || dept.includes('HQ')) {
+          dept = 'Operaciones'
+        }
+
+        if (map[dept]) {
+          map[dept].push(p)
         }
       }
     })
@@ -447,6 +460,7 @@ export default function InfoPage() {
   const personalComercial = personalByDept['Comercial']
   const personalRRHH = personalByDept['RRHH']
   const personalOperaciones = personalByDept['Operaciones']
+  const personalLogistica = personalByDept['Almacén']
 
   const validEspacios = useMemo(() => (espacios || []).filter((e) => e.nombre), [espacios])
   const espacioOptions = useMemo(
@@ -974,6 +988,13 @@ export default function InfoPage() {
                                 'Resp. Project Manager',
                                 personalOperaciones,
                               ],
+                              [
+                                'respLogistica',
+                                'respLogisticaPhone',
+                                'respLogisticaMail',
+                                'Resp. Logística',
+                                personalLogistica,
+                              ],
                             ].map(([name, phone, mail, label, personalList]) => (
                               <div key={name as string} className="space-y-2 group">
                                 <FormField
@@ -995,7 +1016,7 @@ export default function InfoPage() {
                                           </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                          {(personalList as Personal[]).map((p) => (
+                                          {((personalList as Personal[]) || []).map((p) => (
                                             <SelectItem key={p.id} value={getFullName(p)} className="font-medium">
                                               {getFullName(p)}
                                             </SelectItem>

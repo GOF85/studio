@@ -12,20 +12,24 @@
 ## 🧪 Cómo Probar (2 minutos)
 
 ### Paso 1: Abre la App
-```
+
+```text
 http://localhost:3000/os/2025-12345/control-panel
+```text
 ```
 
 **Nota:** Ahora en puerto 3000 (era 3001), servidor reiniciado
 
 ### Paso 2: Abre Consola
-```
+
+```text
 Presiona: F12
 Abre: Console
 ```
 
 ### Paso 3: Observa los Logs Iniciales
-```
+
+```text
 Deberías ver:
 [OSDetailsLayout] Layout mounted
 [OsPanelPage] Rendered with: {osId: "8935afe1..."}
@@ -38,7 +42,8 @@ Deberías ver:
 ✅ **Importante**: Dice "URL replaced via history API" (NO recarga)
 
 ### Paso 4: Pulsa Pestaña "Sala"
-```
+
+```text
 En consola, deberías ver:
 [OsPanelTabs] handleTabChange triggered
 [OsPanelTabs] router.push called
@@ -47,7 +52,8 @@ En consola, deberías ver:
 ```
 
 ### Paso 5: Pulsa Otra Pestaña "Cocina"
-```
+
+```text
 Los logs ANTERIORES siguen ahí
 Ves logs nuevos ABAJO:
 [OsPanelTabs] handleTabChange triggered: {newTab: "cocina"}
@@ -72,7 +78,7 @@ Ves logs nuevos ABAJO:
 
 ## ✅ Si Todo Funciona
 
-```
+```text
 1. Ahora SÍ puedes debuggear
 2. Los logs persisten entre cambios
 3. Puedes ver el flujo completo
@@ -85,6 +91,7 @@ Ves logs nuevos ABAJO:
 **Síntoma**: Logs se limpian al cambiar pestaña
 
 **Acciones**:
+
 1. Recarga página (Ctrl+R o Cmd+R)
 2. Abre consola ANTES de cualquier click
 3. Prueba de nuevo
@@ -97,7 +104,8 @@ Ves logs nuevos ABAJO:
 Una vez confirmado que no recarga:
 
 ### Test Historial
-```
+
+```text
 Pulsa botón 🕐
 Deberías ver:
 [OsPanelPage] Historial button clicked
@@ -106,7 +114,8 @@ Deberías ver:
 ```
 
 ### Test Export
-```
+
+```text
 Pulsa botón 📄
 Deberías ver:
 [OsPanelPage] handleExport called
@@ -118,7 +127,7 @@ Deberías ver:
 
 ## 📝 Reporta Así
 
-```
+```text
 ¿Funciona el fix?
 
 CAMBIO DE PESTAÑAS:
@@ -137,9 +146,38 @@ EXPORT PDF:
 
 ---
 
-## 🚀 ¡Vamos!
+## Ejemplo
 
-1. Abre http://localhost:3000/os/2025-12345/control-panel
+```sh
+# Bloque de código
+echo "ejemplo"
+```
+
+## Detalles
+
+```sh
+# Otro bloque
+echo "detalles"
+```
+
+## Resumen
+
+```sh
+# Resumen
+echo "resumen"
+```
+
+## Tabla ejemplo
+
+| Columna 1 | Columna 2 | Columna 3 | Columna 4 |
+|-----------|-----------|-----------|-----------|
+| Valor 1   | Valor 2   | Valor 3   | Valor 4   |
+
+---
+
+## 🚀 ¡Vamos
+
+1. Abre <http://localhost:3000/os/2025-12345/control-panel>
 2. Presiona F12
 3. Cambia de pestañas
 4. Observa si los logs persisten

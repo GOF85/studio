@@ -61,8 +61,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       throw new Error(osError?.message || 'OS not found');
     }
 
+    // Fetch personal lookup data for resolving IDs to names
+    const { data: personalData } = await supabase
+      .from('personal')
+      .select('id, nombre, apellido1, apellido2');
+
+    const personalMap = new Map();
+    if (personalData) {
+      personalData.forEach(p => {
+        const fullName = `${p.nombre} ${p.apellido1}${p.apellido2 ? ' ' + p.apellido2 : ''}`;
+        personalMap.set(p.id, fullName);
+      });
+    }
+
     // Generate PDF
-    const pdf = await generateOsPanelPDF(osData, {}, {});
+    const pdf = await generateOsPanelPDF(osData, {}, { personalMap });
     const pdfBytes = pdf.output('arraybuffer');
 
     // Return as binary

@@ -14,7 +14,7 @@ export default function OsPage() {
   useEffect(() => {
     if (osId) {
       // Redirect to control-panel (new dashboard)
-      router.replace(`/os/${osId}/control-panel?tab=espacio`)
+      router.replace(`/os/${osId}/control-panel`)
     }
   }, [osId, router])
 

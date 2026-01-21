@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
 
     // Return PDF file for download with correct filename
     console.log('[download-pdf] Sending PDF with filename:', fileName);
-    return new NextResponse(buffer, {
+    return new NextResponse(buffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

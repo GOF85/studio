@@ -270,6 +270,7 @@ export default function BodegaPage() {
   }, [briefings])
 
   const handleItemChange = async (itemId: string, field: 'quantity' | 'price', value: number, orderId?: string) => {
+    if (!orderId) return;
     try {
       await updateMutation.mutateAsync({
         id: itemId,

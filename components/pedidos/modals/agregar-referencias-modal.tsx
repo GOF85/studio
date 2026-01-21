@@ -298,7 +298,7 @@ export const AgregarReferenciasModal = memo(function AgregarReferenciasModalInne
                                       onMouseEnter={(e) => {
                                         const rect = e.currentTarget.getBoundingClientRect();
                                         setImagePosition({ x: rect.right + 10, y: rect.top });
-                                        setHoveredImageUrl(item.imageUrl);
+                                        setHoveredImageUrl(item.imageUrl || null);
                                         setHoveredImageAlt(item.description);
                                       }}
                                       onMouseLeave={() => {

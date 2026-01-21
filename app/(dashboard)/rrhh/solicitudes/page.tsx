@@ -124,7 +124,7 @@ export default function SolicitudesCprPage() {
                 toast({ title: 'Solicitud Rechazada' });
                 break;
             case 'asignar':
-                const tipoPersonal = tiposPersonal.find(tp => tp.id === data.proveedorId);
+                const tipoPersonal = tiposPersonal.find((tp: any) => tp.id === data.proveedorId);
                 const coste = calculateHours(solicitudToManage.horaInicio, solicitudToManage.horaFin) * (tipoPersonal?.precioHora || 0);
                 await supabase.from('cpr_solicitudes_personal').update({ 
                     estado: 'Asignada',
@@ -213,7 +213,7 @@ export default function SolicitudesCprPage() {
                 </TableHeader>
                 <TableBody>
                     {filteredSolicitudes.length > 0 ? filteredSolicitudes.map(s => {
-                        const tipoPersonalAsignado = tiposPersonal.find(t => t.id === s.proveedorId);
+                        const tipoPersonalAsignado = tiposPersonal.find((t: any) => t.id === s.proveedorId);
                         const proveedorNombre = tipoPersonalAsignado ? proveedoresMap.get(tipoPersonalAsignado.proveedorId) : null;
                         const horas = calculateHours(s.horaInicio, s.horaFin);
 
@@ -283,7 +283,7 @@ export default function SolicitudesCprPage() {
                             <Select onValueChange={(value) => handleAction('asignar', { proveedorId: value })}>
                                 <SelectTrigger><SelectValue placeholder="Seleccionar ETT y categoría..." /></SelectTrigger>
                                 <SelectContent>
-                                    {tiposPersonal.map(tp => (
+                                    {tiposPersonal.map((tp: any) => (
                                         <SelectItem key={tp.id} value={tp.id}>
                                             {proveedoresMap.get(tp.proveedorId)} - {tp.categoria} ({formatCurrency(tp.precioHora)}/h)
                                         </SelectItem>

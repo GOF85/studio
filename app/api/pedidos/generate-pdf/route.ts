@@ -90,6 +90,7 @@ interface ConsolidatedGroup {
   hora_entrega?: string;
   localizacion: string;
   proveedor_id?: string;
+  proveedor?: string; // Add provider name
   items: Record<string, ConsolidatedItem>; // Keyed by itemCode for deduplication during consolidation
   fecha_recogida?: string;
   hora_recogida?: string;
@@ -221,7 +222,7 @@ export async function POST(request: NextRequest) {
     
     // Now filter by selected IDs in code
     const selectedPedidos = allOsOrders?.filter(p => selectedPedidoIds.includes(p.id)) || [];
-    const fetchError = null;
+    const fetchError: any = null;
 
     console.log('   Resultado fetchError:', fetchError?.message || 'OK');
     console.log('   Pedidos encontrados:', selectedPedidos?.length || 0);
@@ -567,7 +568,7 @@ export async function POST(request: NextRequest) {
         eventName: eventoToUse?.space || 'Evento',
         eventSpace: eventoToUse?.space || '',
         eventAddress: eventoToUse?.space_address || '',
-        lugarRecogida: firstGroup?.lugar_recogida,  // Add pickup location type
+        lugarRecogida: firstGroup?.lugar_recogida as any,  // Add pickup location type
         direccionRecogida: getPickupAddress(firstGroup?.lugar_recogida, eventoToUse?.space_address),  // Add pickup address
         responsableMetre: responsablesObj.metre || '',
         telefonoMetre: responsablesObj.metre_phone || '',

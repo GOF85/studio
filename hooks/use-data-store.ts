@@ -523,6 +523,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 return {
                     id: item.personal_id,
                     osId: item.evento_id,
+                    fecha: item.fecha_servicio || '',
                     centroCoste: 'SALA', // Default
                     nombre: 'Personal ' + item.personal_id, // Placeholder until join
                     dni: '',

@@ -13,23 +13,10 @@ function formatShortDateRange(start: string | Date, end: string | Date) {
   return `${sStr} - ${eStr}`;
 }
 
-function getResponsablesFromEvento(evento: any) {
-  if (!evento) return [];
-  const responsables = [];
-  if (evento.respMetre) responsables.push({ nombre: evento.respMetre, rol: 'Metre', telefono: evento.respMetrePhone, mail: evento.respMetreMail });
-  if (evento.respPase) responsables.push({ nombre: evento.respPase, rol: 'Pase', telefono: evento.respPasePhone, mail: evento.respPaseMail });
-  if (evento.respProjectManager) responsables.push({ nombre: evento.respProjectManager, rol: 'Project Manager', telefono: evento.respProjectManagerPhone, mail: evento.respProjectManagerMail });
-  if (evento.comercial) responsables.push({ nombre: evento.comercial, rol: 'Comercial', telefono: evento.comercialPhone, mail: evento.comercialMail });
-  if (evento.respCocinaPase) responsables.push({ nombre: evento.respCocinaPase, rol: 'Cocina Pase', telefono: evento.respCocinaPasePhone, mail: evento.respCocinaPaseMail });
-  if (evento.respCocinaCPR) responsables.push({ nombre: evento.respCocinaCPR, rol: 'Cocina CPR', telefono: evento.respCocinaCPRPhone, mail: evento.respCocinaCPRMail });
-  if (evento.respRRHH) responsables.push({ nombre: evento.respRRHH, rol: 'RRHH', telefono: evento.respRRHHPhone, mail: evento.respRRHHMail });
-  return responsables;
-}
-
 import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useEvento } from '@/hooks/use-data-queries';
+import { useEvento, usePersonal } from '@/hooks/use-data-queries';
 import { ResponsableBadge } from '@/components/calendar/responsable-badge';
 import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronUp, Menu, Star, PersonStanding } from 'lucide-react';
@@ -65,6 +52,7 @@ function countDays(start: string | Date, end: string | Date) {
 
 export default function OsHeaderMobile({ osId }: { osId?: string }) {
   const { data: evento, isLoading } = useEvento(osId);
+  const { data: personal } = usePersonal();
   const [open, setOpen] = useState(false);
   const [respModalOpen, setRespModalOpen] = useState(false);
   const [spaceDialogOpen, setSpaceDialogOpen] = useState(false);
@@ -72,6 +60,68 @@ export default function OsHeaderMobile({ osId }: { osId?: string }) {
   const isMobile = useIsMobile();
   const vip = evento?.isVip;
   const pathname = usePathname();
+
+  function getResponsablesFromEvento(evento: any) {
+    if (!evento) return [];
+    const responsablesList: any[] = [];
+    
+    // El objeto responsables puede venir en una columna JSONB o en columnas sueltas
+    const respObj = (typeof evento.responsables === 'string' 
+      ? JSON.parse(evento.responsables) 
+      : (evento.responsables || {}));
+
+    const getVal = (jsonKey: string, camelKey: string, snakeKey: string) => {
+      return respObj[jsonKey] || evento[camelKey] || evento[snakeKey];
+    }
+
+    const rolesMap = [
+      { id: 'metre', label: 'Metre', json: 'metre', camel: 'respMetre', snake: 'metre_responsable' },
+      { id: 'pase', label: 'Pase', json: 'pase', camel: 'respPase', snake: 'resp_pase' },
+      { id: 'cocina_pase', label: 'Cocina Pase', json: 'cocina_pase', camel: 'respCocinaPase', snake: 'resp_cocina_pase' },
+      { id: 'cocina_cpr', label: 'Cocina CPR', json: 'cocina_cpr', camel: 'respCocinaCPR', snake: 'produccion_cocina_cpr' },
+      { id: 'pm', label: 'Project Manager', json: 'project_manager', camel: 'respProjectManager', snake: 'project_manager' },
+      { id: 'logistica', label: 'Logística', json: 'logistica', camel: 'respLogistica', snake: 'logistica_evento' },
+      { id: 'comercial', label: 'Comercial', json: 'comercial', camel: 'comercial', snake: 'comercial' },
+      { id: 'rrhh', label: 'RRHH', json: 'rrhh', camel: 'respRRHH', snake: 'resp_rrhh' },
+    ];
+
+    rolesMap.forEach(role => {
+      let name = getVal(role.json, role.camel, role.snake);
+      
+      // Fallbacks específicos
+      if (!name && role.id === 'pm') name = evento.revision_pm_name;
+      if (!name && role.id === 'logistica') name = evento.mozo;
+      if (!name && role.id === 'cocina_cpr') name = evento.jefe_cocina;
+
+      if (name) {
+        let telefono = getVal(`${role.json}_phone`, `${role.camel}Phone`, `${role.snake}_phone`);
+        let mail = getVal(`${role.json}_mail`, `${role.camel}Mail`, `${role.snake}_mail`);
+
+        // Si faltan datos o el nombre es un ID, intentar buscar en la lista de personal
+        const isId = /^[0-9a-f]{8}-[0-9a-f]{4}-.*$/i.test(name) || (name.length > 5 && !name.includes(' '));
+        if (personal) {
+          const person = isId 
+            ? personal.find(p => p.id === name)
+            : personal.find(p => `${p.nombre} ${p.apellido1}` === name);
+          
+          if (person) {
+            if (isId) name = `${person.nombre} ${person.apellido1}`;
+            if (!telefono) telefono = person.telefono || '';
+            if (!mail) mail = person.email || '';
+          }
+        }
+
+        responsablesList.push({
+          nombre: name,
+          rol: role.label,
+          telefono,
+          mail
+        });
+      }
+    });
+
+    return responsablesList;
+  }
 
   useEffect(() => {
     setOpen(false);
@@ -140,35 +190,40 @@ export default function OsHeaderMobile({ osId }: { osId?: string }) {
 
           {/* Expanded second row: client left, date-range badge, responsable icon right */}
           {open && (
-            <div className="mt-0 flex items-center justify-between" id="os-header-mobile-expandable">
-              {/* Cliente final solo en mobile, cliente solo en desktop */}
-              <div className="max-w-lg text-xs font-semibold text-foreground truncate">
-                <span className="font-bold">{evento?.finalClient}</span>
-                <span className="hidden md:inline text-muted-foreground font-normal">{evento?.client ? ` — ${evento.client}` : ''}</span>
+            <div className="mt-0 flex flex-col gap-0.5" id="os-header-mobile-expandable">
+              <div className="flex items-center justify-between">
+                {/* Cliente final solo en mobile, cliente solo en desktop */}
+                <div className="max-w-lg text-xs font-semibold text-foreground truncate">
+                  <span className="font-bold">{evento?.finalClient}</span>
+                  <span className="hidden md:inline text-muted-foreground font-normal">{evento?.client ? ` — ${evento.client}` : ''}</span>
+                </div>
+
+                {/* Derecha: responsables alineados */}
+                <div className="flex items-center gap-2 ml-auto">
+                  {/* Badge Responsables + icono */}
+                  <button
+                    aria-label="Ver responsables"
+                    className="px-2 py-0.5 rounded bg-white border border-amber-300 shadow text-amber-700 hover:bg-amber-50 focus:bg-amber-100 transition flex items-center gap-1 text-xs font-semibold"
+                    onClick={() => setRespModalOpen(true)}
+                    type="button"
+                  >
+                    <span>Responsables</span>
+                    <PersonStanding className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
-              {/* Derecha: fecha y responsables alineados */}
-              <div className="flex items-center gap-2 ml-auto">
-                {/* Badge fecha */}
-                {evento?.startDate && evento?.endDate && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[11px] font-bold">
-                    {formatShortDateRange(evento.startDate, evento.endDate)}
+              {/* Segunda línea: Fecha y Duración */}
+              {evento?.startDate && evento?.endDate && (
+                <div className="flex items-center gap-2 text-[11px] font-bold text-blue-800">
+                  <span className="px-1.5 py-0.5 rounded bg-blue-100/80">
+                    {formatDateRange(evento.startDate, evento.endDate)}
                     <span className="ml-2 px-1 py-0.5 rounded bg-blue-200 text-blue-900 font-mono text-[10px]">
-                      {countDays(evento.startDate, evento.endDate)}d
+                      {countDays(evento.startDate, evento.endDate)} {countDays(evento.startDate, evento.endDate) === 1 ? 'día' : 'días'}
                     </span>
                   </span>
-                )}
-                {/* Badge Responsables + icono */}
-                <button
-                  aria-label="Ver responsables"
-                  className="ml-2 px-2 py-0.5 rounded bg-white border border-amber-300 shadow text-amber-700 hover:bg-amber-50 focus:bg-amber-100 transition flex items-center gap-1 text-xs font-semibold"
-                  onClick={() => setRespModalOpen(true)}
-                  type="button"
-                >
-                  <span>Responsables</span>
-                  <PersonStanding className="h-4 w-4" />
-                </button>
-              </div>
+                </div>
+              )}
             </div>
           )}
 

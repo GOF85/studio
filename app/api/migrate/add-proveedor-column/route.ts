@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const { data: existingColumns, error: checkError } = await supabase.rpc(
       'get_table_columns',
       { table_name: 'os_pedidos_pendientes' }
-    ).catch(() => ({ data: null, error: 'RPC not available' }))
+    );
 
     // Try direct approach: use supabase admin API
     // First, attempt to add the column by trying to query it

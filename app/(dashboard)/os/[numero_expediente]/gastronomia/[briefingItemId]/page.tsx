@@ -692,7 +692,7 @@ function PedidoGastronomiaForm() {
     if (!plate?.id?.toString().startsWith('manual-')) return;
     
     const array = menu === 'regular' ? (getValues('items') || []) : (getValues('itemsAlergenos') || []);
-    const updatedPlate = array.find((item: any) => item.id === plate.id) || plate;
+    const updatedPlate = (array.find((item: any) => item.id === plate.id) || plate) as any;
     
     setEditingPlate(updatedPlate);
     setEditingMenu(menu);
@@ -810,13 +810,13 @@ function PedidoGastronomiaForm() {
         id: briefingItemId,
         osId: serviceOrder?.id || osId,
         status: data.status,
-        items: data.items,
+        items: data.items as any,
         total: totalPedido,
         asistentesAlergenos: data.asistentesAlergenos || 0,
-        itemsAlergenos: data.itemsAlergenos || [],
+        itemsAlergenos: (data.itemsAlergenos || []) as any,
         totalAlergenos: allergenItemsTotal,
         comentariosAlergenos: data.comentariosAlergenos || '',
-        itemsEsenciales: data.itemsEsenciales || [],
+        itemsEsenciales: (data.itemsEsenciales || []) as any,
       })
 
       const itemCount = data.items.filter((i) => i.type === 'item').length

@@ -150,9 +150,9 @@ export function useOsPanel(osId: string | undefined, options?: UseOsPanelOptions
 
     console.log('[useOsPanel] Transforming osData to formValues - legacyPM:', legacyPM, 'legacyPMId:', legacyPMId);
 
-    const normalizedEdoAlmacen = (() => {
-      // ... previous logic
-    })();
+    const normalizedEdoAlmacen = (osData.edo_almacen === 'Ok' || osData.edo_almacen === 'Sin producir') 
+      ? osData.edo_almacen 
+      : 'EP';
 
     // Sala - Fallback to legacyPM if produccion_sala is empty
     let initialProduccionSala = osData.produccion_sala || null;

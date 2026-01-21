@@ -15,11 +15,14 @@ Se implementó un **selector dinámico de dirección** para la sección de recog
 ## Cambios Técnicos
 
 ### 1. Migración SQL
+
 **Archivo**: `/migrations/001_create_pedidos_change_log.sql`
+
 - ✅ Removido constraint redundante
 - ✅ Ejecutada exitosamente en Supabase
 
 ### 2. Modal de Edición
+
 **Archivo**: `/components/pedidos/modals/editable-sent-order-details-modal.tsx`
 
 **Cambios realizados**:
@@ -54,9 +57,40 @@ const recogidaAddress = (pedido as any).lugar_recogida === 'Instalaciones'
 
 ---
 
+## Nueva dirección
+
+- Cambios realizados
+- Pendientes
+
+---
+
+## Detalles adicionales
+
+---
+
+## Resumen
+
+- Elemento 1
+- Elemento 2
+
+---
+
+## Ejemplo
+
+- Lista de ejemplo
+
+---
+
+## Conclusión
+
+- Último elemento
+
+---
+
 ## Cómo Funciona
 
 ### Para Usuarios
+
 1. Abrir modal de edición de pedido
 2. En sección **RECOGIDA**, seleccionar "En Instalaciones"
 3. ✨ Aparece selector con 2 opciones
@@ -65,6 +99,7 @@ const recogidaAddress = (pedido as any).lugar_recogida === 'Instalaciones'
 6. Cambio se registra automáticamente en auditoría
 
 ### Para Administradores (Personalizar)
+
 1. Editar: `/components/pedidos/modals/editable-sent-order-details-modal.tsx`
 2. Buscar línea ~54: `const INSTALACIONES_ADDRESSES = [`
 3. Agregar/editar direcciones en el array
@@ -75,6 +110,7 @@ const recogidaAddress = (pedido as any).lugar_recogida === 'Instalaciones'
 ## Datos Guardados
 
 **Tabla**: `os_pedidos_enviados`
+
 ```json
 {
   "lugar_recogida": "Instalaciones",
@@ -83,6 +119,7 @@ const recogidaAddress = (pedido as any).lugar_recogida === 'Instalaciones'
 ```
 
 **Auditoría**: `os_pedidos_change_log`
+
 ```json
 {
   "usuario_email": "usuario@ejemplo.com",
@@ -109,6 +146,7 @@ const recogidaAddress = (pedido as any).lugar_recogida === 'Instalaciones'
 ✅ Cambios se registran en auditoría  
 
 **Checklist de usuario**:
+
 - [ ] Abrir pedido → Click "Ver & Editar"
 - [ ] Click "Editar Pedido"
 - [ ] Cambiar "Lugar Recogida" a "En Instalaciones"

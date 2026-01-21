@@ -72,7 +72,7 @@ const PESMobileCard = memo(({ os, date, gastronomyCount, dayPax }: { os: Service
     const warnings = getHealthWarnings(os);
 
     return (
-        <Link href={`/os/${os.id}/info`} className="block">
+        <Link href={`/os/${os.serviceNumber || os.id}`} className="block">
             <Card className={cn(
                 "overflow-hidden transition-all active:scale-[0.98] mb-3",
                 "border-l-4 shadow-sm",
@@ -380,6 +380,12 @@ function PESPageInner() {
 
             dates.forEach(dateKey => {
                 // Frontend filtering to match the selected time filter
+                const isPastDate = dateKey !== 'unknown' && isBefore(parseISO(dateKey), today);
+                
+                // Si no queremos ver pasados, saltamos fechas anteriores a hoy
+                // (Incluso si el evento sigue activo hoy, no mostramos su entrada en días pasados)
+                if (!showPast && isPastDate) return;
+
                 if (dateKey !== 'unknown' && timeFilter !== 'all') {
                     if (timeFilter === 'today' && dateKey !== todayStr) return;
                     
@@ -621,7 +627,7 @@ function PESPageInner() {
                                                         key={`${os.id}-${dateKey}`} 
                                                         os={os} 
                                                         dateKey={dateKey} 
-                                                        onClick={() => router.push(`/os/${os.serviceNumber}/info`)} 
+                                                        onClick={() => router.push(`/os/${os.serviceNumber || os.id}`)} 
                                                     />
                                                 ))}
                                             </Fragment>

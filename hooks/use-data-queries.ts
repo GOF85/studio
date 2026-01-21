@@ -245,6 +245,9 @@ function mapEvento(data: any): ServiceOrder {
         respProjectManager: responsables.project_manager || '',
         respProjectManagerPhone: responsables.project_manager_phone || '',
         respProjectManagerMail: responsables.project_manager_mail || '',
+        respLogistica: responsables.logistica || data.mozo || '',
+        respLogisticaPhone: responsables.logistica_phone || data.mozo_phone || '',
+        respLogisticaMail: responsables.logistica_mail || data.mozo_mail || '',
         agencyPercentage: parseFloat(data.agency_percentage ?? '0'),
         agencyCommissionValue: data.agency_commission_value ? Number(data.agency_commission_value) : undefined,
         spacePercentage: parseFloat(data.space_percentage ?? '0'),
@@ -574,6 +577,12 @@ export function useUpdateEvento() {
                         cocina_pase: updates.respCocinaPase,
                         cocina_pase_phone: updates.respCocinaPasePhone,
                         cocina_pase_mail: updates.respCocinaPaseMail,
+                        logistica: updates.respLogistica,
+                        logistica_phone: updates.respLogisticaPhone,
+                        logistica_mail: updates.respLogisticaMail,
+                        comercial: updates.comercial,
+                        comercial_phone: updates.comercialPhone,
+                        comercial_mail: updates.comercialMail,
                     }),
                 })
                 .eq('id', id);

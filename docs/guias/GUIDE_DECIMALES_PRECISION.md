@@ -68,6 +68,13 @@ Nuevo formato con 6 decimales:
 
 ---
 
+## Ejemplo de decimales
+
+```sh
+# Código de ejemplo
+echo "123.456"
+```
+
 ## 🔧 Configuración en la App
 
 ### Input de Cantidad Real
@@ -325,3 +332,26 @@ Resultado: 4.4% mejora en eficiencia después de 6 semanas
 **Última actualización**: 2025-01-15
 **Versión**: 1.0
 **Precisión soportada**: 0.000001 (6 decimales)
+
+## Otro ejemplo
+
+```sh
+# Otro bloque de código
+echo "789.012"
+```
+
+## Más ejemplos
+
+```sh
+# Más código
+echo "345.678"
+```
+
+## Último ejemplo
+
+```sh
+# Último bloque
+echo "901.234"
+```
+
+- Elemento de lista

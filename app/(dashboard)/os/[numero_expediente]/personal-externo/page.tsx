@@ -1077,7 +1077,7 @@ export default function PersonalExternoPage() {
     const currentTurnos = getValues('turnos')
     if (savedTurnos.size !== currentTurnos.length) return true
     return currentTurnos.some((current) => {
-      const saved = savedTurnos.get(current.id)
+      const saved = current.id ? savedTurnos.get(current.id) : null
       if (!saved) return true
       const { asignaciones, requiereActualizacion, ...savedRest } = saved
       const {
@@ -1095,7 +1095,7 @@ export default function PersonalExternoPage() {
       case 'Solicitado':
         return (
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => window.open(`/portal/externo/${serviceOrder.numero_expediente}`, '_blank')}>
+            <Button variant="secondary" onClick={() => window.open(`/portal/externo/${serviceOrder?.numero_expediente}`, '_blank')}>
               <Building2 className="mr-2 h-4 w-4" />
               Ver en Portal
             </Button>
@@ -1228,6 +1228,8 @@ export default function PersonalExternoPage() {
       statusPartner: 'Pendiente',
       asignaciones: [],
       requiereActualizacion: true,
+      observaciones: '',
+      tipoServicio: '',
       ...initialData,
     })
   }

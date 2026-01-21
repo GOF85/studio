@@ -169,7 +169,7 @@ function PedidosPageInner() {
     let itemsToLoad: CateringItem[] = [];
 
     if (orderType === 'Alquiler') {
-      const alquilerFiltered = filteredArticulos.filter(p => p.categoria === 'Alquiler' || p.categoria === 'ALQUILER');
+      const alquilerFiltered = filteredArticulos.filter(p => (p.categoria as string) === 'Alquiler' || (p.categoria as string) === 'ALQUILER');
       itemsToLoad = alquilerFiltered.map(p => {
         const thumb = getThumbnail(p.imagenes) || '';
         return {
@@ -259,8 +259,8 @@ function PedidosPageInner() {
                     });
                 }
             } else {
-                const orders = await loadOrders(osId, orderType);
-                const orderToEdit = orders.find(o => o.id === editOrderId);
+                const orders = await loadOrders(numeroExpediente || '', orderType as string);
+                const orderToEdit = orders.find((o: any) => o.id === editOrderId);
                 if (orderToEdit) {
                     setOrderItems(orderToEdit.items);
                     setExistingOrderData({
@@ -508,7 +508,7 @@ function PedidosPageInner() {
               <div className="hidden md:block">
                 <PedidosHeaderMetrics 
                   totalPlanned={totalPlanned} 
-                  facturacion={serviceOrder?.facturacionNeta || 0}
+                   facturacion={serviceOrder?.facturacion || 0}
                   osId={numeroExpediente}
                 />
               </div>

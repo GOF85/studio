@@ -15,6 +15,9 @@ export interface ResponsablesOS {
     respCocinaCPR?: string;
     respProjectManager?: string;
     respRRHH?: string;
+    respLogistica?: string;
+    respLogisticaPhone?: string;
+    respLogisticaMail?: string;
 }
 
 // Items de Briefing (JSONB en comercial_briefings)
@@ -145,6 +148,9 @@ export type ServiceOrder = {
     respProjectManager?: string;
     respProjectManagerPhone?: string;
     respProjectManagerMail?: string;
+    respLogistica?: string;
+    respLogisticaPhone?: string;
+    respLogisticaMail?: string;
 };
 
 export type MaterialOrder = {
@@ -192,6 +198,7 @@ export type Personal = {
     precioHora: number;
     activo: boolean;
     fotoUrl?: string;
+    id_empleado?: number;
 }
 
 export const TIPO_ESPACIO = ['Hotel', 'Espacio Singular', 'Finca', 'Restaurante', 'Auditorio', 'Corporativo', 'Centro de Congresos', 'Exterior'] as const;
@@ -631,7 +638,7 @@ export type PersonalExterno = {
 };
 
 // Backwards-compatible turno status constant/type expected by older code
-export const ESTADO_TURNO_PERSONAL = ['Pendiente', 'Solicitado', 'Confirmado', 'Cancelado'] as const;
+export const ESTADO_TURNO_PERSONAL = ['Pendiente', 'Solicitado', 'Confirmado', 'Cancelado', 'Cerrado'] as const;
 export type EstadoTurnoPersonal = typeof ESTADO_TURNO_PERSONAL[number];
 
 export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;

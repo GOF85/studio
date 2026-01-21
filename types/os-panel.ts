@@ -33,7 +33,7 @@ export interface OsPanelFormValues {
   pedido_gastro: boolean;
   pedido_cocina: boolean;
   personal_cocina: boolean;
-  servicios_extra: ('Jamonero' | 'Sushi' | 'Pan' | 'No')[];
+  servicios_extra: ('Jamonero' | 'Sushi' | 'Pan' | 'No' | 'Ostras')[];
   
   // Logística
   edo_almacen: 'EP' | 'Ok' | 'Sin producir';
@@ -99,75 +99,14 @@ export interface PersonalLookup {
   getById: (id: string) => Personal | undefined;
 }
 
-// Tab-specific data
-export interface TabData {
-  tabName: 'Espacio' | 'Sala' | 'Cocina' | 'Logística' | 'Personal';
-  completedFields: number;
-  totalFields: number;
-  completionPercentage: number;
-  warnings: string[];
-}
-
-// UI State
-export interface OsPanelUIState {
-  activeTab: 'Espacio' | 'Sala' | 'Cocina' | 'Logística' | 'Personal';
-  isHistorialOpen: boolean;
-  isExporting: boolean;
-  syncStatus: 'idle' | 'syncing' | 'saved' | 'error';
-  lastSyncTime: Date | null;
-  expandedSections: {
-    [key: string]: boolean;
-  };
-}
-
-// Accordion section
-export interface AccordionSection {
-  id: string;
-  title: string;
-  icon?: React.ReactNode;
-  fields: number;
-  completed?: number;
-}
-
-// Timeline item for logística
-export interface TimelineEvent {
-  label: string;
-  time: string | null;
-  icon: string;
-  optional?: boolean;
-}
-
-// Personal summary for personal tab
-export interface PersonalSummary {
-  departamento: string;
-  icon: string;
-  mice: number;
-  externos: number;
-  total: number;
+// Keyboard shortcuts map
+export interface KeyboardShortcutsMap {
+  'cmd+s': () => void;
+  'cmd+h': () => void;
 }
 
 // Export options
 export interface ExportPDFOptions {
   includeTimeline?: boolean;
   includeImages?: boolean;
-  logoUrl?: string;
-  watermark?: string;
-}
-
-// Keyboard shortcuts map
-export interface KeyboardShortcutsMap {
-  'cmd+s': () => void;
-  'cmd+1': () => void;
-  'cmd+2': () => void;
-  'cmd+3': () => void;
-  'cmd+4': () => void;
-  'cmd+5': () => void;
-  'cmd+h': () => void;
-}
-
-// Validation context
-export interface ValidationContext {
-  currentTab: 'Sala' | 'Cocina' | 'Logística';
-  fieldErrors: Record<string, string>;
-  fieldWarnings: Record<string, string[]>;
 }

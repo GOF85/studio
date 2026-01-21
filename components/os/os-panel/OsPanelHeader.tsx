@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronUp, History, FileText, MoreVertical, Star, Share2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, History, FileText, MoreVertical, Star, Share2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AutoSaveIndicator } from '@/components/os/os-panel/AutoSaveIndicator';
 import type { OsPanelFormValues } from '@/types/os-panel';
 import { useToast } from '@/hooks/use-toast';
+import { differenceInCalendarDays, parse } from 'date-fns';
 
 interface OsPanelHeaderProps {
   numeroExpediente: string;
@@ -43,18 +44,29 @@ export function OsPanelHeader({
   isCollapsed = false,
   onToggleCollapse,
 }: OsPanelHeaderProps) {
-  const [isOpen, setIsOpen] = useState(!isCollapsed);
   const [isSharing, setIsSharing] = useState(false);
   const { toast } = useToast();
   
   // Memoize VIP state to prevent flickering on reload
   const vipState = useMemo(() => isVip, [isVip]);
 
-  const handleToggle = () => {
-    const newState = !isOpen;
-    setIsOpen(newState);
-    onToggleCollapse?.(!newState);
-  };
+  // Calculate duration in days
+  const durationDays = useMemo(() => {
+    if (!fechaInicio || !fechaFin) return null;
+    try {
+      // Dates come formatted as DD/MM/YYYY from page.tsx (toLocaleDateString('es-ES'))
+      const start = parse(fechaInicio, 'd/M/yyyy', new Date());
+      const end = parse(fechaFin, 'd/M/yyyy', new Date());
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+      
+      const diff = differenceInCalendarDays(end, start) + 1;
+      return diff > 0 ? diff : 1;
+    } catch (e) {
+      console.error('Error calculating duration:', e);
+      return null;
+    }
+  }, [fechaInicio, fechaFin]);
 
   const handleShare = async () => {
     try {
@@ -83,69 +95,49 @@ export function OsPanelHeader({
     }
   };
 
-  // Color for completion percentage
-  const getCompletionColor = () => {
-    if (completionPercentage < 30) return 'destructive';
-    if (completionPercentage < 70) return 'outline';
-    return 'default';
-  };
-
   return (
-    <div className={`sticky top-12 z-40 backdrop-blur border-b transition-colors ${
+    <div className={`sticky top-12 z-40 backdrop-blur border-b transition-all duration-200 ${
       vipState 
         ? 'bg-amber-50/90 border-amber-200' 
         : 'bg-white/80 border-muted'
     }`}>
-      <div className="container mx-auto px-4 py-3">
+      <div className="container mx-auto px-4 py-2">
         {/* Header Content */}
         <div className="flex items-center justify-between gap-4">
-          {/* Left: Title and info - COMPACT 2 LINES */}
-          <div className="flex-1 min-w-0">
-            {/* Line 1: Number + VIP star + Completion */}
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex items-center gap-1.5">
-                {vipState && (
-                  <Star className="h-5 w-5 text-amber-500 fill-amber-500 flex-shrink-0" />
-                )}
-                <h2 className="font-black text-lg truncate text-foreground">
-                  OS {numeroExpediente}
-                </h2>
-              </div>
-              <Badge variant={getCompletionColor()} className="text-xs flex-shrink-0 ml-auto sm:ml-2">
-                {completionPercentage}%
-              </Badge>
-            </div>
+          <div className="flex items-center gap-4">
+             <div className="flex items-center gap-2">
+               <AutoSaveIndicator status={syncStatus} />
+               {vipState && (
+                 <Star className="h-4 w-4 text-amber-500 fill-amber-500 flex-shrink-0" />
+               )}
+             </div>
 
-            {/* Line 2: Space + Client + Dates - COMPACT */}
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="font-semibold text-foreground truncate">{espacio}</span>
-              <span className="text-muted-foreground">•</span>
-              <span className="text-muted-foreground truncate">{clienteFinal || cliente}</span>
-              {fechaInicio && (
-                <>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-muted-foreground whitespace-nowrap text-xs">
-                    {fechaInicio}
-                    {fechaFin && ` - ${fechaFin}`}
-                  </span>
-                </>
-              )}
-            </div>
+             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100/50 rounded text-slate-700 text-xs">
+                <span className="font-bold text-slate-900 mr-1">{numeroExpediente}</span>
+                <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                <span className="font-semibold whitespace-nowrap">
+                    {fechaInicio} {fechaFin && `— ${fechaFin}`}
+                </span>
+                {durationDays && (
+                    <span className="ml-1 text-[10px] text-slate-500 font-normal whitespace-nowrap">
+                        ({durationDays} {durationDays === 1 ? 'día' : 'días'})
+                    </span>
+                )}
+              </div>
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <AutoSaveIndicator status={syncStatus} />
-
+          <div className="flex items-center gap-1 flex-shrink-0">
             <Button
               variant="ghost"
               size="sm"
               onClick={onHistorialClick}
               title="Historial de cambios (Cmd+H)"
               type="button"
-              className="h-9 w-9 p-0"
+              className="h-8 px-2 text-slate-600 hover:text-slate-900"
             >
-              <History className="h-4 w-4" />
+              <History className="h-4 w-4 mr-1.5" />
+              <span className="text-xs font-medium hidden sm:inline">Historial</span>
             </Button>
 
             <Button
@@ -154,9 +146,10 @@ export function OsPanelHeader({
               onClick={onExportClick}
               title="Exportar a PDF"
               type="button"
-              className="h-9 w-9 p-0"
+              className="h-8 px-2 text-slate-600 hover:text-slate-900"
             >
-              <FileText className="h-4 w-4" />
+              <FileText className="h-4 w-4 mr-1.5" />
+              <span className="text-xs font-medium hidden sm:inline">PDF</span>
             </Button>
 
             <Button
@@ -164,66 +157,27 @@ export function OsPanelHeader({
               size="sm"
               onClick={handleShare}
               disabled={isSharing}
-              title="Compartir enlace de solo lectura"
+              title="Compartir enlace"
               type="button"
-              className="h-9 w-9 p-0"
+              className="h-8 px-2 text-slate-600 hover:text-slate-900"
             >
-              <Share2 className={`h-4 w-4 ${isSharing ? 'animate-pulse' : ''}`} />
+              <Share2 className={`h-4 w-4 mr-1.5 ${isSharing ? 'animate-pulse' : ''}`} />
+              <span className="text-xs font-medium hidden sm:inline">Compartir</span>
             </Button>
+
+            <div className="w-px h-4 bg-slate-200 mx-1" />
 
             <Button
               variant="ghost"
               size="sm"
               onClick={onMoreClick}
-              title="Más opciones"
               type="button"
-              className="h-9 w-9 p-0"
+              className="h-8 w-8 p-0"
             >
               <MoreVertical className="h-4 w-4" />
             </Button>
-
-            {/* Toggle collapse */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleToggle}
-              type="button"
-              className="h-9 w-9 p-0 ml-2"
-            >
-              {isOpen ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
           </div>
         </div>
-
-        {/* Details (collapsed) */}
-        {!isOpen && (
-          <div className="mt-3 text-xs text-muted-foreground grid grid-cols-2 md:grid-cols-4 gap-3 pb-2 border-t pt-2">
-            <div>
-              <div className="font-semibold text-foreground">Espacio</div>
-              {espacio}
-            </div>
-            <div>
-              <div className="font-semibold text-foreground">Cliente</div>
-              {cliente}
-            </div>
-            {clienteFinal && (
-              <div>
-                <div className="font-semibold text-foreground">Cliente Final</div>
-                {clienteFinal}
-              </div>
-            )}
-            {fechaInicio && (
-              <div>
-                <div className="font-semibold text-foreground">Fechas</div>
-                {fechaFin ? `${fechaInicio} - ${fechaFin}` : fechaInicio}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

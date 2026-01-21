@@ -13,6 +13,10 @@ interface ControlPanelCardProps {
   badge?: string | number;
   badgeVariant?: 'default' | 'amber' | 'emerald' | 'blue' | 'orange';
   onClick?: () => void;
+  headerRight?: React.ReactNode;
+  isCollapsed?: boolean;
+  onToggleCollapse?: (collapsed: boolean) => void;
+  domId?: string;
 }
 
 const badgeVariants = {
@@ -31,9 +35,14 @@ export function ControlPanelCard({
   badge,
   badgeVariant = 'default',
   onClick,
+  headerRight,
+  isCollapsed,
+  onToggleCollapse,
+  domId,
 }: ControlPanelCardProps) {
   return (
     <Card 
+      id={domId}
       className={cn(
         "overflow-hidden transition-all duration-200 border-slate-200 shadow-sm hover:shadow-md",
         onClick && "cursor-pointer active:scale-[0.98]",
@@ -50,18 +59,44 @@ export function ControlPanelCard({
             {title}
           </CardTitle>
         </div>
-        {badge !== undefined && (
-          <span className={cn(
-            "text-[10px] font-bold px-2 py-0.5 rounded-full border",
-            badgeVariants[badgeVariant]
-          )}>
-            {badge}
-          </span>
-        )}
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {headerRight}
+          {badge !== undefined && (
+            <span className={cn(
+              "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+              badgeVariants[badgeVariant]
+            )}>
+              {badge}
+            </span>
+          )}
+          {onToggleCollapse && (
+            <button 
+              onClick={() => onToggleCollapse(!isCollapsed)}
+              className="p-1 hover:bg-slate-200 rounded text-slate-400 transition-colors"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                className={cn("transition-transform duration-200", isCollapsed && "rotate-180")}
+              >
+                <path d="m18 15-6-6-6 6"/>
+              </svg>
+            </button>
+          )}
+        </div>
       </CardHeader>
-      <CardContent className="pt-4 px-4 pb-4">
-        {children}
-      </CardContent>
+      {!isCollapsed && (
+        <CardContent className="pt-4 px-4 pb-4">
+          {children}
+        </CardContent>
+      )}
     </Card>
   );
 }

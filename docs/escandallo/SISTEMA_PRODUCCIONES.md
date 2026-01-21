@@ -132,6 +132,65 @@ ajuste% = ((cantidad_real_promedio - cantidad_planificada) / cantidad_planificad
 - La elaboración debe existir y estar siendo editada
 - Los componentes deben estar definidos en la elaboración
 
+## Producción
+
+### Descripción
+
+Se registran las producciones de cada elaboración, indicando los componentes utilizados y la cantidad producida.
+
+### Campos
+
+- `id`: Identificador único de la producción.
+- `elaboracion_id`: Referencia a la elaboración correspondiente.
+- `fecha_produccion`: Fecha y hora en que se realizó la producción.
+- `responsable`: Usuario que registró la producción.
+- `cantidad_real_producida`: Cantidad efectivamente producida.
+- `componentes_utilizados`: Detalle de los componentes y cantidades usadas.
+- `observaciones`: Notas adicionales sobre la producción.
+
+## Detalles
+
+### Tabla de Producciones
+
+| ID  | Fecha                | Responsable         | Cantidad Producida | Componentes Utilizados | Observaciones |
+|-----|----------------------|---------------------|--------------------|-----------------------|---------------|
+| UUID| YYYY-MM-DD HH:MM:SS  | email@ejemplo.com   | 100                | [{componente: "Harina", cantidad: 50}, ...] | "Producción inicial" |
+
+### Cálculos Automáticos
+
+- **Merma %**: `(Cantidad Planificada - Cantidad Real Producida) / Cantidad Planificada * 100`
+- **Rendimiento**: `Cantidad Real Producida / Cantidad Planificada`
+
+## Ejemplo
+
+### Registro de Producción
+
+- Abre la elaboración "Pan de Masa Madre"
+- Ve a la pestaña "Producciones"
+- Haz clic en "Registrar Producción"
+- Completa con:
+  - **Cantidad real producida**: 80
+  - **Componentes**:
+    - Harina: 50
+    - Agua: 30
+    - Sal: 5
+- Observaciones: "Ajuste en la hidratación"
+- Resultado esperado:
+  - Merma %: 10%
+  - Rendimiento: 90%
+
+## Resumen
+
+- Se registró una nueva producción para la elaboración seleccionada.
+- Los cálculos de merma y rendimiento se actualizaron automáticamente.
+- La media de producciones se recalculó incluyendo la nueva entrada.
+
+## Tabla ejemplo
+
+| Columna 1 | Columna 2 | Columna 3 | Columna 4 |
+|-----------|-----------|-----------|-----------|
+| Valor 1   | Valor 2   | Valor 3   | Valor 4   |
+
 ## Próximas Mejoras Opcionales
 
 1. **Aplicar Ajustes Automáticos**: Botón para aplicar los ajustes sugeridos directamente a la receta

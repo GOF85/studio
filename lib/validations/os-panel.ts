@@ -23,7 +23,7 @@ export const TRANSPORTE_OPTIONS = [
   'Trailer x2',
   'Trailer x3',
 ] as const;
-export const SERVICIOS_EXTRA_OPTIONS = ['Jamonero', 'Sushi', 'Pan', 'No'] as const;
+export const SERVICIOS_EXTRA_OPTIONS = ['Jamonero', 'Sushi', 'Pan', 'No', 'Ostras'] as const;
 
 // Sala Tab Schema
 export const salaPanelSchema = z.object({

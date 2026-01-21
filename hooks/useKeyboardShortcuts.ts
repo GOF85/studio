@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 
 interface KeyboardShortcutsOptions {
   onSave?: () => void;
-  onTab?: (tabIndex: number) => void;
   onHistorial?: () => void;
   enabled?: boolean;
 }
@@ -12,7 +11,6 @@ interface KeyboardShortcutsOptions {
 export function useKeyboardShortcuts(options?: KeyboardShortcutsOptions) {
   const {
     onSave,
-    onTab,
     onHistorial,
     enabled = true,
   } = options || {};
@@ -30,14 +28,6 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutsOptions) {
         return;
       }
 
-      // Cmd/Ctrl + 1-5: Switch tabs
-      if (isCtrlOrCmd && /^[1-5]$/.test(e.key)) {
-        e.preventDefault();
-        const tabIndex = parseInt(e.key) - 1;
-        onTab?.(tabIndex);
-        return;
-      }
-
       // Cmd/Ctrl + H: Open historial
       if (isCtrlOrCmd && e.key === 'h') {
         e.preventDefault();
@@ -48,7 +38,7 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutsOptions) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onSave, onTab, onHistorial, enabled]);
+  }, [onSave, onHistorial, enabled]);
 }
 
 /**

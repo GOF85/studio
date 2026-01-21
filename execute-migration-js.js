@@ -15,7 +15,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const sqlPath = path.join(__dirname, 'migrations', '20260118_control_panel_tables.sql');
+const sqlPath = path.join(__dirname, 'migrations', '20260119_fix_pes_logic.sql');
 const sql = fs.readFileSync(sqlPath, 'utf8');
 
 async function runMigration() {

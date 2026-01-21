@@ -94,7 +94,7 @@ export function TiposPersonalClient({ initialData }: TiposPersonalClientProps) {
       toast({ variant: 'destructive', title: 'No hay datos' });
       return;
     }
-    const exportItems = items.map(i => ({
+    const exportItems = items.map((i: TipoPersonal) => ({
       id: i.id,
       proveedorId: i.proveedorId,
       nombreProveedor: i.nombreProveedor || '',
@@ -119,7 +119,7 @@ export function TiposPersonalClient({ initialData }: TiposPersonalClientProps) {
   };
 
   const filteredItems = useMemo(() => {
-    return items.filter(item => {
+    return items.filter((item: TipoPersonal) => {
       const term = searchTerm.toLowerCase();
       return (
         (item.nombreProveedor || '').toLowerCase().includes(term) ||
@@ -203,7 +203,7 @@ export function TiposPersonalClient({ initialData }: TiposPersonalClientProps) {
           </TableHeader>
           <TableBody>
             {filteredItems.length > 0 ? (
-              filteredItems.map((item) => (
+              filteredItems.map((item: TipoPersonal) => (
                 <TableRow
                   key={item.id}
                   className="group transition-all duration-300 border-border/40 h-20 hover:bg-primary/[0.03] cursor-pointer"

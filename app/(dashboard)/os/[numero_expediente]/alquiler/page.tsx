@@ -618,11 +618,11 @@ export default function AlquilerPage() {
       // Registrar cambios
       if (cambios.length > 0 && user?.id) {
         await logPedidoChange({
-          pedidoId: selected.editEnviadoPedido.id,
-          osId: numeroExpediente,
-          usuarioId: user.id,
-          usuarioEmail: user.email,
-          tipoCambio: cambios.some(c => c.campo === 'items') ? 'completo' : 'entrega',
+          pedido_id: selected.editEnviadoPedido.id,
+          os_id: numeroExpediente,
+          usuario_id: user.id,
+          usuario_email: user.email,
+          tipo_cambio: cambios.some(c => c.campo === 'items') ? 'completo' : 'entrega',
           cambios,
           razon: 'Edición de pedido enviado',
         })
@@ -954,7 +954,7 @@ export default function AlquilerPage() {
             if (articuloData) {
               imageUrl = getThumbnail(articuloData.imagenes);
               imagenes = articuloData.imagenes;
-              subcategoria = articuloData.subcategoria;
+              subcategoria = articuloData.subcategoria || undefined;
             }
           }
           

@@ -8,6 +8,8 @@ import {
   FormControl,
   FormMessage,
 } from '@/components/ui/form';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -15,8 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardTitle } from '@/components/ui/card';
 import {
@@ -26,16 +26,22 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import type { OsPanelFormValues, PersonalLookup } from '@/types/os-panel';
+import { KPICard } from '@/components/os/os-panel/KPICard';
+import { Lock, Utensils, Users, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { FieldComment } from '@/components/os/os-panel/FieldComment';
+import { cn } from '@/lib/utils';
 
 interface CocinaTabProps {
   form: UseFormReturn<OsPanelFormValues>;
   personalLookup: PersonalLookup;
+  osId: string;
 }
 
 const SERVICIOS_EXTRA_OPTIONS = [
   { value: 'Jamonero', label: 'Jamonero', icon: '🍖' },
   { value: 'Sushi', label: 'Sushi', icon: '🍣' },
   { value: 'Pan', label: 'Pan', icon: '🥖' },
+  { value: 'Ostras', label: 'Ostras', icon: '🦪' },
   { value: 'No', label: 'No', icon: '✕' },
 ];
 
@@ -49,223 +55,142 @@ const CHECKBOXES = [
 export function CocinaTab({
   form,
   personalLookup,
+  osId,
 }: CocinaTabProps) {
-  const personalCocina = (personalLookup?.all || []).filter(
-    (p) =>
-      p.departamento === 'CPR (Centro de Producción)' ||
-      p.departamento === 'CPR' ||
-      p.departamento === 'Pase'
-  );
+  const { watch } = form;
+  const cocinerosExt = watch('cocineros_ext') || 0;
+  const logisticosExtCocina = watch('logisticos_ext_cocina') || 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="space-y-4">
-        {/* Chef Section */}
-        <Card className="border-0 bg-slate-50 shadow-sm">
-          <Accordion type="single" collapsible defaultValue="chef">
-            <AccordionItem value="chef" className="border-0">
-              <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-100">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  👨‍🍳 CHEF
-                </CardTitle>
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4 space-y-3 border-t border-gray-200">
-                <FormField
-                  control={form.control}
-                  name="jefe_cocina"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">Chef Jefe</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value || ''}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Seleccionar..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(personalCocina || []).map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {personalLookup.getCompactName(p)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="produccion_cocina_cpr"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">Chef Pastelería</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value || ''}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Seleccionar..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(personalCocina || []).map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {personalLookup.getCompactName(p)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </Card>
+        {/* EQUIPO COCINA (ROOT LEVEL) */}
+        <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-bold flex items-center gap-2 text-slate-700 uppercase tracking-tight">
+              👥 EQUIPO COCINA
+            </h3>
+          </div>
 
-        {/* Servicios Section */}
-        <Card className="border-0 bg-slate-50 shadow-sm">
-          <Accordion type="single" collapsible>
-            <AccordionItem value="servicios" className="border-0">
-              <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-100">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  🥘 SERVICIOS
-                </CardTitle>
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4 space-y-3 border-t border-gray-200">
-                <FormField
-                  control={form.control}
-                  name="cocineros_ext"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">Cocineros Externos</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          className="h-8 text-sm"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseInt(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="logisticos_ext_cocina"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">Logísticos Externos</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          className="h-8 text-sm"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseInt(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div>
-                  <FormLabel className="text-xs font-medium block mb-2">
-                    Servicios Extra
-                  </FormLabel>
-                  <div className="grid grid-cols-2 gap-2">
-                    {SERVICIOS_EXTRA_OPTIONS.map((option) => (
-                      <FormField
-                        key={option.value}
-                        control={form.control}
-                        name="servicios_extra"
-                        render={({ field }) => (
-                          <FormItem className="space-y-0">
-                            <FormControl>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const isSelected = field.value.includes(
-                                    option.value as ('Jamonero' | 'Sushi' | 'Pan' | 'No')
-                                  );
-                                  field.onChange(
-                                    isSelected
-                                      ? field.value.filter(
-                                          (v) => v !== option.value
-                                        )
-                                      : [...field.value, option.value as ('Jamonero' | 'Sushi' | 'Pan' | 'No')]
-                                  );
-                                }}
-                                className={`w-full px-2 py-2 rounded-md border text-center text-xs font-semibold transition-all ${
-                                  field.value.includes(option.value as ('Jamonero' | 'Sushi' | 'Pan' | 'No'))
-                                    ? 'bg-green-200 border-green-400 text-green-900'
-                                    : 'bg-background border-muted text-muted-foreground hover:border-muted-foreground/50'
-                                }`}
-                              >
-                                {field.value.includes(option.value as ('Jamonero' | 'Sushi' | 'Pan' | 'No')) ? '✓' : '○'}{' '}
-                                {option.icon}
-                                <br />
-                                {option.label}
-                              </button>
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
+          <FormField
+            control={form.control}
+            name="cocina"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center justify-between mb-1">
+                  <FormLabel className="text-[10px] font-bold uppercase text-slate-400 mb-0">Responsables (Cocina)</FormLabel>
+                  <FieldComment osId={osId} fieldName="cocina" />
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </Card>
+                <div className="space-y-2">
+                  {field.value.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {field.value.map((id) => (
+                        <Badge key={id} variant="secondary" className="text-[10px] py-0 px-2 flex items-center gap-1 bg-white border border-slate-200 text-slate-700">
+                          {personalLookup.getCompactName(personalLookup.getById(id)!)}
+                          <button
+                            type="button"
+                            onClick={() => field.onChange(field.value.filter(i => i !== id))}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <Select
+                    onValueChange={(val) => {
+                      if (!field.value.includes(val)) {
+                        field.onChange([...field.value, val]);
+                      }
+                    }}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-8 text-xs bg-white/50">
+                        <SelectValue placeholder="Agregar cocinero..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {(personalLookup?.all || [])
+                        .filter(p => p.departamento?.includes('Cocina') || p.departamento?.includes('CPR'))
+                        .filter(p => !field.value.includes(p.id))
+                        .map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {personalLookup.getCompactName(p)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* EXTERNOS KPIs */}
+        <div className="grid grid-cols-2 gap-4">
+           <div className="relative">
+             <KPICard 
+               label="Cocinero Ext." 
+               value={cocinerosExt} 
+               variant="amber"
+               icon={<Utensils className="h-3 w-3" />}
+             />
+             <div className="absolute bottom-1.5 right-1.5 z-10">
+               <FieldComment osId={osId} fieldName="cocineros_ext" />
+             </div>
+           </div>
+           <div className="relative">
+             <KPICard 
+               label="Logístico Ext." 
+               value={logisticosExtCocina} 
+               variant="slate"
+               icon={<Users className="h-3 w-3" />}
+             />
+             <div className="absolute bottom-1.5 right-1.5 z-10">
+               <FieldComment osId={osId} fieldName="logisticos_ext_cocina" />
+             </div>
+           </div>
+        </div>
       </div>
 
-      <div>
+      <div className="space-y-4">
         {/* Items Checkbox Section */}
-        <Card className="border-0 bg-green-50 shadow-sm">
+        <Card className="border-0 bg-green-50 shadow-sm border border-green-100">
           <Accordion type="single" collapsible defaultValue="items">
             <AccordionItem value="items" className="border-0">
-              <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-green-100">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-green-100/50">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  📋 CHECKBOXES
+                  📋 ACCIONES Y PEDIDOS
                 </CardTitle>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4 border-t border-green-200">
-                <div className="grid grid-cols-2 gap-2">
+              <AccordionContent className="px-4 pb-4 border-t border-green-200 pt-4">
+                <div className="grid grid-cols-2 lg:grid-cols-2 gap-2">
                   {CHECKBOXES.map((item) => (
                     <FormField
                       key={item.field}
                       control={form.control}
                       name={item.field}
                       render={({ field }) => (
-                        <FormItem className="space-y-0">
+                        <FormItem className="space-y-0 relative">
                           <FormControl>
                             <button
                               type="button"
                               onClick={() => field.onChange(!field.value)}
-                              className={`w-full px-2 py-2 rounded-md border text-center text-xs font-semibold transition-all ${
+                              className={`w-full p-3 rounded-lg border text-center transition-all flex flex-col items-center justify-center min-h-[70px] ${
                                 field.value
-                                  ? 'bg-green-200 border-green-400 text-green-900'
-                                  : 'bg-background border-muted text-muted-foreground hover:border-muted-foreground/50'
+                                  ? 'bg-green-100 border-green-300 text-green-900 shadow-sm'
+                                  : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
                               }`}
                             >
-                              {field.value ? '✓' : '○'} {item.icon}
-                              <br />
-                              {item.label}
+                              <div className="text-lg mb-1">{item.icon}</div>
+                              <div className="text-[10px] font-bold uppercase tracking-tighter leading-tight">{item.label}</div>
                             </button>
                           </FormControl>
+                          <div className="absolute top-1 right-1 pointer-events-auto">
+                             <FieldComment osId={osId} fieldName={item.field} />
+                          </div>
                         </FormItem>
                       )}
                     />
@@ -276,70 +201,55 @@ export function CocinaTab({
           </Accordion>
         </Card>
 
-        {/* Personal Multiple Section */}
-        <Card className="border-0 bg-white border border-gray-200 shadow-sm mt-4">
-          <Accordion type="single" collapsible>
-            <AccordionItem value="personal" className="border-0">
-              <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50">
+        {/* Servicios Section */}
+        <Card className="border-0 bg-white shadow-sm border border-gray-200">
+          <Accordion type="single" collapsible defaultValue="servicios">
+            <AccordionItem value="servicios" className="border-0">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-100">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  👥 PERSONAL COCINA
+                  🥘 SERVICIOS EXTRA
                 </CardTitle>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4 space-y-3 border-t border-gray-200">
-                <FormField
-                  control={form.control}
-                  name="cocina"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">Personal</FormLabel>
-                      <div className="space-y-2">
-                        {field.value.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {field.value.map((id) => {
-                              const person = personalLookup.getById(id);
-                              return (
-                                <Badge key={id} variant="secondary" className="text-xs h-6">
-                                  {person ? personalLookup.getCompactName(person) : '—'}
-                                  <button
-                                    className="ml-1 hover:text-destructive"
-                                    onClick={() =>
-                                      field.onChange(
-                                        field.value.filter((v) => v !== id)
-                                      )
-                                    }
-                                  >
-                                    ×
-                                  </button>
-                                </Badge>
-                              );
-                            })}
+              <AccordionContent className="px-4 pb-4 space-y-3 border-t border-gray-200 pt-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {SERVICIOS_EXTRA_OPTIONS.map((option) => (
+                    <FormField
+                      key={option.value}
+                      control={form.control}
+                      name="servicios_extra"
+                      render={({ field }) => (
+                        <FormItem className="space-y-0 relative">
+                          <FormControl>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const isSelected = (field.value || []).includes(
+                                  option.value as any
+                                );
+                                field.onChange(
+                                  isSelected
+                                    ? field.value.filter((v: any) => v !== option.value)
+                                    : [...(field.value || []), option.value]
+                                );
+                              }}
+                              className={`w-full p-3 rounded-lg border text-center transition-all flex flex-col items-center justify-center min-h-[70px] ${
+                                (field.value || []).includes(option.value as any)
+                                  ? 'bg-orange-100 border-orange-300 text-orange-900 shadow-sm'
+                                  : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                              }`}
+                            >
+                              <div className="text-lg mb-1">{option.icon}</div>
+                              <div className="text-[10px] font-bold uppercase tracking-tighter">{option.label}</div>
+                            </button>
+                          </FormControl>
+                          <div className="absolute top-1 right-1 pointer-events-auto">
+                             <FieldComment osId={osId} fieldName={`servicios_extra_${option.value.toLowerCase()}`} />
                           </div>
-                        )}
-                        <Select>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="+ Agregar..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(personalCocina || [])
-                              .filter((p) => !field.value.includes(p.id))
-                              .map((p) => (
-                                <SelectItem
-                                  key={p.id}
-                                  value={p.id}
-                                  onClick={() =>
-                                    field.onChange([...field.value, p.id])
-                                  }
-                                >
-                                  {personalLookup.getCompactName(p)}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

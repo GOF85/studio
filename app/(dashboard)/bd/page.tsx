@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Database, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote, Factory, MapPin, Search, LayoutGrid, ListFilter, FileText, History } from 'lucide-react';
+import { Database, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, Target, FilePlus2, UserPlus, Flower2, Layers, BookHeart, CreditCard, Banknote, Factory, MapPin, Search, LayoutGrid, ListFilter, FileText, History, CheckCircle2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ type DatabaseEntry = {
 
 const serviceOrdersDatabases: DatabaseEntry[] = [
   { id: 'os-main', name: 'Órdenes de Servicio', description: 'Listado global y eliminación de expedientes.', path: '/bd/os', icon: FileText, isDestructive: true },
+  { id: 'os-checks', name: 'Reglas de Tareas (Checks)', description: 'Configura la generación automática de tareas.', path: '/bd/checks', icon: CheckCircle2, isDestructive: false },
   { id: 'os-delete', name: 'Borrado Masivo (Danger Store)', description: 'Utilidad avanzada de limpieza de datos.', path: '/bd/borrar-os', icon: Database, isDestructive: true },
 ];
 

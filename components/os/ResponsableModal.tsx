@@ -32,6 +32,8 @@ export default function ResponsableModal({ open, onOpenChange, responsables, num
       case 'comercial': return <ReceiptEuro className="h-5 w-5 text-amber-600 flex-shrink-0" />;
       case 'cocina pase': return <ChefHat className="h-5 w-5 text-amber-600 flex-shrink-0" />;
       case 'cocina cpr': return <ChefHat className="h-5 w-5 text-amber-600 flex-shrink-0" />;
+      case 'logística': 
+      case 'logistica': return <HandPlatter className="h-5 w-5 text-emerald-600 flex-shrink-0" />;
       case 'rrhh': return <IdCard className="h-5 w-5 text-amber-600 flex-shrink-0" />;
       default: return <User className="h-5 w-5 text-amber-600 flex-shrink-0" />;
     }
@@ -53,7 +55,9 @@ export default function ResponsableModal({ open, onOpenChange, responsables, num
               {getRolIcon(resp.rol)}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-                  <span className="truncate">{resp.nombre} {resp.apellido}</span>
+                  <span className="truncate">
+                    {[resp.nombre, resp.apellido].filter(Boolean).join(' ')}
+                  </span>
                   {resp.rol && <span className="font-normal text-[11px] text-muted-foreground">| {resp.rol}</span>}
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">

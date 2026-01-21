@@ -77,7 +77,7 @@ export function NewPedidoModal({
       localizacion,
       solicita,
       proveedorId,
-      nombreComercialProveedor: selectedProveedor?.nombre_comercial,
+      nombreComercialProveedor: selectedProveedor?.nombreComercial,
     });
     // Reset form
     setFechaEntrega('');
@@ -219,7 +219,7 @@ export function NewPedidoModal({
               <SelectContent className="max-h-48">
                 {proveedores.map((proveedor) => (
                   <SelectItem key={proveedor.id} value={proveedor.id} className="text-[10px]">
-                    {(proveedor.nombre_comercial || 'Sin nombre')}
+                    {(proveedor.nombreComercial || 'Sin nombre')}
                   </SelectItem>
                 ))}
               </SelectContent>
